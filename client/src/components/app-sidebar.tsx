@@ -4,7 +4,8 @@ import {
   Ticket, 
   DollarSign, 
   FileText,
-  LogOut
+  LogOut,
+  UserCheck
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
@@ -52,9 +53,21 @@ const adminMenuItems = [
     icon: FileText,
     testId: "link-admin-activity",
   },
+  {
+    title: "SupportMatch Admin",
+    url: "/apps/supportmatch/admin",
+    icon: UserCheck,
+    testId: "link-supportmatch-admin",
+  },
 ];
 
 const userMenuItems = [
+  {
+    title: "SupportMatch",
+    url: "/apps/supportmatch",
+    icon: UserCheck,
+    testId: "link-supportmatch",
+  },
   {
     title: "My Payments",
     url: "/payments",

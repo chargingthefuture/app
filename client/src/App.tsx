@@ -16,6 +16,12 @@ import AdminUsers from "@/pages/admin/users";
 import AdminInvites from "@/pages/admin/invites";
 import AdminPayments from "@/pages/admin/payments";
 import AdminActivity from "@/pages/admin/activity";
+import SupportMatchDashboard from "@/pages/supportmatch/dashboard";
+import SupportMatchProfile from "@/pages/supportmatch/profile";
+import SupportMatchPartnership from "@/pages/supportmatch/partnership";
+import SupportMatchAnnouncements from "@/pages/supportmatch/announcements";
+import SupportMatchHistory from "@/pages/supportmatch/history";
+import SupportMatchAdmin from "@/pages/supportmatch/admin";
 
 function Router() {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -38,6 +44,12 @@ function Router() {
           <Route path="/admin/invites" component={AdminInvites} />
           <Route path="/admin/payments" component={AdminPayments} />
           <Route path="/admin/activity" component={AdminActivity} />
+          <Route path="/apps/supportmatch" component={SupportMatchDashboard} />
+          <Route path="/apps/supportmatch/profile" component={SupportMatchProfile} />
+          <Route path="/apps/supportmatch/partnership" component={SupportMatchPartnership} />
+          <Route path="/apps/supportmatch/announcements" component={SupportMatchAnnouncements} />
+          <Route path="/apps/supportmatch/history" component={SupportMatchHistory} />
+          <Route path="/apps/supportmatch/admin" component={SupportMatchAdmin} />
         </>
       )}
       <Route component={NotFound} />
