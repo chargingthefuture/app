@@ -189,7 +189,6 @@ export default function SupportMatchProfile() {
                       <SelectContent>
                         <SelectItem value="male">Male</SelectItem>
                         <SelectItem value="female">Female</SelectItem>
-                        <SelectItem value="prefer-not-to-say">Prefer not to say</SelectItem>
                         <SelectItem value="any">Any</SelectItem>
                       </SelectContent>
                     </Select>
