@@ -13,6 +13,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import type { SupportMatchProfile } from "@shared/schema";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useLocation } from "wouter";
+import { useEffect } from "react";
 
 const profileFormSchema = insertSupportMatchProfileSchema.omit({ userId: true }).extend({
   nickname: z.string().optional(),
@@ -34,13 +35,25 @@ export default function SupportMatchProfile() {
   const form = useForm<ProfileFormData>({
     resolver: zodResolver(profileFormSchema),
     defaultValues: {
-      nickname: profile?.nickname || "",
-      gender: profile?.gender || "",
-      genderPreference: profile?.genderPreference || "",
-      timezone: profile?.timezone || "",
-      isActive: profile?.isActive ?? true,
+      nickname: "",
+      gender: "",
+      genderPreference: "",
+      timezone: "",
+      isActive: true,
     },
   });
+
+  useEffect(() => {
+    if (profile) {
+      form.reset({
+        nickname: profile.nickname || "",
+        gender: profile.gender || "",
+        genderPreference: profile.genderPreference || "",
+        timezone: profile.timezone || "",
+        isActive: profile.isActive,
+      });
+    }
+  }, [profile, form]);
 
   const createMutation = useMutation({
     mutationFn: (data: ProfileFormData) =>
