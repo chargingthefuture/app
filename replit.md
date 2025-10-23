@@ -136,21 +136,78 @@ Preferred communication style: Simple, everyday language.
 - `esbuild` - Production bundling
 - `@replit/vite-plugin-*` - Replit-specific development enhancements
 
-**Product Catalog:**
-The system is designed to support 15+ service types including:
-- Incident reporting (canceled services, lost mail)
-- Transportation (Uber)
-- Accommodation (Airbnb)
-- Gated community access
-- Farming services
-- Mechanics
-- Telehealth
-- SupportMatch
-- Art programs
-- Goods marketplace
-- Games/recreation
-- Meditation & Sleep resources
-- End of life planning
-- Resource Bridge connections
+## Mini-Apps Architecture
 
-Each product uses a flexible JSON field for type-specific attributes, allowing the catalog to expand without schema migrations.
+The platform uses a WeChat-style super app architecture where each service is implemented as a separate integrated mini-app. Each mini-app has its own database tables, API routes, and frontend pages while sharing the core platform authentication and user management.
+
+### Implemented Mini-Apps
+
+**1. SupportMatch - Accountability Partner Matching**
+*Status: Fully implemented and tested*
+
+An accountability partner matching system designed specifically for trauma survivors in recovery. Features include:
+
+**Core Features:**
+- User profile creation with gender preferences and timezone
+- Admin manual matching (monthly cycles)
+- 1:1 partnership messaging with real-time updates
+- Safety features: user exclusions and reporting system
+- Platform announcements with targeted delivery
+- Partnership history tracking
+
+**Database Schema (6 tables):**
+- `support_match_profiles` - User profiles (nickname, gender, genderPreference, timezone, isActive)
+- `partnerships` - 1:1 partnerships (user1Id, user2Id, startDate, endDate, status)
+- `messages` - Partnership messaging (partnershipId, senderId, content, createdAt)
+- `exclusions` - User exclusion list (userId, excludedUserId)
+- `reports` - Safety reports (reporterId, reportedUserId, reason, status)
+- `announcements` - Platform announcements (title, content, type, showOnLogin, expiresAt)
+
+**API Endpoints:**
+- Profile CRUD: GET/POST/PUT `/api/supportmatch/profile`
+- Partnership management: GET `/api/supportmatch/partnership/active`, GET `/api/supportmatch/partnership/history`
+- Messaging: GET/POST `/api/supportmatch/messages/:partnershipId`
+- Safety: POST `/api/supportmatch/exclusions`, POST `/api/supportmatch/reports`
+- Admin: GET `/api/supportmatch/admin/stats`, POST `/api/supportmatch/admin/partnerships`
+- Announcements: GET/POST/PUT/DELETE `/api/supportmatch/announcements`
+
+**Frontend Pages:**
+- `/apps/supportmatch` - Dashboard with partnership status and quick actions
+- `/apps/supportmatch/profile` - Profile creation and editing
+- `/apps/supportmatch/partnership` - Active partnership messaging (5-second polling)
+- `/apps/supportmatch/announcements` - Platform announcements
+- `/apps/supportmatch/history` - Past partnerships
+- `/apps/supportmatch/admin` - Admin management panel
+
+**Technical Implementation:**
+- Form state management with react-hook-form and zod validation
+- useEffect-based form.reset() pattern for async data loading
+- TanStack Query for data fetching with proper cache invalidation
+- Real-time messaging simulation via interval-based refetch
+- Shadcn UI components with accessibility compliance
+- Comprehensive test coverage via Playwright e2e tests
+
+**Navigation:**
+- User sidebar: "SupportMatch" link (UserCheck icon)
+- Admin sidebar: "SupportMatch Admin" link
+
+### Planned Mini-Apps
+
+The system is designed to support 14+ additional service types:
+- Emergency Housing
+- Transitional Housing
+- Permanent Housing
+- Individual Therapy
+- Group Therapy
+- Family Therapy
+- Crisis Counseling
+- Medical Care
+- Dental Care
+- Mental Health Services
+- Legal Advocacy
+- Case Management
+- Job Training
+- Life Skills
+- Education Support
+
+Each mini-app will follow the same architecture pattern as SupportMatch, with dedicated database tables, API routes, and frontend pages.
