@@ -2,7 +2,16 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated, isAdmin } from "./replitAuth";
-import { insertInviteCodeSchema, insertPaymentSchema } from "@shared/schema";
+import { 
+  insertInviteCodeSchema, 
+  insertPaymentSchema,
+  insertSupportMatchProfileSchema,
+  insertPartnershipSchema,
+  insertMessageSchema,
+  insertExclusionSchema,
+  insertReportSchema,
+  insertAnnouncementSchema,
+} from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -217,6 +226,366 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching activity logs:", error);
       res.status(500).json({ message: "Failed to fetch activity logs" });
+    }
+  });
+
+  // ========================================
+  // SUPPORTMATCH APP ROUTES
+  // ========================================
+
+  // SupportMatch Profile routes
+  app.get('/api/supportmatch/profile', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const profile = await storage.getSupportMatchProfile(userId);
+      res.json(profile || null);
+    } catch (error) {
+      console.error("Error fetching SupportMatch profile:", error);
+      res.status(500).json({ message: "Failed to fetch profile" });
+    }
+  });
+
+  app.post('/api/supportmatch/profile', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const validatedData = insertSupportMatchProfileSchema.parse({
+        ...req.body,
+        userId,
+      });
+
+      const profile = await storage.createSupportMatchProfile(validatedData);
+      res.json(profile);
+    } catch (error: any) {
+      console.error("Error creating SupportMatch profile:", error);
+      res.status(400).json({ message: error.message || "Failed to create profile" });
+    }
+  });
+
+  app.put('/api/supportmatch/profile', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const profile = await storage.updateSupportMatchProfile(userId, req.body);
+      res.json(profile);
+    } catch (error: any) {
+      console.error("Error updating SupportMatch profile:", error);
+      res.status(400).json({ message: error.message || "Failed to update profile" });
+    }
+  });
+
+  // SupportMatch Partnership routes
+  app.get('/api/supportmatch/partnership/active', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const partnership = await storage.getActivePartnershipByUser(userId);
+      res.json(partnership || null);
+    } catch (error) {
+      console.error("Error fetching active partnership:", error);
+      res.status(500).json({ message: "Failed to fetch active partnership" });
+    }
+  });
+
+  app.get('/api/supportmatch/partnership/history', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const partnerships = await storage.getPartnershipHistory(userId);
+      res.json(partnerships);
+    } catch (error) {
+      console.error("Error fetching partnership history:", error);
+      res.status(500).json({ message: "Failed to fetch partnership history" });
+    }
+  });
+
+  app.get('/api/supportmatch/partnership/:id', isAuthenticated, async (req, res) => {
+    try {
+      const partnership = await storage.getPartnershipById(req.params.id);
+      if (!partnership) {
+        return res.status(404).json({ message: "Partnership not found" });
+      }
+      res.json(partnership);
+    } catch (error) {
+      console.error("Error fetching partnership:", error);
+      res.status(500).json({ message: "Failed to fetch partnership" });
+    }
+  });
+
+  // SupportMatch Messaging routes
+  app.get('/api/supportmatch/messages/:partnershipId', isAuthenticated, async (req, res) => {
+    try {
+      const messages = await storage.getMessagesByPartnership(req.params.partnershipId);
+      res.json(messages);
+    } catch (error) {
+      console.error("Error fetching messages:", error);
+      res.status(500).json({ message: "Failed to fetch messages" });
+    }
+  });
+
+  app.post('/api/supportmatch/messages', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const validatedData = insertMessageSchema.parse({
+        ...req.body,
+        senderId: userId,
+      });
+
+      const message = await storage.createMessage(validatedData);
+      res.json(message);
+    } catch (error: any) {
+      console.error("Error sending message:", error);
+      res.status(400).json({ message: error.message || "Failed to send message" });
+    }
+  });
+
+  // SupportMatch Exclusion routes
+  app.get('/api/supportmatch/exclusions', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const exclusions = await storage.getExclusionsByUser(userId);
+      res.json(exclusions);
+    } catch (error) {
+      console.error("Error fetching exclusions:", error);
+      res.status(500).json({ message: "Failed to fetch exclusions" });
+    }
+  });
+
+  app.post('/api/supportmatch/exclusions', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const validatedData = insertExclusionSchema.parse({
+        ...req.body,
+        userId,
+      });
+
+      const exclusion = await storage.createExclusion(validatedData);
+      res.json(exclusion);
+    } catch (error: any) {
+      console.error("Error creating exclusion:", error);
+      res.status(400).json({ message: error.message || "Failed to create exclusion" });
+    }
+  });
+
+  app.delete('/api/supportmatch/exclusions/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      await storage.deleteExclusion(req.params.id);
+      res.json({ message: "Exclusion removed successfully" });
+    } catch (error) {
+      console.error("Error removing exclusion:", error);
+      res.status(500).json({ message: "Failed to remove exclusion" });
+    }
+  });
+
+  // SupportMatch Report routes
+  app.post('/api/supportmatch/reports', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const validatedData = insertReportSchema.parse({
+        ...req.body,
+        reporterId: userId,
+      });
+
+      const report = await storage.createReport(validatedData);
+      res.json(report);
+    } catch (error: any) {
+      console.error("Error creating report:", error);
+      res.status(400).json({ message: error.message || "Failed to create report" });
+    }
+  });
+
+  // SupportMatch Announcement routes (public)
+  app.get('/api/supportmatch/announcements', async (req, res) => {
+    try {
+      const announcements = await storage.getActiveAnnouncements();
+      res.json(announcements);
+    } catch (error) {
+      console.error("Error fetching announcements:", error);
+      res.status(500).json({ message: "Failed to fetch announcements" });
+    }
+  });
+
+  // SupportMatch Admin routes
+  app.get('/api/supportmatch/admin/stats', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const stats = await storage.getSupportMatchStats();
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching SupportMatch stats:", error);
+      res.status(500).json({ message: "Failed to fetch stats" });
+    }
+  });
+
+  app.get('/api/supportmatch/admin/partnerships', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const partnerships = await storage.getAllPartnerships();
+      res.json(partnerships);
+    } catch (error) {
+      console.error("Error fetching partnerships:", error);
+      res.status(500).json({ message: "Failed to fetch partnerships" });
+    }
+  });
+
+  app.put('/api/supportmatch/admin/partnerships/:id/status', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const { status } = req.body;
+      
+      if (!status) {
+        return res.status(400).json({ message: "Status is required" });
+      }
+
+      const partnership = await storage.updatePartnershipStatus(req.params.id, status);
+      
+      await logAdminAction(
+        userId,
+        "update_partnership_status",
+        "partnership",
+        partnership.id,
+        { status }
+      );
+
+      res.json(partnership);
+    } catch (error: any) {
+      console.error("Error updating partnership status:", error);
+      res.status(400).json({ message: error.message || "Failed to update partnership status" });
+    }
+  });
+
+  app.post('/api/supportmatch/admin/partnerships', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const validatedData = insertPartnershipSchema.parse(req.body);
+
+      // Check for mutual exclusion
+      const hasExclusion = await storage.checkMutualExclusion(
+        validatedData.user1Id,
+        validatedData.user2Id
+      );
+
+      if (hasExclusion) {
+        return res.status(400).json({ 
+          message: "Cannot create partnership: users have mutual exclusion" 
+        });
+      }
+
+      const partnership = await storage.createPartnership(validatedData);
+      
+      await logAdminAction(
+        userId,
+        "create_manual_match",
+        "partnership",
+        partnership.id,
+        { user1Id: partnership.user1Id, user2Id: partnership.user2Id }
+      );
+
+      res.json(partnership);
+    } catch (error: any) {
+      console.error("Error creating partnership:", error);
+      res.status(400).json({ message: error.message || "Failed to create partnership" });
+    }
+  });
+
+  app.get('/api/supportmatch/admin/reports', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const reports = await storage.getAllReports();
+      res.json(reports);
+    } catch (error) {
+      console.error("Error fetching reports:", error);
+      res.status(500).json({ message: "Failed to fetch reports" });
+    }
+  });
+
+  app.put('/api/supportmatch/admin/reports/:id/status', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const { status } = req.body;
+      
+      if (!status) {
+        return res.status(400).json({ message: "Status is required" });
+      }
+
+      const report = await storage.updateReportStatus(req.params.id, status);
+      
+      await logAdminAction(
+        userId,
+        "update_report_status",
+        "report",
+        report.id,
+        { status }
+      );
+
+      res.json(report);
+    } catch (error: any) {
+      console.error("Error updating report status:", error);
+      res.status(400).json({ message: error.message || "Failed to update report status" });
+    }
+  });
+
+  app.get('/api/supportmatch/admin/announcements', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const announcements = await storage.getAllAnnouncements();
+      res.json(announcements);
+    } catch (error) {
+      console.error("Error fetching announcements:", error);
+      res.status(500).json({ message: "Failed to fetch announcements" });
+    }
+  });
+
+  app.post('/api/supportmatch/admin/announcements', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const validatedData = insertAnnouncementSchema.parse(req.body);
+
+      const announcement = await storage.createAnnouncement(validatedData);
+      
+      await logAdminAction(
+        userId,
+        "create_announcement",
+        "announcement",
+        announcement.id,
+        { title: announcement.title, type: announcement.type }
+      );
+
+      res.json(announcement);
+    } catch (error: any) {
+      console.error("Error creating announcement:", error);
+      res.status(400).json({ message: error.message || "Failed to create announcement" });
+    }
+  });
+
+  app.put('/api/supportmatch/admin/announcements/:id', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const announcement = await storage.updateAnnouncement(req.params.id, req.body);
+      
+      await logAdminAction(
+        userId,
+        "update_announcement",
+        "announcement",
+        announcement.id,
+        { title: announcement.title }
+      );
+
+      res.json(announcement);
+    } catch (error: any) {
+      console.error("Error updating announcement:", error);
+      res.status(400).json({ message: error.message || "Failed to update announcement" });
+    }
+  });
+
+  app.delete('/api/supportmatch/admin/announcements/:id', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const announcement = await storage.deactivateAnnouncement(req.params.id);
+      
+      await logAdminAction(
+        userId,
+        "deactivate_announcement",
+        "announcement",
+        announcement.id
+      );
+
+      res.json(announcement);
+    } catch (error: any) {
+      console.error("Error deactivating announcement:", error);
+      res.status(400).json({ message: error.message || "Failed to deactivate announcement" });
     }
   });
 
