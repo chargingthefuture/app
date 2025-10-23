@@ -72,6 +72,7 @@ export const inviteCodesRelations = relations(inviteCodes, ({ one }) => ({
 
 export const insertInviteCodeSchema = createInsertSchema(inviteCodes).omit({
   id: true,
+  code: true,
   currentUses: true,
   createdAt: true,
   updatedAt: true,

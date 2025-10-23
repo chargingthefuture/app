@@ -2,8 +2,15 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, Ticket, DollarSign, Package } from "lucide-react";
 
+interface AdminStats {
+  totalUsers: number;
+  activeInvites: number;
+  monthlyRevenue: string;
+  totalProducts: number;
+}
+
 export default function AdminDashboard() {
-  const { data: stats } = useQuery({
+  const { data: stats } = useQuery<AdminStats>({
     queryKey: ["/api/admin/stats"],
   });
 
