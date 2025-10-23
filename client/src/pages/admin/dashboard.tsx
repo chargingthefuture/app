@@ -1,12 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, Ticket, DollarSign, Package } from "lucide-react";
+import { Users, Ticket, DollarSign } from "lucide-react";
 
 interface AdminStats {
   totalUsers: number;
   activeInvites: number;
   monthlyRevenue: string;
-  totalProducts: number;
 }
 
 export default function AdminDashboard() {
@@ -33,12 +32,6 @@ export default function AdminDashboard() {
       icon: DollarSign,
       color: "bg-chart-3/10 text-chart-3",
     },
-    {
-      title: "Products",
-      value: stats?.totalProducts || 0,
-      icon: Package,
-      color: "bg-chart-4/10 text-chart-4",
-    },
   ];
 
   return (
@@ -50,7 +43,7 @@ export default function AdminDashboard() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {statCards.map((stat) => (
           <Card key={stat.title}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2">

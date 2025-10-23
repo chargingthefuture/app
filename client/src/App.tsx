@@ -9,14 +9,12 @@ import { useAuth } from "@/hooks/useAuth";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
 import Home from "@/pages/home";
-import Services from "@/pages/services";
 import UserPayments from "@/pages/user-payments";
 import InviteRequired from "@/pages/invite-required";
 import AdminDashboard from "@/pages/admin/dashboard";
 import AdminUsers from "@/pages/admin/users";
 import AdminInvites from "@/pages/admin/invites";
 import AdminPayments from "@/pages/admin/payments";
-import AdminProducts from "@/pages/admin/products";
 import AdminActivity from "@/pages/admin/activity";
 
 function Router() {
@@ -34,13 +32,11 @@ function Router() {
       ) : (
         <>
           <Route path="/" component={Home} />
-          <Route path="/services" component={Services} />
           <Route path="/payments" component={UserPayments} />
           <Route path="/admin" component={AdminDashboard} />
           <Route path="/admin/users" component={AdminUsers} />
           <Route path="/admin/invites" component={AdminInvites} />
           <Route path="/admin/payments" component={AdminPayments} />
-          <Route path="/admin/products" component={AdminProducts} />
           <Route path="/admin/activity" component={AdminActivity} />
         </>
       )}

@@ -3,7 +3,6 @@ import {
   Users, 
   Ticket, 
   DollarSign, 
-  Package,
   FileText,
   LogOut
 } from "lucide-react";
@@ -48,12 +47,6 @@ const adminMenuItems = [
     testId: "link-admin-payments",
   },
   {
-    title: "Products",
-    url: "/admin/products",
-    icon: Package,
-    testId: "link-admin-products",
-  },
-  {
     title: "Activity Log",
     url: "/admin/activity",
     icon: FileText,
@@ -62,12 +55,6 @@ const adminMenuItems = [
 ];
 
 const userMenuItems = [
-  {
-    title: "Services",
-    url: "/services",
-    icon: Package,
-    testId: "link-services",
-  },
   {
     title: "My Payments",
     url: "/payments",
