@@ -4,6 +4,12 @@ import {
   pricingTiers,
   payments,
   adminActionLogs,
+  supportMatchProfiles,
+  partnerships,
+  messages,
+  exclusions,
+  reports,
+  announcements,
   type User,
   type UpsertUser,
   type InviteCode,
@@ -14,9 +20,21 @@ import {
   type InsertPayment,
   type AdminActionLog,
   type InsertAdminActionLog,
+  type SupportMatchProfile,
+  type InsertSupportMatchProfile,
+  type Partnership,
+  type InsertPartnership,
+  type Message,
+  type InsertMessage,
+  type Exclusion,
+  type InsertExclusion,
+  type Report,
+  type InsertReport,
+  type Announcement,
+  type InsertAnnouncement,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc, sql, or, inArray, gte, lte } from "drizzle-orm";
 import { randomBytes } from "crypto";
 
 // Interface for storage operations
@@ -50,6 +68,49 @@ export interface IStorage {
     totalUsers: number;
     activeInvites: number;
     monthlyRevenue: string;
+  }>;
+  
+  // SupportMatch Profile operations
+  getSupportMatchProfile(userId: string): Promise<SupportMatchProfile | undefined>;
+  createSupportMatchProfile(profile: InsertSupportMatchProfile): Promise<SupportMatchProfile>;
+  updateSupportMatchProfile(userId: string, profile: Partial<InsertSupportMatchProfile>): Promise<SupportMatchProfile>;
+  getAllActiveSupportMatchProfiles(): Promise<SupportMatchProfile[]>;
+  
+  // SupportMatch Partnership operations
+  createPartnership(partnership: InsertPartnership): Promise<Partnership>;
+  getPartnershipById(id: string): Promise<Partnership | undefined>;
+  getActivePartnershipByUser(userId: string): Promise<Partnership | undefined>;
+  getAllPartnerships(): Promise<Partnership[]>;
+  getPartnershipHistory(userId: string): Promise<Partnership[]>;
+  updatePartnershipStatus(id: string, status: string): Promise<Partnership>;
+  
+  // SupportMatch Message operations
+  createMessage(message: InsertMessage): Promise<Message>;
+  getMessagesByPartnership(partnershipId: string): Promise<Message[]>;
+  
+  // SupportMatch Exclusion operations
+  createExclusion(exclusion: InsertExclusion): Promise<Exclusion>;
+  getExclusionsByUser(userId: string): Promise<Exclusion[]>;
+  checkMutualExclusion(user1Id: string, user2Id: string): Promise<boolean>;
+  deleteExclusion(id: string): Promise<void>;
+  
+  // SupportMatch Report operations
+  createReport(report: InsertReport): Promise<Report>;
+  getAllReports(): Promise<Report[]>;
+  updateReportStatus(id: string, status: string): Promise<Report>;
+  
+  // SupportMatch Announcement operations
+  createAnnouncement(announcement: InsertAnnouncement): Promise<Announcement>;
+  getActiveAnnouncements(): Promise<Announcement[]>;
+  getAllAnnouncements(): Promise<Announcement[]>;
+  updateAnnouncement(id: string, announcement: Partial<InsertAnnouncement>): Promise<Announcement>;
+  deactivateAnnouncement(id: string): Promise<Announcement>;
+  
+  // SupportMatch Stats
+  getSupportMatchStats(): Promise<{
+    activeUsers: number;
+    currentPartnerships: number;
+    pendingReports: number;
   }>;
 }
 
@@ -207,6 +268,274 @@ export class DatabaseStorage implements IStorage {
       totalUsers: allUsers.length,
       activeInvites,
       monthlyRevenue: monthlyRevenue.toFixed(2),
+    };
+  }
+  
+  // SupportMatch Profile operations
+  async getSupportMatchProfile(userId: string): Promise<SupportMatchProfile | undefined> {
+    const [profile] = await db
+      .select()
+      .from(supportMatchProfiles)
+      .where(eq(supportMatchProfiles.userId, userId));
+    return profile;
+  }
+  
+  async createSupportMatchProfile(profileData: InsertSupportMatchProfile): Promise<SupportMatchProfile> {
+    const [profile] = await db
+      .insert(supportMatchProfiles)
+      .values(profileData)
+      .returning();
+    return profile;
+  }
+  
+  async updateSupportMatchProfile(userId: string, profileData: Partial<InsertSupportMatchProfile>): Promise<SupportMatchProfile> {
+    const [profile] = await db
+      .update(supportMatchProfiles)
+      .set({
+        ...profileData,
+        updatedAt: new Date(),
+      })
+      .where(eq(supportMatchProfiles.userId, userId))
+      .returning();
+    return profile;
+  }
+  
+  async getAllActiveSupportMatchProfiles(): Promise<SupportMatchProfile[]> {
+    return await db
+      .select()
+      .from(supportMatchProfiles)
+      .where(eq(supportMatchProfiles.isActive, true));
+  }
+  
+  // SupportMatch Partnership operations
+  async createPartnership(partnershipData: InsertPartnership): Promise<Partnership> {
+    const [partnership] = await db
+      .insert(partnerships)
+      .values(partnershipData)
+      .returning();
+    return partnership;
+  }
+  
+  async getPartnershipById(id: string): Promise<Partnership | undefined> {
+    const [partnership] = await db
+      .select()
+      .from(partnerships)
+      .where(eq(partnerships.id, id));
+    return partnership;
+  }
+  
+  async getActivePartnershipByUser(userId: string): Promise<Partnership | undefined> {
+    const [partnership] = await db
+      .select()
+      .from(partnerships)
+      .where(
+        and(
+          or(
+            eq(partnerships.user1Id, userId),
+            eq(partnerships.user2Id, userId)
+          ),
+          eq(partnerships.status, 'active')
+        )
+      );
+    return partnership;
+  }
+  
+  async getAllPartnerships(): Promise<Partnership[]> {
+    return await db
+      .select()
+      .from(partnerships)
+      .orderBy(desc(partnerships.createdAt));
+  }
+  
+  async getPartnershipHistory(userId: string): Promise<Partnership[]> {
+    return await db
+      .select()
+      .from(partnerships)
+      .where(
+        or(
+          eq(partnerships.user1Id, userId),
+          eq(partnerships.user2Id, userId)
+        )
+      )
+      .orderBy(desc(partnerships.startDate));
+  }
+  
+  async updatePartnershipStatus(id: string, status: string): Promise<Partnership> {
+    const [partnership] = await db
+      .update(partnerships)
+      .set({
+        status,
+        updatedAt: new Date(),
+      })
+      .where(eq(partnerships.id, id))
+      .returning();
+    return partnership;
+  }
+  
+  // SupportMatch Message operations
+  async createMessage(messageData: InsertMessage): Promise<Message> {
+    const [message] = await db
+      .insert(messages)
+      .values(messageData)
+      .returning();
+    return message;
+  }
+  
+  async getMessagesByPartnership(partnershipId: string): Promise<Message[]> {
+    return await db
+      .select()
+      .from(messages)
+      .where(eq(messages.partnershipId, partnershipId))
+      .orderBy(messages.createdAt);
+  }
+  
+  // SupportMatch Exclusion operations
+  async createExclusion(exclusionData: InsertExclusion): Promise<Exclusion> {
+    const [exclusion] = await db
+      .insert(exclusions)
+      .values(exclusionData)
+      .returning();
+    return exclusion;
+  }
+  
+  async getExclusionsByUser(userId: string): Promise<Exclusion[]> {
+    return await db
+      .select()
+      .from(exclusions)
+      .where(eq(exclusions.userId, userId))
+      .orderBy(desc(exclusions.createdAt));
+  }
+  
+  async checkMutualExclusion(user1Id: string, user2Id: string): Promise<boolean> {
+    const exclusion = await db
+      .select()
+      .from(exclusions)
+      .where(
+        or(
+          and(
+            eq(exclusions.userId, user1Id),
+            eq(exclusions.excludedUserId, user2Id)
+          ),
+          and(
+            eq(exclusions.userId, user2Id),
+            eq(exclusions.excludedUserId, user1Id)
+          )
+        )
+      )
+      .limit(1);
+    return exclusion.length > 0;
+  }
+  
+  async deleteExclusion(id: string): Promise<void> {
+    await db.delete(exclusions).where(eq(exclusions.id, id));
+  }
+  
+  // SupportMatch Report operations
+  async createReport(reportData: InsertReport): Promise<Report> {
+    const [report] = await db
+      .insert(reports)
+      .values(reportData)
+      .returning();
+    return report;
+  }
+  
+  async getAllReports(): Promise<Report[]> {
+    return await db
+      .select()
+      .from(reports)
+      .orderBy(desc(reports.createdAt));
+  }
+  
+  async updateReportStatus(id: string, status: string): Promise<Report> {
+    const [report] = await db
+      .update(reports)
+      .set({
+        status,
+        updatedAt: new Date(),
+      })
+      .where(eq(reports.id, id))
+      .returning();
+    return report;
+  }
+  
+  // SupportMatch Announcement operations
+  async createAnnouncement(announcementData: InsertAnnouncement): Promise<Announcement> {
+    const [announcement] = await db
+      .insert(announcements)
+      .values(announcementData)
+      .returning();
+    return announcement;
+  }
+  
+  async getActiveAnnouncements(): Promise<Announcement[]> {
+    const now = new Date();
+    return await db
+      .select()
+      .from(announcements)
+      .where(
+        and(
+          eq(announcements.isActive, true),
+          or(
+            sql`${announcements.expiresAt} IS NULL`,
+            gte(announcements.expiresAt, now)
+          )
+        )
+      )
+      .orderBy(desc(announcements.createdAt));
+  }
+  
+  async getAllAnnouncements(): Promise<Announcement[]> {
+    return await db
+      .select()
+      .from(announcements)
+      .orderBy(desc(announcements.createdAt));
+  }
+  
+  async updateAnnouncement(id: string, announcementData: Partial<InsertAnnouncement>): Promise<Announcement> {
+    const [announcement] = await db
+      .update(announcements)
+      .set({
+        ...announcementData,
+        updatedAt: new Date(),
+      })
+      .where(eq(announcements.id, id))
+      .returning();
+    return announcement;
+  }
+  
+  async deactivateAnnouncement(id: string): Promise<Announcement> {
+    const [announcement] = await db
+      .update(announcements)
+      .set({
+        isActive: false,
+        updatedAt: new Date(),
+      })
+      .where(eq(announcements.id, id))
+      .returning();
+    return announcement;
+  }
+  
+  // SupportMatch Stats
+  async getSupportMatchStats() {
+    const activeProfiles = await db
+      .select()
+      .from(supportMatchProfiles)
+      .where(eq(supportMatchProfiles.isActive, true));
+      
+    const currentPartnerships = await db
+      .select()
+      .from(partnerships)
+      .where(eq(partnerships.status, 'active'));
+      
+    const pendingReportsCount = await db
+      .select()
+      .from(reports)
+      .where(eq(reports.status, 'pending'));
+    
+    return {
+      activeUsers: activeProfiles.length,
+      currentPartnerships: currentPartnerships.length,
+      pendingReports: pendingReportsCount.length,
     };
   }
 }
