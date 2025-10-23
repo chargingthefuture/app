@@ -130,34 +130,12 @@ export const insertPaymentSchema = createInsertSchema(payments).omit({
 export type InsertPayment = z.infer<typeof insertPaymentSchema>;
 export type Payment = typeof payments.$inferSelect;
 
-// Products table - service catalog
-export const products = pgTable("products", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  name: varchar("name", { length: 255 }).notNull(),
-  description: text("description").notNull(),
-  productType: varchar("product_type", { length: 100 }).notNull(),
-  pricing: varchar("pricing", { length: 255 }),
-  typeSpecificAttributes: jsonb("type_specific_attributes"),
-  isActive: boolean("is_active").notNull().default(true),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
-
-export const insertProductSchema = createInsertSchema(products).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-export type InsertProduct = z.infer<typeof insertProductSchema>;
-export type Product = typeof products.$inferSelect;
-
 // Admin action logs table
 export const adminActionLogs = pgTable("admin_action_logs", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   adminId: varchar("admin_id").notNull().references(() => users.id),
   action: varchar("action", { length: 100 }).notNull(),
-  targetType: varchar("target_type", { length: 50 }).notNull(), // user, invite_code, payment, product
+  targetType: varchar("target_type", { length: 50 }).notNull(), // user, invite_code, payment
   targetId: varchar("target_id"),
   details: jsonb("details"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
