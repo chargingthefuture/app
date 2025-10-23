@@ -203,14 +203,33 @@ export default function SupportMatchProfile() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Timezone (Optional)</FormLabel>
-                    <FormControl>
-                      <Input 
-                        placeholder="e.g., America/New_York"
-                        data-testid="input-timezone"
-                        {...field}
-                        value={field.value || ""}
-                      />
-                    </FormControl>
+                    <Select onValueChange={field.onChange} value={field.value || ""}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-timezone">
+                          <SelectValue placeholder="Select your timezone" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="America/New_York">Eastern Time (US & Canada)</SelectItem>
+                        <SelectItem value="America/Chicago">Central Time (US & Canada)</SelectItem>
+                        <SelectItem value="America/Denver">Mountain Time (US & Canada)</SelectItem>
+                        <SelectItem value="America/Phoenix">Arizona</SelectItem>
+                        <SelectItem value="America/Los_Angeles">Pacific Time (US & Canada)</SelectItem>
+                        <SelectItem value="America/Anchorage">Alaska</SelectItem>
+                        <SelectItem value="Pacific/Honolulu">Hawaii</SelectItem>
+                        <SelectItem value="Europe/London">London</SelectItem>
+                        <SelectItem value="Europe/Paris">Paris, Berlin, Rome</SelectItem>
+                        <SelectItem value="Europe/Athens">Athens, Istanbul</SelectItem>
+                        <SelectItem value="Europe/Moscow">Moscow</SelectItem>
+                        <SelectItem value="Asia/Dubai">Dubai</SelectItem>
+                        <SelectItem value="Asia/Kolkata">India</SelectItem>
+                        <SelectItem value="Asia/Bangkok">Bangkok, Jakarta</SelectItem>
+                        <SelectItem value="Asia/Shanghai">Beijing, Shanghai</SelectItem>
+                        <SelectItem value="Asia/Tokyo">Tokyo, Seoul</SelectItem>
+                        <SelectItem value="Australia/Sydney">Sydney, Melbourne</SelectItem>
+                        <SelectItem value="Pacific/Auckland">Auckland</SelectItem>
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
