@@ -3,7 +3,6 @@ import {
   inviteCodes,
   pricingTiers,
   payments,
-  products,
   adminActionLogs,
   type User,
   type UpsertUser,
@@ -13,8 +12,6 @@ import {
   type InsertPricingTier,
   type Payment,
   type InsertPayment,
-  type Product,
-  type InsertProduct,
   type AdminActionLog,
   type InsertAdminActionLog,
 } from "@shared/schema";
@@ -44,11 +41,6 @@ export interface IStorage {
   getPaymentsByUser(userId: string): Promise<Payment[]>;
   getAllPayments(): Promise<Payment[]>;
   
-  // Product operations
-  createProduct(product: InsertProduct): Promise<Product>;
-  getAllProducts(): Promise<Product[]>;
-  getActiveProducts(): Promise<Product[]>;
-  
   // Admin action log operations
   createAdminActionLog(log: InsertAdminActionLog): Promise<AdminActionLog>;
   getAllAdminActionLogs(): Promise<AdminActionLog[]>;
@@ -58,7 +50,6 @@ export interface IStorage {
     totalUsers: number;
     activeInvites: number;
     monthlyRevenue: string;
-    totalProducts: number;
   }>;
 }
 
@@ -176,27 +167,6 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(payments.paymentDate));
   }
 
-  // Product operations
-  async createProduct(productData: InsertProduct): Promise<Product> {
-    const [product] = await db
-      .insert(products)
-      .values(productData)
-      .returning();
-    return product;
-  }
-
-  async getAllProducts(): Promise<Product[]> {
-    return await db.select().from(products).orderBy(desc(products.createdAt));
-  }
-
-  async getActiveProducts(): Promise<Product[]> {
-    return await db
-      .select()
-      .from(products)
-      .where(eq(products.isActive, true))
-      .orderBy(desc(products.createdAt));
-  }
-
   // Admin action log operations
   async createAdminActionLog(logData: InsertAdminActionLog): Promise<AdminActionLog> {
     const [log] = await db
@@ -218,7 +188,6 @@ export class DatabaseStorage implements IStorage {
   async getAdminStats() {
     const allUsers = await db.select().from(users);
     const allInvites = await db.select().from(inviteCodes).where(eq(inviteCodes.isActive, true));
-    const allProducts = await db.select().from(products);
     
     // Calculate monthly revenue based on current active users
     const monthlyRevenue = allUsers.reduce((sum, user) => {
@@ -238,7 +207,6 @@ export class DatabaseStorage implements IStorage {
       totalUsers: allUsers.length,
       activeInvites,
       monthlyRevenue: monthlyRevenue.toFixed(2),
-      totalProducts: allProducts.length,
     };
   }
 }

@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated, isAdmin } from "./replitAuth";
-import { insertInviteCodeSchema, insertPaymentSchema, insertProductSchema } from "@shared/schema";
+import { insertInviteCodeSchema, insertPaymentSchema } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -115,16 +115,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/products', isAuthenticated, async (req, res) => {
-    try {
-      const products = await storage.getActiveProducts();
-      res.json(products);
-    } catch (error) {
-      console.error("Error fetching products:", error);
-      res.status(500).json({ message: "Failed to fetch products" });
-    }
-  });
-
   // Admin routes - Stats
   app.get('/api/admin/stats', isAuthenticated, isAdmin, async (req, res) => {
     try {
@@ -216,39 +206,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error creating payment:", error);
       res.status(400).json({ message: error.message || "Failed to record payment" });
-    }
-  });
-
-  // Admin routes - Products
-  app.get('/api/admin/products', isAuthenticated, isAdmin, async (req, res) => {
-    try {
-      const products = await storage.getAllProducts();
-      res.json(products);
-    } catch (error) {
-      console.error("Error fetching products:", error);
-      res.status(500).json({ message: "Failed to fetch products" });
-    }
-  });
-
-  app.post('/api/admin/products', isAuthenticated, isAdmin, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const validatedData = insertProductSchema.parse(req.body);
-
-      const product = await storage.createProduct(validatedData);
-      
-      await logAdminAction(
-        userId,
-        "create_product",
-        "product",
-        product.id,
-        { name: product.name, type: product.productType }
-      );
-
-      res.json(product);
-    } catch (error: any) {
-      console.error("Error creating product:", error);
-      res.status(400).json({ message: error.message || "Failed to create product" });
     }
   });
 
