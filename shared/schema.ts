@@ -202,7 +202,7 @@ export const partnerships = pgTable("partnerships", {
   user1Id: varchar("user1_id").notNull().references(() => supportMatchProfiles.userId),
   user2Id: varchar("user2_id").notNull().references(() => supportMatchProfiles.userId),
   startDate: timestamp("start_date").notNull(),
-  endDate: timestamp("end_date").notNull(),
+  endDate: timestamp("end_date"),
   status: varchar("status", { length: 20 }).notNull().default('active'), // active, completed, ended_early, cancelled
   successRate: jsonb("success_rate"), // JSON for flexible tracking
   createdAt: timestamp("created_at").defaultNow().notNull(),
