@@ -16,7 +16,6 @@ import {
   insertLighthouseProfileSchema,
   insertLighthousePropertySchema,
   insertLighthouseMatchSchema,
-  insertLighthouseReviewSchema,
 } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -1029,65 +1028,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error updating match:", error);
       res.status(400).json({ message: error.message || "Failed to update match" });
-    }
-  });
-
-  // Review routes
-  app.post('/api/lighthouse/reviews', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const profile = await storage.getLighthouseProfileByUserId(userId);
-      
-      if (!profile) {
-        return res.status(404).json({ message: "Profile not found. Please create a profile first." });
-      }
-      
-      const { matchId, rating, comment } = req.body;
-      
-      if (!matchId) {
-        return res.status(400).json({ message: "Match ID is required" });
-      }
-      
-      // Validate match exists and user is part of it
-      const match = await storage.getLighthouseMatchById(matchId);
-      if (!match) {
-        return res.status(404).json({ message: "Match not found" });
-      }
-      
-      // Get property to determine host
-      const property = await storage.getLighthousePropertyById(match.propertyId);
-      if (!property) {
-        return res.status(404).json({ message: "Property not found" });
-      }
-      
-      if (match.seekerId !== profile.id && property.hostId !== profile.id) {
-        return res.status(403).json({ message: "You can only review matches you're part of" });
-      }
-      
-      // Check if match is completed
-      if (match.status !== 'completed') {
-        return res.status(400).json({ message: "You can only review completed matches" });
-      }
-      
-      // Determine review type
-      const reviewerType = match.seekerId === profile.id ? 'seeker' : 'host';
-      const reviewedId = reviewerType === 'seeker' ? property.hostId : match.seekerId;
-      
-      // Create review
-      const validatedData = insertLighthouseReviewSchema.parse({
-        matchId,
-        reviewerId: profile.id,
-        reviewedId,
-        reviewerType,
-        rating,
-        comment: comment || null,
-      });
-      const review = await storage.createLighthouseReview(validatedData);
-      
-      res.json(review);
-    } catch (error: any) {
-      console.error("Error creating review:", error);
-      res.status(400).json({ message: error.message || "Failed to create review" });
     }
   });
 

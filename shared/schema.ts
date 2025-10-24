@@ -422,8 +422,6 @@ export const lighthouseProfilesRelations = relations(lighthouseProfiles, ({ one,
   }),
   properties: many(lighthouseProperties),
   matchesAsSeeker: many(lighthouseMatches, { relationName: "seeker" }),
-  reviewsGiven: many(lighthouseReviews, { relationName: "reviewer" }),
-  reviewsReceived: many(lighthouseReviews, { relationName: "reviewee" }),
 }));
 
 export const insertLighthouseProfileSchema = createInsertSchema(lighthouseProfiles).omit({
@@ -515,7 +513,7 @@ export const lighthouseMatches = pgTable("lighthouse_matches", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-export const lighthouseMatchesRelations = relations(lighthouseMatches, ({ one, many }) => ({
+export const lighthouseMatchesRelations = relations(lighthouseMatches, ({ one }) => ({
   seeker: one(lighthouseProfiles, {
     fields: [lighthouseMatches.seekerId],
     references: [lighthouseProfiles.id],
@@ -525,7 +523,6 @@ export const lighthouseMatchesRelations = relations(lighthouseMatches, ({ one, m
     fields: [lighthouseMatches.propertyId],
     references: [lighthouseProperties.id],
   }),
-  reviews: many(lighthouseReviews),
 }));
 
 export const insertLighthouseMatchSchema = createInsertSchema(lighthouseMatches).omit({
@@ -540,45 +537,3 @@ export const insertLighthouseMatchSchema = createInsertSchema(lighthouseMatches)
 });
 export type InsertLighthouseMatch = z.infer<typeof insertLighthouseMatchSchema>;
 export type LighthouseMatch = typeof lighthouseMatches.$inferSelect;
-
-// LightHouse reviews
-export const lighthouseReviews = pgTable("lighthouse_reviews", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  matchId: varchar("match_id").notNull().references(() => lighthouseMatches.id),
-  reviewerId: varchar("reviewer_id").notNull().references(() => lighthouseProfiles.id),
-  revieweeId: varchar("reviewee_id").notNull().references(() => lighthouseProfiles.id),
-  
-  rating: integer("rating").notNull(), // 1-5 stars
-  comment: text("comment"),
-  
-  isVisible: boolean("is_visible").default(true).notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
-
-export const lighthouseReviewsRelations = relations(lighthouseReviews, ({ one }) => ({
-  match: one(lighthouseMatches, {
-    fields: [lighthouseReviews.matchId],
-    references: [lighthouseMatches.id],
-  }),
-  reviewer: one(lighthouseProfiles, {
-    fields: [lighthouseReviews.reviewerId],
-    references: [lighthouseProfiles.id],
-    relationName: "reviewer",
-  }),
-  reviewee: one(lighthouseProfiles, {
-    fields: [lighthouseReviews.revieweeId],
-    references: [lighthouseProfiles.id],
-    relationName: "reviewee",
-  }),
-}));
-
-export const insertLighthouseReviewSchema = createInsertSchema(lighthouseReviews).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-}).extend({
-  rating: z.number().min(1).max(5),
-});
-export type InsertLighthouseReview = z.infer<typeof insertLighthouseReviewSchema>;
-export type LighthouseReview = typeof lighthouseReviews.$inferSelect;

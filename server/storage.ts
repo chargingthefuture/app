@@ -14,7 +14,6 @@ import {
   lighthouseProfiles,
   lighthouseProperties,
   lighthouseMatches,
-  lighthouseReviews,
   type User,
   type UpsertUser,
   type InviteCode,
@@ -45,8 +44,6 @@ import {
   type InsertLighthouseProperty,
   type LighthouseMatch,
   type InsertLighthouseMatch,
-  type LighthouseReview,
-  type InsertLighthouseReview,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, sql, or, inArray, gte, lte } from "drizzle-orm";
@@ -164,11 +161,6 @@ export interface IStorage {
   getMatchesByProperty(propertyId: string): Promise<LighthouseMatch[]>;
   getAllMatches(): Promise<LighthouseMatch[]>;
   updateLighthouseMatch(id: string, match: Partial<InsertLighthouseMatch>): Promise<LighthouseMatch>;
-  
-  // LightHouse Review operations
-  createLighthouseReview(review: InsertLighthouseReview): Promise<LighthouseReview>;
-  getReviewsByReviewee(revieweeId: string): Promise<LighthouseReview[]>;
-  getReviewsByMatch(matchId: string): Promise<LighthouseReview[]>;
 
   // LightHouse Stats
   getLighthouseStats(): Promise<{
@@ -1060,34 +1052,6 @@ export class DatabaseStorage implements IStorage {
       .where(eq(lighthouseMatches.id, id))
       .returning();
     return match;
-  }
-
-  // Review operations
-  async createLighthouseReview(reviewData: InsertLighthouseReview): Promise<LighthouseReview> {
-    const [review] = await db
-      .insert(lighthouseReviews)
-      .values(reviewData)
-      .returning();
-    return review;
-  }
-
-  async getReviewsByReviewee(revieweeId: string): Promise<LighthouseReview[]> {
-    return await db
-      .select()
-      .from(lighthouseReviews)
-      .where(and(
-        eq(lighthouseReviews.revieweeId, revieweeId),
-        eq(lighthouseReviews.isVisible, true)
-      ))
-      .orderBy(desc(lighthouseReviews.createdAt));
-  }
-
-  async getReviewsByMatch(matchId: string): Promise<LighthouseReview[]> {
-    return await db
-      .select()
-      .from(lighthouseReviews)
-      .where(eq(lighthouseReviews.matchId, matchId))
-      .orderBy(desc(lighthouseReviews.createdAt));
   }
 
   // Stats
