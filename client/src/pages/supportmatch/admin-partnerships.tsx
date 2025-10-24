@@ -148,8 +148,13 @@ export default function SupportMatchAdminPartnerships() {
                         <div className="flex items-center gap-2 flex-wrap">
                           <Badge variant="default">Active</Badge>
                           <span className="text-sm text-muted-foreground">
-                            Started: {format(new Date(partnership.startDate), "MMM d, yyyy")}
+                            {format(new Date(partnership.startDate), "MMM d, yyyy")} - {partnership.endDate ? format(new Date(partnership.endDate), "MMM d, yyyy") : "Ongoing"}
                           </span>
+                          {partnership.endDate && (
+                            <span className="text-xs text-muted-foreground">
+                              (30 days)
+                            </span>
+                          )}
                         </div>
                       </div>
                       <Button
