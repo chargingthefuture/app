@@ -20,6 +20,7 @@ const profileFormSchema = insertSupportMatchProfileSchema.omit({ userId: true })
   gender: z.string().optional(),
   genderPreference: z.string().optional(),
   timezone: z.string().optional(),
+  timezonePreference: z.string().optional(),
 });
 
 type ProfileFormData = z.infer<typeof profileFormSchema>;
@@ -39,6 +40,7 @@ export default function SupportMatchProfile() {
       gender: "",
       genderPreference: "",
       timezone: "",
+      timezonePreference: "same_timezone",
       isActive: true,
     },
   });
@@ -50,6 +52,7 @@ export default function SupportMatchProfile() {
         gender: profile.gender || "",
         genderPreference: profile.genderPreference || "",
         timezone: profile.timezone || "",
+        timezonePreference: profile.timezonePreference || "same_timezone",
         isActive: profile.isActive,
       });
     }
@@ -228,6 +231,28 @@ export default function SupportMatchProfile() {
                         <SelectItem value="Asia/Tokyo">Tokyo, Seoul</SelectItem>
                         <SelectItem value="Australia/Sydney">Sydney, Melbourne</SelectItem>
                         <SelectItem value="Pacific/Auckland">Auckland</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="timezonePreference"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Timezone Partner Preference</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value || "same_timezone"}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-timezone-preference">
+                          <SelectValue placeholder="Select your preference" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="same_timezone">Match only with my timezone</SelectItem>
+                        <SelectItem value="any_timezone">Match with any timezone</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
