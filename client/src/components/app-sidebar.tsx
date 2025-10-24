@@ -69,7 +69,7 @@ const adminMenuItems = [
     testId: "link-supportmatch-admin",
   },
   {
-    title: "Sleep Stories Admin",
+    title: "SleepStories Admin",
     url: "/apps/sleepstories/admin",
     icon: Moon,
     testId: "link-sleepstories-admin",
@@ -90,7 +90,7 @@ const userMenuItems = [
     testId: "link-supportmatch",
   },
   {
-    title: "Sleep Stories",
+    title: "SleepStories",
     url: "/apps/sleepstories",
     icon: Moon,
     testId: "link-sleepstories",
