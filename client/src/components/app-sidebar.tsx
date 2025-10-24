@@ -5,7 +5,8 @@ import {
   DollarSign, 
   FileText,
   LogOut,
-  UserCheck
+  UserCheck,
+  TrendingUp
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
@@ -46,6 +47,12 @@ const adminMenuItems = [
     url: "/admin/payments",
     icon: DollarSign,
     testId: "link-admin-payments",
+  },
+  {
+    title: "Pricing",
+    url: "/admin/pricing",
+    icon: TrendingUp,
+    testId: "link-admin-pricing",
   },
   {
     title: "Activity Log",

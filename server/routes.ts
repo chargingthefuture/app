@@ -5,6 +5,7 @@ import { setupAuth, isAuthenticated, isAdmin } from "./replitAuth";
 import { 
   insertInviteCodeSchema, 
   insertPaymentSchema,
+  insertPricingTierSchema,
   insertSupportMatchProfileSchema,
   insertPartnershipSchema,
   insertMessageSchema,
@@ -226,6 +227,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching activity logs:", error);
       res.status(500).json({ message: "Failed to fetch activity logs" });
+    }
+  });
+
+  // Admin routes - Pricing Tiers
+  app.get('/api/admin/pricing-tiers', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const tiers = await storage.getAllPricingTiers();
+      res.json(tiers);
+    } catch (error) {
+      console.error("Error fetching pricing tiers:", error);
+      res.status(500).json({ message: "Failed to fetch pricing tiers" });
+    }
+  });
+
+  app.post('/api/admin/pricing-tiers', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const validatedData = insertPricingTierSchema.parse(req.body);
+
+      const tier = await storage.createPricingTier(validatedData);
+      
+      await logAdminAction(
+        userId,
+        "create_pricing_tier",
+        "pricing_tier",
+        tier.id,
+        { amount: tier.amount, effectiveDate: tier.effectiveDate, isCurrentTier: tier.isCurrentTier }
+      );
+
+      res.json(tier);
+    } catch (error: any) {
+      console.error("Error creating pricing tier:", error);
+      res.status(400).json({ message: error.message || "Failed to create pricing tier" });
+    }
+  });
+
+  app.put('/api/admin/pricing-tiers/:id/set-current', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const tier = await storage.setCurrentPricingTier(req.params.id);
+      
+      await logAdminAction(
+        userId,
+        "set_current_pricing_tier",
+        "pricing_tier",
+        tier.id,
+        { amount: tier.amount }
+      );
+
+      res.json(tier);
+    } catch (error: any) {
+      console.error("Error setting current pricing tier:", error);
+      res.status(400).json({ message: error.message || "Failed to set current pricing tier" });
     }
   });
 

@@ -52,7 +52,9 @@ export interface IStorage {
   
   // Pricing tier operations
   getCurrentPricingTier(): Promise<PricingTier | undefined>;
+  getAllPricingTiers(): Promise<PricingTier[]>;
   createPricingTier(tier: InsertPricingTier): Promise<PricingTier>;
+  setCurrentPricingTier(id: string): Promise<PricingTier>;
   
   // Payment operations
   createPayment(payment: InsertPayment): Promise<Payment>;
@@ -190,6 +192,13 @@ export class DatabaseStorage implements IStorage {
     return tier;
   }
 
+  async getAllPricingTiers(): Promise<PricingTier[]> {
+    return await db
+      .select()
+      .from(pricingTiers)
+      .orderBy(desc(pricingTiers.effectiveDate));
+  }
+
   async createPricingTier(tierData: InsertPricingTier): Promise<PricingTier> {
     // If this is set as the current tier, unset all others
     if (tierData.isCurrentTier) {
@@ -203,6 +212,23 @@ export class DatabaseStorage implements IStorage {
       .insert(pricingTiers)
       .values(tierData)
       .returning();
+    return tier;
+  }
+
+  async setCurrentPricingTier(id: string): Promise<PricingTier> {
+    // Unset all current tiers
+    await db
+      .update(pricingTiers)
+      .set({ isCurrentTier: false })
+      .where(eq(pricingTiers.isCurrentTier, true));
+
+    // Set the specified tier as current
+    const [tier] = await db
+      .update(pricingTiers)
+      .set({ isCurrentTier: true })
+      .where(eq(pricingTiers.id, id))
+      .returning();
+    
     return tier;
   }
 
