@@ -113,6 +113,22 @@ export default function SupportMatchDashboard() {
             )}
           </div>
 
+          {activePartnership && (
+            <div className="text-sm text-muted-foreground space-y-1">
+              <p>
+                <span className="font-medium text-foreground">Partner:</span> {(activePartnership as any).partnerNickname || 'Loading...'}
+              </p>
+              <p>
+                <span className="font-medium text-foreground">Started:</span> {format(new Date(activePartnership.startDate), 'MMM d, yyyy')}
+              </p>
+              {activePartnership.endDate && (
+                <p>
+                  <span className="font-medium text-foreground">Ends:</span> {format(new Date(activePartnership.endDate), 'MMM d, yyyy')}
+                </p>
+              )}
+            </div>
+          )}
+          
           {!activePartnership && (
             <p className="text-sm text-muted-foreground">
               You're currently not in an active partnership. Your admin will match you with a partner during the next monthly cycle.

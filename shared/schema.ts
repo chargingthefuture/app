@@ -349,6 +349,8 @@ export const insertAnnouncementSchema = createInsertSchema(announcements).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+}).extend({
+  expiresAt: z.coerce.date().optional().nullable(),
 });
 
 export type InsertAnnouncement = z.infer<typeof insertAnnouncementSchema>;

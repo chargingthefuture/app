@@ -333,7 +333,8 @@ export class DatabaseStorage implements IStorage {
     return partnership;
   }
   
-  async getActivePartnershipByUser(userId: string): Promise<Partnership | undefined> {
+  async getActivePartnershipByUser(userId: string): Promise<any | undefined> {
+    // First get the active partnership
     const [partnership] = await db
       .select()
       .from(partnerships)
@@ -346,7 +347,24 @@ export class DatabaseStorage implements IStorage {
           eq(partnerships.status, 'active')
         )
       );
-    return partnership;
+    
+    if (!partnership) return undefined;
+    
+    // Determine which user is the partner
+    const partnerId = partnership.user1Id === userId ? partnership.user2Id : partnership.user1Id;
+    
+    // Get the partner's profile
+    const [partnerProfile] = await db
+      .select()
+      .from(supportMatchProfiles)
+      .where(eq(supportMatchProfiles.userId, partnerId));
+    
+    return {
+      ...partnership,
+      partnerNickname: partnerProfile?.nickname || 'Unknown Partner',
+      partnerGender: partnerProfile?.gender,
+      partnerTimezone: partnerProfile?.timezone,
+    };
   }
   
   async getAllPartnerships(): Promise<Partnership[]> {
