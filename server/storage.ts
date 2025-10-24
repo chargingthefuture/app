@@ -444,9 +444,16 @@ export class DatabaseStorage implements IStorage {
       const user1WantsSameTimezone = user1.timezonePreference === 'same_timezone';
       const user2WantsSameTimezone = user2.timezonePreference === 'same_timezone';
       
-      // If either user wants same timezone, both must have timezones set and they must match
+      // If EITHER user requires same timezone matching, enforce timezone constraints
+      // This ensures users who want same-timezone partners are never matched across timezones,
+      // regardless of their potential partner's preference
       if (user1WantsSameTimezone || user2WantsSameTimezone) {
-        if (!user1.timezone || !user2.timezone || user1.timezone !== user2.timezone) {
+        // Both users must have a timezone set
+        if (!user1.timezone || !user2.timezone) {
+          return false;
+        }
+        // Timezones must match exactly
+        if (user1.timezone !== user2.timezone) {
           return false;
         }
       }
