@@ -89,15 +89,15 @@ export default function AdminPayments() {
   };
 
   return (
-    <div className="p-6 md:p-8 space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl md:text-4xl font-semibold mb-2">Payment Tracking</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-semibold mb-2">Payment Tracking</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">
             Record and manage manual payments from various sources
           </p>
         </div>
-        <Button onClick={() => setIsDialogOpen(true)} data-testid="button-record-payment">
+        <Button onClick={() => setIsDialogOpen(true)} data-testid="button-record-payment" className="w-full sm:w-auto">
           <DollarSign className="w-4 h-4 mr-2" />
           Record Payment
         </Button>
@@ -105,7 +105,7 @@ export default function AdminPayments() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Recent Payments</CardTitle>
+          <CardTitle className="text-lg sm:text-xl">Recent Payments</CardTitle>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -117,40 +117,75 @@ export default function AdminPayments() {
               No payments recorded yet
             </div>
           ) : (
-            <div className="rounded-lg border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>User</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Payment Method</TableHead>
-                    <TableHead>Payment Date</TableHead>
-                    <TableHead>Notes</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {payments.map((payment) => (
-                    <TableRow key={payment.id} data-testid={`row-payment-${payment.id}`}>
-                      <TableCell className="font-medium">
-                        {getUserName(payment.userId)}
-                      </TableCell>
-                      <TableCell className="font-mono">
-                        ${parseFloat(payment.amount).toFixed(2)}
-                      </TableCell>
-                      <TableCell className="capitalize">
-                        {payment.paymentMethod.replace(/-/g, ' ')}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {new Date(payment.paymentDate).toLocaleDateString()}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground text-sm">
-                        {payment.notes || "-"}
-                      </TableCell>
+            <>
+              <div className="hidden md:block rounded-lg border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>User</TableHead>
+                      <TableHead>Amount</TableHead>
+                      <TableHead>Payment Method</TableHead>
+                      <TableHead>Payment Date</TableHead>
+                      <TableHead>Notes</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                  </TableHeader>
+                  <TableBody>
+                    {payments.map((payment) => (
+                      <TableRow key={payment.id} data-testid={`row-payment-${payment.id}`}>
+                        <TableCell className="font-medium">
+                          {getUserName(payment.userId)}
+                        </TableCell>
+                        <TableCell className="font-mono">
+                          ${parseFloat(payment.amount).toFixed(2)}
+                        </TableCell>
+                        <TableCell className="capitalize">
+                          {payment.paymentMethod.replace(/-/g, ' ')}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {new Date(payment.paymentDate).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground text-sm">
+                          {payment.notes || "-"}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              <div className="md:hidden space-y-3">
+                {payments.map((payment) => (
+                  <Card key={payment.id} data-testid={`row-payment-${payment.id}`}>
+                    <CardContent className="p-4 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium">{getUserName(payment.userId)}</span>
+                        <span className="font-mono font-semibold">
+                          ${parseFloat(payment.amount).toFixed(2)}
+                        </span>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div>
+                          <span className="text-muted-foreground">Method</span>
+                          <p className="capitalize">{payment.paymentMethod.replace(/-/g, ' ')}</p>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Date</span>
+                          <p>{new Date(payment.paymentDate).toLocaleDateString()}</p>
+                        </div>
+                      </div>
+                      
+                      {payment.notes && (
+                        <div className="text-sm">
+                          <span className="text-muted-foreground">Notes: </span>
+                          <span>{payment.notes}</span>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

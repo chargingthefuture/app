@@ -42,19 +42,19 @@ export default function AdminDashboard() {
   ];
 
   return (
-    <div className="p-6 md:p-8 space-y-8">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6">
       <div>
-        <h1 className="text-3xl md:text-4xl font-semibold mb-2">Admin Dashboard</h1>
-        <p className="text-muted-foreground">
+        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-semibold mb-2">Admin Dashboard</h1>
+        <p className="text-sm sm:text-base text-muted-foreground">
           Overview of platform activity and management
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         {statCards.map((stat) => (
           <Card key={stat.title}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2">
-              <CardTitle className="text-sm font-medium">
+              <CardTitle className="text-sm sm:text-base font-medium">
                 {stat.title}
               </CardTitle>
               <div className={`w-10 h-10 rounded-lg ${stat.color} flex items-center justify-center`}>
@@ -70,13 +70,13 @@ export default function AdminDashboard() {
         ))}
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         <Card>
           <CardHeader>
-            <CardTitle>Recent Activity</CardTitle>
+            <CardTitle className="text-lg sm:text-xl">Recent Activity</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm sm:text-base text-muted-foreground">
               Activity log shows the latest administrative actions and user registrations.
             </p>
           </CardContent>
@@ -84,10 +84,10 @@ export default function AdminDashboard() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Payment Status</CardTitle>
+            <CardTitle className="text-lg sm:text-xl">Payment Status</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm sm:text-base text-muted-foreground">
               Monitor subscription payments and identify overdue accounts.
             </p>
           </CardContent>

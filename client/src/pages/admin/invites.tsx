@@ -91,21 +91,20 @@ export default function AdminInvites() {
   };
 
   return (
-    <div className="p-6 md:p-8 space-y-6">
+    <div className="p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6">
       <div>
-        <h1 className="text-3xl md:text-4xl font-semibold mb-2">Invite Code Management</h1>
-        <p className="text-muted-foreground">
+        <h1 className="text-2xl sm:text-3xl md:text-4xl font-semibold mb-2">Invite Code Management</h1>
+        <p className="text-sm sm:text-base text-muted-foreground">
           Generate and manage invite codes for platform access
         </p>
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-6">
-        {/* Generation form */}
+      <div className="grid lg:grid-cols-3 gap-4 sm:gap-6">
         <Card className="lg:col-span-1">
           <CardHeader>
-            <CardTitle>Generate New Code</CardTitle>
+            <CardTitle className="text-lg sm:text-xl">Generate New Code</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-6">
+          <CardContent className="space-y-4 sm:space-y-6">
             <div className="space-y-2">
               <Label htmlFor="max-uses">Maximum Uses</Label>
               <Select value={maxUses} onValueChange={setMaxUses}>
@@ -148,10 +147,9 @@ export default function AdminInvites() {
           </CardContent>
         </Card>
 
-        {/* Recent codes */}
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle>Recent Invite Codes</CardTitle>
+            <CardTitle className="text-lg sm:text-xl">Recent Invite Codes</CardTitle>
           </CardHeader>
           <CardContent>
             {isLoading ? (
@@ -163,51 +161,80 @@ export default function AdminInvites() {
                 No invite codes generated yet
               </div>
             ) : (
-              <div className="rounded-lg border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Code</TableHead>
-                      <TableHead>Usage</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Expires</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {invites.slice(0, 10).map((invite) => (
-                      <TableRow key={invite.id} data-testid={`row-invite-${invite.id}`}>
-                        <TableCell>
-                          <code className="font-mono text-sm bg-muted px-2 py-1 rounded">
+              <>
+                <div className="hidden md:block rounded-lg border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Code</TableHead>
+                        <TableHead>Usage</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Expires</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {invites.slice(0, 10).map((invite) => (
+                        <TableRow key={invite.id} data-testid={`row-invite-${invite.id}`}>
+                          <TableCell>
+                            <code className="font-mono text-sm bg-muted px-2 py-1 rounded">
+                              {invite.code}
+                            </code>
+                          </TableCell>
+                          <TableCell>
+                            <div className="space-y-1 min-w-[120px]">
+                              <div className="flex justify-between text-sm">
+                                <span>{invite.currentUses} / {invite.maxUses}</span>
+                                <span className="text-muted-foreground">
+                                  {Math.round((invite.currentUses / invite.maxUses) * 100)}%
+                                </span>
+                              </div>
+                              <Progress
+                                value={(invite.currentUses / invite.maxUses) * 100}
+                                className="h-2"
+                              />
+                            </div>
+                          </TableCell>
+                          <TableCell>{getStatusBadge(invite)}</TableCell>
+                          <TableCell className="text-muted-foreground text-sm">
+                            {invite.expiresAt 
+                              ? new Date(invite.expiresAt).toLocaleDateString()
+                              : "Never"}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => copyCode(invite.code)}
+                              data-testid={`button-copy-${invite.id}`}
+                            >
+                              {copiedCode === invite.code ? (
+                                <Check className="w-4 h-4 text-primary" />
+                              ) : (
+                                <Copy className="w-4 h-4" />
+                              )}
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                <div className="md:hidden space-y-3">
+                  {invites.slice(0, 10).map((invite) => (
+                    <Card key={invite.id} data-testid={`row-invite-${invite.id}`}>
+                      <CardContent className="p-4 space-y-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <code className="font-mono text-xs sm:text-sm bg-muted px-2 py-1 rounded break-all">
                             {invite.code}
                           </code>
-                        </TableCell>
-                        <TableCell>
-                          <div className="space-y-1 min-w-[120px]">
-                            <div className="flex justify-between text-sm">
-                              <span>{invite.currentUses} / {invite.maxUses}</span>
-                              <span className="text-muted-foreground">
-                                {Math.round((invite.currentUses / invite.maxUses) * 100)}%
-                              </span>
-                            </div>
-                            <Progress
-                              value={(invite.currentUses / invite.maxUses) * 100}
-                              className="h-2"
-                            />
-                          </div>
-                        </TableCell>
-                        <TableCell>{getStatusBadge(invite)}</TableCell>
-                        <TableCell className="text-muted-foreground text-sm">
-                          {invite.expiresAt 
-                            ? new Date(invite.expiresAt).toLocaleDateString()
-                            : "Never"}
-                        </TableCell>
-                        <TableCell className="text-right">
                           <Button
                             variant="ghost"
                             size="icon"
                             onClick={() => copyCode(invite.code)}
                             data-testid={`button-copy-${invite.id}`}
+                            className="flex-shrink-0"
                           >
                             {copiedCode === invite.code ? (
                               <Check className="w-4 h-4 text-primary" />
@@ -215,12 +242,39 @@ export default function AdminInvites() {
                               <Copy className="w-4 h-4" />
                             )}
                           </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-muted-foreground">Status</span>
+                            {getStatusBadge(invite)}
+                          </div>
+                          
+                          <div>
+                            <div className="flex justify-between text-sm mb-1">
+                              <span className="text-muted-foreground">Usage</span>
+                              <span>{invite.currentUses} / {invite.maxUses} ({Math.round((invite.currentUses / invite.maxUses) * 100)}%)</span>
+                            </div>
+                            <Progress
+                              value={(invite.currentUses / invite.maxUses) * 100}
+                              className="h-2"
+                            />
+                          </div>
+                          
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-muted-foreground">Expires</span>
+                            <span>
+                              {invite.expiresAt 
+                                ? new Date(invite.expiresAt).toLocaleDateString()
+                                : "Never"}
+                            </span>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </>
             )}
           </CardContent>
         </Card>

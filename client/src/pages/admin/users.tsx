@@ -34,17 +34,17 @@ export default function AdminUsers() {
   };
 
   return (
-    <div className="p-6 md:p-8 space-y-6">
+    <div className="p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6">
       <div>
-        <h1 className="text-3xl md:text-4xl font-semibold mb-2">User Management</h1>
-        <p className="text-muted-foreground">
+        <h1 className="text-2xl sm:text-3xl md:text-4xl font-semibold mb-2">User Management</h1>
+        <p className="text-sm sm:text-base text-muted-foreground">
           Manage platform users and their subscription status
         </p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>All Users</CardTitle>
+          <CardTitle className="text-lg sm:text-xl">All Users</CardTitle>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -56,52 +56,102 @@ export default function AdminUsers() {
               No users found
             </div>
           ) : (
-            <div className="rounded-lg border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>User</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Pricing Tier</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Joined</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {users.map((user) => (
-                    <TableRow key={user.id} className="hover-elevate" data-testid={`row-user-${user.id}`}>
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <Avatar>
-                            <AvatarImage src={user.profileImageUrl || undefined} />
-                            <AvatarFallback>{getInitials(user)}</AvatarFallback>
-                          </Avatar>
-                          <span className="font-medium">
+            <>
+              <div className="hidden md:block rounded-lg border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>User</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Pricing Tier</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Role</TableHead>
+                      <TableHead>Joined</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {users.map((user) => (
+                      <TableRow key={user.id} className="hover-elevate" data-testid={`row-user-${user.id}`}>
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <Avatar>
+                              <AvatarImage src={user.profileImageUrl || undefined} />
+                              <AvatarFallback>{getInitials(user)}</AvatarFallback>
+                            </Avatar>
+                            <span className="font-medium">
+                              {user.firstName && user.lastName 
+                                ? `${user.firstName} ${user.lastName}`
+                                : 'User'}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">{user.email}</TableCell>
+                        <TableCell className="font-mono">${user.pricingTier}/mo</TableCell>
+                        <TableCell>{getStatusBadge(user.subscriptionStatus)}</TableCell>
+                        <TableCell>
+                          {user.isAdmin ? (
+                            <Badge variant="secondary">Admin</Badge>
+                          ) : (
+                            <span className="text-muted-foreground">User</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {new Date(user.createdAt).toLocaleDateString()}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              <div className="md:hidden space-y-3">
+                {users.map((user) => (
+                  <Card key={user.id} data-testid={`row-user-${user.id}`}>
+                    <CardContent className="p-4 space-y-3">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="w-12 h-12">
+                          <AvatarImage src={user.profileImageUrl || undefined} />
+                          <AvatarFallback>{getInitials(user)}</AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium truncate">
                             {user.firstName && user.lastName 
                               ? `${user.firstName} ${user.lastName}`
                               : 'User'}
-                          </span>
+                          </p>
+                          <p className="text-sm text-muted-foreground truncate">{user.email}</p>
                         </div>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">{user.email}</TableCell>
-                      <TableCell className="font-mono">${user.pricingTier}/mo</TableCell>
-                      <TableCell>{getStatusBadge(user.subscriptionStatus)}</TableCell>
-                      <TableCell>
-                        {user.isAdmin ? (
-                          <Badge variant="secondary">Admin</Badge>
-                        ) : (
-                          <span className="text-muted-foreground">User</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {new Date(user.createdAt).toLocaleDateString()}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div>
+                          <span className="text-muted-foreground">Status</span>
+                          <div className="mt-1">{getStatusBadge(user.subscriptionStatus)}</div>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Role</span>
+                          <div className="mt-1">
+                            {user.isAdmin ? (
+                              <Badge variant="secondary">Admin</Badge>
+                            ) : (
+                              <span className="text-muted-foreground">User</span>
+                            )}
+                          </div>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Price</span>
+                          <p className="font-mono mt-1">${user.pricingTier}/mo</p>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Joined</span>
+                          <p className="mt-1">{new Date(user.createdAt).toLocaleDateString()}</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
