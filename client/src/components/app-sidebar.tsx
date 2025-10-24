@@ -90,6 +90,12 @@ const userMenuItems = [
     testId: "link-home",
   },
   {
+    title: "My Payments",
+    url: "/payments",
+    icon: DollarSign,
+    testId: "link-payments",
+  },
+  {
     title: "LightHouse",
     url: "/apps/lighthouse",
     icon: Building2,
@@ -106,12 +112,6 @@ const userMenuItems = [
     url: "/apps/supportmatch",
     icon: UserCheck,
     testId: "link-supportmatch",
-  },
-  {
-    title: "My Payments",
-    url: "/payments",
-    icon: DollarSign,
-    testId: "link-payments",
   },
 ];
 
