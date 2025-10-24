@@ -19,6 +19,9 @@ const profileFormSchema = insertSupportMatchProfileSchema.omit({ userId: true })
   nickname: z.string().optional(),
   gender: z.string().optional(),
   genderPreference: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
+  country: z.string().optional(),
   timezone: z.string().optional(),
   timezonePreference: z.string().optional(),
 });
@@ -39,6 +42,9 @@ export default function SupportMatchProfile() {
       nickname: "",
       gender: "",
       genderPreference: "",
+      city: "",
+      state: "",
+      country: "",
       timezone: "",
       timezonePreference: "same_timezone",
       isActive: true,
@@ -51,6 +57,9 @@ export default function SupportMatchProfile() {
         nickname: profile.nickname || "",
         gender: profile.gender || "",
         genderPreference: profile.genderPreference || "",
+        city: profile.city || "",
+        state: profile.state || "",
+        country: profile.country || "",
         timezone: profile.timezone || "",
         timezonePreference: profile.timezonePreference || "same_timezone",
         isActive: profile.isActive,
@@ -199,6 +208,65 @@ export default function SupportMatchProfile() {
                   </FormItem>
                 )}
               />
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <FormField
+                  control={form.control}
+                  name="city"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>City (Optional)</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="Your city"
+                          data-testid="input-city"
+                          {...field}
+                          value={field.value || ""}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="state"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>State/Province (Optional)</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="Your state or province"
+                          data-testid="input-state"
+                          {...field}
+                          value={field.value || ""}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="country"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Country (Optional)</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="Your country"
+                          data-testid="input-country"
+                          {...field}
+                          value={field.value || ""}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
 
               <FormField
                 control={form.control}
