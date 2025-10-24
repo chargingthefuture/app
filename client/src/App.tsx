@@ -21,6 +21,7 @@ import SupportMatchProfile from "@/pages/supportmatch/profile";
 import SupportMatchPartnership from "@/pages/supportmatch/partnership";
 import SupportMatchAnnouncements from "@/pages/supportmatch/announcements";
 import SupportMatchHistory from "@/pages/supportmatch/history";
+import SupportMatchSafety from "@/pages/supportmatch/safety";
 import SupportMatchAdmin from "@/pages/supportmatch/admin";
 import SupportMatchAdminAnnouncements from "@/pages/supportmatch/admin-announcements";
 import SupportMatchAdminUsers from "@/pages/supportmatch/admin-users";
@@ -53,6 +54,7 @@ function Router() {
           <Route path="/apps/supportmatch/partnership" component={SupportMatchPartnership} />
           <Route path="/apps/supportmatch/announcements" component={SupportMatchAnnouncements} />
           <Route path="/apps/supportmatch/history" component={SupportMatchHistory} />
+          <Route path="/apps/supportmatch/safety" component={SupportMatchSafety} />
           <Route path="/apps/supportmatch/admin" component={SupportMatchAdmin} />
           <Route path="/apps/supportmatch/admin/announcements" component={SupportMatchAdminAnnouncements} />
           <Route path="/apps/supportmatch/admin/users" component={SupportMatchAdminUsers} />

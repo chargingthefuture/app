@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
-import { Users, Settings, Bell, MessageSquare, UserCheck } from "lucide-react";
+import { Users, Settings, Bell, MessageSquare, UserCheck, ShieldAlert } from "lucide-react";
 import type { SupportMatchProfile, Partnership } from "@shared/schema";
 
 export default function SupportMatchDashboard() {
@@ -122,7 +122,7 @@ export default function SupportMatchDashboard() {
       </Card>
 
       {/* Quick Actions */}
-      <div className="grid md:grid-cols-3 gap-6">
+      <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card className="hover-elevate">
           <CardHeader>
             <div className="flex items-center gap-3">
@@ -134,11 +134,32 @@ export default function SupportMatchDashboard() {
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground mb-4">
-              Update your preferences, gender settings, and exclusions
+              Update your preferences and gender settings
             </p>
             <Link href="/apps/supportmatch/profile">
               <Button variant="outline" className="w-full" data-testid="button-manage-profile">
                 Manage Profile
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+
+        <Card className="hover-elevate">
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                <ShieldAlert className="w-5 h-5 text-primary" />
+              </div>
+              <CardTitle className="text-lg">Safety & Privacy</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-4">
+              Manage blocked users and privacy settings
+            </p>
+            <Link href="/apps/supportmatch/safety">
+              <Button variant="outline" className="w-full" data-testid="button-manage-safety">
+                Manage Safety
               </Button>
             </Link>
           </CardContent>
