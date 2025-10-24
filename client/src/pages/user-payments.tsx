@@ -55,7 +55,7 @@ export default function UserPayments() {
               ${user?.pricingTier}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Grandfathered pricing
+              Grandparented pricing
             </p>
           </CardContent>
         </Card>

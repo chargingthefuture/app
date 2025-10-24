@@ -120,7 +120,7 @@ export default function PricingTiers() {
           Pricing Management
         </h1>
         <p className="text-muted-foreground">
-          Manage subscription pricing with grandfathered rates for existing users
+          Manage subscription pricing with grandparented rates for existing users
         </p>
       </div>
 

@@ -128,7 +128,7 @@
 - Vertical mobile, horizontal desktop
 - Subscription badge, payment history table/timeline
 
-**Subscription:** Current plan card, grandfathered pricing callout, admin "Mark as Paid" with confirmation
+**Subscription:** Current plan card, grandparented pricing callout, admin "Mark as Paid" with confirmation
 
 ---
 
