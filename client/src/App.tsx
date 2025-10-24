@@ -36,6 +36,8 @@ import LighthouseBrowse from "@/pages/lighthouse/browse";
 import LighthousePropertyDetail from "@/pages/lighthouse/property-detail";
 import LighthouseMatches from "@/pages/lighthouse/matches";
 import LighthouseAdmin from "@/pages/lighthouse/admin";
+import LighthouseMyProperties from "@/pages/lighthouse/my-properties";
+import LighthousePropertyForm from "@/pages/lighthouse/property-form";
 
 function Router() {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -75,6 +77,9 @@ function Router() {
           <Route path="/apps/sleepstories/:id" component={SleepStoryPlayer} />
           <Route path="/apps/lighthouse/profile" component={LighthouseProfile} />
           <Route path="/apps/lighthouse/browse" component={LighthouseBrowse} />
+          <Route path="/apps/lighthouse/my-properties" component={LighthouseMyProperties} />
+          <Route path="/apps/lighthouse/property/new" component={LighthousePropertyForm} />
+          <Route path="/apps/lighthouse/property/edit/:id" component={LighthousePropertyForm} />
           <Route path="/apps/lighthouse/property/:id" component={LighthousePropertyDetail} />
           <Route path="/apps/lighthouse/matches" component={LighthouseMatches} />
           <Route path="/apps/lighthouse/admin" component={LighthouseAdmin} />
