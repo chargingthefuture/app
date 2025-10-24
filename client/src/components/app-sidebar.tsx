@@ -84,18 +84,6 @@ const adminMenuItems = [
 
 const userMenuItems = [
   {
-    title: "SupportMatch",
-    url: "/apps/supportmatch",
-    icon: UserCheck,
-    testId: "link-supportmatch",
-  },
-  {
-    title: "SleepStories",
-    url: "/apps/sleepstories",
-    icon: Moon,
-    testId: "link-sleepstories",
-  },
-  {
     title: "LightHouse",
     url: "/apps/lighthouse",
     icon: Building2,
@@ -106,6 +94,18 @@ const userMenuItems = [
     url: "/payments",
     icon: DollarSign,
     testId: "link-payments",
+  },
+  {
+    title: "SleepStories",
+    url: "/apps/sleepstories",
+    icon: Moon,
+    testId: "link-sleepstories",
+  },
+  {
+    title: "SupportMatch",
+    url: "/apps/supportmatch",
+    icon: UserCheck,
+    testId: "link-supportmatch",
   },
 ];
 
