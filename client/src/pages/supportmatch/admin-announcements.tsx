@@ -64,7 +64,7 @@ export default function SupportMatchAdminAnnouncements() {
     mutationFn: async (data: AnnouncementFormValues) => {
       const payload = {
         ...data,
-        expiresAt: data.expiresAt ? new Date(data.expiresAt).toISOString() : null,
+        expiresAt: data.expiresAt ? new Date(data.expiresAt) : undefined,
       };
       return apiRequest("POST", "/api/supportmatch/admin/announcements", payload);
     },
@@ -90,7 +90,7 @@ export default function SupportMatchAdminAnnouncements() {
     mutationFn: async ({ id, data }: { id: string; data: AnnouncementFormValues }) => {
       const payload = {
         ...data,
-        expiresAt: data.expiresAt ? new Date(data.expiresAt).toISOString() : null,
+        expiresAt: data.expiresAt ? new Date(data.expiresAt) : undefined,
       };
       return apiRequest("PUT", `/api/supportmatch/admin/announcements/${id}`, payload);
     },
