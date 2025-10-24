@@ -3,8 +3,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "wouter";
-import { Home, Building2, UserCheck, MapPin, Plus, Edit } from "lucide-react";
-import type { LighthouseProfile, LighthouseProperty, LighthouseMatch } from "@shared/schema";
+import { Home, Building2, UserCheck, MapPin, Plus, Edit, AlertCircle, Info, Wrench, Bell, Megaphone } from "lucide-react";
+import type { LighthouseProfile, LighthouseProperty, LighthouseMatch, LighthouseAnnouncement } from "@shared/schema";
 
 export default function LighthouseDashboard() {
   const { data: profile, isLoading: profileLoading } = useQuery<LighthouseProfile | null>({
@@ -25,6 +25,36 @@ export default function LighthouseDashboard() {
     queryKey: ["/api/lighthouse/my-properties"],
     enabled: profile?.profileType === "host",
   });
+
+  const { data: announcements } = useQuery<LighthouseAnnouncement[]>({
+    queryKey: ["/api/lighthouse/announcements"],
+  });
+
+  const getAnnouncementIcon = (type: string) => {
+    switch (type) {
+      case "warning":
+        return <AlertCircle className="w-5 h-5" />;
+      case "maintenance":
+        return <Wrench className="w-5 h-5" />;
+      case "update":
+        return <Bell className="w-5 h-5" />;
+      case "promotion":
+        return <Megaphone className="w-5 h-5" />;
+      default:
+        return <Info className="w-5 h-5" />;
+    }
+  };
+
+  const getAnnouncementVariant = (type: string) => {
+    switch (type) {
+      case "warning":
+        return "destructive" as const;
+      case "update":
+        return "default" as const;
+      default:
+        return "secondary" as const;
+    }
+  };
 
   if (profileLoading) {
     return (
@@ -117,6 +147,40 @@ export default function LighthouseDashboard() {
           </div>
         </div>
       </div>
+
+      {/* Announcements */}
+      {announcements && announcements.length > 0 && (
+        <div className="space-y-4">
+          {announcements.map((announcement) => (
+            <Card key={announcement.id} data-testid={`announcement-${announcement.id}`}>
+              <CardHeader>
+                <div className="flex items-start gap-3">
+                  <div className={`mt-1 ${
+                    announcement.type === "warning" ? "text-amber-600" :
+                    announcement.type === "maintenance" ? "text-blue-600" :
+                    announcement.type === "update" ? "text-green-600" :
+                    announcement.type === "promotion" ? "text-purple-600" :
+                    "text-gray-600"
+                  }`}>
+                    {getAnnouncementIcon(announcement.type)}
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <CardTitle className="text-lg">{announcement.title}</CardTitle>
+                      <Badge variant={getAnnouncementVariant(announcement.type)}>
+                        {announcement.type}
+                      </Badge>
+                    </div>
+                    <CardDescription className="whitespace-pre-wrap">
+                      {announcement.content}
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+            </Card>
+          ))}
+        </div>
+      )}
 
       {/* Profile Summary */}
       <Card>
