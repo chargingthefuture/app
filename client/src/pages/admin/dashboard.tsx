@@ -27,7 +27,7 @@ export default function AdminDashboard() {
       color: "bg-chart-2/10 text-chart-2",
     },
     {
-      title: "Monthly Revenue",
+      title: "Collected Monthly Revenue",
       value: `$${stats?.monthlyRevenue || 0}`,
       icon: DollarSign,
       color: "bg-chart-3/10 text-chart-3",
