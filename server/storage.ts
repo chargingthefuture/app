@@ -11,9 +11,11 @@ import {
   reports,
   announcements,
   sleepStories,
+  sleepStoriesAnnouncements,
   lighthouseProfiles,
   lighthouseProperties,
   lighthouseMatches,
+  lighthouseAnnouncements,
   type User,
   type UpsertUser,
   type InviteCode,
@@ -38,12 +40,16 @@ import {
   type InsertAnnouncement,
   type SleepStory,
   type InsertSleepStory,
+  type SleepStoriesAnnouncement,
+  type InsertSleepStoriesAnnouncement,
   type LighthouseProfile,
   type InsertLighthouseProfile,
   type LighthouseProperty,
   type InsertLighthouseProperty,
   type LighthouseMatch,
   type InsertLighthouseMatch,
+  type LighthouseAnnouncement,
+  type InsertLighthouseAnnouncement,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, sql, or, inArray, gte, lte } from "drizzle-orm";
@@ -138,6 +144,13 @@ export interface IStorage {
   updateSleepStory(id: string, story: Partial<InsertSleepStory>): Promise<SleepStory>;
   deleteSleepStory(id: string): Promise<void>;
 
+  // SleepStories Announcement operations
+  createSleepStoriesAnnouncement(announcement: InsertSleepStoriesAnnouncement): Promise<SleepStoriesAnnouncement>;
+  getActiveSleepStoriesAnnouncements(): Promise<SleepStoriesAnnouncement[]>;
+  getAllSleepStoriesAnnouncements(): Promise<SleepStoriesAnnouncement[]>;
+  updateSleepStoriesAnnouncement(id: string, announcement: Partial<InsertSleepStoriesAnnouncement>): Promise<SleepStoriesAnnouncement>;
+  deactivateSleepStoriesAnnouncement(id: string): Promise<SleepStoriesAnnouncement>;
+
   // LightHouse Profile operations
   createLighthouseProfile(profile: InsertLighthouseProfile): Promise<LighthouseProfile>;
   getLighthouseProfileByUserId(userId: string): Promise<LighthouseProfile | undefined>;
@@ -171,6 +184,13 @@ export interface IStorage {
     activeMatches: number;
     completedMatches: number;
   }>;
+
+  // LightHouse Announcement operations
+  createLighthouseAnnouncement(announcement: InsertLighthouseAnnouncement): Promise<LighthouseAnnouncement>;
+  getActiveLighthouseAnnouncements(): Promise<LighthouseAnnouncement[]>;
+  getAllLighthouseAnnouncements(): Promise<LighthouseAnnouncement[]>;
+  updateLighthouseAnnouncement(id: string, announcement: Partial<InsertLighthouseAnnouncement>): Promise<LighthouseAnnouncement>;
+  deactivateLighthouseAnnouncement(id: string): Promise<LighthouseAnnouncement>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -867,6 +887,63 @@ export class DatabaseStorage implements IStorage {
       .where(eq(sleepStories.id, id));
   }
 
+  // SleepStories Announcement operations
+  async createSleepStoriesAnnouncement(announcementData: InsertSleepStoriesAnnouncement): Promise<SleepStoriesAnnouncement> {
+    const [announcement] = await db
+      .insert(sleepStoriesAnnouncements)
+      .values(announcementData)
+      .returning();
+    return announcement;
+  }
+  
+  async getActiveSleepStoriesAnnouncements(): Promise<SleepStoriesAnnouncement[]> {
+    const now = new Date();
+    return await db
+      .select()
+      .from(sleepStoriesAnnouncements)
+      .where(
+        and(
+          eq(sleepStoriesAnnouncements.isActive, true),
+          or(
+            sql`${sleepStoriesAnnouncements.expiresAt} IS NULL`,
+            gte(sleepStoriesAnnouncements.expiresAt, now)
+          )
+        )
+      )
+      .orderBy(desc(sleepStoriesAnnouncements.createdAt));
+  }
+  
+  async getAllSleepStoriesAnnouncements(): Promise<SleepStoriesAnnouncement[]> {
+    return await db
+      .select()
+      .from(sleepStoriesAnnouncements)
+      .orderBy(desc(sleepStoriesAnnouncements.createdAt));
+  }
+  
+  async updateSleepStoriesAnnouncement(id: string, announcementData: Partial<InsertSleepStoriesAnnouncement>): Promise<SleepStoriesAnnouncement> {
+    const [announcement] = await db
+      .update(sleepStoriesAnnouncements)
+      .set({
+        ...announcementData,
+        updatedAt: new Date(),
+      })
+      .where(eq(sleepStoriesAnnouncements.id, id))
+      .returning();
+    return announcement;
+  }
+  
+  async deactivateSleepStoriesAnnouncement(id: string): Promise<SleepStoriesAnnouncement> {
+    const [announcement] = await db
+      .update(sleepStoriesAnnouncements)
+      .set({
+        isActive: false,
+        updatedAt: new Date(),
+      })
+      .where(eq(sleepStoriesAnnouncements.id, id))
+      .returning();
+    return announcement;
+  }
+
 
   // ========================================
   // LIGHTHOUSE APP OPERATIONS
@@ -1118,6 +1195,63 @@ export class DatabaseStorage implements IStorage {
       activeMatches: activeMatchesResult.length,
       completedMatches: completedMatchesResult.length,
     };
+  }
+
+  // LightHouse Announcement operations
+  async createLighthouseAnnouncement(announcementData: InsertLighthouseAnnouncement): Promise<LighthouseAnnouncement> {
+    const [announcement] = await db
+      .insert(lighthouseAnnouncements)
+      .values(announcementData)
+      .returning();
+    return announcement;
+  }
+  
+  async getActiveLighthouseAnnouncements(): Promise<LighthouseAnnouncement[]> {
+    const now = new Date();
+    return await db
+      .select()
+      .from(lighthouseAnnouncements)
+      .where(
+        and(
+          eq(lighthouseAnnouncements.isActive, true),
+          or(
+            sql`${lighthouseAnnouncements.expiresAt} IS NULL`,
+            gte(lighthouseAnnouncements.expiresAt, now)
+          )
+        )
+      )
+      .orderBy(desc(lighthouseAnnouncements.createdAt));
+  }
+  
+  async getAllLighthouseAnnouncements(): Promise<LighthouseAnnouncement[]> {
+    return await db
+      .select()
+      .from(lighthouseAnnouncements)
+      .orderBy(desc(lighthouseAnnouncements.createdAt));
+  }
+  
+  async updateLighthouseAnnouncement(id: string, announcementData: Partial<InsertLighthouseAnnouncement>): Promise<LighthouseAnnouncement> {
+    const [announcement] = await db
+      .update(lighthouseAnnouncements)
+      .set({
+        ...announcementData,
+        updatedAt: new Date(),
+      })
+      .where(eq(lighthouseAnnouncements.id, id))
+      .returning();
+    return announcement;
+  }
+  
+  async deactivateLighthouseAnnouncement(id: string): Promise<LighthouseAnnouncement> {
+    const [announcement] = await db
+      .update(lighthouseAnnouncements)
+      .set({
+        isActive: false,
+        updatedAt: new Date(),
+      })
+      .where(eq(lighthouseAnnouncements.id, id))
+      .returning();
+    return announcement;
   }
 }
 

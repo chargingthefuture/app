@@ -13,9 +13,11 @@ import {
   insertReportSchema,
   insertAnnouncementSchema,
   insertSleepStorySchema,
+  insertSleepStoriesAnnouncementSchema,
   insertLighthouseProfileSchema,
   insertLighthousePropertySchema,
   insertLighthouseMatchSchema,
+  insertLighthouseAnnouncementSchema,
 } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -764,6 +766,89 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // SleepStories Announcement routes (public)
+  app.get('/api/sleepstories/announcements', isAuthenticated, async (req, res) => {
+    try {
+      const announcements = await storage.getActiveSleepStoriesAnnouncements();
+      res.json(announcements);
+    } catch (error) {
+      console.error("Error fetching SleepStories announcements:", error);
+      res.status(500).json({ message: "Failed to fetch announcements" });
+    }
+  });
+
+  // SleepStories Admin announcement routes
+  app.get('/api/sleepstories/admin/announcements', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const announcements = await storage.getAllSleepStoriesAnnouncements();
+      res.json(announcements);
+    } catch (error) {
+      console.error("Error fetching SleepStories announcements:", error);
+      res.status(500).json({ message: "Failed to fetch announcements" });
+    }
+  });
+
+  app.post('/api/sleepstories/admin/announcements', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const validatedData = insertSleepStoriesAnnouncementSchema.parse(req.body);
+
+      const announcement = await storage.createSleepStoriesAnnouncement(validatedData);
+      
+      await logAdminAction(
+        userId,
+        "create_sleepstories_announcement",
+        "sleepstories_announcement",
+        announcement.id,
+        { title: announcement.title, type: announcement.type }
+      );
+
+      res.json(announcement);
+    } catch (error: any) {
+      console.error("Error creating SleepStories announcement:", error);
+      res.status(400).json({ message: error.message || "Failed to create announcement" });
+    }
+  });
+
+  app.put('/api/sleepstories/admin/announcements/:id', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const announcement = await storage.updateSleepStoriesAnnouncement(req.params.id, req.body);
+      
+      await logAdminAction(
+        userId,
+        "update_sleepstories_announcement",
+        "sleepstories_announcement",
+        announcement.id,
+        { title: announcement.title }
+      );
+
+      res.json(announcement);
+    } catch (error: any) {
+      console.error("Error updating SleepStories announcement:", error);
+      res.status(400).json({ message: error.message || "Failed to update announcement" });
+    }
+  });
+
+  app.delete('/api/sleepstories/admin/announcements/:id', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const announcement = await storage.deactivateSleepStoriesAnnouncement(req.params.id);
+      
+      await logAdminAction(
+        userId,
+        "deactivate_sleepstories_announcement",
+        "sleepstories_announcement",
+        announcement.id
+      );
+
+      res.json(announcement);
+    } catch (error: any) {
+      console.error("Error deactivating SleepStories announcement:", error);
+      res.status(400).json({ message: error.message || "Failed to deactivate announcement" });
+    }
+  });
+
   // ========================================
   // LIGHTHOUSE APP ROUTES
   // ========================================
@@ -1125,6 +1210,89 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error updating match:", error);
       res.status(400).json({ message: error.message || "Failed to update match" });
+    }
+  });
+
+  // LightHouse Announcement routes (public)
+  app.get('/api/lighthouse/announcements', isAuthenticated, async (req, res) => {
+    try {
+      const announcements = await storage.getActiveLighthouseAnnouncements();
+      res.json(announcements);
+    } catch (error) {
+      console.error("Error fetching LightHouse announcements:", error);
+      res.status(500).json({ message: "Failed to fetch announcements" });
+    }
+  });
+
+  // LightHouse Admin announcement routes
+  app.get('/api/lighthouse/admin/announcements', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const announcements = await storage.getAllLighthouseAnnouncements();
+      res.json(announcements);
+    } catch (error) {
+      console.error("Error fetching LightHouse announcements:", error);
+      res.status(500).json({ message: "Failed to fetch announcements" });
+    }
+  });
+
+  app.post('/api/lighthouse/admin/announcements', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const validatedData = insertLighthouseAnnouncementSchema.parse(req.body);
+
+      const announcement = await storage.createLighthouseAnnouncement(validatedData);
+      
+      await logAdminAction(
+        userId,
+        "create_lighthouse_announcement",
+        "lighthouse_announcement",
+        announcement.id,
+        { title: announcement.title, type: announcement.type }
+      );
+
+      res.json(announcement);
+    } catch (error: any) {
+      console.error("Error creating LightHouse announcement:", error);
+      res.status(400).json({ message: error.message || "Failed to create announcement" });
+    }
+  });
+
+  app.put('/api/lighthouse/admin/announcements/:id', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const announcement = await storage.updateLighthouseAnnouncement(req.params.id, req.body);
+      
+      await logAdminAction(
+        userId,
+        "update_lighthouse_announcement",
+        "lighthouse_announcement",
+        announcement.id,
+        { title: announcement.title }
+      );
+
+      res.json(announcement);
+    } catch (error: any) {
+      console.error("Error updating LightHouse announcement:", error);
+      res.status(400).json({ message: error.message || "Failed to update announcement" });
+    }
+  });
+
+  app.delete('/api/lighthouse/admin/announcements/:id', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const announcement = await storage.deactivateLighthouseAnnouncement(req.params.id);
+      
+      await logAdminAction(
+        userId,
+        "deactivate_lighthouse_announcement",
+        "lighthouse_announcement",
+        announcement.id
+      );
+
+      res.json(announcement);
+    } catch (error: any) {
+      console.error("Error deactivating LightHouse announcement:", error);
+      res.status(400).json({ message: error.message || "Failed to deactivate announcement" });
     }
   });
 
