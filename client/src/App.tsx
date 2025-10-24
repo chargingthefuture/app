@@ -32,6 +32,7 @@ import SupportMatchAdminReports from "@/pages/supportmatch/admin-reports";
 import SleepStoriesLibrary from "@/pages/sleepstories/library";
 import SleepStoryPlayer from "@/pages/sleepstories/player";
 import SleepStoriesAdmin from "@/pages/sleepstories/admin";
+import SleepStoriesAdminAnnouncements from "@/pages/sleepstories/admin-announcements";
 import LighthouseDashboard from "@/pages/lighthouse/dashboard";
 import LighthouseProfile from "@/pages/lighthouse/profile";
 import LighthouseBrowse from "@/pages/lighthouse/browse";
@@ -40,6 +41,7 @@ import LighthouseMatches from "@/pages/lighthouse/matches";
 import LighthouseAdmin from "@/pages/lighthouse/admin";
 import LighthouseMyProperties from "@/pages/lighthouse/my-properties";
 import LighthousePropertyForm from "@/pages/lighthouse/property-form";
+import LighthouseAdminAnnouncements from "@/pages/lighthouse/admin-announcements";
 
 function Router() {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -77,6 +79,7 @@ function Router() {
           <Route path="/apps/supportmatch/admin/reports" component={SupportMatchAdminReports} />
           <Route path="/apps/sleepstories" component={SleepStoriesLibrary} />
           <Route path="/apps/sleepstories/admin" component={SleepStoriesAdmin} />
+          <Route path="/apps/sleepstories/admin/announcements" component={SleepStoriesAdminAnnouncements} />
           <Route path="/apps/sleepstories/:id" component={SleepStoryPlayer} />
           <Route path="/apps/lighthouse" component={LighthouseDashboard} />
           <Route path="/apps/lighthouse/profile" component={LighthouseProfile} />
@@ -87,6 +90,7 @@ function Router() {
           <Route path="/apps/lighthouse/property/:id" component={LighthousePropertyDetail} />
           <Route path="/apps/lighthouse/matches" component={LighthouseMatches} />
           <Route path="/apps/lighthouse/admin" component={LighthouseAdmin} />
+          <Route path="/apps/lighthouse/admin/announcements" component={LighthouseAdminAnnouncements} />
         </>
       )}
       <Route component={NotFound} />
