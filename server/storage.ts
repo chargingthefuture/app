@@ -11,6 +11,10 @@ import {
   reports,
   announcements,
   sleepStories,
+  lighthouseProfiles,
+  lighthouseProperties,
+  lighthouseMatches,
+  lighthouseReviews,
   type User,
   type UpsertUser,
   type InviteCode,
@@ -35,6 +39,14 @@ import {
   type InsertAnnouncement,
   type SleepStory,
   type InsertSleepStory,
+  type LighthouseProfile,
+  type InsertLighthouseProfile,
+  type LighthouseProperty,
+  type InsertLighthouseProperty,
+  type LighthouseMatch,
+  type InsertLighthouseMatch,
+  type LighthouseReview,
+  type InsertLighthouseReview,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, sql, or, inArray, gte, lte } from "drizzle-orm";
@@ -127,6 +139,45 @@ export interface IStorage {
   getSleepStoryById(id: string): Promise<SleepStory | undefined>;
   updateSleepStory(id: string, story: Partial<InsertSleepStory>): Promise<SleepStory>;
   deleteSleepStory(id: string): Promise<void>;
+
+  // LightHouse Profile operations
+  createLighthouseProfile(profile: InsertLighthouseProfile): Promise<LighthouseProfile>;
+  getLighthouseProfileByUserId(userId: string): Promise<LighthouseProfile | undefined>;
+  getLighthouseProfileById(id: string): Promise<LighthouseProfile | undefined>;
+  updateLighthouseProfile(id: string, profile: Partial<InsertLighthouseProfile>): Promise<LighthouseProfile>;
+  getAllLighthouseProfiles(): Promise<LighthouseProfile[]>;
+  getLighthouseProfilesByType(profileType: string): Promise<LighthouseProfile[]>;
+
+  // LightHouse Property operations
+  createLighthouseProperty(property: InsertLighthouseProperty): Promise<LighthouseProperty>;
+  getLighthousePropertyById(id: string): Promise<LighthouseProperty | undefined>;
+  getPropertiesByHost(hostId: string): Promise<LighthouseProperty[]>;
+  getAllActiveProperties(): Promise<LighthouseProperty[]>;
+  getAllProperties(): Promise<LighthouseProperty[]>;
+  updateLighthouseProperty(id: string, property: Partial<InsertLighthouseProperty>): Promise<LighthouseProperty>;
+  deleteLighthouseProperty(id: string): Promise<void>;
+
+  // LightHouse Match operations
+  createLighthouseMatch(match: InsertLighthouseMatch): Promise<LighthouseMatch>;
+  getLighthouseMatchById(id: string): Promise<LighthouseMatch | undefined>;
+  getMatchesBySeeker(seekerId: string): Promise<LighthouseMatch[]>;
+  getMatchesByProperty(propertyId: string): Promise<LighthouseMatch[]>;
+  getAllMatches(): Promise<LighthouseMatch[]>;
+  updateLighthouseMatch(id: string, match: Partial<InsertLighthouseMatch>): Promise<LighthouseMatch>;
+  
+  // LightHouse Review operations
+  createLighthouseReview(review: InsertLighthouseReview): Promise<LighthouseReview>;
+  getReviewsByReviewee(revieweeId: string): Promise<LighthouseReview[]>;
+  getReviewsByMatch(matchId: string): Promise<LighthouseReview[]>;
+
+  // LightHouse Stats
+  getLighthouseStats(): Promise<{
+    totalSeekers: number;
+    totalHosts: number;
+    totalProperties: number;
+    activeMatches: number;
+    completedMatches: number;
+  }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -801,6 +852,249 @@ export class DatabaseStorage implements IStorage {
     await db
       .delete(sleepStories)
       .where(eq(sleepStories.id, id));
+  }
+
+
+  // ========================================
+  // LIGHTHOUSE APP OPERATIONS
+  // ========================================
+
+  // Profile operations
+  async createLighthouseProfile(profileData: InsertLighthouseProfile): Promise<LighthouseProfile> {
+    const [profile] = await db
+      .insert(lighthouseProfiles)
+      .values(profileData)
+      .returning();
+    return profile;
+  }
+
+  async getLighthouseProfileByUserId(userId: string): Promise<LighthouseProfile | undefined> {
+    const [profile] = await db
+      .select()
+      .from(lighthouseProfiles)
+      .where(eq(lighthouseProfiles.userId, userId));
+    return profile;
+  }
+
+  async getLighthouseProfileById(id: string): Promise<LighthouseProfile | undefined> {
+    const [profile] = await db
+      .select()
+      .from(lighthouseProfiles)
+      .where(eq(lighthouseProfiles.id, id));
+    return profile;
+  }
+
+  async updateLighthouseProfile(id: string, profileData: Partial<InsertLighthouseProfile>): Promise<LighthouseProfile> {
+    const [profile] = await db
+      .update(lighthouseProfiles)
+      .set({
+        ...profileData,
+        updatedAt: new Date(),
+      })
+      .where(eq(lighthouseProfiles.id, id))
+      .returning();
+    return profile;
+  }
+
+  async getAllLighthouseProfiles(): Promise<LighthouseProfile[]> {
+    return await db
+      .select()
+      .from(lighthouseProfiles)
+      .orderBy(desc(lighthouseProfiles.createdAt));
+  }
+
+  async getLighthouseProfilesByType(profileType: string): Promise<LighthouseProfile[]> {
+    return await db
+      .select()
+      .from(lighthouseProfiles)
+      .where(and(
+        eq(lighthouseProfiles.profileType, profileType),
+        eq(lighthouseProfiles.isActive, true)
+      ))
+      .orderBy(desc(lighthouseProfiles.createdAt));
+  }
+
+  // Property operations
+  async createLighthouseProperty(propertyData: InsertLighthouseProperty): Promise<LighthouseProperty> {
+    const [property] = await db
+      .insert(lighthouseProperties)
+      .values(propertyData)
+      .returning();
+    return property;
+  }
+
+  async getLighthousePropertyById(id: string): Promise<LighthouseProperty | undefined> {
+    const [property] = await db
+      .select()
+      .from(lighthouseProperties)
+      .where(eq(lighthouseProperties.id, id));
+    return property;
+  }
+
+  async getPropertiesByHost(hostId: string): Promise<LighthouseProperty[]> {
+    return await db
+      .select()
+      .from(lighthouseProperties)
+      .where(eq(lighthouseProperties.hostId, hostId))
+      .orderBy(desc(lighthouseProperties.createdAt));
+  }
+
+  async getAllActiveProperties(): Promise<LighthouseProperty[]> {
+    return await db
+      .select()
+      .from(lighthouseProperties)
+      .where(eq(lighthouseProperties.isActive, true))
+      .orderBy(desc(lighthouseProperties.createdAt));
+  }
+
+  async getAllProperties(): Promise<LighthouseProperty[]> {
+    return await db
+      .select()
+      .from(lighthouseProperties)
+      .orderBy(desc(lighthouseProperties.createdAt));
+  }
+
+  async updateLighthouseProperty(id: string, propertyData: Partial<InsertLighthouseProperty>): Promise<LighthouseProperty> {
+    const [property] = await db
+      .update(lighthouseProperties)
+      .set({
+        ...propertyData,
+        updatedAt: new Date(),
+      })
+      .where(eq(lighthouseProperties.id, id))
+      .returning();
+    return property;
+  }
+
+  async deleteLighthouseProperty(id: string): Promise<void> {
+    await db
+      .delete(lighthouseProperties)
+      .where(eq(lighthouseProperties.id, id));
+  }
+
+  // Match operations
+  async createLighthouseMatch(matchData: InsertLighthouseMatch): Promise<LighthouseMatch> {
+    const [match] = await db
+      .insert(lighthouseMatches)
+      .values(matchData)
+      .returning();
+    return match;
+  }
+
+  async getLighthouseMatchById(id: string): Promise<LighthouseMatch | undefined> {
+    const [match] = await db
+      .select()
+      .from(lighthouseMatches)
+      .where(eq(lighthouseMatches.id, id));
+    return match;
+  }
+
+  async getMatchesBySeeker(seekerId: string): Promise<LighthouseMatch[]> {
+    return await db
+      .select()
+      .from(lighthouseMatches)
+      .where(eq(lighthouseMatches.seekerId, seekerId))
+      .orderBy(desc(lighthouseMatches.createdAt));
+  }
+
+  async getMatchesByProperty(propertyId: string): Promise<LighthouseMatch[]> {
+    return await db
+      .select()
+      .from(lighthouseMatches)
+      .where(eq(lighthouseMatches.propertyId, propertyId))
+      .orderBy(desc(lighthouseMatches.createdAt));
+  }
+
+  async getAllMatches(): Promise<LighthouseMatch[]> {
+    return await db
+      .select()
+      .from(lighthouseMatches)
+      .orderBy(desc(lighthouseMatches.createdAt));
+  }
+
+  async updateLighthouseMatch(id: string, matchData: Partial<InsertLighthouseMatch>): Promise<LighthouseMatch> {
+    const [match] = await db
+      .update(lighthouseMatches)
+      .set({
+        ...matchData,
+        updatedAt: new Date(),
+      })
+      .where(eq(lighthouseMatches.id, id))
+      .returning();
+    return match;
+  }
+
+  // Review operations
+  async createLighthouseReview(reviewData: InsertLighthouseReview): Promise<LighthouseReview> {
+    const [review] = await db
+      .insert(lighthouseReviews)
+      .values(reviewData)
+      .returning();
+    return review;
+  }
+
+  async getReviewsByReviewee(revieweeId: string): Promise<LighthouseReview[]> {
+    return await db
+      .select()
+      .from(lighthouseReviews)
+      .where(and(
+        eq(lighthouseReviews.revieweeId, revieweeId),
+        eq(lighthouseReviews.isVisible, true)
+      ))
+      .orderBy(desc(lighthouseReviews.createdAt));
+  }
+
+  async getReviewsByMatch(matchId: string): Promise<LighthouseReview[]> {
+    return await db
+      .select()
+      .from(lighthouseReviews)
+      .where(eq(lighthouseReviews.matchId, matchId))
+      .orderBy(desc(lighthouseReviews.createdAt));
+  }
+
+  // Stats
+  async getLighthouseStats() {
+    const seekers = await db
+      .select()
+      .from(lighthouseProfiles)
+      .where(and(
+        eq(lighthouseProfiles.profileType, 'seeker'),
+        eq(lighthouseProfiles.isActive, true)
+      ));
+      
+    const hosts = await db
+      .select()
+      .from(lighthouseProfiles)
+      .where(and(
+        eq(lighthouseProfiles.profileType, 'host'),
+        eq(lighthouseProfiles.isActive, true)
+      ));
+      
+    const properties = await db
+      .select()
+      .from(lighthouseProperties)
+      .where(eq(lighthouseProperties.isActive, true));
+      
+    const activeMatchesResult = await db
+      .select()
+      .from(lighthouseMatches)
+      .where(or(
+        eq(lighthouseMatches.status, 'pending'),
+        eq(lighthouseMatches.status, 'accepted')
+      ));
+      
+    const completedMatchesResult = await db
+      .select()
+      .from(lighthouseMatches)
+      .where(eq(lighthouseMatches.status, 'completed'));
+    
+    return {
+      totalSeekers: seekers.length,
+      totalHosts: hosts.length,
+      totalProperties: properties.length,
+      activeMatches: activeMatchesResult.length,
+      completedMatches: completedMatchesResult.length,
+    };
   }
 }
 

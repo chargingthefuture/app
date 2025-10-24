@@ -385,3 +385,200 @@ export const insertSleepStorySchema = createInsertSchema(sleepStories).omit({
 
 export type InsertSleepStory = z.infer<typeof insertSleepStorySchema>;
 export type SleepStory = typeof sleepStories.$inferSelect;
+
+// ========================================
+// LIGHTHOUSE APP TABLES
+// ========================================
+
+// LightHouse user profiles (seekers and hosts)
+export const lighthouseProfiles = pgTable("lighthouse_profiles", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id).unique(),
+  profileType: varchar("profile_type", { length: 20 }).notNull(), // 'seeker' or 'host'
+  displayName: varchar("display_name", { length: 100 }).notNull(),
+  bio: text("bio"),
+  phoneNumber: varchar("phone_number", { length: 20 }),
+  
+  // For seekers
+  housingNeeds: text("housing_needs"), // Description of what they need
+  moveInDate: timestamp("move_in_date"),
+  budgetMin: decimal("budget_min", { precision: 10, scale: 2 }),
+  budgetMax: decimal("budget_max", { precision: 10, scale: 2 }),
+  
+  // For hosts
+  hasProperty: boolean("has_property").default(false),
+  
+  // Common fields
+  isVerified: boolean("is_verified").default(false).notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const lighthouseProfilesRelations = relations(lighthouseProfiles, ({ one, many }) => ({
+  user: one(users, {
+    fields: [lighthouseProfiles.userId],
+    references: [users.id],
+  }),
+  properties: many(lighthouseProperties),
+  matchesAsSeeker: many(lighthouseMatches, { relationName: "seeker" }),
+  reviewsGiven: many(lighthouseReviews, { relationName: "reviewer" }),
+  reviewsReceived: many(lighthouseReviews, { relationName: "reviewee" }),
+}));
+
+export const insertLighthouseProfileSchema = createInsertSchema(lighthouseProfiles).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  moveInDate: z.coerce.date().optional().nullable(),
+});
+export type InsertLighthouseProfile = z.infer<typeof insertLighthouseProfileSchema>;
+export type LighthouseProfile = typeof lighthouseProfiles.$inferSelect;
+
+// LightHouse property listings
+export const lighthouseProperties = pgTable("lighthouse_properties", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  hostId: varchar("host_id").notNull().references(() => lighthouseProfiles.id),
+  
+  propertyType: varchar("property_type", { length: 50 }).notNull(), // 'room', 'apartment', 'house', 'community'
+  title: varchar("title", { length: 200 }).notNull(),
+  description: text("description").notNull(),
+  
+  // Location
+  address: text("address").notNull(),
+  city: varchar("city", { length: 100 }).notNull(),
+  state: varchar("state", { length: 50 }).notNull(),
+  zipCode: varchar("zip_code", { length: 10 }).notNull(),
+  
+  // Details
+  bedrooms: integer("bedrooms"),
+  bathrooms: decimal("bathrooms", { precision: 3, scale: 1 }),
+  amenities: text("amenities").array(), // Array of amenities like ['WiFi', 'Kitchen Access', 'Parking']
+  houseRules: text("house_rules"),
+  
+  // Pricing
+  monthlyRent: decimal("monthly_rent", { precision: 10, scale: 2 }).notNull(),
+  securityDeposit: decimal("security_deposit", { precision: 10, scale: 2 }),
+  
+  // Availability
+  availableFrom: timestamp("available_from"),
+  availableUntil: timestamp("available_until"),
+  maxOccupants: integer("max_occupants").default(1),
+  
+  // Media
+  photos: text("photos").array(), // Array of photo URLs
+  
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const lighthousePropertiesRelations = relations(lighthouseProperties, ({ one, many }) => ({
+  host: one(lighthouseProfiles, {
+    fields: [lighthouseProperties.hostId],
+    references: [lighthouseProfiles.id],
+  }),
+  matches: many(lighthouseMatches),
+}));
+
+export const insertLighthousePropertySchema = createInsertSchema(lighthouseProperties).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  availableFrom: z.coerce.date().optional().nullable(),
+  availableUntil: z.coerce.date().optional().nullable(),
+});
+export type InsertLighthouseProperty = z.infer<typeof insertLighthousePropertySchema>;
+export type LighthouseProperty = typeof lighthouseProperties.$inferSelect;
+
+// LightHouse matches (connections between seekers and properties)
+export const lighthouseMatches = pgTable("lighthouse_matches", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  seekerId: varchar("seeker_id").notNull().references(() => lighthouseProfiles.id),
+  propertyId: varchar("property_id").notNull().references(() => lighthouseProperties.id),
+  
+  status: varchar("status", { length: 20 }).notNull().default('pending'), // 'pending', 'accepted', 'rejected', 'completed', 'cancelled'
+  
+  // Move dates
+  proposedMoveInDate: timestamp("proposed_move_in_date"),
+  actualMoveInDate: timestamp("actual_move_in_date"),
+  proposedMoveOutDate: timestamp("proposed_move_out_date"),
+  actualMoveOutDate: timestamp("actual_move_out_date"),
+  
+  // Messages/notes
+  seekerMessage: text("seeker_message"), // Initial message from seeker
+  hostResponse: text("host_response"), // Response from host
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const lighthouseMatchesRelations = relations(lighthouseMatches, ({ one, many }) => ({
+  seeker: one(lighthouseProfiles, {
+    fields: [lighthouseMatches.seekerId],
+    references: [lighthouseProfiles.id],
+    relationName: "seeker",
+  }),
+  property: one(lighthouseProperties, {
+    fields: [lighthouseMatches.propertyId],
+    references: [lighthouseProperties.id],
+  }),
+  reviews: many(lighthouseReviews),
+}));
+
+export const insertLighthouseMatchSchema = createInsertSchema(lighthouseMatches).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  proposedMoveInDate: z.coerce.date().optional().nullable(),
+  actualMoveInDate: z.coerce.date().optional().nullable(),
+  proposedMoveOutDate: z.coerce.date().optional().nullable(),
+  actualMoveOutDate: z.coerce.date().optional().nullable(),
+});
+export type InsertLighthouseMatch = z.infer<typeof insertLighthouseMatchSchema>;
+export type LighthouseMatch = typeof lighthouseMatches.$inferSelect;
+
+// LightHouse reviews
+export const lighthouseReviews = pgTable("lighthouse_reviews", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  matchId: varchar("match_id").notNull().references(() => lighthouseMatches.id),
+  reviewerId: varchar("reviewer_id").notNull().references(() => lighthouseProfiles.id),
+  revieweeId: varchar("reviewee_id").notNull().references(() => lighthouseProfiles.id),
+  
+  rating: integer("rating").notNull(), // 1-5 stars
+  comment: text("comment"),
+  
+  isVisible: boolean("is_visible").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const lighthouseReviewsRelations = relations(lighthouseReviews, ({ one }) => ({
+  match: one(lighthouseMatches, {
+    fields: [lighthouseReviews.matchId],
+    references: [lighthouseMatches.id],
+  }),
+  reviewer: one(lighthouseProfiles, {
+    fields: [lighthouseReviews.reviewerId],
+    references: [lighthouseProfiles.id],
+    relationName: "reviewer",
+  }),
+  reviewee: one(lighthouseProfiles, {
+    fields: [lighthouseReviews.revieweeId],
+    references: [lighthouseProfiles.id],
+    relationName: "reviewee",
+  }),
+}));
+
+export const insertLighthouseReviewSchema = createInsertSchema(lighthouseReviews).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  rating: z.number().min(1).max(5),
+});
+export type InsertLighthouseReview = z.infer<typeof insertLighthouseReviewSchema>;
+export type LighthouseReview = typeof lighthouseReviews.$inferSelect;
