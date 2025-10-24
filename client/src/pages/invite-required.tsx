@@ -7,10 +7,12 @@ import { Label } from "@/components/ui/label";
 import { Lock, Ticket } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useLocation } from "wouter";
 
 export default function InviteRequired() {
   const { toast } = useToast();
   const [inviteCode, setInviteCode] = useState("");
+  const [, setLocation] = useLocation();
 
   const submitMutation = useMutation({
     mutationFn: async () => {
@@ -24,6 +26,8 @@ export default function InviteRequired() {
         title: "Welcome!",
         description: "Your invite code has been validated. Welcome to the platform.",
       });
+      // Redirect to home page to trigger router update
+      setTimeout(() => setLocation("/"), 100);
     },
     onError: (error: Error) => {
       toast({

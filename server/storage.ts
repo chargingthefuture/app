@@ -440,10 +440,15 @@ export class DatabaseStorage implements IStorage {
         return false;
       }
       
-      // Timezone compatibility - exact match is best, but "any" timezone means flexible
-      if (user1.timezone && user2.timezone && user1.timezone !== user2.timezone) {
-        // Different timezones - could still be compatible but less ideal
-        // For now, we'll allow it but could add scoring later
+      // Timezone compatibility - respect both users' timezone preferences
+      const user1WantsSameTimezone = user1.timezonePreference === 'same_timezone';
+      const user2WantsSameTimezone = user2.timezonePreference === 'same_timezone';
+      
+      // If either user wants same timezone, both must have timezones set and they must match
+      if (user1WantsSameTimezone || user2WantsSameTimezone) {
+        if (!user1.timezone || !user2.timezone || user1.timezone !== user2.timezone) {
+          return false;
+        }
       }
       
       return true;
