@@ -12,8 +12,8 @@ export default function Landing() {
             <div className="space-y-8 max-w-xl">
               <div className="space-y-4">
                 <h1 className="text-5xl md:text-6xl font-bold tracking-tight leading-tight">
-                  Welcome to Your
-                  <span className="block text-primary mt-2">Safe Space</span>
+                  world's first psyop-free
+                  <span className="block text-primary mt-2">TI economy</span>
                 </h1>
                 <p className="text-xl text-muted-foreground leading-relaxed">
                   A secure platform designed specifically for survivors, offering essential 
@@ -29,7 +29,7 @@ export default function Landing() {
                   <div>
                     <h3 className="font-semibold mb-1">Invite-Only Access</h3>
                     <p className="text-sm text-muted-foreground">
-                      Your safety is our priority. Access is granted only through secure invite codes.
+                      Your safety is our priority. Access is granted only through invite codes.
                     </p>
                   </div>
                 </div>
@@ -41,7 +41,7 @@ export default function Landing() {
                   <div>
                     <h3 className="font-semibold mb-1">Private & Secure</h3>
                     <p className="text-sm text-muted-foreground">
-                      Your information is encrypted and protected with the highest security standards.
+                      Your information is protected with the highest security standards.
                     </p>
                   </div>
                 </div>
@@ -53,7 +53,7 @@ export default function Landing() {
                   <div>
                     <h3 className="font-semibold mb-1">Support Services</h3>
                     <p className="text-sm text-muted-foreground">
-                      Access essential services including support matching, telehealth, and resources.
+                      Access essential services including support matching, housing, and resources.
                     </p>
                   </div>
                 </div>
@@ -87,7 +87,16 @@ export default function Landing() {
 
                     <div className="pt-4 border-t">
                       <p className="text-xs text-center text-muted-foreground leading-relaxed">
-                        Need an invite code? Contact your support coordinator for secure access.
+                        Need an invite code?{" "}
+                        <a 
+                          href="https://signal.group/#CjQKILHj7074l2Kl-oYy0qGSFdydXbtu0Pf66Z_88K9IlSCtEhDDdqV_BFAW2qm2EiTGEaNs"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary hover:underline"
+                          data-testid="link-signal-group"
+                        >
+                          Contact our support coordinator for secure access
+                        </a>.
                       </p>
                     </div>
                   </div>
