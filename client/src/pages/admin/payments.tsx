@@ -202,15 +202,15 @@ export default function AdminPayments() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="cash">Cash</SelectItem>
-                  <SelectItem value="venmo">Venmo</SelectItem>
-                  <SelectItem value="paypal">PayPal</SelectItem>
-                  <SelectItem value="zelle">Zelle</SelectItem>
-                  <SelectItem value="chime">Chime</SelectItem>
-                  <SelectItem value="wise">Wise</SelectItem>
-                  <SelectItem value="walmart-onepay">Walmart OnePay</SelectItem>
                   <SelectItem value="amazon-gift-card">Amazon Gift Card</SelectItem>
                   <SelectItem value="apple-gift-card">Apple Gift Card</SelectItem>
+                  <SelectItem value="cash">Cash</SelectItem>
+                  <SelectItem value="chime">Chime</SelectItem>
+                  <SelectItem value="paypal">PayPal</SelectItem>
+                  <SelectItem value="venmo">Venmo</SelectItem>
+                  <SelectItem value="walmart-onepay">Walmart OnePay</SelectItem>
+                  <SelectItem value="wise">Wise</SelectItem>
+                  <SelectItem value="zelle">Zelle</SelectItem>
                 </SelectContent>
               </Select>
             </div>
