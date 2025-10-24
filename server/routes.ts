@@ -458,37 +458,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/supportmatch/admin/partnerships', isAuthenticated, isAdmin, async (req: any, res) => {
+  app.post('/api/supportmatch/admin/partnerships/run-matching', isAuthenticated, isAdmin, async (req: any, res) => {
     try {
       const userId = getUserId(req);
-      const validatedData = insertPartnershipSchema.parse(req.body);
-
-      // Check for mutual exclusion
-      const hasExclusion = await storage.checkMutualExclusion(
-        validatedData.user1Id,
-        validatedData.user2Id
-      );
-
-      if (hasExclusion) {
-        return res.status(400).json({ 
-          message: "Cannot create partnership: users have mutual exclusion" 
-        });
-      }
-
-      const partnership = await storage.createPartnership(validatedData);
+      
+      const partnerships = await storage.createAlgorithmicMatches();
       
       await logAdminAction(
         userId,
-        "create_manual_match",
+        "run_algorithmic_matching",
         "partnership",
-        partnership.id,
-        { user1Id: partnership.user1Id, user2Id: partnership.user2Id }
+        null,
+        { matchesCreated: partnerships.length }
       );
 
-      res.json(partnership);
+      res.json({
+        message: `Successfully created ${partnerships.length} partnership(s)`,
+        partnerships,
+      });
     } catch (error: any) {
-      console.error("Error creating partnership:", error);
-      res.status(400).json({ message: error.message || "Failed to create partnership" });
+      console.error("Error running matching algorithm:", error);
+      res.status(400).json({ message: error.message || "Failed to run matching algorithm" });
     }
   });
 

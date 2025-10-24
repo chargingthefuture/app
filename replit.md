@@ -149,11 +149,19 @@ An accountability partner matching system designed specifically for trauma survi
 
 **Core Features:**
 - User profile creation with gender preferences and timezone
-- Admin manual matching (monthly cycles)
+- Algorithmic matching based on timezone, gender preferences, and availability (removes bias)
 - 1:1 partnership messaging with real-time updates
 - Safety features: user exclusions and reporting system
 - Platform announcements with targeted delivery
 - Partnership history tracking
+
+**Matching Algorithm:**
+The system uses an unbiased algorithmic approach to create partnerships:
+- Matches users without active partnerships
+- Ensures bidirectional gender preference compatibility
+- Prioritizes same timezone matches
+- Respects mutual exclusions
+- Uses a greedy algorithm with scoring for optimal matching
 
 **Database Schema (6 tables):**
 - `support_match_profiles` - User profiles (nickname, gender, genderPreference, timezone, isActive)

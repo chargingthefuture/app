@@ -84,6 +84,7 @@ export interface IStorage {
   getAllPartnerships(): Promise<Partnership[]>;
   getPartnershipHistory(userId: string): Promise<Partnership[]>;
   updatePartnershipStatus(id: string, status: string): Promise<Partnership>;
+  createAlgorithmicMatches(): Promise<Partnership[]>;
   
   // SupportMatch Message operations
   createMessage(message: InsertMessage): Promise<Message>;
@@ -378,6 +379,128 @@ export class DatabaseStorage implements IStorage {
       .where(eq(partnerships.id, id))
       .returning();
     return partnership;
+  }
+  
+  async createAlgorithmicMatches(): Promise<Partnership[]> {
+    // Get all active profiles
+    const allProfiles = await this.getAllActiveSupportMatchProfiles();
+    
+    // Get all active partnerships to filter out already matched users
+    const activePartnerships = await db
+      .select()
+      .from(partnerships)
+      .where(eq(partnerships.status, 'active'));
+    
+    const matchedUserIds = new Set<string>();
+    activePartnerships.forEach(p => {
+      matchedUserIds.add(p.user1Id);
+      matchedUserIds.add(p.user2Id);
+    });
+    
+    // Filter to only unmatched users
+    const unmatchedProfiles = allProfiles.filter(p => !matchedUserIds.has(p.userId));
+    
+    // Get all exclusions
+    const allExclusions = await db.select().from(exclusions);
+    const exclusionMap = new Map<string, Set<string>>();
+    allExclusions.forEach(e => {
+      if (!exclusionMap.has(e.userId)) {
+        exclusionMap.set(e.userId, new Set());
+      }
+      exclusionMap.get(e.userId)!.add(e.excludedUserId);
+    });
+    
+    // Helper function to check if two users are compatible
+    const areCompatible = (user1: typeof unmatchedProfiles[0], user2: typeof unmatchedProfiles[0]): boolean => {
+      // Check gender preference compatibility (bidirectional)
+      const user1GenderMatch = 
+        user1.genderPreference === 'any' || 
+        user1.genderPreference === user2.gender;
+      
+      const user2GenderMatch = 
+        user2.genderPreference === 'any' || 
+        user2.genderPreference === user1.gender;
+      
+      if (!user1GenderMatch || !user2GenderMatch) {
+        return false;
+      }
+      
+      // Check for mutual exclusion
+      const user1Excludes = exclusionMap.get(user1.userId);
+      const user2Excludes = exclusionMap.get(user2.userId);
+      
+      if (user1Excludes?.has(user2.userId) || user2Excludes?.has(user1.userId)) {
+        return false;
+      }
+      
+      // Timezone compatibility - exact match is best, but "any" timezone means flexible
+      if (user1.timezone && user2.timezone && user1.timezone !== user2.timezone) {
+        // Different timezones - could still be compatible but less ideal
+        // For now, we'll allow it but could add scoring later
+      }
+      
+      return true;
+    };
+    
+    // Create matches using a simple greedy algorithm
+    const createdPartnerships: Partnership[] = [];
+    const matched = new Set<string>();
+    
+    for (let i = 0; i < unmatchedProfiles.length; i++) {
+      const user1 = unmatchedProfiles[i];
+      
+      if (matched.has(user1.userId)) {
+        continue;
+      }
+      
+      // Find best match for user1
+      let bestMatch = null;
+      let bestScore = -1;
+      
+      for (let j = i + 1; j < unmatchedProfiles.length; j++) {
+        const user2 = unmatchedProfiles[j];
+        
+        if (matched.has(user2.userId)) {
+          continue;
+        }
+        
+        if (areCompatible(user1, user2)) {
+          // Calculate compatibility score
+          let score = 0;
+          
+          // Same timezone is better
+          if (user1.timezone && user2.timezone && user1.timezone === user2.timezone) {
+            score += 10;
+          }
+          
+          // Specific gender preferences are slightly better than "any"
+          if (user1.genderPreference !== 'any' && user2.genderPreference !== 'any') {
+            score += 5;
+          }
+          
+          if (score > bestScore) {
+            bestScore = score;
+            bestMatch = user2;
+          }
+        }
+      }
+      
+      // Create partnership if a match was found
+      if (bestMatch) {
+        const partnership = await this.createPartnership({
+          user1Id: user1.userId,
+          user2Id: bestMatch.userId,
+          startDate: new Date(),
+          status: 'active',
+        });
+        
+        createdPartnerships.push(partnership);
+        matched.add(user1.userId);
+        matched.add(bestMatch.userId);
+      }
+    }
+    
+    return createdPartnerships;
   }
   
   // SupportMatch Message operations

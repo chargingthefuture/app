@@ -1,43 +1,16 @@
-import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { Partnership, SupportMatchProfile } from "@shared/schema";
 import { format } from "date-fns";
-import { ArrowLeft, UserCheck, Plus } from "lucide-react";
+import { ArrowLeft, Sparkles } from "lucide-react";
 import { Link } from "wouter";
-
-const partnershipFormSchema = z.object({
-  user1Id: z.string().min(1, "User 1 is required"),
-  user2Id: z.string().min(1, "User 2 is required"),
-});
-
-type PartnershipFormValues = z.infer<typeof partnershipFormSchema>;
 
 export default function SupportMatchAdminPartnerships() {
   const { toast } = useToast();
-  const [showCreateForm, setShowCreateForm] = useState(false);
 
   const { data: profiles } = useQuery<SupportMatchProfile[]>({
     queryKey: ["/api/supportmatch/admin/profiles"],
@@ -47,31 +20,22 @@ export default function SupportMatchAdminPartnerships() {
     queryKey: ["/api/supportmatch/admin/partnerships"],
   });
 
-  const form = useForm<PartnershipFormValues>({
-    resolver: zodResolver(partnershipFormSchema),
-    defaultValues: {
-      user1Id: "",
-      user2Id: "",
+  const runMatchingMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest("POST", "/api/supportmatch/admin/partnerships/run-matching", {});
     },
-  });
-
-  const createMutation = useMutation({
-    mutationFn: async (data: PartnershipFormValues) => {
-      return apiRequest("POST", "/api/supportmatch/admin/partnerships", data);
-    },
-    onSuccess: () => {
+    onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/supportmatch/admin/partnerships"] });
-      form.reset();
-      setShowCreateForm(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/supportmatch/admin/stats"] });
       toast({
         title: "Success",
-        description: "Partnership created successfully",
+        description: data.message || "Matching algorithm completed",
       });
     },
     onError: (error: any) => {
       toast({
         title: "Error",
-        description: error.message || "Failed to create partnership",
+        description: error.message || "Failed to run matching algorithm",
         variant: "destructive",
       });
     },
@@ -83,6 +47,7 @@ export default function SupportMatchAdminPartnerships() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/supportmatch/admin/partnerships"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/supportmatch/admin/stats"] });
       toast({
         title: "Success",
         description: "Partnership ended successfully",
@@ -96,18 +61,6 @@ export default function SupportMatchAdminPartnerships() {
       });
     },
   });
-
-  const onSubmit = (data: PartnershipFormValues) => {
-    if (data.user1Id === data.user2Id) {
-      toast({
-        title: "Error",
-        description: "Cannot match a user with themselves",
-        variant: "destructive",
-      });
-      return;
-    }
-    createMutation.mutate(data);
-  };
 
   const getUserNickname = (userId: string) => {
     const profile = profiles?.find(p => p.userId === userId);
@@ -138,88 +91,40 @@ export default function SupportMatchAdminPartnerships() {
         <div className="flex-1">
           <h1 className="text-3xl md:text-4xl font-semibold">Partnership Management</h1>
           <p className="text-muted-foreground">
-            Create and manage accountability partnerships
+            Algorithm-based accountability partnerships
           </p>
         </div>
-        <Button
-          onClick={() => setShowCreateForm(!showCreateForm)}
-          data-testid="button-toggle-create-form"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          {showCreateForm ? "Cancel" : "Create Partnership"}
-        </Button>
       </div>
 
-      {showCreateForm && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Create New Partnership</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="user1Id"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>User 1</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger data-testid="select-user1">
-                            <SelectValue placeholder="Select first user" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {profiles?.filter(p => p.isActive).map((profile) => (
-                            <SelectItem key={profile.userId} value={profile.userId}>
-                              {profile.nickname || "Anonymous"} ({profile.gender})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="user2Id"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>User 2</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger data-testid="select-user2">
-                            <SelectValue placeholder="Select second user" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {profiles?.filter(p => p.isActive).map((profile) => (
-                            <SelectItem key={profile.userId} value={profile.userId}>
-                              {profile.nickname || "Anonymous"} ({profile.gender})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <Button
-                  type="submit"
-                  disabled={createMutation.isPending}
-                  data-testid="button-submit-partnership"
-                >
-                  Create Partnership
-                </Button>
-              </form>
-            </Form>
-          </CardContent>
-        </Card>
-      )}
+      <Card>
+        <CardHeader>
+          <CardTitle>Algorithmic Matching</CardTitle>
+          <CardDescription>
+            Run the matching algorithm to create new partnerships based on timezone, gender preferences, and availability
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <p className="text-sm text-muted-foreground">
+              The algorithm matches users who:
+            </p>
+            <ul className="text-sm text-muted-foreground list-disc list-inside space-y-1 ml-2">
+              <li>Don't have an active partnership</li>
+              <li>Have compatible gender preferences (mutual match)</li>
+              <li>Are in compatible timezones (same timezone preferred)</li>
+              <li>Don't have mutual exclusions</li>
+            </ul>
+          </div>
+          <Button
+            onClick={() => runMatchingMutation.mutate()}
+            disabled={runMatchingMutation.isPending}
+            data-testid="button-run-matching"
+          >
+            <Sparkles className="w-4 h-4 mr-2" />
+            {runMatchingMutation.isPending ? "Running Algorithm..." : "Run Matching Algorithm"}
+          </Button>
+        </CardContent>
+      </Card>
 
       <div className="space-y-6">
         <div>
