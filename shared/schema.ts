@@ -391,6 +391,29 @@ export const insertSleepStorySchema = createInsertSchema(sleepStories).omit({
 export type InsertSleepStory = z.infer<typeof insertSleepStorySchema>;
 export type SleepStory = typeof sleepStories.$inferSelect;
 
+// SleepStories Announcements
+export const sleepStoriesAnnouncements = pgTable("sleep_stories_announcements", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: varchar("title", { length: 200 }).notNull(),
+  content: text("content").notNull(),
+  type: varchar("type", { length: 50 }).notNull().default('info'), // info, warning, maintenance, update, promotion
+  isActive: boolean("is_active").notNull().default(true),
+  expiresAt: timestamp("expires_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertSleepStoriesAnnouncementSchema = createInsertSchema(sleepStoriesAnnouncements).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  expiresAt: z.coerce.date().optional().nullable(),
+});
+
+export type InsertSleepStoriesAnnouncement = z.infer<typeof insertSleepStoriesAnnouncementSchema>;
+export type SleepStoriesAnnouncement = typeof sleepStoriesAnnouncements.$inferSelect;
+
 // ========================================
 // LIGHTHOUSE APP TABLES
 // ========================================
@@ -542,3 +565,26 @@ export const insertLighthouseMatchSchema = createInsertSchema(lighthouseMatches)
 });
 export type InsertLighthouseMatch = z.infer<typeof insertLighthouseMatchSchema>;
 export type LighthouseMatch = typeof lighthouseMatches.$inferSelect;
+
+// LightHouse Announcements
+export const lighthouseAnnouncements = pgTable("lighthouse_announcements", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: varchar("title", { length: 200 }).notNull(),
+  content: text("content").notNull(),
+  type: varchar("type", { length: 50 }).notNull().default('info'), // info, warning, maintenance, update, promotion
+  isActive: boolean("is_active").notNull().default(true),
+  expiresAt: timestamp("expires_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertLighthouseAnnouncementSchema = createInsertSchema(lighthouseAnnouncements).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  expiresAt: z.coerce.date().optional().nullable(),
+});
+
+export type InsertLighthouseAnnouncement = z.infer<typeof insertLighthouseAnnouncementSchema>;
+export type LighthouseAnnouncement = typeof lighthouseAnnouncements.$inferSelect;
