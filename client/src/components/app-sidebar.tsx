@@ -85,8 +85,8 @@ const adminMenuItems = [
 const userMenuItems = [
   {
     title: "My Dashboard",
-    url: "/pages/home",
-    icon: Building2,
+    url: "/",
+    icon: Home,
     testId: "link-home",
   },
   {
