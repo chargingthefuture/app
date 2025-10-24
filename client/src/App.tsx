@@ -31,6 +31,7 @@ import SupportMatchAdminReports from "@/pages/supportmatch/admin-reports";
 import SleepStoriesLibrary from "@/pages/sleepstories/library";
 import SleepStoryPlayer from "@/pages/sleepstories/player";
 import SleepStoriesAdmin from "@/pages/sleepstories/admin";
+import LighthouseDashboard from "@/pages/lighthouse/dashboard";
 import LighthouseProfile from "@/pages/lighthouse/profile";
 import LighthouseBrowse from "@/pages/lighthouse/browse";
 import LighthousePropertyDetail from "@/pages/lighthouse/property-detail";
@@ -75,6 +76,7 @@ function Router() {
           <Route path="/apps/sleepstories" component={SleepStoriesLibrary} />
           <Route path="/apps/sleepstories/admin" component={SleepStoriesAdmin} />
           <Route path="/apps/sleepstories/:id" component={SleepStoryPlayer} />
+          <Route path="/apps/lighthouse" component={LighthouseDashboard} />
           <Route path="/apps/lighthouse/profile" component={LighthouseProfile} />
           <Route path="/apps/lighthouse/browse" component={LighthouseBrowse} />
           <Route path="/apps/lighthouse/my-properties" component={LighthouseMyProperties} />

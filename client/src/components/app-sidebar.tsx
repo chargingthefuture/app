@@ -97,7 +97,7 @@ const userMenuItems = [
   },
   {
     title: "LightHouse",
-    url: "/apps/lighthouse/browse",
+    url: "/apps/lighthouse",
     icon: Building2,
     testId: "link-lighthouse",
   },
@@ -118,7 +118,7 @@ export function AppSidebar() {
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel className="text-lg font-semibold text-primary px-4 py-4">
-            psyop-free platform
+            psyop-free economy
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>

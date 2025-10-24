@@ -55,7 +55,7 @@ export default function LighthouseProfilePage() {
         moveInDate: profile.moveInDate ? new Date(profile.moveInDate) : null,
         budgetMin: profile.budgetMin,
         budgetMax: profile.budgetMax,
-        hasProperty: profile.hasProperty,
+        hasProperty: profile.hasProperty || false,
         isActive: profile.isActive,
       });
     }
