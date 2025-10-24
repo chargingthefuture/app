@@ -94,7 +94,7 @@ export default function AdminPayments() {
         <div>
           <h1 className="text-3xl md:text-4xl font-semibold mb-2">Payment Tracking</h1>
           <p className="text-muted-foreground">
-            Record and manage manual cash payments
+            Record and manage manual payments from various sources
           </p>
         </div>
         <Button onClick={() => setIsDialogOpen(true)} data-testid="button-record-payment">
@@ -138,7 +138,7 @@ export default function AdminPayments() {
                         ${parseFloat(payment.amount).toFixed(2)}
                       </TableCell>
                       <TableCell className="capitalize">
-                        {payment.paymentMethod}
+                        {payment.paymentMethod.replace(/-/g, ' ')}
                       </TableCell>
                       <TableCell className="text-muted-foreground">
                         {new Date(payment.paymentDate).toLocaleDateString()}
@@ -205,6 +205,14 @@ export default function AdminPayments() {
                   <SelectItem value="cash">Cash</SelectItem>
                   <SelectItem value="check">Check</SelectItem>
                   <SelectItem value="money-order">Money Order</SelectItem>
+                  <SelectItem value="venmo">Venmo</SelectItem>
+                  <SelectItem value="paypal">PayPal</SelectItem>
+                  <SelectItem value="zelle">Zelle</SelectItem>
+                  <SelectItem value="chime">Chime</SelectItem>
+                  <SelectItem value="wise">Wise</SelectItem>
+                  <SelectItem value="walmart-onepay">Walmart OnePay</SelectItem>
+                  <SelectItem value="amazon-gift-card">Amazon Gift Card</SelectItem>
+                  <SelectItem value="apple-gift-card">Apple Gift Card</SelectItem>
                   <SelectItem value="other">Other</SelectItem>
                 </SelectContent>
               </Select>
