@@ -76,6 +76,8 @@ export const insertInviteCodeSchema = createInsertSchema(inviteCodes).omit({
   currentUses: true,
   createdAt: true,
   updatedAt: true,
+}).extend({
+  expiresAt: z.coerce.date().optional(),
 });
 
 export type InsertInviteCode = z.infer<typeof insertInviteCodeSchema>;
