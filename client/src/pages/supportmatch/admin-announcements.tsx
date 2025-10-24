@@ -46,7 +46,7 @@ export default function SupportMatchAdminAnnouncements() {
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const { data: announcements, isLoading } = useQuery<Announcement[]>({
-    queryKey: ["/api/supportmatch/announcements"],
+    queryKey: ["/api/supportmatch/admin/announcements"],
   });
 
   const form = useForm<AnnouncementFormValues>({
@@ -66,9 +66,10 @@ export default function SupportMatchAdminAnnouncements() {
         ...data,
         expiresAt: data.expiresAt ? new Date(data.expiresAt).toISOString() : null,
       };
-      return apiRequest("POST", "/api/supportmatch/announcements", payload);
+      return apiRequest("POST", "/api/supportmatch/admin/announcements", payload);
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/supportmatch/admin/announcements"] });
       queryClient.invalidateQueries({ queryKey: ["/api/supportmatch/announcements"] });
       form.reset();
       toast({
@@ -91,9 +92,10 @@ export default function SupportMatchAdminAnnouncements() {
         ...data,
         expiresAt: data.expiresAt ? new Date(data.expiresAt).toISOString() : null,
       };
-      return apiRequest("PUT", `/api/supportmatch/announcements/${id}`, payload);
+      return apiRequest("PUT", `/api/supportmatch/admin/announcements/${id}`, payload);
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/supportmatch/admin/announcements"] });
       queryClient.invalidateQueries({ queryKey: ["/api/supportmatch/announcements"] });
       form.reset();
       setEditingId(null);
@@ -113,9 +115,10 @@ export default function SupportMatchAdminAnnouncements() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      return apiRequest("DELETE", `/api/supportmatch/announcements/${id}`);
+      return apiRequest("DELETE", `/api/supportmatch/admin/announcements/${id}`);
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/supportmatch/admin/announcements"] });
       queryClient.invalidateQueries({ queryKey: ["/api/supportmatch/announcements"] });
       toast({
         title: "Success",
