@@ -36,7 +36,7 @@ export default function Home() {
           Welcome back{user?.firstName ? `, ${user.firstName}` : ''}
         </h1>
         <p className="text-muted-foreground">
-          Your secure space for accessing essential support services
+          Your psyop-free space for accessing essential support services
         </p>
       </div>
 

@@ -118,7 +118,7 @@ function AppContent() {
               <header className="flex items-center justify-between min-h-14 h-14 sm:h-16 px-3 sm:px-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
                 <SidebarTrigger data-testid="button-sidebar-toggle" />
                 <div className="text-xs sm:text-sm text-muted-foreground">
-                  Secure Platform
+                  a work of optimism
                 </div>
               </header>
               <main className="flex-1 overflow-auto">
