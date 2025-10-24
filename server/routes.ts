@@ -13,6 +13,10 @@ import {
   insertReportSchema,
   insertAnnouncementSchema,
   insertSleepStorySchema,
+  insertLighthouseProfileSchema,
+  insertLighthousePropertySchema,
+  insertLighthouseMatchSchema,
+  insertLighthouseReviewSchema,
 } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -758,6 +762,429 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error deleting sleep story:", error);
       res.status(400).json({ message: error.message || "Failed to delete sleep story" });
+    }
+  });
+
+  // ========================================
+  // LIGHTHOUSE APP ROUTES
+  // ========================================
+
+  // Profile routes
+  app.get('/api/lighthouse/profile', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const profile = await storage.getLighthouseProfileByUserId(userId);
+      res.json(profile || null);
+    } catch (error) {
+      console.error("Error fetching LightHouse profile:", error);
+      res.status(500).json({ message: "Failed to fetch profile" });
+    }
+  });
+
+  app.post('/api/lighthouse/profile', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      
+      // Check if profile already exists
+      const existingProfile = await storage.getLighthouseProfileByUserId(userId);
+      if (existingProfile) {
+        return res.status(400).json({ message: "Profile already exists" });
+      }
+      
+      // Validate and create profile
+      const validatedData = insertLighthouseProfileSchema.parse({
+        ...req.body,
+        userId,
+      });
+      const profile = await storage.createLighthouseProfile(validatedData);
+      
+      res.json(profile);
+    } catch (error: any) {
+      console.error("Error creating LightHouse profile:", error);
+      res.status(400).json({ message: error.message || "Failed to create profile" });
+    }
+  });
+
+  app.put('/api/lighthouse/profile', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const profile = await storage.getLighthouseProfileByUserId(userId);
+      
+      if (!profile) {
+        return res.status(404).json({ message: "Profile not found" });
+      }
+      
+      // Validate partial update (exclude userId from being updated)
+      const { userId: _, ...updateData } = req.body;
+      const validatedData = insertLighthouseProfileSchema.partial().parse(updateData);
+      const updated = await storage.updateLighthouseProfile(profile.id, validatedData);
+      
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating LightHouse profile:", error);
+      res.status(400).json({ message: error.message || "Failed to update profile" });
+    }
+  });
+
+  // Property browsing routes (for seekers)
+  app.get('/api/lighthouse/properties', isAuthenticated, async (req, res) => {
+    try {
+      const properties = await storage.getAllActiveProperties();
+      res.json(properties);
+    } catch (error) {
+      console.error("Error fetching properties:", error);
+      res.status(500).json({ message: "Failed to fetch properties" });
+    }
+  });
+
+  app.get('/api/lighthouse/properties/:id', isAuthenticated, async (req, res) => {
+    try {
+      const property = await storage.getLighthousePropertyById(req.params.id);
+      
+      if (!property) {
+        return res.status(404).json({ message: "Property not found" });
+      }
+      
+      res.json(property);
+    } catch (error) {
+      console.error("Error fetching property:", error);
+      res.status(500).json({ message: "Failed to fetch property" });
+    }
+  });
+
+  // Property management routes (for hosts)
+  app.get('/api/lighthouse/my-properties', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const profile = await storage.getLighthouseProfileByUserId(userId);
+      
+      if (!profile) {
+        return res.json([]);
+      }
+      
+      const properties = await storage.getPropertiesByHost(profile.id);
+      res.json(properties);
+    } catch (error) {
+      console.error("Error fetching my properties:", error);
+      res.status(500).json({ message: "Failed to fetch properties" });
+    }
+  });
+
+  app.post('/api/lighthouse/properties', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const profile = await storage.getLighthouseProfileByUserId(userId);
+      
+      if (!profile) {
+        return res.status(404).json({ message: "Profile not found. Please create a profile first." });
+      }
+      
+      if (profile.profileType !== 'host') {
+        return res.status(403).json({ message: "Only hosts can create properties" });
+      }
+      
+      // Validate and create property
+      const validatedData = insertLighthousePropertySchema.parse({
+        ...req.body,
+        hostId: profile.id,
+      });
+      const property = await storage.createLighthouseProperty(validatedData);
+      
+      res.json(property);
+    } catch (error: any) {
+      console.error("Error creating property:", error);
+      res.status(400).json({ message: error.message || "Failed to create property" });
+    }
+  });
+
+  app.put('/api/lighthouse/properties/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const profile = await storage.getLighthouseProfileByUserId(userId);
+      const property = await storage.getLighthousePropertyById(req.params.id);
+      
+      if (!property) {
+        return res.status(404).json({ message: "Property not found" });
+      }
+      
+      if (!profile || property.hostId !== profile.id) {
+        return res.status(403).json({ message: "You can only edit your own properties" });
+      }
+      
+      // Validate partial update (exclude hostId from being updated)
+      const { hostId: _, ...updateData } = req.body;
+      const validatedData = insertLighthousePropertySchema.partial().parse(updateData);
+      const updated = await storage.updateLighthouseProperty(req.params.id, validatedData);
+      
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating property:", error);
+      res.status(400).json({ message: error.message || "Failed to update property" });
+    }
+  });
+
+  // Match routes
+  app.get('/api/lighthouse/matches', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const profile = await storage.getLighthouseProfileByUserId(userId);
+      
+      if (!profile) {
+        return res.json([]);
+      }
+      
+      const matches = await storage.getMatchesByProfile(profile.id);
+      res.json(matches);
+    } catch (error) {
+      console.error("Error fetching matches:", error);
+      res.status(500).json({ message: "Failed to fetch matches" });
+    }
+  });
+
+  app.post('/api/lighthouse/matches', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const profile = await storage.getLighthouseProfileByUserId(userId);
+      
+      if (!profile) {
+        return res.status(404).json({ message: "Profile not found. Please create a profile first." });
+      }
+      
+      if (profile.profileType !== 'seeker') {
+        return res.status(403).json({ message: "Only seekers can request matches" });
+      }
+      
+      const { propertyId, message } = req.body;
+      
+      if (!propertyId) {
+        return res.status(400).json({ message: "Property ID is required" });
+      }
+      
+      // Validate property exists
+      const property = await storage.getLighthousePropertyById(propertyId);
+      if (!property) {
+        return res.status(404).json({ message: "Property not found" });
+      }
+      
+      // Create match request (note: no hostId field, it's determined via property)
+      const validatedData = insertLighthouseMatchSchema.parse({
+        seekerId: profile.id,
+        propertyId,
+        seekerMessage: message || null,
+        status: 'pending',
+      });
+      const match = await storage.createLighthouseMatch(validatedData);
+      
+      res.json(match);
+    } catch (error: any) {
+      console.error("Error creating match:", error);
+      res.status(400).json({ message: error.message || "Failed to create match" });
+    }
+  });
+
+  app.put('/api/lighthouse/matches/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const profile = await storage.getLighthouseProfileByUserId(userId);
+      const match = await storage.getLighthouseMatchById(req.params.id);
+      
+      if (!match) {
+        return res.status(404).json({ message: "Match not found" });
+      }
+      
+      if (!profile) {
+        return res.status(403).json({ message: "Profile not found" });
+      }
+      
+      // Get property to determine host
+      const property = await storage.getLighthousePropertyById(match.propertyId);
+      if (!property) {
+        return res.status(404).json({ message: "Property not found" });
+      }
+      
+      // Check authorization
+      const isHost = property.hostId === profile.id;
+      const isSeeker = match.seekerId === profile.id;
+      
+      if (!isHost && !isSeeker) {
+        return res.status(403).json({ message: "You can only update your own matches" });
+      }
+      
+      const { status, hostResponse } = req.body;
+      
+      // Only hosts can accept/reject matches
+      if (status && status !== 'cancelled' && !isHost) {
+        return res.status(403).json({ message: "Only the host can accept or reject matches" });
+      }
+      
+      // Build update data
+      const updateData: any = {};
+      if (status) updateData.status = status;
+      if (hostResponse && isHost) updateData.hostResponse = hostResponse;
+      
+      const validatedData = insertLighthouseMatchSchema.partial().parse(updateData);
+      const updated = await storage.updateLighthouseMatch(req.params.id, validatedData);
+      
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating match:", error);
+      res.status(400).json({ message: error.message || "Failed to update match" });
+    }
+  });
+
+  // Review routes
+  app.post('/api/lighthouse/reviews', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const profile = await storage.getLighthouseProfileByUserId(userId);
+      
+      if (!profile) {
+        return res.status(404).json({ message: "Profile not found. Please create a profile first." });
+      }
+      
+      const { matchId, rating, comment } = req.body;
+      
+      if (!matchId) {
+        return res.status(400).json({ message: "Match ID is required" });
+      }
+      
+      // Validate match exists and user is part of it
+      const match = await storage.getLighthouseMatchById(matchId);
+      if (!match) {
+        return res.status(404).json({ message: "Match not found" });
+      }
+      
+      // Get property to determine host
+      const property = await storage.getLighthousePropertyById(match.propertyId);
+      if (!property) {
+        return res.status(404).json({ message: "Property not found" });
+      }
+      
+      if (match.seekerId !== profile.id && property.hostId !== profile.id) {
+        return res.status(403).json({ message: "You can only review matches you're part of" });
+      }
+      
+      // Check if match is completed
+      if (match.status !== 'completed') {
+        return res.status(400).json({ message: "You can only review completed matches" });
+      }
+      
+      // Determine review type
+      const reviewerType = match.seekerId === profile.id ? 'seeker' : 'host';
+      const reviewedId = reviewerType === 'seeker' ? property.hostId : match.seekerId;
+      
+      // Create review
+      const validatedData = insertLighthouseReviewSchema.parse({
+        matchId,
+        reviewerId: profile.id,
+        reviewedId,
+        reviewerType,
+        rating,
+        comment: comment || null,
+      });
+      const review = await storage.createLighthouseReview(validatedData);
+      
+      res.json(review);
+    } catch (error: any) {
+      console.error("Error creating review:", error);
+      res.status(400).json({ message: error.message || "Failed to create review" });
+    }
+  });
+
+  // Admin routes
+  app.get('/api/lighthouse/admin/stats', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const stats = await storage.getLighthouseStats();
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching LightHouse stats:", error);
+      res.status(500).json({ message: "Failed to fetch stats" });
+    }
+  });
+
+  app.get('/api/lighthouse/admin/profiles', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const profiles = await storage.getAllLighthouseProfiles();
+      res.json(profiles);
+    } catch (error) {
+      console.error("Error fetching all profiles:", error);
+      res.status(500).json({ message: "Failed to fetch profiles" });
+    }
+  });
+
+  app.get('/api/lighthouse/admin/properties', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const properties = await storage.getAllProperties();
+      res.json(properties);
+    } catch (error) {
+      console.error("Error fetching all properties:", error);
+      res.status(500).json({ message: "Failed to fetch properties" });
+    }
+  });
+
+  app.put('/api/lighthouse/admin/properties/:id', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const property = await storage.getLighthousePropertyById(req.params.id);
+      
+      if (!property) {
+        return res.status(404).json({ message: "Property not found" });
+      }
+      
+      // Validate partial update
+      const validatedData = insertLighthousePropertySchema.partial().parse(req.body);
+      const updated = await storage.updateLighthouseProperty(req.params.id, validatedData);
+      
+      await logAdminAction(
+        userId,
+        "update_lighthouse_property",
+        "lighthouse_property",
+        updated.id,
+        { title: updated.title }
+      );
+      
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating property:", error);
+      res.status(400).json({ message: error.message || "Failed to update property" });
+    }
+  });
+
+  app.get('/api/lighthouse/admin/matches', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const matches = await storage.getAllLighthouseMatches();
+      res.json(matches);
+    } catch (error) {
+      console.error("Error fetching all matches:", error);
+      res.status(500).json({ message: "Failed to fetch matches" });
+    }
+  });
+
+  app.put('/api/lighthouse/admin/matches/:id', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const match = await storage.getLighthouseMatchById(req.params.id);
+      
+      if (!match) {
+        return res.status(404).json({ message: "Match not found" });
+      }
+      
+      // Validate partial update
+      const validatedData = insertLighthouseMatchSchema.partial().parse(req.body);
+      const updated = await storage.updateLighthouseMatch(req.params.id, validatedData);
+      
+      await logAdminAction(
+        userId,
+        "update_lighthouse_match",
+        "lighthouse_match",
+        updated.id,
+        { status: updated.status }
+      );
+      
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating match:", error);
+      res.status(400).json({ message: error.message || "Failed to update match" });
     }
   });
 

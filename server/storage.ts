@@ -1005,7 +1005,45 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(lighthouseMatches.createdAt));
   }
 
+  async getMatchesByProfile(profileId: string): Promise<LighthouseMatch[]> {
+    // Get matches where user is seeker
+    const seekerMatches = await db
+      .select()
+      .from(lighthouseMatches)
+      .where(eq(lighthouseMatches.seekerId, profileId));
+    
+    // Get matches where user is host (via their properties)
+    const userProperties = await this.getPropertiesByHost(profileId);
+    const propertyIds = userProperties.map(p => p.id);
+    
+    if (propertyIds.length === 0) {
+      return seekerMatches;
+    }
+    
+    const hostMatches = await db
+      .select()
+      .from(lighthouseMatches)
+      .where(
+        sql`${lighthouseMatches.propertyId} IN (${sql.join(propertyIds.map(id => sql`${id}`), sql`, `)})`
+      );
+    
+    // Combine and deduplicate
+    const allMatches = [...seekerMatches, ...hostMatches];
+    const uniqueMatches = Array.from(
+      new Map(allMatches.map(m => [m.id, m])).values()
+    );
+    
+    return uniqueMatches;
+  }
+
   async getAllMatches(): Promise<LighthouseMatch[]> {
+    return await db
+      .select()
+      .from(lighthouseMatches)
+      .orderBy(desc(lighthouseMatches.createdAt));
+  }
+
+  async getAllLighthouseMatches(): Promise<LighthouseMatch[]> {
     return await db
       .select()
       .from(lighthouseMatches)
