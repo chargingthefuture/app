@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { DollarSign, Package, Calendar } from "lucide-react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
+import { PrivacyField } from "@/components/ui/privacy-field";
 
 export default function Home() {
   const { user } = useAuth();
@@ -58,9 +59,13 @@ export default function Home() {
                     ? `${user.firstName} ${user.lastName}`
                     : user?.email || 'User'}
                 </h3>
-                <p className="text-sm text-muted-foreground" data-testid="text-user-email">
-                  {user?.email}
-                </p>
+                <div className="text-sm text-muted-foreground">
+                  <PrivacyField 
+                    value={user?.email || ""} 
+                    type="email"
+                    testId="text-user-email"
+                  />
+                </div>
               </div>
               <div className="flex items-center gap-2">
                 <Badge variant={statusInfo.variant} data-testid="badge-subscription-status">
