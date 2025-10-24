@@ -83,7 +83,7 @@ export default function SupportMatchHistory() {
                   <div>
                     <p className="text-sm text-muted-foreground">End Date</p>
                     <p className="font-medium">
-                      {format(new Date(partnership.endDate), "MMM d, yyyy")}
+                      {partnership.endDate ? format(new Date(partnership.endDate), "MMM d, yyyy") : "N/A"}
                     </p>
                   </div>
                 </div>

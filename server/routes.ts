@@ -468,7 +468,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId,
         "run_algorithmic_matching",
         "partnership",
-        null,
+        undefined,
         { matchesCreated: partnerships.length }
       );
 
