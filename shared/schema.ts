@@ -168,6 +168,7 @@ export const supportMatchProfiles = pgTable("support_match_profiles", {
   gender: varchar("gender", { length: 50 }), // male, female, prefer-not-to-say
   genderPreference: varchar("gender_preference", { length: 50 }), // male, female, prefer-not-to-say, any
   timezone: varchar("timezone", { length: 100 }),
+  timezonePreference: varchar("timezone_preference", { length: 50 }).notNull().default('same_timezone'), // same_timezone, any_timezone
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
