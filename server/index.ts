@@ -16,6 +16,40 @@ app.use(express.json({
 }));
 app.use(express.urlencoded({ extended: false }));
 
+// Security headers middleware
+app.use((req, res, next) => {
+  // HTTP Strict Transport Security (HSTS)
+  // Forces browsers to only connect via HTTPS for 1 year
+  res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  
+  // Content Security Policy (CSP)
+  // Prevents XSS attacks by controlling what resources can be loaded
+  const cspDirectives = [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval'", // unsafe-eval needed for Vite dev
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src 'self' https://fonts.gstatic.com",
+    "img-src 'self' data: https:",
+    "connect-src 'self' wss: ws:", // WebSocket for HMR in development
+    "frame-ancestors 'none'", // Prevents clickjacking
+  ].join('; ');
+  res.setHeader('Content-Security-Policy', cspDirectives);
+  
+  // X-Frame-Options - prevents clickjacking attacks
+  res.setHeader('X-Frame-Options', 'DENY');
+  
+  // X-Content-Type-Options - prevents MIME type sniffing
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  
+  // Referrer-Policy - controls how much referrer information is shared
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  
+  // Permissions-Policy - restricts browser features
+  res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+  
+  next();
+});
+
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
