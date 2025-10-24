@@ -81,7 +81,8 @@ export interface IStorage {
   getAdminStats(): Promise<{
     totalUsers: number;
     activeInvites: number;
-    monthlyRevenue: string;
+    collectedMonthlyRevenue: string;
+    outstandingRevenue: string;
   }>;
   
   // SupportMatch Profile operations
@@ -332,12 +333,31 @@ export class DatabaseStorage implements IStorage {
     const allUsers = await db.select().from(users);
     const allInvites = await db.select().from(inviteCodes).where(eq(inviteCodes.isActive, true));
     
-    // Calculate monthly revenue based on current active users
-    const monthlyRevenue = allUsers.reduce((sum, user) => {
+    // Calculate outstanding revenue based on current active users
+    const outstandingRevenue = allUsers.reduce((sum, user) => {
       if (user.subscriptionStatus === 'active') {
         return sum + parseFloat(user.pricingTier);
       }
       return sum;
+    }, 0);
+
+    // Calculate collected revenue from payments made this month
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    
+    const monthlyPayments = await db
+      .select()
+      .from(payments)
+      .where(
+        and(
+          gte(payments.paymentDate, startOfMonth),
+          lte(payments.paymentDate, endOfMonth)
+        )
+      );
+    
+    const collectedMonthlyRevenue = monthlyPayments.reduce((sum, payment) => {
+      return sum + parseFloat(payment.amount);
     }, 0);
 
     const activeInvites = allInvites.filter(invite => {
@@ -349,7 +369,8 @@ export class DatabaseStorage implements IStorage {
     return {
       totalUsers: allUsers.length,
       activeInvites,
-      monthlyRevenue: monthlyRevenue.toFixed(2),
+      collectedMonthlyRevenue: collectedMonthlyRevenue.toFixed(2),
+      outstandingRevenue: outstandingRevenue.toFixed(2),
     };
   }
   

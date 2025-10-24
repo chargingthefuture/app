@@ -5,7 +5,8 @@ import { Users, Ticket, DollarSign } from "lucide-react";
 interface AdminStats {
   totalUsers: number;
   activeInvites: number;
-  monthlyRevenue: string;
+  collectedMonthlyRevenue: string;
+  outstandingRevenue: string;
 }
 
 export default function AdminDashboard() {
@@ -28,9 +29,15 @@ export default function AdminDashboard() {
     },
     {
       title: "Collected Monthly Revenue",
-      value: `$${stats?.monthlyRevenue || 0}`,
+      value: `$${stats?.collectedMonthlyRevenue || '0.00'}`,
       icon: DollarSign,
       color: "bg-chart-3/10 text-chart-3",
+    },
+    {
+      title: "Outstanding Revenue",
+      value: `$${stats?.outstandingRevenue || '0.00'}`,
+      icon: DollarSign,
+      color: "bg-chart-4/10 text-chart-4",
     },
   ];
 
@@ -43,7 +50,7 @@ export default function AdminDashboard() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {statCards.map((stat) => (
           <Card key={stat.title}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2">
