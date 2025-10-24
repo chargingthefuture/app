@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import { Users, Settings, Bell, MessageSquare, UserCheck, ShieldAlert } from "lucide-react";
 import type { SupportMatchProfile, Partnership } from "@shared/schema";
+import { format } from "date-fns";
 
 export default function SupportMatchDashboard() {
   const { data: profile, isLoading: profileLoading } = useQuery<SupportMatchProfile | null>({
