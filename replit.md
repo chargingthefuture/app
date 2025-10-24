@@ -235,6 +235,50 @@ A Calm-style audio story platform providing soothing bedtime stories and meditat
 - User sidebar: "Sleep Stories" link (Moon icon)
 - Admin sidebar: "Sleep Stories Admin" link
 
+**3. LightHouse - Housing Matching Platform**
+*Status: Fully implemented*
+
+An Airbnb-style housing matching platform connecting survivors seeking housing with hosts offering safe, affordable housing options. Features property listings, match requests, and review system.
+
+**Core Features:**
+- Profile creation for seekers (need housing) and hosts (offer housing)
+- Property listing with photos, amenities, and detailed information
+- Match request system with messaging between seekers and hosts
+- Property reviews and ratings for transparency
+- Budget range filtering for seekers
+- Admin oversight of all matches and properties
+
+**Database Schema (4 tables):**
+- `lighthouse_profiles` - User profiles (profileType, displayName, bio, phoneNumber, housingNeeds, moveInDate, budgetMin, budgetMax, hasProperty, isActive)
+- `lighthouse_properties` - Housing listings (hostId, title, description, propertyType, address, city, state, zipCode, bedrooms, bathrooms, monthlyRent, availableFrom, amenities, photos, housingRules, isActive)
+- `lighthouse_matches` - Match requests (seekerId, propertyId, status, seekerMessage, hostResponse, proposedMoveInDate, actualMoveInDate)
+- `lighthouse_reviews` - Property reviews (reviewerId, propertyId, rating, comment)
+
+**API Endpoints:**
+- Profile: GET/POST/PUT `/api/lighthouse/profile`
+- Properties: GET `/api/lighthouse/properties`, GET `/api/lighthouse/properties/:id`
+- Matches: GET/POST `/api/lighthouse/matches`, PUT `/api/lighthouse/matches/:id`
+- Admin: GET `/api/lighthouse/admin/stats`, GET `/api/lighthouse/admin/properties`, GET `/api/lighthouse/admin/matches`
+
+**Frontend Pages:**
+- `/apps/lighthouse/profile` - Profile creation and editing (seeker or host)
+- `/apps/lighthouse/browse` - Browse available properties with filters
+- `/apps/lighthouse/property/:id` - Property detail page with match request form
+- `/apps/lighthouse/matches` - View and manage match requests
+- `/apps/lighthouse/admin` - Admin dashboard with platform statistics
+
+**Technical Implementation:**
+- Form validation with react-hook-form and zod for profile/property data
+- Property type badges with color coding (room, apartment, community)
+- Match status tracking (pending, accepted, rejected, completed, cancelled)
+- Image gallery support for property photos
+- Budget range inputs for seeker profiles
+- Admin action logging for all housing-related actions
+
+**Navigation:**
+- User sidebar: "LightHouse" link (Building2 icon)
+- Admin sidebar: "LightHouse Admin" link
+
 ### Planned Mini-Apps
 
 The system is designed to support 13+ additional service types:
