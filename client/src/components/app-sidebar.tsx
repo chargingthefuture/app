@@ -118,7 +118,7 @@ export function AppSidebar() {
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel className="text-lg font-semibold text-primary px-4 py-4">
-            Support Platform
+            psyop-free platform
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
