@@ -171,8 +171,13 @@ export default function SupportMatchPartnership() {
                 </div>
                 <p className="font-medium">
                   {format(new Date(partnership.startDate), "MMM d")} -{" "}
-                  {format(new Date(partnership.endDate), "MMM d, yyyy")}
+                  {partnership.endDate ? format(new Date(partnership.endDate), "MMM d, yyyy") : "Ongoing"}
                 </p>
+                {partnership.endDate && (
+                  <p className="text-sm text-muted-foreground mt-1">
+                    (30-day partnership)
+                  </p>
+                )}
               </div>
 
               <div>
