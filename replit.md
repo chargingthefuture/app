@@ -34,7 +34,7 @@ The platform employs a WeChat-style super app architecture, where each service o
 
 1.  **SupportMatch:** An accountability partner matching system for trauma survivors. It features algorithmic matching based on user preferences, 1:1 messaging, safety features (exclusions, reporting), and partnership history tracking.
 2.  **SleepStories:** A calming audio content platform offering bedtime stories and meditation. It integrates Wistia for audio hosting, provides an embedded player with offline download capabilities, and organizes content by categories.
-3.  **LightHouse:** An Airbnb-style housing matching platform connecting survivors with safe housing options. It includes seeker/host profiles, property listings with detailed information, a match request system, and a review mechanism.
+3.  **LightHouse:** An Airbnb-style housing matching platform connecting survivors with safe housing options. It includes a dashboard entry point (`/apps/lighthouse`) that conditionally displays content based on profile type (seeker vs. host), seeker/host profiles, property listings with detailed information, a match request system, and a review mechanism. The dashboard shows welcome screens for new users, stats and quick actions for seekers (browse properties, view match requests), and host-specific tools (manage properties, view incoming requests).
 
 Each mini-app has its dedicated database tables, API routes, and frontend pages, adhering to consistent architectural patterns and leveraging shared platform features like authentication and user management.
 

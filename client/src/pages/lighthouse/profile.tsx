@@ -62,7 +62,7 @@ export default function LighthouseProfilePage() {
   }, [profile, form]);
 
   const createMutation = useMutation({
-    mutationFn: async (data: any) => apiRequest("/api/lighthouse/profile", "POST", data),
+    mutationFn: async (data: any) => apiRequest("POST", "/api/lighthouse/profile", data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/lighthouse/profile"] });
       toast({
@@ -80,7 +80,7 @@ export default function LighthouseProfilePage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: async (data: any) => apiRequest("/api/lighthouse/profile", "PUT", data),
+    mutationFn: async (data: any) => apiRequest("PUT", "/api/lighthouse/profile", data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/lighthouse/profile"] });
       toast({
