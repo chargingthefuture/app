@@ -93,6 +93,8 @@ export const pricingTiers = pgTable("pricing_tiers", {
 export const insertPricingTierSchema = createInsertSchema(pricingTiers).omit({
   id: true,
   createdAt: true,
+}).extend({
+  effectiveDate: z.coerce.date().optional(),
 });
 
 export type InsertPricingTier = z.infer<typeof insertPricingTierSchema>;
