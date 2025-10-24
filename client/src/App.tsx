@@ -9,6 +9,7 @@ import { useAuth } from "@/hooks/useAuth";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
 import Home from "@/pages/home";
+import Services from "@/pages/services";
 import UserPayments from "@/pages/user-payments";
 import InviteRequired from "@/pages/invite-required";
 import AdminDashboard from "@/pages/admin/dashboard";
@@ -55,6 +56,7 @@ function Router() {
       ) : (
         <>
           <Route path="/" component={Home} />
+          <Route path="/services" component={Services} />
           <Route path="/payments" component={UserPayments} />
           <Route path="/admin" component={AdminDashboard} />
           <Route path="/admin/users" component={AdminUsers} />

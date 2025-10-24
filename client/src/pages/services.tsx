@@ -1,0 +1,67 @@
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Link } from "wouter";
+import { UserCheck, Moon, Building2, ArrowRight } from "lucide-react";
+
+const services = [
+  {
+    title: "SupportMatch",
+    description: "Connect with accountability partners who understand your journey. Find support through meaningful partnerships.",
+    icon: UserCheck,
+    href: "/apps/supportmatch",
+    testId: "card-service-supportmatch",
+  },
+  {
+    title: "Sleep Stories",
+    description: "Calming audio content designed to help you relax and sleep peacefully. Meditation and bedtime stories.",
+    icon: Moon,
+    href: "/apps/sleepstories",
+    testId: "card-service-sleepstories",
+  },
+  {
+    title: "LightHouse",
+    description: "Safe housing connections for survivors. Find or offer secure, supportive living spaces in New York.",
+    icon: Building2,
+    href: "/apps/lighthouse",
+    testId: "card-service-lighthouse",
+  },
+];
+
+export default function Services() {
+  return (
+    <div className="p-6 md:p-8 space-y-8">
+      <div>
+        <h1 className="text-3xl md:text-4xl font-semibold mb-2">
+          Available Services
+        </h1>
+        <p className="text-muted-foreground">
+          Explore our support services designed specifically for survivors
+        </p>
+      </div>
+
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {services.map((service) => (
+          <Card key={service.title} className="hover-elevate" data-testid={service.testId}>
+            <CardHeader>
+              <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4">
+                <service.icon className="w-6 h-6 text-primary" />
+              </div>
+              <CardTitle>{service.title}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                {service.description}
+              </p>
+              <Link href={service.href}>
+                <Button variant="outline" className="w-full" data-testid={`button-access-${service.title.toLowerCase().replace(' ', '-')}`}>
+                  Access Service
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
