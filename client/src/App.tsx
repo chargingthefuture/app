@@ -23,6 +23,9 @@ import SupportMatchAnnouncements from "@/pages/supportmatch/announcements";
 import SupportMatchHistory from "@/pages/supportmatch/history";
 import SupportMatchAdmin from "@/pages/supportmatch/admin";
 import SupportMatchAdminAnnouncements from "@/pages/supportmatch/admin-announcements";
+import SupportMatchAdminUsers from "@/pages/supportmatch/admin-users";
+import SupportMatchAdminPartnerships from "@/pages/supportmatch/admin-partnerships";
+import SupportMatchAdminReports from "@/pages/supportmatch/admin-reports";
 
 function Router() {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -52,6 +55,9 @@ function Router() {
           <Route path="/apps/supportmatch/history" component={SupportMatchHistory} />
           <Route path="/apps/supportmatch/admin" component={SupportMatchAdmin} />
           <Route path="/apps/supportmatch/admin/announcements" component={SupportMatchAdminAnnouncements} />
+          <Route path="/apps/supportmatch/admin/users" component={SupportMatchAdminUsers} />
+          <Route path="/apps/supportmatch/admin/partnerships" component={SupportMatchAdminPartnerships} />
+          <Route path="/apps/supportmatch/admin/reports" component={SupportMatchAdminReports} />
         </>
       )}
       <Route component={NotFound} />

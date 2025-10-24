@@ -75,6 +75,7 @@ export interface IStorage {
   createSupportMatchProfile(profile: InsertSupportMatchProfile): Promise<SupportMatchProfile>;
   updateSupportMatchProfile(userId: string, profile: Partial<InsertSupportMatchProfile>): Promise<SupportMatchProfile>;
   getAllActiveSupportMatchProfiles(): Promise<SupportMatchProfile[]>;
+  getAllSupportMatchProfiles(): Promise<SupportMatchProfile[]>;
   
   // SupportMatch Partnership operations
   createPartnership(partnership: InsertPartnership): Promise<Partnership>;
@@ -97,7 +98,7 @@ export interface IStorage {
   // SupportMatch Report operations
   createReport(report: InsertReport): Promise<Report>;
   getAllReports(): Promise<Report[]>;
-  updateReportStatus(id: string, status: string): Promise<Report>;
+  updateReportStatus(id: string, status: string, resolution?: string): Promise<Report>;
   
   // SupportMatch Announcement operations
   createAnnouncement(announcement: InsertAnnouncement): Promise<Announcement>;
@@ -307,6 +308,13 @@ export class DatabaseStorage implements IStorage {
       .where(eq(supportMatchProfiles.isActive, true));
   }
   
+  async getAllSupportMatchProfiles(): Promise<SupportMatchProfile[]> {
+    return await db
+      .select()
+      .from(supportMatchProfiles)
+      .orderBy(desc(supportMatchProfiles.createdAt));
+  }
+  
   // SupportMatch Partnership operations
   async createPartnership(partnershipData: InsertPartnership): Promise<Partnership> {
     const [partnership] = await db
@@ -446,11 +454,12 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(reports.createdAt));
   }
   
-  async updateReportStatus(id: string, status: string): Promise<Report> {
+  async updateReportStatus(id: string, status: string, resolution?: string): Promise<Report> {
     const [report] = await db
       .update(reports)
       .set({
         status,
+        resolution,
         updatedAt: new Date(),
       })
       .where(eq(reports.id, id))

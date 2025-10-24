@@ -412,6 +412,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get('/api/supportmatch/admin/profiles', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const profiles = await storage.getAllSupportMatchProfiles();
+      res.json(profiles);
+    } catch (error) {
+      console.error("Error fetching profiles:", error);
+      res.status(500).json({ message: "Failed to fetch profiles" });
+    }
+  });
+
   app.get('/api/supportmatch/admin/partnerships', isAuthenticated, isAdmin, async (req, res) => {
     try {
       const partnerships = await storage.getAllPartnerships();
@@ -495,20 +505,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put('/api/supportmatch/admin/reports/:id/status', isAuthenticated, isAdmin, async (req: any, res) => {
     try {
       const userId = getUserId(req);
-      const { status } = req.body;
+      const { status, resolution } = req.body;
       
       if (!status) {
         return res.status(400).json({ message: "Status is required" });
       }
 
-      const report = await storage.updateReportStatus(req.params.id, status);
+      const report = await storage.updateReportStatus(req.params.id, status, resolution);
       
       await logAdminAction(
         userId,
         "update_report_status",
         "report",
         report.id,
-        { status }
+        { status, resolution }
       );
 
       res.json(report);

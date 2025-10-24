@@ -300,6 +300,7 @@ export const reports = pgTable("reports", {
   reason: varchar("reason", { length: 100 }).notNull(),
   description: text("description"),
   status: varchar("status", { length: 20 }).notNull().default('pending'), // pending, investigating, resolved, dismissed
+  resolution: text("resolution"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
