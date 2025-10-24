@@ -31,6 +31,11 @@ import SupportMatchAdminReports from "@/pages/supportmatch/admin-reports";
 import SleepStoriesLibrary from "@/pages/sleepstories/library";
 import SleepStoryPlayer from "@/pages/sleepstories/player";
 import SleepStoriesAdmin from "@/pages/sleepstories/admin";
+import LighthouseProfile from "@/pages/lighthouse/profile";
+import LighthouseBrowse from "@/pages/lighthouse/browse";
+import LighthousePropertyDetail from "@/pages/lighthouse/property-detail";
+import LighthouseMatches from "@/pages/lighthouse/matches";
+import LighthouseAdmin from "@/pages/lighthouse/admin";
 
 function Router() {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -68,6 +73,11 @@ function Router() {
           <Route path="/apps/sleepstories" component={SleepStoriesLibrary} />
           <Route path="/apps/sleepstories/admin" component={SleepStoriesAdmin} />
           <Route path="/apps/sleepstories/:id" component={SleepStoryPlayer} />
+          <Route path="/apps/lighthouse/profile" component={LighthouseProfile} />
+          <Route path="/apps/lighthouse/browse" component={LighthouseBrowse} />
+          <Route path="/apps/lighthouse/property/:id" component={LighthousePropertyDetail} />
+          <Route path="/apps/lighthouse/matches" component={LighthouseMatches} />
+          <Route path="/apps/lighthouse/admin" component={LighthouseAdmin} />
         </>
       )}
       <Route component={NotFound} />

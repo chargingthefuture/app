@@ -7,7 +7,8 @@ import {
   LogOut,
   UserCheck,
   TrendingUp,
-  Moon
+  Moon,
+  Building2
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
@@ -73,6 +74,12 @@ const adminMenuItems = [
     icon: Moon,
     testId: "link-sleepstories-admin",
   },
+  {
+    title: "LightHouse Admin",
+    url: "/apps/lighthouse/admin",
+    icon: Building2,
+    testId: "link-lighthouse-admin",
+  },
 ];
 
 const userMenuItems = [
@@ -87,6 +94,12 @@ const userMenuItems = [
     url: "/apps/sleepstories",
     icon: Moon,
     testId: "link-sleepstories",
+  },
+  {
+    title: "LightHouse",
+    url: "/apps/lighthouse/browse",
+    icon: Building2,
+    testId: "link-lighthouse",
   },
   {
     title: "My Payments",
