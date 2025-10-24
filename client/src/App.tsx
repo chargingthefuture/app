@@ -28,6 +28,9 @@ import SupportMatchAdminAnnouncements from "@/pages/supportmatch/admin-announcem
 import SupportMatchAdminUsers from "@/pages/supportmatch/admin-users";
 import SupportMatchAdminPartnerships from "@/pages/supportmatch/admin-partnerships";
 import SupportMatchAdminReports from "@/pages/supportmatch/admin-reports";
+import SleepStoriesLibrary from "@/pages/sleepstories/library";
+import SleepStoryPlayer from "@/pages/sleepstories/player";
+import SleepStoriesAdmin from "@/pages/sleepstories/admin";
 
 function Router() {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -62,6 +65,9 @@ function Router() {
           <Route path="/apps/supportmatch/admin/users" component={SupportMatchAdminUsers} />
           <Route path="/apps/supportmatch/admin/partnerships" component={SupportMatchAdminPartnerships} />
           <Route path="/apps/supportmatch/admin/reports" component={SupportMatchAdminReports} />
+          <Route path="/apps/sleepstories" component={SleepStoriesLibrary} />
+          <Route path="/apps/sleepstories/admin" component={SleepStoriesAdmin} />
+          <Route path="/apps/sleepstories/:id" component={SleepStoryPlayer} />
         </>
       )}
       <Route component={NotFound} />

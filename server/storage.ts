@@ -10,6 +10,7 @@ import {
   exclusions,
   reports,
   announcements,
+  sleepStories,
   type User,
   type UpsertUser,
   type InviteCode,
@@ -32,6 +33,8 @@ import {
   type InsertReport,
   type Announcement,
   type InsertAnnouncement,
+  type SleepStory,
+  type InsertSleepStory,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, sql, or, inArray, gte, lte } from "drizzle-orm";
@@ -116,6 +119,14 @@ export interface IStorage {
     currentPartnerships: number;
     pendingReports: number;
   }>;
+
+  // SleepStories operations
+  createSleepStory(story: InsertSleepStory): Promise<SleepStory>;
+  getAllSleepStories(): Promise<SleepStory[]>;
+  getActiveSleepStories(): Promise<SleepStory[]>;
+  getSleepStoryById(id: string): Promise<SleepStory | undefined>;
+  updateSleepStory(id: string, story: Partial<InsertSleepStory>): Promise<SleepStory>;
+  deleteSleepStory(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -737,6 +748,59 @@ export class DatabaseStorage implements IStorage {
       currentPartnerships: currentPartnerships.length,
       pendingReports: pendingReportsCount.length,
     };
+  }
+
+  // ========================================
+  // SLEEPSTORIES APP OPERATIONS
+  // ========================================
+
+  async createSleepStory(storyData: InsertSleepStory): Promise<SleepStory> {
+    const [story] = await db
+      .insert(sleepStories)
+      .values(storyData)
+      .returning();
+    return story;
+  }
+
+  async getAllSleepStories(): Promise<SleepStory[]> {
+    return await db
+      .select()
+      .from(sleepStories)
+      .orderBy(desc(sleepStories.createdAt));
+  }
+
+  async getActiveSleepStories(): Promise<SleepStory[]> {
+    return await db
+      .select()
+      .from(sleepStories)
+      .where(eq(sleepStories.isActive, true))
+      .orderBy(desc(sleepStories.createdAt));
+  }
+
+  async getSleepStoryById(id: string): Promise<SleepStory | undefined> {
+    const [story] = await db
+      .select()
+      .from(sleepStories)
+      .where(eq(sleepStories.id, id));
+    return story;
+  }
+
+  async updateSleepStory(id: string, storyData: Partial<InsertSleepStory>): Promise<SleepStory> {
+    const [story] = await db
+      .update(sleepStories)
+      .set({
+        ...storyData,
+        updatedAt: new Date(),
+      })
+      .where(eq(sleepStories.id, id))
+      .returning();
+    return story;
+  }
+
+  async deleteSleepStory(id: string): Promise<void> {
+    await db
+      .delete(sleepStories)
+      .where(eq(sleepStories.id, id));
   }
 }
 

@@ -12,6 +12,7 @@ import {
   insertExclusionSchema,
   insertReportSchema,
   insertAnnouncementSchema,
+  insertSleepStorySchema,
 } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -640,6 +641,123 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error deactivating announcement:", error);
       res.status(400).json({ message: error.message || "Failed to deactivate announcement" });
+    }
+  });
+
+  // ========================================
+  // SLEEPSTORIES APP ROUTES
+  // ========================================
+
+  // User routes - view and play stories
+  app.get('/api/sleepstories', isAuthenticated, async (req, res) => {
+    try {
+      const stories = await storage.getActiveSleepStories();
+      res.json(stories);
+    } catch (error) {
+      console.error("Error fetching sleep stories:", error);
+      res.status(500).json({ message: "Failed to fetch sleep stories" });
+    }
+  });
+
+  app.get('/api/sleepstories/:id', isAuthenticated, async (req, res) => {
+    try {
+      const story = await storage.getSleepStoryById(req.params.id);
+      if (!story) {
+        return res.status(404).json({ message: "Story not found" });
+      }
+      res.json(story);
+    } catch (error) {
+      console.error("Error fetching sleep story:", error);
+      res.status(500).json({ message: "Failed to fetch sleep story" });
+    }
+  });
+
+  // Admin routes - manage stories
+  app.get('/api/sleepstories/admin/all', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const stories = await storage.getAllSleepStories();
+      res.json(stories);
+    } catch (error) {
+      console.error("Error fetching all sleep stories:", error);
+      res.status(500).json({ message: "Failed to fetch sleep stories" });
+    }
+  });
+
+  app.post('/api/sleepstories/admin', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      
+      // Validate request body
+      const validatedData = insertSleepStorySchema.parse(req.body);
+      const story = await storage.createSleepStory(validatedData);
+      
+      await logAdminAction(
+        userId,
+        "create_sleep_story",
+        "sleep_story",
+        story.id,
+        { title: story.title }
+      );
+
+      res.json(story);
+    } catch (error: any) {
+      console.error("Error creating sleep story:", error);
+      res.status(400).json({ message: error.message || "Failed to create sleep story" });
+    }
+  });
+
+  app.put('/api/sleepstories/admin/:id', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      
+      // Check if story exists
+      const existingStory = await storage.getSleepStoryById(req.params.id);
+      if (!existingStory) {
+        return res.status(404).json({ message: "Story not found" });
+      }
+      
+      // Validate request body (partial update)
+      const validatedData = insertSleepStorySchema.partial().parse(req.body);
+      const story = await storage.updateSleepStory(req.params.id, validatedData);
+      
+      await logAdminAction(
+        userId,
+        "update_sleep_story",
+        "sleep_story",
+        story.id,
+        { title: story.title }
+      );
+
+      res.json(story);
+    } catch (error: any) {
+      console.error("Error updating sleep story:", error);
+      res.status(400).json({ message: error.message || "Failed to update sleep story" });
+    }
+  });
+
+  app.delete('/api/sleepstories/admin/:id', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      
+      // Check if story exists
+      const existingStory = await storage.getSleepStoryById(req.params.id);
+      if (!existingStory) {
+        return res.status(404).json({ message: "Story not found" });
+      }
+      
+      await storage.deleteSleepStory(req.params.id);
+      
+      await logAdminAction(
+        userId,
+        "delete_sleep_story",
+        "sleep_story",
+        req.params.id
+      );
+
+      res.json({ message: "Sleep story deleted successfully" });
+    } catch (error: any) {
+      console.error("Error deleting sleep story:", error);
+      res.status(400).json({ message: error.message || "Failed to delete sleep story" });
     }
   });
 

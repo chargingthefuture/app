@@ -357,3 +357,31 @@ export const insertAnnouncementSchema = createInsertSchema(announcements).omit({
 
 export type InsertAnnouncement = z.infer<typeof insertAnnouncementSchema>;
 export type Announcement = typeof announcements.$inferSelect;
+
+// ========================================
+// SLEEPSTORIES APP TABLES
+// ========================================
+
+// Sleep Stories - calming audio content for relaxation and sleep
+export const sleepStories = pgTable("sleep_stories", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: varchar("title", { length: 200 }).notNull(),
+  description: text("description").notNull(),
+  duration: integer("duration").notNull(), // Duration in seconds
+  wistiaMediaId: varchar("wistia_media_id", { length: 100 }).notNull(), // Wistia embed ID
+  downloadUrl: text("download_url"), // Optional direct download URL
+  category: varchar("category", { length: 50 }).notNull().default('general'), // e.g., nature, fantasy, meditation
+  thumbnailUrl: text("thumbnail_url"), // Optional image URL
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertSleepStorySchema = createInsertSchema(sleepStories).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertSleepStory = z.infer<typeof insertSleepStorySchema>;
+export type SleepStory = typeof sleepStories.$inferSelect;

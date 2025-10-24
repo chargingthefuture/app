@@ -6,7 +6,8 @@ import {
   FileText,
   LogOut,
   UserCheck,
-  TrendingUp
+  TrendingUp,
+  Moon
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
@@ -66,6 +67,12 @@ const adminMenuItems = [
     icon: UserCheck,
     testId: "link-supportmatch-admin",
   },
+  {
+    title: "Sleep Stories Admin",
+    url: "/apps/sleepstories/admin",
+    icon: Moon,
+    testId: "link-sleepstories-admin",
+  },
 ];
 
 const userMenuItems = [
@@ -74,6 +81,12 @@ const userMenuItems = [
     url: "/apps/supportmatch",
     icon: UserCheck,
     testId: "link-supportmatch",
+  },
+  {
+    title: "Sleep Stories",
+    url: "/apps/sleepstories",
+    icon: Moon,
+    testId: "link-sleepstories",
   },
   {
     title: "My Payments",

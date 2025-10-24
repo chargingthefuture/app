@@ -199,9 +199,45 @@ The system uses an unbiased algorithmic approach to create partnerships:
 - User sidebar: "SupportMatch" link (UserCheck icon)
 - Admin sidebar: "SupportMatch Admin" link
 
+**2. SleepStories - Calming Audio Content Platform**
+*Status: Fully implemented*
+
+A Calm-style audio story platform providing soothing bedtime stories and meditation content to help survivors relax and sleep. Features Wistia-hosted audio with embedded player and offline download capability.
+
+**Core Features:**
+- Wistia video platform integration for reliable audio hosting
+- Embedded audio player with responsive design
+- Offline download support for accessibility
+- Category-based organization (nature, fantasy, meditation, bedtime, general)
+- Admin content management with metadata editing
+- Thumbnail support for visual browsing
+
+**Database Schema (1 table):**
+- `sleep_stories` - Audio content library (title, description, wistiaMediaId, duration, category, downloadUrl, thumbnailUrl, isActive, createdAt, updatedAt)
+
+**API Endpoints:**
+- User endpoints: GET `/api/sleepstories` (active stories), GET `/api/sleepstories/:id` (single story)
+- Admin endpoints: GET `/api/sleepstories/admin/all`, POST `/api/sleepstories/admin`, PUT `/api/sleepstories/admin/:id`, DELETE `/api/sleepstories/admin/:id`
+
+**Frontend Pages:**
+- `/apps/sleepstories` - Library view with category badges and duration display
+- `/apps/sleepstories/:id` - Audio player page with Wistia embed and download option
+- `/apps/sleepstories/admin` - Admin management panel for CRUD operations
+
+**Technical Implementation:**
+- Wistia embed API with responsive padding for audio-only content
+- Form validation with zod for duration (seconds) and Wistia media ID
+- Category color coding with dark mode support
+- Duration formatting helper (minutes/hours display)
+- Admin action logging for all content changes
+
+**Navigation:**
+- User sidebar: "Sleep Stories" link (Moon icon)
+- Admin sidebar: "Sleep Stories Admin" link
+
 ### Planned Mini-Apps
 
-The system is designed to support 14+ additional service types:
+The system is designed to support 13+ additional service types:
 - Emergency Housing
 - Transitional Housing
 - Permanent Housing
@@ -218,4 +254,4 @@ The system is designed to support 14+ additional service types:
 - Life Skills
 - Education Support
 
-Each mini-app will follow the same architecture pattern as SupportMatch, with dedicated database tables, API routes, and frontend pages.
+Each mini-app will follow the same architecture pattern as SupportMatch and SleepStories, with dedicated database tables, API routes, and frontend pages.
