@@ -27,17 +27,17 @@ export default function AdminActivity() {
   };
 
   return (
-    <div className="p-6 md:p-8 space-y-6">
+    <div className="p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6">
       <div>
-        <h1 className="text-3xl md:text-4xl font-semibold mb-2">Activity Log</h1>
-        <p className="text-muted-foreground">
+        <h1 className="text-2xl sm:text-3xl md:text-4xl font-semibold mb-2">Activity Log</h1>
+        <p className="text-sm sm:text-base text-muted-foreground">
           Track all administrative actions and system events
         </p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Recent Actions</CardTitle>
+          <CardTitle className="text-lg sm:text-xl">Recent Actions</CardTitle>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -53,32 +53,62 @@ export default function AdminActivity() {
               </p>
             </div>
           ) : (
-            <div className="rounded-lg border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Action</TableHead>
-                    <TableHead>Target Type</TableHead>
-                    <TableHead>Target ID</TableHead>
-                    <TableHead>Timestamp</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {logs.map((log) => (
-                    <TableRow key={log.id} data-testid={`row-activity-${log.id}`}>
-                      <TableCell>{getActionBadge(log.action)}</TableCell>
-                      <TableCell className="capitalize">{log.targetType}</TableCell>
-                      <TableCell className="font-mono text-sm text-muted-foreground">
-                        {log.targetId ? log.targetId.substring(0, 8) : "-"}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {new Date(log.createdAt).toLocaleString()}
-                      </TableCell>
+            <>
+              <div className="hidden md:block rounded-lg border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Action</TableHead>
+                      <TableHead>Target Type</TableHead>
+                      <TableHead>Target ID</TableHead>
+                      <TableHead>Timestamp</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                  </TableHeader>
+                  <TableBody>
+                    {logs.map((log) => (
+                      <TableRow key={log.id} data-testid={`row-activity-${log.id}`}>
+                        <TableCell>{getActionBadge(log.action)}</TableCell>
+                        <TableCell className="capitalize">{log.targetType}</TableCell>
+                        <TableCell className="font-mono text-sm text-muted-foreground">
+                          {log.targetId ? log.targetId.substring(0, 8) : "-"}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {new Date(log.createdAt).toLocaleString()}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              <div className="md:hidden space-y-3">
+                {logs.map((log) => (
+                  <Card key={log.id} data-testid={`row-activity-${log.id}`}>
+                    <CardContent className="p-4 space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        {getActionBadge(log.action)}
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(log.createdAt).toLocaleString()}
+                        </span>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div>
+                          <span className="text-muted-foreground">Target Type</span>
+                          <p className="capitalize">{log.targetType}</p>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Target ID</span>
+                          <p className="font-mono text-xs">
+                            {log.targetId ? log.targetId.substring(0, 8) : "-"}
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
