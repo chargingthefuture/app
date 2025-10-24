@@ -487,10 +487,15 @@ export class DatabaseStorage implements IStorage {
       
       // Create partnership if a match was found
       if (bestMatch) {
+        const startDate = new Date();
+        const endDate = new Date(startDate);
+        endDate.setDate(endDate.getDate() + 30); // 30 days from start
+        
         const partnership = await this.createPartnership({
           user1Id: user1.userId,
           user2Id: bestMatch.userId,
-          startDate: new Date(),
+          startDate,
+          endDate,
           status: 'active',
         });
         
