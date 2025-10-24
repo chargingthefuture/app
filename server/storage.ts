@@ -370,12 +370,19 @@ export class DatabaseStorage implements IStorage {
   }
   
   async updatePartnershipStatus(id: string, status: string): Promise<Partnership> {
+    const updateData: any = {
+      status,
+      updatedAt: new Date(),
+    };
+    
+    // If ending the partnership, set the end date to now
+    if (status === 'ended') {
+      updateData.endDate = new Date();
+    }
+    
     const [partnership] = await db
       .update(partnerships)
-      .set({
-        status,
-        updatedAt: new Date(),
-      })
+      .set(updateData)
       .where(eq(partnerships.id, id))
       .returning();
     return partnership;
