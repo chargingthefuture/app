@@ -5,13 +5,6 @@ import { UserCheck, Moon, Building2, ArrowRight } from "lucide-react";
 
 const services = [
   {
-    title: "SupportMatch",
-    description: "Connect with accountability partners who understand your journey. Find support through meaningful partnerships.",
-    icon: UserCheck,
-    href: "/apps/supportmatch",
-    testId: "card-service-supportmatch",
-  },
-  {
     title: "Sleep Stories",
     description: "Calming audio content designed to help you relax and sleep peacefully. Meditation and bedtime stories.",
     icon: Moon,
@@ -24,6 +17,20 @@ const services = [
     icon: Building2,
     href: "/apps/lighthouse",
     testId: "card-service-lighthouse",
+  },
+  {
+    title: "SocketRelay",
+    description: "Connect with accountability partners who understand your journey. Find support through meaningful partnerships.",
+    icon: UserCheck,
+    href: "/apps/socketrelay",
+    testId: "card-service-socketrelay",
+  },
+  {
+    title: "SupportMatch",
+    description: "Connect with accountability partners who understand your journey. Find support through meaningful partnerships.",
+    icon: UserCheck,
+    href: "/apps/supportmatch",
+    testId: "card-service-supportmatch",
   },
 ];
 
