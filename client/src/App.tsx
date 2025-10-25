@@ -42,6 +42,9 @@ import LighthouseAdmin from "@/pages/lighthouse/admin";
 import LighthouseMyProperties from "@/pages/lighthouse/my-properties";
 import LighthousePropertyForm from "@/pages/lighthouse/property-form";
 import LighthouseAdminAnnouncements from "@/pages/lighthouse/admin-announcements";
+import SocketRelayDashboard from "@/pages/socketrelay/dashboard";
+import SocketRelayChat from "@/pages/socketrelay/chat";
+import SocketRelayAdmin from "@/pages/socketrelay/admin";
 
 function Router() {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -91,6 +94,9 @@ function Router() {
           <Route path="/apps/lighthouse/matches" component={LighthouseMatches} />
           <Route path="/apps/lighthouse/admin" component={LighthouseAdmin} />
           <Route path="/apps/lighthouse/admin/announcements" component={LighthouseAdminAnnouncements} />
+          <Route path="/apps/socketrelay" component={SocketRelayDashboard} />
+          <Route path="/apps/socketrelay/chat/:id" component={SocketRelayChat} />
+          <Route path="/apps/socketrelay/admin" component={SocketRelayAdmin} />
         </>
       )}
       <Route component={NotFound} />

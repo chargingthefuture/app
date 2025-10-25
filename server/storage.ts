@@ -204,15 +204,18 @@ export interface IStorage {
   // SocketRelay Request operations
   createSocketrelayRequest(userId: string, description: string): Promise<SocketrelayRequest>;
   getActiveSocketrelayRequests(): Promise<SocketrelayRequest[]>;
+  getAllSocketrelayRequests(): Promise<SocketrelayRequest[]>;
   getSocketrelayRequestById(id: string): Promise<SocketrelayRequest | undefined>;
   getSocketrelayRequestsByUser(userId: string): Promise<SocketrelayRequest[]>;
   updateSocketrelayRequestStatus(id: string, status: string): Promise<SocketrelayRequest>;
+  deleteSocketrelayRequest(id: string): Promise<void>;
 
   // SocketRelay Fulfillment operations
   createSocketrelayFulfillment(requestId: string, fulfillerUserId: string): Promise<SocketrelayFulfillment>;
   getSocketrelayFulfillmentById(id: string): Promise<SocketrelayFulfillment | undefined>;
   getSocketrelayFulfillmentsByRequest(requestId: string): Promise<SocketrelayFulfillment[]>;
   getSocketrelayFulfillmentsByUser(userId: string): Promise<SocketrelayFulfillment[]>;
+  getAllSocketrelayFulfillments(): Promise<any[]>;
   closeSocketrelayFulfillment(id: string, userId: string, status: string): Promise<SocketrelayFulfillment>;
 
   // SocketRelay Message operations
@@ -1319,6 +1322,13 @@ export class DatabaseStorage implements IStorage {
     return request;
   }
 
+  async getAllSocketrelayRequests(): Promise<SocketrelayRequest[]> {
+    return await db
+      .select()
+      .from(socketrelayRequests)
+      .orderBy(desc(socketrelayRequests.createdAt));
+  }
+
   async getSocketrelayRequestsByUser(userId: string): Promise<SocketrelayRequest[]> {
     return await db
       .select()
@@ -1337,6 +1347,28 @@ export class DatabaseStorage implements IStorage {
       .where(eq(socketrelayRequests.id, id))
       .returning();
     return request;
+  }
+
+  async deleteSocketrelayRequest(id: string): Promise<void> {
+    // First, get all fulfillments for this request
+    const fulfillments = await this.getSocketrelayFulfillmentsByRequest(id);
+    
+    // Delete messages for each fulfillment
+    for (const fulfillment of fulfillments) {
+      await db
+        .delete(socketrelayMessages)
+        .where(eq(socketrelayMessages.fulfillmentId, fulfillment.id));
+    }
+    
+    // Delete all fulfillments for this request
+    await db
+      .delete(socketrelayFulfillments)
+      .where(eq(socketrelayFulfillments.requestId, id));
+    
+    // Finally, delete the request itself
+    await db
+      .delete(socketrelayRequests)
+      .where(eq(socketrelayRequests.id, id));
   }
 
   // SocketRelay Fulfillment operations
@@ -1377,6 +1409,22 @@ export class DatabaseStorage implements IStorage {
       .from(socketrelayFulfillments)
       .where(eq(socketrelayFulfillments.fulfillerUserId, userId))
       .orderBy(desc(socketrelayFulfillments.createdAt));
+  }
+
+  async getAllSocketrelayFulfillments(): Promise<any[]> {
+    const fulfillments = await db
+      .select()
+      .from(socketrelayFulfillments)
+      .orderBy(desc(socketrelayFulfillments.createdAt));
+    
+    const results = await Promise.all(
+      fulfillments.map(async (fulfillment) => {
+        const request = await this.getSocketrelayRequestById(fulfillment.requestId);
+        return { ...fulfillment, request };
+      })
+    );
+    
+    return results;
   }
 
   async closeSocketrelayFulfillment(id: string, userId: string, status: string): Promise<SocketrelayFulfillment> {

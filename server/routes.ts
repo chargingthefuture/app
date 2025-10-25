@@ -1530,6 +1530,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // SocketRelay Admin Routes
+  app.get('/api/socketrelay/admin/requests', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const requests = await storage.getAllSocketrelayRequests();
+      res.json(requests);
+    } catch (error: any) {
+      console.error("Error fetching all SocketRelay requests:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch requests" });
+    }
+  });
+
+  app.get('/api/socketrelay/admin/fulfillments', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const fulfillments = await storage.getAllSocketrelayFulfillments();
+      res.json(fulfillments);
+    } catch (error: any) {
+      console.error("Error fetching all SocketRelay fulfillments:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch fulfillments" });
+    }
+  });
+
+  app.delete('/api/socketrelay/admin/requests/:id', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      await storage.deleteSocketrelayRequest(req.params.id);
+      res.json({ message: "Request deleted successfully" });
+    } catch (error: any) {
+      console.error("Error deleting SocketRelay request:", error);
+      res.status(500).json({ message: error.message || "Failed to delete request" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

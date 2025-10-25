@@ -614,6 +614,8 @@ export const insertSocketrelayRequestSchema = createInsertSchema(socketrelayRequ
   expiresAt: true,
   createdAt: true,
   updatedAt: true,
+}).extend({
+  description: z.string().min(1, "Description is required").max(140, "Request description must be 140 characters or less"),
 });
 
 export type InsertSocketrelayRequest = z.infer<typeof insertSocketrelayRequestSchema>;

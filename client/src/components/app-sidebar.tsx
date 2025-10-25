@@ -8,7 +8,8 @@ import {
   UserCheck,
   TrendingUp,
   Moon,
-  Building2
+  Building2,
+  Radio
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
@@ -80,6 +81,12 @@ const adminMenuItems = [
     icon: Building2,
     testId: "link-lighthouse-admin",
   },
+  {
+    title: "SocketRelay Admin",
+    url: "/apps/socketrelay/admin",
+    icon: Radio,
+    testId: "link-socketrelay-admin",
+  },
 ];
 
 const userMenuItems = [
@@ -112,6 +119,12 @@ const userMenuItems = [
     url: "/apps/supportmatch",
     icon: UserCheck,
     testId: "link-supportmatch",
+  },
+  {
+    title: "SocketRelay",
+    url: "/apps/socketrelay",
+    icon: Radio,
+    testId: "link-socketrelay",
   },
 ];
 
