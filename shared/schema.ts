@@ -588,3 +588,101 @@ export const insertLighthouseAnnouncementSchema = createInsertSchema(lighthouseA
 
 export type InsertLighthouseAnnouncement = z.infer<typeof insertLighthouseAnnouncementSchema>;
 export type LighthouseAnnouncement = typeof lighthouseAnnouncements.$inferSelect;
+
+// SocketRelay Requests - Users post requests for items they need
+export const socketrelayRequests = pgTable("socketrelay_requests", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  description: varchar("description", { length: 140 }).notNull(),
+  status: varchar("status", { length: 20 }).notNull().default('active'), // active, fulfilled, closed
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const socketrelayRequestsRelations = relations(socketrelayRequests, ({ one, many }) => ({
+  creator: one(users, {
+    fields: [socketrelayRequests.userId],
+    references: [users.id],
+  }),
+  fulfillments: many(socketrelayFulfillments),
+}));
+
+export const insertSocketrelayRequestSchema = createInsertSchema(socketrelayRequests).omit({
+  id: true,
+  status: true,
+  expiresAt: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertSocketrelayRequest = z.infer<typeof insertSocketrelayRequestSchema>;
+export type SocketrelayRequest = typeof socketrelayRequests.$inferSelect;
+
+// SocketRelay Fulfillments - When someone clicks "Fulfill" on a request
+export const socketrelayFulfillments = pgTable("socketrelay_fulfillments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  requestId: varchar("request_id").notNull().references(() => socketrelayRequests.id),
+  fulfillerUserId: varchar("fulfiller_user_id").notNull().references(() => users.id),
+  status: varchar("status", { length: 20 }).notNull().default('active'), // active, completed_success, completed_failure, cancelled
+  closedBy: varchar("closed_by").references(() => users.id),
+  closedAt: timestamp("closed_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const socketrelayFulfillmentsRelations = relations(socketrelayFulfillments, ({ one, many }) => ({
+  request: one(socketrelayRequests, {
+    fields: [socketrelayFulfillments.requestId],
+    references: [socketrelayRequests.id],
+  }),
+  fulfiller: one(users, {
+    fields: [socketrelayFulfillments.fulfillerUserId],
+    references: [users.id],
+  }),
+  closer: one(users, {
+    fields: [socketrelayFulfillments.closedBy],
+    references: [users.id],
+  }),
+  messages: many(socketrelayMessages),
+}));
+
+export const insertSocketrelayFulfillmentSchema = createInsertSchema(socketrelayFulfillments).omit({
+  id: true,
+  status: true,
+  closedBy: true,
+  closedAt: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertSocketrelayFulfillment = z.infer<typeof insertSocketrelayFulfillmentSchema>;
+export type SocketrelayFulfillment = typeof socketrelayFulfillments.$inferSelect;
+
+// SocketRelay Messages - Chat messages between requester and fulfiller
+export const socketrelayMessages = pgTable("socketrelay_messages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  fulfillmentId: varchar("fulfillment_id").notNull().references(() => socketrelayFulfillments.id),
+  senderId: varchar("sender_id").notNull().references(() => users.id),
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const socketrelayMessagesRelations = relations(socketrelayMessages, ({ one }) => ({
+  fulfillment: one(socketrelayFulfillments, {
+    fields: [socketrelayMessages.fulfillmentId],
+    references: [socketrelayFulfillments.id],
+  }),
+  sender: one(users, {
+    fields: [socketrelayMessages.senderId],
+    references: [users.id],
+  }),
+}));
+
+export const insertSocketrelayMessageSchema = createInsertSchema(socketrelayMessages).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertSocketrelayMessage = z.infer<typeof insertSocketrelayMessageSchema>;
+export type SocketrelayMessage = typeof socketrelayMessages.$inferSelect;
