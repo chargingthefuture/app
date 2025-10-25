@@ -1,5 +1,5 @@
 import { db } from "../server/db";
-import { users, socketrelayRequests, socketrelayFulfillments, socketrelayMessages } from "../shared/schema";
+import { users, socketrelayProfiles, socketrelayRequests, socketrelayFulfillments, socketrelayMessages } from "../shared/schema";
 import { eq } from "drizzle-orm";
 
 async function seedSocketRelay() {
@@ -43,6 +43,31 @@ async function seedSocketRelay() {
         userIds[userData.email] = existingUser.id;
         console.log(`User ${userData.email} already exists, using existing ID`);
       }
+    }
+  }
+
+  // Create SocketRelay profiles for all users
+  const profilesData = [
+    { email: "requester1@example.com", displayName: "Sarah C.", city: "Portland", state: "Oregon", country: "United States" },
+    { email: "requester2@example.com", displayName: "Marcus J.", city: "Seattle", state: "Washington", country: "United States" },
+    { email: "requester3@example.com", displayName: "Lisa R.", city: "San Francisco", state: "California", country: "United States" },
+    { email: "fulfiller1@example.com", displayName: "Alex K.", city: "Portland", state: "Oregon", country: "United States" },
+    { email: "fulfiller2@example.com", displayName: "Jordan T.", city: "Eugene", state: "Oregon", country: "United States" },
+    { email: "fulfiller3@example.com", displayName: "Morgan D.", city: "Vancouver", state: "British Columbia", country: "Canada" },
+  ];
+
+  for (const profileData of profilesData) {
+    try {
+      await db.insert(socketrelayProfiles).values({
+        userId: userIds[profileData.email],
+        displayName: profileData.displayName,
+        city: profileData.city,
+        state: profileData.state,
+        country: profileData.country,
+      });
+      console.log(`Created profile for: ${profileData.email}`);
+    } catch (error) {
+      console.log(`Profile for ${profileData.email} already exists`);
     }
   }
 
@@ -204,6 +229,7 @@ async function seedSocketRelay() {
   console.log("\n✅ SocketRelay seed data created successfully!");
   console.log("\nSummary:");
   console.log(`- ${testUsers.length} users created`);
+  console.log(`- ${profilesData.length} profiles created`);
   console.log(`- ${requestsData.length} requests created`);
   console.log(`  - ${requestsData.filter(r => r.status === 'active').length} active requests`);
   console.log(`  - ${requestsData.filter(r => r.status === 'fulfilled').length} fulfilled requests`);
