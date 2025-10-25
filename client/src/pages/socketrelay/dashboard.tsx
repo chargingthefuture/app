@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Package, Clock, CheckCircle2, MapPin } from "lucide-react";
+import { Package, Clock, CheckCircle2, MapPin, Settings } from "lucide-react";
 import { formatDistanceToNow, isPast } from "date-fns";
 import type { SocketrelayRequest, SocketrelayProfile } from "@shared/schema";
 import { Link } from "wouter";
@@ -152,11 +152,19 @@ export default function SocketRelayDashboard() {
 
   return (
     <div className="p-6 md:p-8 space-y-8">
-      <div>
-        <h1 className="text-3xl md:text-4xl font-semibold mb-2">SocketRelay</h1>
-        <p className="text-muted-foreground">
-          Request items you need and help others find what they're looking for
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl md:text-4xl font-semibold mb-2">SocketRelay</h1>
+          <p className="text-muted-foreground">
+            Request items you need and help others find what they're looking for
+          </p>
+        </div>
+        <Link href="/apps/socketrelay/profile">
+          <Button variant="outline" size="sm" data-testid="button-edit-profile">
+            <Settings className="w-4 h-4 mr-2" />
+            Edit Profile
+          </Button>
+        </Link>
       </div>
 
       <Card>

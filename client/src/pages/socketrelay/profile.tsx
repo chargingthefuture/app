@@ -165,13 +165,14 @@ export default function SocketRelayProfile() {
                 name="displayName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Display Name</FormLabel>
+                    <FormLabel>Display Name *</FormLabel>
                     <FormControl>
                       <Input
                         {...field}
                         value={field.value || ""}
                         placeholder="How should we display your name?"
-                        data-testid="input-display-name"
+                        data-testid="input-displayName"
+                        required
                       />
                     </FormControl>
                     <FormMessage />
@@ -185,12 +186,13 @@ export default function SocketRelayProfile() {
                   name="city"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>City</FormLabel>
+                      <FormLabel>City *</FormLabel>
                       <FormControl>
                         <Input
                           {...field}
-                          placeholder="e.g., Portland"
+                          placeholder="e.g., Daytona Beach"
                           data-testid="input-city"
+                          required
                         />
                       </FormControl>
                       <FormMessage />
@@ -203,12 +205,13 @@ export default function SocketRelayProfile() {
                   name="state"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>State/Province</FormLabel>
+                      <FormLabel>State/Province *</FormLabel>
                       <FormControl>
                         <Input
                           {...field}
-                          placeholder="e.g., Oregon"
+                          placeholder="e.g., Florida"
                           data-testid="input-state"
+                          required
                         />
                       </FormControl>
                       <FormMessage />
@@ -222,8 +225,8 @@ export default function SocketRelayProfile() {
                 name="country"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Country</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value || ""}>
+                    <FormLabel>Country *</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value || ""} required>
                       <FormControl>
                         <SelectTrigger data-testid="select-country">
                           <SelectValue placeholder="Select your country" />

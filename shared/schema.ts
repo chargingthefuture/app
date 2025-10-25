@@ -694,7 +694,7 @@ export type SocketrelayMessage = typeof socketrelayMessages.$inferSelect;
 export const socketrelayProfiles = pgTable("socketrelay_profiles", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().unique().references(() => users.id),
-  displayName: varchar("display_name", { length: 100 }),
+  displayName: varchar("display_name", { length: 100 }).notNull(),
   city: varchar("city", { length: 100 }).notNull(),
   state: varchar("state", { length: 100 }).notNull(),
   country: varchar("country", { length: 100 }).notNull(),
