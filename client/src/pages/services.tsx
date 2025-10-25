@@ -20,7 +20,7 @@ const services = [
   },
   {
     title: "SocketRelay",
-    description: "Connect with accountability partners who understand your journey. Find support through meaningful partnerships.",
+    description: "Find what you need or help others get the goods and services they request.",
     icon: UserCheck,
     href: "/apps/socketrelay",
     testId: "card-service-socketrelay",

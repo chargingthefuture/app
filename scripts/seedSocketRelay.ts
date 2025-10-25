@@ -48,12 +48,12 @@ async function seedSocketRelay() {
 
   // Create SocketRelay profiles for all users
   const profilesData = [
-    { email: "requester1@example.com", displayName: "Sarah C.", city: "Portland", state: "Oregon", country: "United States" },
-    { email: "requester2@example.com", displayName: "Marcus J.", city: "Seattle", state: "Washington", country: "United States" },
-    { email: "requester3@example.com", displayName: "Lisa R.", city: "San Francisco", state: "California", country: "United States" },
-    { email: "fulfiller1@example.com", displayName: "Alex K.", city: "Portland", state: "Oregon", country: "United States" },
-    { email: "fulfiller2@example.com", displayName: "Jordan T.", city: "Eugene", state: "Oregon", country: "United States" },
-    { email: "fulfiller3@example.com", displayName: "Morgan D.", city: "Vancouver", state: "British Columbia", country: "Canada" },
+    { email: "requester1@example.com", displayName: "Sarah C.", city: "Daytona Beach", state: "Florida", country: "United States" },
+    { email: "requester2@example.com", displayName: "Marcus J.", city: "New York", state: "New York", country: "United States" },
+    { email: "requester3@example.com", displayName: "Lisa R.", city: "Chicago", state: "Illinois", country: "United States" },
+    { email: "fulfiller1@example.com", displayName: "Alex K.", city: "Daytona Beach", state: "Florida", country: "United States" },
+    { email: "fulfiller2@example.com", displayName: "Jordan T.", city: "New York", state: "New York", country: "United States" },
+    { email: "fulfiller3@example.com", displayName: "Morgan D.", city: "Chicago", state: "Illinois", country: "United States" },
   ];
 
   for (const profileData of profilesData) {
@@ -75,49 +75,49 @@ async function seedSocketRelay() {
   const requestsData = [
     {
       userId: userIds["requester1@example.com"],
-      description: "Need help moving furniture this weekend. Have a truck but need an extra pair of hands.",
+      description: "Looking for warm winter coats, size L or XL. Any condition is fine, just need something for the cold weather.",
       daysAgo: 2,
       status: 'active' as const,
     },
     {
       userId: userIds["requester2@example.com"],
-      description: "Looking for someone to practice Spanish conversation with. I'm intermediate level.",
+      description: "Need pots and pans for my new apartment. Basic cookware set would be amazing!",
       daysAgo: 5,
       status: 'active' as const,
     },
     {
       userId: userIds["requester3@example.com"],
-      description: "Can anyone recommend a good plumber in the downtown area? Urgent leak issue.",
+      description: "Looking for women's professional clothes, size 8-10. Starting a new job and need interview outfits.",
       daysAgo: 1,
       status: 'active' as const,
     },
     {
       userId: userIds["requester1@example.com"],
-      description: "Need someone to watch my cat while I'm on vacation next month for 2 weeks.",
+      description: "Need bedding - sheets, blankets, pillows. Moving into my own place for the first time.",
       daysAgo: 7,
       status: 'fulfilled' as const,
     },
     {
       userId: userIds["requester2@example.com"],
-      description: "Looking for carpool buddy from North Side to downtown, weekdays 8am-9am.",
+      description: "Looking for kids clothes, boys size 6-8. Growing fast and could use hand-me-downs.",
       daysAgo: 10,
       status: 'closed' as const,
     },
     {
       userId: userIds["requester3@example.com"],
-      description: "Anyone know a good recipe for vegan lasagna? Hosting dinner party next week.",
+      description: "Need basic kitchen items - plates, bowls, cups, silverware. Setting up a new home.",
       daysAgo: 3,
       status: 'active' as const,
     },
     {
       userId: userIds["requester1@example.com"],
-      description: "Need help debugging a Python script. It's throwing a weird error I can't figure out.",
+      description: "Looking for casual clothes - jeans, t-shirts, hoodies. Men's medium. Lost everything in recent move.",
       daysAgo: 4,
       status: 'fulfilled' as const,
     },
     {
       userId: userIds["requester2@example.com"],
-      description: "Looking for recommendations for dog-friendly hiking trails within 30 miles of the city.",
+      description: "Need towels and bathroom basics. Just moved and don't have any household items yet.",
       daysAgo: 6,
       status: 'active' as const,
     },
