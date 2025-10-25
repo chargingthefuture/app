@@ -115,16 +115,16 @@ const userMenuItems = [
     testId: "link-sleepstories",
   },
   {
-    title: "SupportMatch",
-    url: "/apps/supportmatch",
-    icon: UserCheck,
-    testId: "link-supportmatch",
-  },
-  {
     title: "SocketRelay",
     url: "/apps/socketrelay",
     icon: Radio,
     testId: "link-socketrelay",
+  },
+  {
+    title: "SupportMatch",
+    url: "/apps/supportmatch",
+    icon: UserCheck,
+    testId: "link-supportmatch",
   },
 ];
 
