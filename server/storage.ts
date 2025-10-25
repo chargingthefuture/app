@@ -206,8 +206,8 @@ export interface IStorage {
 
   // SocketRelay Request operations
   createSocketrelayRequest(userId: string, description: string): Promise<SocketrelayRequest>;
-  getActiveSocketrelayRequests(): Promise<SocketrelayRequest[]>;
-  getAllSocketrelayRequests(): Promise<SocketrelayRequest[]>;
+  getActiveSocketrelayRequests(): Promise<any[]>;
+  getAllSocketrelayRequests(): Promise<any[]>;
   getSocketrelayRequestById(id: string): Promise<SocketrelayRequest | undefined>;
   getSocketrelayRequestsByUser(userId: string): Promise<SocketrelayRequest[]>;
   updateSocketrelayRequestStatus(id: string, status: string): Promise<SocketrelayRequest>;
@@ -1308,9 +1308,9 @@ export class DatabaseStorage implements IStorage {
     return request;
   }
 
-  async getActiveSocketrelayRequests(): Promise<SocketrelayRequest[]> {
+  async getActiveSocketrelayRequests(): Promise<any[]> {
     const now = new Date();
-    return await db
+    const requests = await db
       .select()
       .from(socketrelayRequests)
       .where(
@@ -1320,6 +1320,24 @@ export class DatabaseStorage implements IStorage {
         )
       )
       .orderBy(desc(socketrelayRequests.createdAt));
+    
+    // Join with creator profiles to get location data
+    const results = await Promise.all(
+      requests.map(async (request) => {
+        const profile = await this.getSocketrelayProfile(request.userId);
+        return {
+          ...request,
+          creatorProfile: profile ? {
+            city: profile.city,
+            state: profile.state,
+            country: profile.country,
+            displayName: profile.displayName,
+          } : null,
+        };
+      })
+    );
+    
+    return results;
   }
 
   async getSocketrelayRequestById(id: string): Promise<SocketrelayRequest | undefined> {
@@ -1330,11 +1348,29 @@ export class DatabaseStorage implements IStorage {
     return request;
   }
 
-  async getAllSocketrelayRequests(): Promise<SocketrelayRequest[]> {
-    return await db
+  async getAllSocketrelayRequests(): Promise<any[]> {
+    const requests = await db
       .select()
       .from(socketrelayRequests)
       .orderBy(desc(socketrelayRequests.createdAt));
+    
+    // Join with creator profiles to get location data
+    const results = await Promise.all(
+      requests.map(async (request) => {
+        const profile = await this.getSocketrelayProfile(request.userId);
+        return {
+          ...request,
+          creatorProfile: profile ? {
+            city: profile.city,
+            state: profile.state,
+            country: profile.country,
+            displayName: profile.displayName,
+          } : null,
+        };
+      })
+    );
+    
+    return results;
   }
 
   async getSocketrelayRequestsByUser(userId: string): Promise<SocketrelayRequest[]> {

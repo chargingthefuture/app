@@ -7,15 +7,19 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Package, Clock, CheckCircle2 } from "lucide-react";
+import { Package, Clock, CheckCircle2, MapPin } from "lucide-react";
 import { formatDistanceToNow, isPast } from "date-fns";
-import type { SocketrelayRequest } from "@shared/schema";
+import type { SocketrelayRequest, SocketrelayProfile } from "@shared/schema";
 import { Link } from "wouter";
 
 export default function SocketRelayDashboard() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [newRequest, setNewRequest] = useState("");
+
+  const { data: profile, isLoading: profileLoading } = useQuery<SocketrelayProfile | null>({
+    queryKey: ["/api/socketrelay/profile"],
+  });
 
   const { data: requests = [], isLoading: requestsLoading } = useQuery<SocketrelayRequest[]>({
     queryKey: ['/api/socketrelay/requests'],
@@ -106,6 +110,46 @@ export default function SocketRelayDashboard() {
   const failedFulfillments = myFulfillments.filter(f => f.status === 'completed_failure');
   const cancelledFulfillments = myFulfillments.filter(f => f.status === 'cancelled');
 
+  // Check if profile exists
+  if (profileLoading) {
+    return (
+      <div className="p-6 md:p-8">
+        <div className="text-center py-12">
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <div className="p-6 md:p-8 space-y-8">
+        <div>
+          <h1 className="text-3xl md:text-4xl font-semibold mb-2">Welcome to SocketRelay</h1>
+          <p className="text-muted-foreground">
+            Request items and help others in your community
+          </p>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Get Started</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-muted-foreground">
+              To use SocketRelay, you'll need to create your profile first. This helps others know your location when you post requests.
+            </p>
+            <Link href="/apps/socketrelay/profile">
+              <Button className="w-full" data-testid="button-create-profile">
+                Create Your Profile
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 md:p-8 space-y-8">
       <div>
@@ -128,11 +172,19 @@ export default function SocketRelayDashboard() {
           ) : otherRequests.length === 0 ? (
             <p className="text-center py-8 text-muted-foreground">No active requests available</p>
           ) : (
-            otherRequests.map((request: SocketrelayRequest) => (
+            otherRequests.map((request: any) => (
               <Card key={request.id} data-testid={`card-request-${request.id}`}>
                 <CardContent className="pt-6">
                   <div className="space-y-3">
                     <p>{request.description}</p>
+                    {request.creatorProfile && (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <MapPin className="w-4 h-4" />
+                        <span data-testid={`text-location-${request.id}`}>
+                          {request.creatorProfile.city}, {request.creatorProfile.state}, {request.creatorProfile.country}
+                        </span>
+                      </div>
+                    )}
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-muted-foreground">
                         Expires {formatDistanceToNow(new Date(request.expiresAt), { addSuffix: true })}
