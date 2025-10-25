@@ -689,3 +689,37 @@ export const insertSocketrelayMessageSchema = createInsertSchema(socketrelayMess
 
 export type InsertSocketrelayMessage = z.infer<typeof insertSocketrelayMessageSchema>;
 export type SocketrelayMessage = typeof socketrelayMessages.$inferSelect;
+
+// SocketRelay Profiles - User profiles for SocketRelay app
+export const socketrelayProfiles = pgTable("socketrelay_profiles", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().unique().references(() => users.id),
+  displayName: varchar("display_name", { length: 100 }),
+  city: varchar("city", { length: 100 }).notNull(),
+  state: varchar("state", { length: 100 }).notNull(),
+  country: varchar("country", { length: 100 }).notNull(),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const socketrelayProfilesRelations = relations(socketrelayProfiles, ({ one }) => ({
+  user: one(users, {
+    fields: [socketrelayProfiles.userId],
+    references: [users.id],
+  }),
+}));
+
+export const insertSocketrelayProfileSchema = createInsertSchema(socketrelayProfiles).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  displayName: z.string().min(1, "Display name is required").max(100, "Display name must be 100 characters or less"),
+  city: z.string().min(1, "City is required").max(100, "City must be 100 characters or less"),
+  state: z.string().min(1, "State is required").max(100, "State must be 100 characters or less"),
+  country: z.string().min(1, "Country is required").max(100, "Country must be 100 characters or less"),
+});
+
+export type InsertSocketrelayProfile = z.infer<typeof insertSocketrelayProfileSchema>;
+export type SocketrelayProfile = typeof socketrelayProfiles.$inferSelect;
