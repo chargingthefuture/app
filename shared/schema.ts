@@ -610,6 +610,7 @@ export const socketrelayRequestsRelations = relations(socketrelayRequests, ({ on
 
 export const insertSocketrelayRequestSchema = createInsertSchema(socketrelayRequests).omit({
   id: true,
+  userId: true,
   status: true,
   expiresAt: true,
   createdAt: true,
