@@ -5,18 +5,18 @@ import { UserCheck, Moon, Building2, ArrowRight } from "lucide-react";
 
 const services = [
   {
-    title: "Sleep Stories",
-    description: "Calming audio content designed to help you relax and sleep peacefully. Meditation and bedtime stories.",
-    icon: Moon,
-    href: "/apps/sleepstories",
-    testId: "card-service-sleepstories",
-  },
-  {
     title: "LightHouse",
     description: "Safe housing connections for survivors. Find or offer secure, supportive living spaces in New York.",
     icon: Building2,
     href: "/apps/lighthouse",
     testId: "card-service-lighthouse",
+  },
+  {
+    title: "Sleep Stories",
+    description: "Calming audio content designed to help you relax and sleep peacefully. Meditation and bedtime stories.",
+    icon: Moon,
+    href: "/apps/sleepstories",
+    testId: "card-service-sleepstories",
   },
   {
     title: "SocketRelay",
