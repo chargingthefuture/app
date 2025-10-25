@@ -2,6 +2,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -222,13 +223,72 @@ export default function SocketRelayProfile() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Country</FormLabel>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        placeholder="e.g., United States"
-                        data-testid="input-country"
-                      />
-                    </FormControl>
+                    <Select onValueChange={field.onChange} value={field.value || ""}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-country">
+                          <SelectValue placeholder="Select your country" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="United States">United States</SelectItem>
+                        <SelectItem value="Canada">Canada</SelectItem>
+                        <SelectItem value="United Kingdom">United Kingdom</SelectItem>
+                        <SelectItem value="Australia">Australia</SelectItem>
+                        <SelectItem value="New Zealand">New Zealand</SelectItem>
+                        <SelectItem value="Ireland">Ireland</SelectItem>
+                        <SelectItem value="South Africa">South Africa</SelectItem>
+                        <SelectItem value="India">India</SelectItem>
+                        <SelectItem value="Philippines">Philippines</SelectItem>
+                        <SelectItem value="Singapore">Singapore</SelectItem>
+                        <SelectItem value="Malaysia">Malaysia</SelectItem>
+                        <SelectItem value="Germany">Germany</SelectItem>
+                        <SelectItem value="France">France</SelectItem>
+                        <SelectItem value="Spain">Spain</SelectItem>
+                        <SelectItem value="Italy">Italy</SelectItem>
+                        <SelectItem value="Netherlands">Netherlands</SelectItem>
+                        <SelectItem value="Belgium">Belgium</SelectItem>
+                        <SelectItem value="Switzerland">Switzerland</SelectItem>
+                        <SelectItem value="Austria">Austria</SelectItem>
+                        <SelectItem value="Sweden">Sweden</SelectItem>
+                        <SelectItem value="Norway">Norway</SelectItem>
+                        <SelectItem value="Denmark">Denmark</SelectItem>
+                        <SelectItem value="Finland">Finland</SelectItem>
+                        <SelectItem value="Poland">Poland</SelectItem>
+                        <SelectItem value="Portugal">Portugal</SelectItem>
+                        <SelectItem value="Greece">Greece</SelectItem>
+                        <SelectItem value="Czech Republic">Czech Republic</SelectItem>
+                        <SelectItem value="Mexico">Mexico</SelectItem>
+                        <SelectItem value="Brazil">Brazil</SelectItem>
+                        <SelectItem value="Argentina">Argentina</SelectItem>
+                        <SelectItem value="Chile">Chile</SelectItem>
+                        <SelectItem value="Colombia">Colombia</SelectItem>
+                        <SelectItem value="Peru">Peru</SelectItem>
+                        <SelectItem value="Japan">Japan</SelectItem>
+                        <SelectItem value="South Korea">South Korea</SelectItem>
+                        <SelectItem value="China">China</SelectItem>
+                        <SelectItem value="Taiwan">Taiwan</SelectItem>
+                        <SelectItem value="Hong Kong">Hong Kong</SelectItem>
+                        <SelectItem value="Thailand">Thailand</SelectItem>
+                        <SelectItem value="Vietnam">Vietnam</SelectItem>
+                        <SelectItem value="Indonesia">Indonesia</SelectItem>
+                        <SelectItem value="Pakistan">Pakistan</SelectItem>
+                        <SelectItem value="Bangladesh">Bangladesh</SelectItem>
+                        <SelectItem value="Sri Lanka">Sri Lanka</SelectItem>
+                        <SelectItem value="Nepal">Nepal</SelectItem>
+                        <SelectItem value="Kenya">Kenya</SelectItem>
+                        <SelectItem value="Nigeria">Nigeria</SelectItem>
+                        <SelectItem value="Ghana">Ghana</SelectItem>
+                        <SelectItem value="Egypt">Egypt</SelectItem>
+                        <SelectItem value="Morocco">Morocco</SelectItem>
+                        <SelectItem value="Israel">Israel</SelectItem>
+                        <SelectItem value="United Arab Emirates">United Arab Emirates</SelectItem>
+                        <SelectItem value="Saudi Arabia">Saudi Arabia</SelectItem>
+                        <SelectItem value="Turkey">Turkey</SelectItem>
+                        <SelectItem value="Russia">Russia</SelectItem>
+                        <SelectItem value="Ukraine">Ukraine</SelectItem>
+                        <SelectItem value="Other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
