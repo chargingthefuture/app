@@ -21,6 +21,7 @@ import {
   insertSocketrelayRequestSchema,
   insertSocketrelayFulfillmentSchema,
   insertSocketrelayMessageSchema,
+  insertSocketrelayProfileSchema,
 } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -1300,6 +1301,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // SocketRelay Routes
+
+  // SocketRelay Profile routes
+  app.get('/api/socketrelay/profile', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const profile = await storage.getSocketrelayProfile(userId);
+      res.json(profile || null);
+    } catch (error) {
+      console.error("Error fetching SocketRelay profile:", error);
+      res.status(500).json({ message: "Failed to fetch profile" });
+    }
+  });
+
+  app.post('/api/socketrelay/profile', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const validatedData = insertSocketrelayProfileSchema.parse({
+        ...req.body,
+        userId,
+      });
+
+      const profile = await storage.createSocketrelayProfile(validatedData);
+      res.json(profile);
+    } catch (error: any) {
+      console.error("Error creating SocketRelay profile:", error);
+      res.status(400).json({ message: error.message || "Failed to create profile" });
+    }
+  });
+
+  app.put('/api/socketrelay/profile', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const profile = await storage.updateSocketrelayProfile(userId, req.body);
+      res.json(profile);
+    } catch (error: any) {
+      console.error("Error updating SocketRelay profile:", error);
+      res.status(400).json({ message: error.message || "Failed to update profile" });
+    }
+  });
 
   // Get all active requests
   app.get('/api/socketrelay/requests', isAuthenticated, async (req: any, res) => {
