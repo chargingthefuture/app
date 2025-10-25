@@ -274,9 +274,12 @@ export default function SocketRelayDashboard() {
                   <Link key={fulfillment.id} href={`/apps/socketrelay/chat/${fulfillment.id}`}>
                     <Card className="hover-elevate" data-testid={`card-fulfillment-${fulfillment.id}`}>
                       <CardContent className="pt-6">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="font-medium">Fulfillment #{fulfillment.id.slice(0, 8)}</p>
+                        <div className="flex items-center justify-between gap-4">
+                          <div className="flex-1 space-y-2">
+                            {fulfillment.request && (
+                              <p className="text-base">{fulfillment.request.description}</p>
+                            )}
+                            <p className="font-medium text-sm">Fulfillment #{fulfillment.id.slice(0, 8)}</p>
                             <p className="text-sm text-muted-foreground">
                               Started {formatDistanceToNow(new Date(fulfillment.createdAt), { addSuffix: true })}
                             </p>
@@ -297,9 +300,12 @@ export default function SocketRelayDashboard() {
                   <Link key={fulfillment.id} href={`/apps/socketrelay/chat/${fulfillment.id}`}>
                     <Card className="hover-elevate" data-testid={`card-fulfillment-${fulfillment.id}`}>
                       <CardContent className="pt-6">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="font-medium">Fulfillment #{fulfillment.id.slice(0, 8)}</p>
+                        <div className="flex items-center justify-between gap-4">
+                          <div className="flex-1 space-y-2">
+                            {fulfillment.request && (
+                              <p className="text-base">{fulfillment.request.description}</p>
+                            )}
+                            <p className="font-medium text-sm">Fulfillment #{fulfillment.id.slice(0, 8)}</p>
                             <p className="text-sm text-muted-foreground">
                               Started {formatDistanceToNow(new Date(fulfillment.createdAt), { addSuffix: true })}
                             </p>
@@ -320,9 +326,12 @@ export default function SocketRelayDashboard() {
                   <Link key={fulfillment.id} href={`/apps/socketrelay/chat/${fulfillment.id}`}>
                     <Card className="hover-elevate" data-testid={`card-fulfillment-${fulfillment.id}`}>
                       <CardContent className="pt-6">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="font-medium">Fulfillment #{fulfillment.id.slice(0, 8)}</p>
+                        <div className="flex items-center justify-between gap-4">
+                          <div className="flex-1 space-y-2">
+                            {fulfillment.request && (
+                              <p className="text-base">{fulfillment.request.description}</p>
+                            )}
+                            <p className="font-medium text-sm">Fulfillment #{fulfillment.id.slice(0, 8)}</p>
                             <p className="text-sm text-muted-foreground">
                               Started {formatDistanceToNow(new Date(fulfillment.createdAt), { addSuffix: true })}
                             </p>
@@ -343,9 +352,12 @@ export default function SocketRelayDashboard() {
                   <Link key={fulfillment.id} href={`/apps/socketrelay/chat/${fulfillment.id}`}>
                     <Card className="hover-elevate" data-testid={`card-fulfillment-${fulfillment.id}`}>
                       <CardContent className="pt-6">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="font-medium">Fulfillment #{fulfillment.id.slice(0, 8)}</p>
+                        <div className="flex items-center justify-between gap-4">
+                          <div className="flex-1 space-y-2">
+                            {fulfillment.request && (
+                              <p className="text-base">{fulfillment.request.description}</p>
+                            )}
+                            <p className="font-medium text-sm">Fulfillment #{fulfillment.id.slice(0, 8)}</p>
                             <p className="text-sm text-muted-foreground">
                               Started {formatDistanceToNow(new Date(fulfillment.createdAt), { addSuffix: true })}
                             </p>

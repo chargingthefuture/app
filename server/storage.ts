@@ -214,7 +214,7 @@ export interface IStorage {
   createSocketrelayFulfillment(requestId: string, fulfillerUserId: string): Promise<SocketrelayFulfillment>;
   getSocketrelayFulfillmentById(id: string): Promise<SocketrelayFulfillment | undefined>;
   getSocketrelayFulfillmentsByRequest(requestId: string): Promise<SocketrelayFulfillment[]>;
-  getSocketrelayFulfillmentsByUser(userId: string): Promise<SocketrelayFulfillment[]>;
+  getSocketrelayFulfillmentsByUser(userId: string): Promise<any[]>;
   getAllSocketrelayFulfillments(): Promise<any[]>;
   closeSocketrelayFulfillment(id: string, userId: string, status: string): Promise<SocketrelayFulfillment>;
 
@@ -1403,12 +1403,21 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(socketrelayFulfillments.createdAt));
   }
 
-  async getSocketrelayFulfillmentsByUser(userId: string): Promise<SocketrelayFulfillment[]> {
-    return await db
+  async getSocketrelayFulfillmentsByUser(userId: string): Promise<any[]> {
+    const fulfillments = await db
       .select()
       .from(socketrelayFulfillments)
       .where(eq(socketrelayFulfillments.fulfillerUserId, userId))
       .orderBy(desc(socketrelayFulfillments.createdAt));
+    
+    const results = await Promise.all(
+      fulfillments.map(async (fulfillment) => {
+        const request = await this.getSocketrelayRequestById(fulfillment.requestId);
+        return { ...fulfillment, request };
+      })
+    );
+    
+    return results;
   }
 
   async getAllSocketrelayFulfillments(): Promise<any[]> {
