@@ -19,6 +19,7 @@ import {
   socketrelayRequests,
   socketrelayFulfillments,
   socketrelayMessages,
+  socketrelayProfiles,
   type User,
   type UpsertUser,
   type InviteCode,
@@ -59,6 +60,8 @@ import {
   type InsertSocketrelayFulfillment,
   type SocketrelayMessage,
   type InsertSocketrelayMessage,
+  type SocketrelayProfile,
+  type InsertSocketrelayProfile,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, sql, or, inArray, gte, lte } from "drizzle-orm";
@@ -221,6 +224,11 @@ export interface IStorage {
   // SocketRelay Message operations
   createSocketrelayMessage(message: InsertSocketrelayMessage): Promise<SocketrelayMessage>;
   getSocketrelayMessagesByFulfillment(fulfillmentId: string): Promise<SocketrelayMessage[]>;
+
+  // SocketRelay Profile operations
+  getSocketrelayProfile(userId: string): Promise<SocketrelayProfile | undefined>;
+  createSocketrelayProfile(profile: InsertSocketrelayProfile): Promise<SocketrelayProfile>;
+  updateSocketrelayProfile(userId: string, profile: Partial<InsertSocketrelayProfile>): Promise<SocketrelayProfile>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1465,6 +1473,35 @@ export class DatabaseStorage implements IStorage {
       .from(socketrelayMessages)
       .where(eq(socketrelayMessages.fulfillmentId, fulfillmentId))
       .orderBy(socketrelayMessages.createdAt);
+  }
+
+  // SocketRelay Profile operations
+  async getSocketrelayProfile(userId: string): Promise<SocketrelayProfile | undefined> {
+    const [profile] = await db
+      .select()
+      .from(socketrelayProfiles)
+      .where(eq(socketrelayProfiles.userId, userId));
+    return profile;
+  }
+
+  async createSocketrelayProfile(profileData: InsertSocketrelayProfile): Promise<SocketrelayProfile> {
+    const [profile] = await db
+      .insert(socketrelayProfiles)
+      .values(profileData)
+      .returning();
+    return profile;
+  }
+
+  async updateSocketrelayProfile(userId: string, profileData: Partial<InsertSocketrelayProfile>): Promise<SocketrelayProfile> {
+    const [profile] = await db
+      .update(socketrelayProfiles)
+      .set({
+        ...profileData,
+        updatedAt: new Date(),
+      })
+      .where(eq(socketrelayProfiles.userId, userId))
+      .returning();
+    return profile;
   }
 }
 
