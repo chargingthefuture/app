@@ -101,6 +101,11 @@ export default function SocketRelayDashboard() {
   const activeRequests = requests.filter(r => r.status === 'active' && !isPast(new Date(r.expiresAt)));
   const otherRequests = activeRequests.filter(r => r.userId !== user?.id);
 
+  const activeFulfillments = myFulfillments.filter(f => f.status === 'active');
+  const successfulFulfillments = myFulfillments.filter(f => f.status === 'completed_success');
+  const failedFulfillments = myFulfillments.filter(f => f.status === 'completed_failure');
+  const cancelledFulfillments = myFulfillments.filter(f => f.status === 'cancelled');
+
   return (
     <div className="p-6 md:p-8 space-y-8">
       <div>
@@ -109,6 +114,44 @@ export default function SocketRelayDashboard() {
           Request items you need and help others find what they're looking for
         </p>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Available Requests</CardTitle>
+          <CardDescription>
+            Click "Fulfill" to help someone and start a chat
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {requestsLoading ? (
+            <p className="text-center py-8 text-muted-foreground">Loading requests...</p>
+          ) : otherRequests.length === 0 ? (
+            <p className="text-center py-8 text-muted-foreground">No active requests available</p>
+          ) : (
+            otherRequests.map((request: SocketrelayRequest) => (
+              <Card key={request.id} data-testid={`card-request-${request.id}`}>
+                <CardContent className="pt-6">
+                  <div className="space-y-3">
+                    <p>{request.description}</p>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">
+                        Expires {formatDistanceToNow(new Date(request.expiresAt), { addSuffix: true })}
+                      </span>
+                      <Button
+                        onClick={() => handleFulfill(request.id)}
+                        disabled={fulfillMutation.isPending}
+                        data-testid={`button-fulfill-${request.id}`}
+                      >
+                        {fulfillMutation.isPending ? "Fulfilling..." : "Fulfill"}
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid md:grid-cols-3 gap-6">
         <Card>
@@ -223,65 +266,101 @@ export default function SocketRelayDashboard() {
           <CardHeader>
             <CardTitle>My Active Fulfillments</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            {myFulfillments.map((fulfillment: any) => (
-              <Link key={fulfillment.id} href={`/apps/socketrelay/chat/${fulfillment.id}`}>
-                <Card className="hover-elevate" data-testid={`card-fulfillment-${fulfillment.id}`}>
-                  <CardContent className="pt-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-medium">Fulfillment #{fulfillment.id.slice(0, 8)}</p>
-                        <p className="text-sm text-muted-foreground">
-                          Started {formatDistanceToNow(new Date(fulfillment.createdAt), { addSuffix: true })}
-                        </p>
-                      </div>
-                      <Button variant="outline" data-testid={`button-chat-${fulfillment.id}`}>View Chat</Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
-            ))}
+          <CardContent className="space-y-6">
+            {activeFulfillments.length > 0 && (
+              <div className="space-y-3">
+                <h3 className="text-sm font-medium text-muted-foreground">Active</h3>
+                {activeFulfillments.map((fulfillment: any) => (
+                  <Link key={fulfillment.id} href={`/apps/socketrelay/chat/${fulfillment.id}`}>
+                    <Card className="hover-elevate" data-testid={`card-fulfillment-${fulfillment.id}`}>
+                      <CardContent className="pt-6">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-medium">Fulfillment #{fulfillment.id.slice(0, 8)}</p>
+                            <p className="text-sm text-muted-foreground">
+                              Started {formatDistanceToNow(new Date(fulfillment.createdAt), { addSuffix: true })}
+                            </p>
+                          </div>
+                          <Button variant="outline" data-testid={`button-chat-${fulfillment.id}`}>View Chat</Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                ))}
+              </div>
+            )}
+
+            {successfulFulfillments.length > 0 && (
+              <div className="space-y-3">
+                <h3 className="text-sm font-medium text-muted-foreground">Completed Successfully</h3>
+                {successfulFulfillments.map((fulfillment: any) => (
+                  <Link key={fulfillment.id} href={`/apps/socketrelay/chat/${fulfillment.id}`}>
+                    <Card className="hover-elevate" data-testid={`card-fulfillment-${fulfillment.id}`}>
+                      <CardContent className="pt-6">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-medium">Fulfillment #{fulfillment.id.slice(0, 8)}</p>
+                            <p className="text-sm text-muted-foreground">
+                              Started {formatDistanceToNow(new Date(fulfillment.createdAt), { addSuffix: true })}
+                            </p>
+                          </div>
+                          <Button variant="outline" data-testid={`button-chat-${fulfillment.id}`}>View Chat</Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                ))}
+              </div>
+            )}
+
+            {failedFulfillments.length > 0 && (
+              <div className="space-y-3">
+                <h3 className="text-sm font-medium text-muted-foreground">Completed - Did Not Work Out</h3>
+                {failedFulfillments.map((fulfillment: any) => (
+                  <Link key={fulfillment.id} href={`/apps/socketrelay/chat/${fulfillment.id}`}>
+                    <Card className="hover-elevate" data-testid={`card-fulfillment-${fulfillment.id}`}>
+                      <CardContent className="pt-6">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-medium">Fulfillment #{fulfillment.id.slice(0, 8)}</p>
+                            <p className="text-sm text-muted-foreground">
+                              Started {formatDistanceToNow(new Date(fulfillment.createdAt), { addSuffix: true })}
+                            </p>
+                          </div>
+                          <Button variant="outline" data-testid={`button-chat-${fulfillment.id}`}>View Chat</Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                ))}
+              </div>
+            )}
+
+            {cancelledFulfillments.length > 0 && (
+              <div className="space-y-3">
+                <h3 className="text-sm font-medium text-muted-foreground">Cancelled</h3>
+                {cancelledFulfillments.map((fulfillment: any) => (
+                  <Link key={fulfillment.id} href={`/apps/socketrelay/chat/${fulfillment.id}`}>
+                    <Card className="hover-elevate" data-testid={`card-fulfillment-${fulfillment.id}`}>
+                      <CardContent className="pt-6">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-medium">Fulfillment #{fulfillment.id.slice(0, 8)}</p>
+                            <p className="text-sm text-muted-foreground">
+                              Started {formatDistanceToNow(new Date(fulfillment.createdAt), { addSuffix: true })}
+                            </p>
+                          </div>
+                          <Button variant="outline" data-testid={`button-chat-${fulfillment.id}`}>View Chat</Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Available Requests</CardTitle>
-          <CardDescription>
-            Click "Fulfill" to help someone and start a chat
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {requestsLoading ? (
-            <p className="text-center py-8 text-muted-foreground">Loading requests...</p>
-          ) : otherRequests.length === 0 ? (
-            <p className="text-center py-8 text-muted-foreground">No active requests available</p>
-          ) : (
-            otherRequests.map((request: SocketrelayRequest) => (
-              <Card key={request.id} data-testid={`card-request-${request.id}`}>
-                <CardContent className="pt-6">
-                  <div className="space-y-3">
-                    <p>{request.description}</p>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">
-                        Expires {formatDistanceToNow(new Date(request.expiresAt), { addSuffix: true })}
-                      </span>
-                      <Button
-                        onClick={() => handleFulfill(request.id)}
-                        disabled={fulfillMutation.isPending}
-                        data-testid={`button-fulfill-${request.id}`}
-                      >
-                        {fulfillMutation.isPending ? "Fulfilling..." : "Fulfill"}
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))
-          )}
-        </CardContent>
-      </Card>
     </div>
   );
 }
