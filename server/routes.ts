@@ -18,6 +18,9 @@ import {
   insertLighthousePropertySchema,
   insertLighthouseMatchSchema,
   insertLighthouseAnnouncementSchema,
+  insertSocketrelayRequestSchema,
+  insertSocketrelayFulfillmentSchema,
+  insertSocketrelayMessageSchema,
 } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -1293,6 +1296,237 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error deactivating LightHouse announcement:", error);
       res.status(400).json({ message: error.message || "Failed to deactivate announcement" });
+    }
+  });
+
+  // SocketRelay Routes
+
+  // Get all active requests
+  app.get('/api/socketrelay/requests', isAuthenticated, async (req: any, res) => {
+    try {
+      const requests = await storage.getActiveSocketrelayRequests();
+      res.json(requests);
+    } catch (error: any) {
+      console.error("Error fetching SocketRelay requests:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch requests" });
+    }
+  });
+
+  // Get single request by ID
+  app.get('/api/socketrelay/requests/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const request = await storage.getSocketrelayRequestById(req.params.id);
+      if (!request) {
+        return res.status(404).json({ message: "Request not found" });
+      }
+      res.json(request);
+    } catch (error: any) {
+      console.error("Error fetching SocketRelay request:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch request" });
+    }
+  });
+
+  // Get user's own requests
+  app.get('/api/socketrelay/my-requests', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const requests = await storage.getSocketrelayRequestsByUser(userId);
+      res.json(requests);
+    } catch (error: any) {
+      console.error("Error fetching user's SocketRelay requests:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch requests" });
+    }
+  });
+
+  // Create a new request
+  app.post('/api/socketrelay/requests', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const validated = insertSocketrelayRequestSchema.parse(req.body);
+      
+      const request = await storage.createSocketrelayRequest(userId, validated.description);
+      res.json(request);
+    } catch (error: any) {
+      console.error("Error creating SocketRelay request:", error);
+      res.status(400).json({ message: error.message || "Failed to create request" });
+    }
+  });
+
+  // Fulfill a request (create fulfillment)
+  app.post('/api/socketrelay/requests/:id/fulfill', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const requestId = req.params.id;
+
+      // Check if request exists and is active
+      const request = await storage.getSocketrelayRequestById(requestId);
+      if (!request) {
+        return res.status(404).json({ message: "Request not found" });
+      }
+
+      if (request.status !== 'active') {
+        return res.status(400).json({ message: "Request is not active" });
+      }
+
+      // Check if already expired
+      if (new Date(request.expiresAt) < new Date()) {
+        return res.status(400).json({ message: "Request has expired" });
+      }
+
+      // Don't allow users to fulfill their own requests
+      if (request.userId === userId) {
+        return res.status(400).json({ message: "You cannot fulfill your own request" });
+      }
+
+      const fulfillment = await storage.createSocketrelayFulfillment(requestId, userId);
+      res.json(fulfillment);
+    } catch (error: any) {
+      console.error("Error fulfilling SocketRelay request:", error);
+      res.status(400).json({ message: error.message || "Failed to fulfill request" });
+    }
+  });
+
+  // Get fulfillment by ID (with request data)
+  app.get('/api/socketrelay/fulfillments/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const fulfillment = await storage.getSocketrelayFulfillmentById(req.params.id);
+      
+      if (!fulfillment) {
+        return res.status(404).json({ message: "Fulfillment not found" });
+      }
+
+      // Check if user is part of this fulfillment
+      const request = await storage.getSocketrelayRequestById(fulfillment.requestId);
+      if (!request) {
+        return res.status(404).json({ message: "Request not found" });
+      }
+
+      if (request.userId !== userId && fulfillment.fulfillerUserId !== userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      res.json({ fulfillment, request });
+    } catch (error: any) {
+      console.error("Error fetching SocketRelay fulfillment:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch fulfillment" });
+    }
+  });
+
+  // Get user's fulfillments (where they are the fulfiller)
+  app.get('/api/socketrelay/my-fulfillments', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const fulfillments = await storage.getSocketrelayFulfillmentsByUser(userId);
+      res.json(fulfillments);
+    } catch (error: any) {
+      console.error("Error fetching user's SocketRelay fulfillments:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch fulfillments" });
+    }
+  });
+
+  // Close a fulfillment
+  app.post('/api/socketrelay/fulfillments/:id/close', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const { status } = req.body; // completed_success or completed_failure
+
+      if (!status || !['completed_success', 'completed_failure', 'cancelled'].includes(status)) {
+        return res.status(400).json({ message: "Invalid status" });
+      }
+
+      const fulfillment = await storage.getSocketrelayFulfillmentById(req.params.id);
+      if (!fulfillment) {
+        return res.status(404).json({ message: "Fulfillment not found" });
+      }
+
+      // Check if user is part of this fulfillment
+      const request = await storage.getSocketrelayRequestById(fulfillment.requestId);
+      if (!request) {
+        return res.status(404).json({ message: "Request not found" });
+      }
+
+      if (request.userId !== userId && fulfillment.fulfillerUserId !== userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const updated = await storage.closeSocketrelayFulfillment(req.params.id, userId, status);
+      
+      // Update request status to closed
+      await storage.updateSocketrelayRequestStatus(request.id, 'closed');
+
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error closing SocketRelay fulfillment:", error);
+      res.status(400).json({ message: error.message || "Failed to close fulfillment" });
+    }
+  });
+
+  // Get messages for a fulfillment
+  app.get('/api/socketrelay/fulfillments/:id/messages', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const fulfillmentId = req.params.id;
+
+      const fulfillment = await storage.getSocketrelayFulfillmentById(fulfillmentId);
+      if (!fulfillment) {
+        return res.status(404).json({ message: "Fulfillment not found" });
+      }
+
+      // Check if user is part of this fulfillment
+      const request = await storage.getSocketrelayRequestById(fulfillment.requestId);
+      if (!request) {
+        return res.status(404).json({ message: "Request not found" });
+      }
+
+      if (request.userId !== userId && fulfillment.fulfillerUserId !== userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const messages = await storage.getSocketrelayMessagesByFulfillment(fulfillmentId);
+      res.json(messages);
+    } catch (error: any) {
+      console.error("Error fetching SocketRelay messages:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch messages" });
+    }
+  });
+
+  // Send a message in a fulfillment chat
+  app.post('/api/socketrelay/fulfillments/:id/messages', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const fulfillmentId = req.params.id;
+      const { content } = req.body;
+
+      if (!content || typeof content !== 'string' || content.trim().length === 0) {
+        return res.status(400).json({ message: "Message content is required" });
+      }
+
+      const fulfillment = await storage.getSocketrelayFulfillmentById(fulfillmentId);
+      if (!fulfillment) {
+        return res.status(404).json({ message: "Fulfillment not found" });
+      }
+
+      // Check if user is part of this fulfillment
+      const request = await storage.getSocketrelayRequestById(fulfillment.requestId);
+      if (!request) {
+        return res.status(404).json({ message: "Request not found" });
+      }
+
+      if (request.userId !== userId && fulfillment.fulfillerUserId !== userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const message = await storage.createSocketrelayMessage({
+        fulfillmentId,
+        senderId: userId,
+        content: content.trim(),
+      });
+
+      res.json(message);
+    } catch (error: any) {
+      console.error("Error sending SocketRelay message:", error);
+      res.status(400).json({ message: error.message || "Failed to send message" });
     }
   });
 

@@ -16,6 +16,9 @@ import {
   lighthouseProperties,
   lighthouseMatches,
   lighthouseAnnouncements,
+  socketrelayRequests,
+  socketrelayFulfillments,
+  socketrelayMessages,
   type User,
   type UpsertUser,
   type InviteCode,
@@ -50,6 +53,12 @@ import {
   type InsertLighthouseMatch,
   type LighthouseAnnouncement,
   type InsertLighthouseAnnouncement,
+  type SocketrelayRequest,
+  type InsertSocketrelayRequest,
+  type SocketrelayFulfillment,
+  type InsertSocketrelayFulfillment,
+  type SocketrelayMessage,
+  type InsertSocketrelayMessage,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, sql, or, inArray, gte, lte } from "drizzle-orm";
@@ -191,6 +200,24 @@ export interface IStorage {
   getAllLighthouseAnnouncements(): Promise<LighthouseAnnouncement[]>;
   updateLighthouseAnnouncement(id: string, announcement: Partial<InsertLighthouseAnnouncement>): Promise<LighthouseAnnouncement>;
   deactivateLighthouseAnnouncement(id: string): Promise<LighthouseAnnouncement>;
+
+  // SocketRelay Request operations
+  createSocketrelayRequest(userId: string, description: string): Promise<SocketrelayRequest>;
+  getActiveSocketrelayRequests(): Promise<SocketrelayRequest[]>;
+  getSocketrelayRequestById(id: string): Promise<SocketrelayRequest | undefined>;
+  getSocketrelayRequestsByUser(userId: string): Promise<SocketrelayRequest[]>;
+  updateSocketrelayRequestStatus(id: string, status: string): Promise<SocketrelayRequest>;
+
+  // SocketRelay Fulfillment operations
+  createSocketrelayFulfillment(requestId: string, fulfillerUserId: string): Promise<SocketrelayFulfillment>;
+  getSocketrelayFulfillmentById(id: string): Promise<SocketrelayFulfillment | undefined>;
+  getSocketrelayFulfillmentsByRequest(requestId: string): Promise<SocketrelayFulfillment[]>;
+  getSocketrelayFulfillmentsByUser(userId: string): Promise<SocketrelayFulfillment[]>;
+  closeSocketrelayFulfillment(id: string, userId: string, status: string): Promise<SocketrelayFulfillment>;
+
+  // SocketRelay Message operations
+  createSocketrelayMessage(message: InsertSocketrelayMessage): Promise<SocketrelayMessage>;
+  getSocketrelayMessagesByFulfillment(fulfillmentId: string): Promise<SocketrelayMessage[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1252,6 +1279,135 @@ export class DatabaseStorage implements IStorage {
       .where(eq(lighthouseAnnouncements.id, id))
       .returning();
     return announcement;
+  }
+
+  // SocketRelay Request operations
+  async createSocketrelayRequest(userId: string, description: string): Promise<SocketrelayRequest> {
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 14); // 14 days from now
+
+    const [request] = await db
+      .insert(socketrelayRequests)
+      .values({
+        userId,
+        description,
+        expiresAt,
+      })
+      .returning();
+    return request;
+  }
+
+  async getActiveSocketrelayRequests(): Promise<SocketrelayRequest[]> {
+    const now = new Date();
+    return await db
+      .select()
+      .from(socketrelayRequests)
+      .where(
+        and(
+          eq(socketrelayRequests.status, 'active'),
+          gte(socketrelayRequests.expiresAt, now)
+        )
+      )
+      .orderBy(desc(socketrelayRequests.createdAt));
+  }
+
+  async getSocketrelayRequestById(id: string): Promise<SocketrelayRequest | undefined> {
+    const [request] = await db
+      .select()
+      .from(socketrelayRequests)
+      .where(eq(socketrelayRequests.id, id));
+    return request;
+  }
+
+  async getSocketrelayRequestsByUser(userId: string): Promise<SocketrelayRequest[]> {
+    return await db
+      .select()
+      .from(socketrelayRequests)
+      .where(eq(socketrelayRequests.userId, userId))
+      .orderBy(desc(socketrelayRequests.createdAt));
+  }
+
+  async updateSocketrelayRequestStatus(id: string, status: string): Promise<SocketrelayRequest> {
+    const [request] = await db
+      .update(socketrelayRequests)
+      .set({
+        status,
+        updatedAt: new Date(),
+      })
+      .where(eq(socketrelayRequests.id, id))
+      .returning();
+    return request;
+  }
+
+  // SocketRelay Fulfillment operations
+  async createSocketrelayFulfillment(requestId: string, fulfillerUserId: string): Promise<SocketrelayFulfillment> {
+    const [fulfillment] = await db
+      .insert(socketrelayFulfillments)
+      .values({
+        requestId,
+        fulfillerUserId,
+      })
+      .returning();
+
+    // Update request status to fulfilled
+    await this.updateSocketrelayRequestStatus(requestId, 'fulfilled');
+
+    return fulfillment;
+  }
+
+  async getSocketrelayFulfillmentById(id: string): Promise<SocketrelayFulfillment | undefined> {
+    const [fulfillment] = await db
+      .select()
+      .from(socketrelayFulfillments)
+      .where(eq(socketrelayFulfillments.id, id));
+    return fulfillment;
+  }
+
+  async getSocketrelayFulfillmentsByRequest(requestId: string): Promise<SocketrelayFulfillment[]> {
+    return await db
+      .select()
+      .from(socketrelayFulfillments)
+      .where(eq(socketrelayFulfillments.requestId, requestId))
+      .orderBy(desc(socketrelayFulfillments.createdAt));
+  }
+
+  async getSocketrelayFulfillmentsByUser(userId: string): Promise<SocketrelayFulfillment[]> {
+    return await db
+      .select()
+      .from(socketrelayFulfillments)
+      .where(eq(socketrelayFulfillments.fulfillerUserId, userId))
+      .orderBy(desc(socketrelayFulfillments.createdAt));
+  }
+
+  async closeSocketrelayFulfillment(id: string, userId: string, status: string): Promise<SocketrelayFulfillment> {
+    const [fulfillment] = await db
+      .update(socketrelayFulfillments)
+      .set({
+        status,
+        closedBy: userId,
+        closedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(socketrelayFulfillments.id, id))
+      .returning();
+    return fulfillment;
+  }
+
+  // SocketRelay Message operations
+  async createSocketrelayMessage(messageData: InsertSocketrelayMessage): Promise<SocketrelayMessage> {
+    const [message] = await db
+      .insert(socketrelayMessages)
+      .values(messageData)
+      .returning();
+    return message;
+  }
+
+  async getSocketrelayMessagesByFulfillment(fulfillmentId: string): Promise<SocketrelayMessage[]> {
+    return await db
+      .select()
+      .from(socketrelayMessages)
+      .where(eq(socketrelayMessages.fulfillmentId, fulfillmentId))
+      .orderBy(socketrelayMessages.createdAt);
   }
 }
 
