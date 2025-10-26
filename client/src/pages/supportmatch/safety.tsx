@@ -187,7 +187,7 @@ export default function SupportMatchSafety() {
                       Reason (Optional)
                     </label>
                     <Textarea
-                      placeholder="Why are you blocking this user? (This is private)"
+                      placeholder="Why are you blocking this user?"
                       value={reason}
                       onChange={(e) => setReason(e.target.value)}
                       rows={3}

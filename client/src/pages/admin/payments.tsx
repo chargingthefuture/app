@@ -52,9 +52,14 @@ export default function AdminPayments() {
 
   const recordPaymentMutation = useMutation({
     mutationFn: async () => {
+      // Validate amount is a valid number string
+      if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
+        throw new Error("Please enter a valid amount");
+      }
+      
       return await apiRequest("POST", "/api/admin/payments", {
         userId: selectedUserId,
-        amount: parseFloat(amount),
+        amount: amount, // Send as string, not parseFloat(amount)
         paymentDate: new Date().toISOString(),
         paymentMethod,
         notes: notes || null,
