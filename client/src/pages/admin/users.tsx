@@ -10,6 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { PrivacyField } from "@/components/ui/privacy-field";
 import type { User } from "@shared/schema";
 
 export default function AdminUsers() {
@@ -85,7 +86,13 @@ export default function AdminUsers() {
                             </span>
                           </div>
                         </TableCell>
-                        <TableCell className="text-muted-foreground">{user.email}</TableCell>
+                        <TableCell className="text-muted-foreground">
+                          <PrivacyField 
+                            value={user.email || ""} 
+                            type="email"
+                            testId={`email-${user.id}`}
+                          />
+                        </TableCell>
                         <TableCell className="font-mono">${user.pricingTier}/mo</TableCell>
                         <TableCell>{getStatusBadge(user.subscriptionStatus)}</TableCell>
                         <TableCell>
@@ -119,7 +126,13 @@ export default function AdminUsers() {
                               ? `${user.firstName} ${user.lastName}`
                               : 'User'}
                           </p>
-                          <p className="text-sm text-muted-foreground truncate">{user.email}</p>
+                          <div className="text-sm text-muted-foreground">
+                            <PrivacyField 
+                              value={user.email || ""} 
+                              type="email"
+                              testId={`email-mobile-${user.id}`}
+                            />
+                          </div>
                         </div>
                       </div>
 

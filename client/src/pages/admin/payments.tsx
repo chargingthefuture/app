@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { PrivacyField } from "@/components/ui/privacy-field";
 import type { User, Payment } from "@shared/schema";
 import { DollarSign } from "lucide-react";
 
@@ -88,6 +89,14 @@ export default function AdminPayments() {
       : user.email || "User";
   };
 
+  const getUserDisplayName = (userId: string) => {
+    const user = users?.find(u => u.id === userId);
+    if (!user) return "Unknown User";
+    return user.firstName && user.lastName 
+      ? `${user.firstName} ${user.lastName}`
+      : "User";
+  };
+
   return (
     <div className="p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -133,7 +142,15 @@ export default function AdminPayments() {
                     {payments.map((payment) => (
                       <TableRow key={payment.id} data-testid={`row-payment-${payment.id}`}>
                         <TableCell className="font-medium">
-                          {getUserName(payment.userId)}
+                          <div className="space-y-1">
+                            <div>{getUserDisplayName(payment.userId)}</div>
+                            <PrivacyField 
+                              value={users?.find(u => u.id === payment.userId)?.email || ""} 
+                              type="email"
+                              testId={`payment-email-${payment.id}`}
+                              className="text-xs"
+                            />
+                          </div>
                         </TableCell>
                         <TableCell className="font-mono">
                           ${parseFloat(payment.amount).toFixed(2)}
@@ -157,11 +174,19 @@ export default function AdminPayments() {
                 {payments.map((payment) => (
                   <Card key={payment.id} data-testid={`row-payment-${payment.id}`}>
                     <CardContent className="p-4 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium">{getUserName(payment.userId)}</span>
-                        <span className="font-mono font-semibold">
-                          ${parseFloat(payment.amount).toFixed(2)}
-                        </span>
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium">{getUserDisplayName(payment.userId)}</span>
+                          <span className="font-mono font-semibold">
+                            ${parseFloat(payment.amount).toFixed(2)}
+                          </span>
+                        </div>
+                        <PrivacyField 
+                          value={users?.find(u => u.id === payment.userId)?.email || ""} 
+                          type="email"
+                          testId={`payment-email-mobile-${payment.id}`}
+                          className="text-xs"
+                        />
                       </div>
                       
                       <div className="grid grid-cols-2 gap-2 text-sm">
@@ -208,9 +233,19 @@ export default function AdminPayments() {
                 <SelectContent>
                   {users?.map(user => (
                     <SelectItem key={user.id} value={user.id}>
-                      {user.firstName && user.lastName 
-                        ? `${user.firstName} ${user.lastName}`
-                        : user.email || "User"}
+                      <div className="flex flex-col">
+                        <span>
+                          {user.firstName && user.lastName 
+                            ? `${user.firstName} ${user.lastName}`
+                            : "User"}
+                        </span>
+                        <PrivacyField 
+                          value={user.email || ""} 
+                          type="email"
+                          testId={`select-email-${user.id}`}
+                          className="text-xs"
+                        />
+                      </div>
                     </SelectItem>
                   ))}
                 </SelectContent>

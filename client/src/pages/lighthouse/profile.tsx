@@ -7,6 +7,7 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PrivacyField } from "@/components/ui/privacy-field";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { insertLighthouseProfileSchema, type LighthouseProfile } from "@shared/schema";
@@ -213,6 +214,17 @@ export default function LighthouseProfilePage() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Phone Number (Optional)</FormLabel>
+                    {profile?.phoneNumber && (
+                      <div className="mb-2">
+                        <span className="text-sm text-muted-foreground">Current: </span>
+                        <PrivacyField 
+                          value={profile.phoneNumber} 
+                          type="phone"
+                          testId="current-phone-display"
+                          className="text-sm"
+                        />
+                      </div>
+                    )}
                     <FormControl>
                       <Input {...field} value={field.value || ""} placeholder="(555) 123-4567" data-testid="input-phoneNumber" />
                     </FormControl>
