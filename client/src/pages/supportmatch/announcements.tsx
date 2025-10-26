@@ -40,8 +40,8 @@ export default function SupportMatchAnnouncements() {
 
   if (isLoading) {
     return (
-      <div className="p-6 md:p-8">
-        <div className="text-center py-12">
+      <div className="p-4 sm:p-6 md:p-8">
+        <div className="text-center py-8 sm:py-12">
           <p className="text-muted-foreground">Loading announcements...</p>
         </div>
       </div>
@@ -49,22 +49,22 @@ export default function SupportMatchAnnouncements() {
   }
 
   return (
-    <div className="p-6 md:p-8 space-y-8">
+    <div className="p-4 sm:p-6 md:p-8 space-y-6 sm:space-y-8">
       <div>
-        <h1 className="text-3xl md:text-4xl font-semibold mb-2">Announcements</h1>
-        <p className="text-muted-foreground">
+        <h1 className="text-2xl sm:text-3xl md:text-4xl font-semibold mb-2">Announcements</h1>
+        <p className="text-muted-foreground text-sm sm:text-base">
           Stay updated with platform news and important notifications
         </p>
       </div>
 
       {!announcements || announcements.length === 0 ? (
         <Card>
-          <CardContent className="py-12 text-center">
+          <CardContent className="py-8 sm:py-12 text-center">
             <p className="text-muted-foreground">No announcements at this time.</p>
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           {announcements.map((announcement) => (
             <Card key={announcement.id} data-testid={`announcement-${announcement.id}`}>
               <CardHeader>
@@ -73,15 +73,15 @@ export default function SupportMatchAnnouncements() {
                     <div className="mt-1">
                       {getAnnouncementIcon(announcement.type)}
                     </div>
-                    <div className="flex-1">
-                      <CardTitle className="text-lg mb-2">
+                    <div className="flex-1 min-w-0">
+                      <CardTitle className="text-base sm:text-lg mb-2">
                         {announcement.title}
                       </CardTitle>
                       <div className="flex items-center gap-2 flex-wrap">
-                        <Badge variant={getAnnouncementBadgeVariant(announcement.type)}>
+                        <Badge variant={getAnnouncementBadgeVariant(announcement.type)} className="text-xs">
                           {announcement.type}
                         </Badge>
-                        <span className="text-sm text-muted-foreground">
+                        <span className="text-xs sm:text-sm text-muted-foreground">
                           {format(new Date(announcement.createdAt), "MMM d, yyyy")}
                         </span>
                       </div>
@@ -90,11 +90,11 @@ export default function SupportMatchAnnouncements() {
                 </div>
               </CardHeader>
               <CardContent>
-                <p className="text-muted-foreground whitespace-pre-wrap">
+                <p className="text-muted-foreground whitespace-pre-wrap text-sm sm:text-base">
                   {announcement.content}
                 </p>
                 {announcement.expiresAt && (
-                  <p className="text-sm text-muted-foreground mt-4">
+                  <p className="text-xs sm:text-sm text-muted-foreground mt-3 sm:mt-4">
                     Expires: {format(new Date(announcement.expiresAt), "MMM d, yyyy")}
                   </p>
                 )}

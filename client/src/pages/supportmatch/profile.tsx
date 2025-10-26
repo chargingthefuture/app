@@ -116,8 +116,8 @@ export default function SupportMatchProfile() {
 
   if (isLoading) {
     return (
-      <div className="p-6 md:p-8">
-        <div className="text-center py-12">
+      <div className="p-4 sm:p-6 md:p-8">
+        <div className="text-center py-8 sm:py-12">
           <p className="text-muted-foreground">Loading...</p>
         </div>
       </div>
@@ -125,12 +125,12 @@ export default function SupportMatchProfile() {
   }
 
   return (
-    <div className="p-6 md:p-8 space-y-8">
+    <div className="p-4 sm:p-6 md:p-8 space-y-6 sm:space-y-8">
       <div>
-        <h1 className="text-3xl md:text-4xl font-semibold mb-2">
+        <h1 className="text-2xl sm:text-3xl md:text-4xl font-semibold mb-2">
           {profile ? "Edit Profile" : "Create Profile"}
         </h1>
-        <p className="text-muted-foreground">
+        <p className="text-muted-foreground text-sm sm:text-base">
           {profile 
             ? "Update your SupportMatch profile and preferences" 
             : "Set up your profile to start matching with accountability partners"}
@@ -139,11 +139,11 @@ export default function SupportMatchProfile() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Profile Information</CardTitle>
+          <CardTitle className="text-lg sm:text-xl">Profile Information</CardTitle>
         </CardHeader>
         <CardContent>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 sm:space-y-6">
               <FormField
                 control={form.control}
                 name="nickname"
@@ -209,7 +209,7 @@ export default function SupportMatchProfile() {
                 )}
               />
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
                 <FormField
                   control={form.control}
                   name="city"
@@ -386,11 +386,12 @@ export default function SupportMatchProfile() {
                 )}
               />
 
-              <div className="flex gap-4">
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                 <Button
                   type="submit"
                   disabled={createMutation.isPending || updateMutation.isPending}
                   data-testid="button-save-profile"
+                  className="text-sm sm:text-base"
                 >
                   {createMutation.isPending || updateMutation.isPending
                     ? "Saving..."
@@ -404,6 +405,7 @@ export default function SupportMatchProfile() {
                     variant="outline"
                     onClick={() => setLocation("/apps/supportmatch")}
                     data-testid="button-cancel"
+                    className="text-sm sm:text-base"
                   >
                     Cancel
                   </Button>

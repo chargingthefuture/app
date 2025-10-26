@@ -23,8 +23,8 @@ export default function SupportMatchDashboard() {
 
   if (profileLoading) {
     return (
-      <div className="p-6 md:p-8">
-        <div className="text-center py-12">
+      <div className="p-4 sm:p-6 md:p-8">
+        <div className="text-center py-8 sm:py-12">
           <p className="text-muted-foreground">Loading...</p>
         </div>
       </div>
@@ -33,20 +33,20 @@ export default function SupportMatchDashboard() {
 
   if (!profile) {
     return (
-      <div className="p-6 md:p-8 space-y-8">
+      <div className="p-4 sm:p-6 md:p-8 space-y-6 sm:space-y-8">
         <div>
-          <h1 className="text-3xl md:text-4xl font-semibold mb-2">Welcome to SupportMatch</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-semibold mb-2">Welcome to SupportMatch</h1>
+          <p className="text-muted-foreground text-sm sm:text-base">
             Connect with accountability partners for your recovery journey
           </p>
         </div>
 
         <Card>
           <CardHeader>
-            <CardTitle>Get Started</CardTitle>
+            <CardTitle className="text-lg sm:text-xl">Get Started</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <p className="text-muted-foreground">
+            <p className="text-muted-foreground text-sm sm:text-base">
               To use SupportMatch, you'll need to create your profile first. This helps us match you with
               a compatible accountability partner.
             </p>
@@ -75,12 +75,12 @@ export default function SupportMatchDashboard() {
   const activeAnnouncementsCount = announcements?.filter((a) => a.showOnLogin).length || 0;
 
   return (
-    <div className="p-6 md:p-8 space-y-8">
+    <div className="p-4 sm:p-6 md:p-8 space-y-6 sm:space-y-8">
       <div>
-        <h1 className="text-3xl md:text-4xl font-semibold mb-2">
+        <h1 className="text-2xl sm:text-3xl md:text-4xl font-semibold mb-2">
           SupportMatch Dashboard
         </h1>
-        <p className="text-muted-foreground">
+        <p className="text-muted-foreground text-sm sm:text-base">
           {profile.nickname ? `Hey ${profile.nickname}!` : 'Your accountability partner connection'}
         </p>
       </div>
@@ -88,17 +88,17 @@ export default function SupportMatchDashboard() {
       {/* Current Status */}
       <Card>
         <CardHeader>
-          <CardTitle>Partnership Status</CardTitle>
+          <CardTitle className="text-lg sm:text-xl">Partnership Status</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                <UserCheck className="w-6 h-6 text-primary" />
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                <UserCheck className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
               </div>
               <div>
-                <p className="font-medium">Current Status</p>
-                <Badge variant={statusInfo.variant} data-testid="badge-partnership-status">
+                <p className="font-medium text-sm sm:text-base">Current Status</p>
+                <Badge variant={statusInfo.variant} data-testid="badge-partnership-status" className="text-xs">
                   {statusInfo.label}
                 </Badge>
               </div>
@@ -106,8 +106,8 @@ export default function SupportMatchDashboard() {
             
             {activePartnership && (
               <Link href="/apps/supportmatch/partnership">
-                <Button data-testid="button-view-partnership">
-                  <MessageSquare className="w-4 h-4 mr-2" />
+                <Button data-testid="button-view-partnership" size="sm" className="text-xs sm:text-sm">
+                  <MessageSquare className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
                   View Partnership
                 </Button>
               </Link>
@@ -115,7 +115,7 @@ export default function SupportMatchDashboard() {
           </div>
 
           {activePartnership && (
-            <div className="text-sm text-muted-foreground space-y-1">
+            <div className="text-xs sm:text-sm text-muted-foreground space-y-1">
               <p>
                 <span className="font-medium text-foreground">Partner:</span> {(activePartnership as any).partnerNickname || 'Loading...'}
               </p>
@@ -131,7 +131,7 @@ export default function SupportMatchDashboard() {
           )}
           
           {!activePartnership && (
-            <p className="text-sm text-muted-foreground">
+            <p className="text-xs sm:text-sm text-muted-foreground">
               You're currently not in an active partnership. Your admin will match you with a partner during the next monthly cycle.
             </p>
           )}
@@ -139,22 +139,22 @@ export default function SupportMatchDashboard() {
       </Card>
 
       {/* Quick Actions */}
-      <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         <Card className="hover-elevate">
           <CardHeader>
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Settings className="w-5 h-5 text-primary" />
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Settings className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
               </div>
-              <CardTitle className="text-lg">Profile Settings</CardTitle>
+              <CardTitle className="text-base sm:text-lg">Profile Settings</CardTitle>
             </div>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-muted-foreground mb-4">
+            <p className="text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-4">
               Update your preferences and gender settings
             </p>
             <Link href="/apps/supportmatch/profile">
-              <Button variant="outline" className="w-full" data-testid="button-manage-profile">
+              <Button variant="outline" className="w-full text-xs sm:text-sm" data-testid="button-manage-profile">
                 Manage Profile
               </Button>
             </Link>
@@ -164,18 +164,18 @@ export default function SupportMatchDashboard() {
         <Card className="hover-elevate">
           <CardHeader>
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                <ShieldAlert className="w-5 h-5 text-primary" />
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                <ShieldAlert className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
               </div>
-              <CardTitle className="text-lg">Safety & Privacy</CardTitle>
+              <CardTitle className="text-base sm:text-lg">Safety & Privacy</CardTitle>
             </div>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-muted-foreground mb-4">
+            <p className="text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-4">
               Manage blocked users and privacy settings
             </p>
             <Link href="/apps/supportmatch/safety">
-              <Button variant="outline" className="w-full" data-testid="button-manage-safety">
+              <Button variant="outline" className="w-full text-xs sm:text-sm" data-testid="button-manage-safety">
                 Manage Safety
               </Button>
             </Link>
@@ -185,20 +185,20 @@ export default function SupportMatchDashboard() {
         <Card className="hover-elevate">
           <CardHeader>
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Bell className="w-5 h-5 text-primary" />
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Bell className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
               </div>
-              <CardTitle className="text-lg">Announcements</CardTitle>
+              <CardTitle className="text-base sm:text-lg">Announcements</CardTitle>
             </div>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-muted-foreground mb-4">
+            <p className="text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-4">
               {activeAnnouncementsCount > 0 
                 ? `${activeAnnouncementsCount} new announcement${activeAnnouncementsCount > 1 ? 's' : ''}`
                 : 'View platform updates and notifications'}
             </p>
             <Link href="/apps/supportmatch/announcements">
-              <Button variant="outline" className="w-full" data-testid="button-view-announcements">
+              <Button variant="outline" className="w-full text-xs sm:text-sm" data-testid="button-view-announcements">
                 View Announcements
               </Button>
             </Link>
@@ -208,18 +208,18 @@ export default function SupportMatchDashboard() {
         <Card className="hover-elevate">
           <CardHeader>
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Users className="w-5 h-5 text-primary" />
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Users className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
               </div>
-              <CardTitle className="text-lg">History</CardTitle>
+              <CardTitle className="text-base sm:text-lg">History</CardTitle>
             </div>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-muted-foreground mb-4">
+            <p className="text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-4">
               View your past partnerships and connection history
             </p>
             <Link href="/apps/supportmatch/history">
-              <Button variant="outline" className="w-full" data-testid="button-view-history">
+              <Button variant="outline" className="w-full text-xs sm:text-sm" data-testid="button-view-history">
                 View History
               </Button>
             </Link>

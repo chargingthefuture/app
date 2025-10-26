@@ -65,10 +65,10 @@ export default function SupportMatchPartnership() {
 
   if (!partnership) {
     return (
-      <div className="p-6 md:p-8 space-y-8">
+      <div className="p-4 sm:p-6 md:p-8 space-y-6 sm:space-y-8">
         <div>
-          <h1 className="text-3xl md:text-4xl font-semibold mb-2">Active Partnership</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-semibold mb-2">Active Partnership</h1>
+          <p className="text-muted-foreground text-sm sm:text-base">
             You don't have an active partnership at the moment.
           </p>
         </div>
@@ -81,22 +81,22 @@ export default function SupportMatchPartnership() {
   };
 
   return (
-    <div className="p-6 md:p-8 space-y-8">
+    <div className="p-4 sm:p-6 md:p-8 space-y-6 sm:space-y-8">
       <div>
-        <h1 className="text-3xl md:text-4xl font-semibold mb-2">Active Partnership</h1>
-        <p className="text-muted-foreground">
+        <h1 className="text-2xl sm:text-3xl md:text-4xl font-semibold mb-2">Active Partnership</h1>
+        <p className="text-muted-foreground text-sm sm:text-base">
           Connect with your accountability partner
         </p>
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
         <div className="lg:col-span-2">
           <Card>
             <CardHeader>
-              <CardTitle>Messages</CardTitle>
+              <CardTitle className="text-lg sm:text-xl">Messages</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="h-[400px] overflow-y-auto border rounded-md p-4 space-y-3">
+              <div className="h-[300px] sm:h-[400px] overflow-y-auto border rounded-md p-3 sm:p-4 space-y-3">
                 {messages && messages.length > 0 ? (
                   messages.map((message) => {
                     const isOwnMessage = message.senderId === user?.id;
@@ -107,13 +107,13 @@ export default function SupportMatchPartnership() {
                         data-testid={`message-${message.id}`}
                       >
                         <div
-                          className={`max-w-[70%] rounded-lg p-3 ${
+                          className={`max-w-[85%] sm:max-w-[70%] rounded-lg p-2 sm:p-3 ${
                             isOwnMessage
                               ? "bg-primary text-primary-foreground"
                               : "bg-muted"
                           }`}
                         >
-                          <p className="text-sm">{message.content}</p>
+                          <p className="text-xs sm:text-sm">{message.content}</p>
                           <p
                             className={`text-xs mt-1 ${
                               isOwnMessage ? "text-primary-foreground/70" : "text-muted-foreground"
@@ -127,7 +127,7 @@ export default function SupportMatchPartnership() {
                   })
                 ) : (
                   <div className="flex items-center justify-center h-full">
-                    <p className="text-muted-foreground">No messages yet. Start the conversation!</p>
+                    <p className="text-muted-foreground text-sm">No messages yet. Start the conversation!</p>
                   </div>
                 )}
                 <div ref={messagesEndRef} />
@@ -145,13 +145,15 @@ export default function SupportMatchPartnership() {
                     }
                   }}
                   data-testid="input-message"
+                  className="text-sm"
                 />
                 <Button
                   onClick={handleSendMessage}
                   disabled={!messageText.trim() || sendMessageMutation.isPending}
                   data-testid="button-send-message"
+                  size="sm"
                 >
-                  <Send className="w-4 h-4" />
+                  <Send className="w-3 h-3 sm:w-4 sm:h-4" />
                 </Button>
               </div>
             </CardContent>
@@ -161,31 +163,31 @@ export default function SupportMatchPartnership() {
         <div className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Partnership Details</CardTitle>
+              <CardTitle className="text-lg sm:text-xl">Partnership Details</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
-                  <Calendar className="w-4 h-4" />
+                <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground mb-1">
+                  <Calendar className="w-3 h-3 sm:w-4 sm:h-4" />
                   <span>Duration</span>
                 </div>
-                <p className="font-medium">
+                <p className="font-medium text-sm sm:text-base">
                   {format(new Date(partnership.startDate), "MMM d")} -{" "}
                   {partnership.endDate ? format(new Date(partnership.endDate), "MMM d, yyyy") : "Ongoing"}
                 </p>
                 {partnership.endDate && (
-                  <p className="text-sm text-muted-foreground mt-1">
+                  <p className="text-xs sm:text-sm text-muted-foreground mt-1">
                     (30-day partnership)
                   </p>
                 )}
               </div>
 
               <div>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
-                  <User className="w-4 h-4" />
+                <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground mb-1">
+                  <User className="w-3 h-3 sm:w-4 sm:h-4" />
                   <span>Status</span>
                 </div>
-                <Badge variant="default">
+                <Badge variant="default" className="text-xs">
                   {partnership.status.charAt(0).toUpperCase() + partnership.status.slice(1)}
                 </Badge>
               </div>
