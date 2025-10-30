@@ -20,6 +20,9 @@ import {
   socketrelayFulfillments,
   socketrelayMessages,
   socketrelayProfiles,
+  directoryProfiles,
+  type DirectoryProfile,
+  type InsertDirectoryProfile,
   type User,
   type UpsertUser,
   type InviteCode,
@@ -229,6 +232,14 @@ export interface IStorage {
   getSocketrelayProfile(userId: string): Promise<SocketrelayProfile | undefined>;
   createSocketrelayProfile(profile: InsertSocketrelayProfile): Promise<SocketrelayProfile>;
   updateSocketrelayProfile(userId: string, profile: Partial<InsertSocketrelayProfile>): Promise<SocketrelayProfile>;
+
+  // Directory operations
+  getDirectoryProfileById(id: string): Promise<DirectoryProfile | undefined>;
+  getDirectoryProfileByUserId(userId: string): Promise<DirectoryProfile | undefined>;
+  listPublicDirectoryProfiles(): Promise<DirectoryProfile[]>;
+  createDirectoryProfile(profile: InsertDirectoryProfile): Promise<DirectoryProfile>;
+  updateDirectoryProfile(id: string, profile: Partial<InsertDirectoryProfile>): Promise<DirectoryProfile>;
+  deleteDirectoryProfile(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1538,6 +1549,63 @@ export class DatabaseStorage implements IStorage {
       .where(eq(socketrelayProfiles.userId, userId))
       .returning();
     return profile;
+  }
+
+  // ========================================
+  // DIRECTORY APP OPERATIONS
+  // ========================================
+
+  async getDirectoryProfileById(id: string): Promise<DirectoryProfile | undefined> {
+    const [profile] = await db
+      .select()
+      .from(directoryProfiles)
+      .where(eq(directoryProfiles.id, id));
+    return profile;
+  }
+
+  async getDirectoryProfileByUserId(userId: string): Promise<DirectoryProfile | undefined> {
+    const [profile] = await db
+      .select()
+      .from(directoryProfiles)
+      .where(eq(directoryProfiles.userId, userId));
+    return profile;
+  }
+
+  async listPublicDirectoryProfiles(): Promise<DirectoryProfile[]> {
+    return await db
+      .select()
+      .from(directoryProfiles)
+      .where(eq(directoryProfiles.isPublic, true))
+      .orderBy(desc(directoryProfiles.createdAt));
+  }
+
+  async createDirectoryProfile(profileData: InsertDirectoryProfile): Promise<DirectoryProfile> {
+    const [profile] = await db
+      .insert(directoryProfiles)
+      .values({
+        ...profileData,
+        // Enforce max 3 skills at storage layer as defense-in-depth
+        skills: (profileData.skills ?? []).slice(0, 3),
+      })
+      .returning();
+    return profile;
+  }
+
+  async updateDirectoryProfile(id: string, profileData: Partial<InsertDirectoryProfile>): Promise<DirectoryProfile> {
+    const [profile] = await db
+      .update(directoryProfiles)
+      .set({
+        ...profileData,
+        skills: profileData.skills ? profileData.skills.slice(0, 3) : undefined,
+        updatedAt: new Date(),
+      })
+      .where(eq(directoryProfiles.id, id))
+      .returning();
+    return profile;
+  }
+
+  async deleteDirectoryProfile(id: string): Promise<void> {
+    await db.delete(directoryProfiles).where(eq(directoryProfiles.id, id));
   }
 }
 

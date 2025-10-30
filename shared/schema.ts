@@ -723,3 +723,56 @@ export const insertSocketrelayProfileSchema = createInsertSchema(socketrelayProf
 
 export type InsertSocketrelayProfile = z.infer<typeof insertSocketrelayProfileSchema>;
 export type SocketrelayProfile = typeof socketrelayProfiles.$inferSelect;
+
+// ========================================
+// DIRECTORY APP TABLES
+// ========================================
+
+// Directory profiles - public skill-sharing directory
+export const directoryProfiles = pgTable("directory_profiles", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  // Optional while unclaimed; admin can create unclaimed entries
+  userId: varchar("user_id").references(() => users.id).unique(),
+
+  description: varchar("description", { length: 140 }).notNull(),
+  // Up to three skills; stored as text array
+  skills: text("skills").array().notNull().default(sql`ARRAY[]::text[]`),
+
+  signalUrl: text("signal_url"),
+  quoraUrl: text("quora_url"),
+
+  city: varchar("city", { length: 100 }),
+  state: varchar("state", { length: 100 }),
+  country: varchar("country", { length: 100 }),
+
+  // Verification and visibility
+  isVerified: boolean("is_verified").notNull().default(false),
+  isPublic: boolean("is_public").notNull().default(false),
+  isClaimed: boolean("is_claimed").notNull().default(false),
+
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const directoryProfilesRelations = relations(directoryProfiles, ({ one }) => ({
+  user: one(users, {
+    fields: [directoryProfiles.userId],
+    references: [users.id],
+  }),
+}));
+
+export const insertDirectoryProfileSchema = createInsertSchema(directoryProfiles).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  isClaimed: true,
+}).extend({
+  description: z.string().min(1, "Description is required").max(140, "Description must be 140 characters or less"),
+  skills: z.array(z.string()).max(3, "Select up to 3 skills"),
+  signalUrl: z.string().url().optional().nullable(),
+  quoraUrl: z.string().url().optional().nullable(),
+  // userId remains optional to allow unclaimed creation by admin
+});
+
+export type InsertDirectoryProfile = z.infer<typeof insertDirectoryProfileSchema>;
+export type DirectoryProfile = typeof directoryProfiles.$inferSelect;

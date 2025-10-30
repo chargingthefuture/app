@@ -52,18 +52,32 @@ export default function AdminPayments() {
 
   const recordPaymentMutation = useMutation({
     mutationFn: async () => {
-      // Validate amount is a valid number string
+      // Validate required fields
+      if (!selectedUserId) {
+        throw new Error("Please select a user");
+      }
       if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
         throw new Error("Please enter a valid amount");
       }
       
-      return await apiRequest("POST", "/api/admin/payments", {
+      const payload = {
         userId: selectedUserId,
         amount: amount, // Send as string, not parseFloat(amount)
-        paymentDate: new Date().toISOString(),
+        paymentDate: new Date().toISOString(), // Send as ISO string
         paymentMethod,
         notes: notes || null,
+      };
+      
+      console.log("Payment payload:", payload);
+      console.log("Payload types:", {
+        userId: typeof payload.userId,
+        amount: typeof payload.amount,
+        paymentDate: typeof payload.paymentDate,
+        paymentMethod: typeof payload.paymentMethod,
+        notes: typeof payload.notes,
       });
+      
+      return await apiRequest("POST", "/api/admin/payments", payload);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/payments"] });
@@ -78,6 +92,12 @@ export default function AdminPayments() {
       });
     },
     onError: (error: Error) => {
+      console.error("Payment submission error:", error);
+      console.error("Error details:", {
+        message: error.message,
+        stack: error.stack,
+        name: error.name,
+      });
       toast({
         title: "Error",
         description: error.message,

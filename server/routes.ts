@@ -22,6 +22,7 @@ import {
   insertSocketrelayFulfillmentSchema,
   insertSocketrelayMessageSchema,
   insertSocketrelayProfileSchema,
+  insertDirectoryProfileSchema,
 } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -296,6 +297,157 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ========================================
   // SUPPORTMATCH APP ROUTES
   // ========================================
+
+  // ========================================
+  // DIRECTORY APP ROUTES
+  // ========================================
+
+  // Current user's Directory profile
+  app.get('/api/directory/profile', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const profile = await storage.getDirectoryProfileByUserId(userId);
+      res.json(profile || null);
+    } catch (error) {
+      console.error("Error fetching Directory profile:", error);
+      res.status(500).json({ message: "Failed to fetch profile" });
+    }
+  });
+
+  app.post('/api/directory/profile', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      // Prevent duplicate
+      const existing = await storage.getDirectoryProfileByUserId(userId);
+      if (existing) {
+        return res.status(400).json({ message: "Directory profile already exists" });
+      }
+
+      const validated = insertDirectoryProfileSchema.parse({
+        ...req.body,
+        userId,
+        isClaimed: true,
+      });
+      const profile = await storage.createDirectoryProfile(validated);
+      res.json(profile);
+    } catch (error: any) {
+      console.error("Error creating Directory profile:", error);
+      res.status(400).json({ message: error.message || "Failed to create profile" });
+    }
+  });
+
+  app.put('/api/directory/profile', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const profile = await storage.getDirectoryProfileByUserId(userId);
+      if (!profile) return res.status(404).json({ message: "Profile not found" });
+
+      // Do not allow changing userId/isClaimed directly
+      const { userId: _u, isClaimed: _c, ...update } = req.body;
+      const validated = insertDirectoryProfileSchema.partial().parse(update);
+      const updated = await storage.updateDirectoryProfile(profile.id, validated);
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating Directory profile:", error);
+      res.status(400).json({ message: error.message || "Failed to update profile" });
+    }
+  });
+
+  app.delete('/api/directory/profile', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const profile = await storage.getDirectoryProfileByUserId(userId);
+      if (!profile) return res.status(404).json({ message: "Profile not found" });
+      await storage.deleteDirectoryProfile(profile.id);
+      res.json({ message: "Directory profile deleted" });
+    } catch (error) {
+      console.error("Error deleting Directory profile:", error);
+      res.status(500).json({ message: "Failed to delete profile" });
+    }
+  });
+
+  // Public routes
+  app.get('/api/directory/public/:id', async (req, res) => {
+    try {
+      const profile = await storage.getDirectoryProfileById(req.params.id);
+      if (!profile || !profile.isPublic) {
+        return res.status(404).json({ message: "Profile not found" });
+      }
+      res.json(profile);
+    } catch (error) {
+      console.error("Error fetching public Directory profile:", error);
+      res.status(500).json({ message: "Failed to fetch profile" });
+    }
+  });
+
+  app.get('/api/directory/public', async (req, res) => {
+    try {
+      const profiles = await storage.listPublicDirectoryProfiles();
+      res.json(profiles);
+    } catch (error) {
+      console.error("Error listing public Directory profiles:", error);
+      res.status(500).json({ message: "Failed to fetch profiles" });
+    }
+  });
+
+  // Admin routes for Directory
+  app.get('/api/directory/admin/profiles', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      // Reuse public list for now; could add full list later
+      const profiles = await storage.listPublicDirectoryProfiles();
+      res.json(profiles);
+    } catch (error) {
+      console.error("Error fetching Directory profiles:", error);
+      res.status(500).json({ message: "Failed to fetch profiles" });
+    }
+  });
+
+  // Admin creates an unclaimed profile
+  app.post('/api/directory/admin/profiles', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const adminId = getUserId(req);
+      const validated = insertDirectoryProfileSchema.parse({
+        ...req.body,
+        userId: req.body.userId || null,
+        isClaimed: !!req.body.userId,
+      });
+      const profile = await storage.createDirectoryProfile(validated);
+      await logAdminAction(adminId, 'create_directory_profile', 'directory_profile', profile.id, { isClaimed: profile.isClaimed });
+      res.json(profile);
+    } catch (error: any) {
+      console.error("Error creating Directory profile (admin):", error);
+      res.status(400).json({ message: error.message || "Failed to create profile" });
+    }
+  });
+
+  // Admin assigns an unclaimed profile to a user
+  app.put('/api/directory/admin/profiles/:id/assign', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const adminId = getUserId(req);
+      const { userId } = req.body;
+      if (!userId) return res.status(400).json({ message: 'userId is required' });
+      const updated = await storage.updateDirectoryProfile(req.params.id, { userId, isClaimed: true });
+      await logAdminAction(adminId, 'assign_directory_profile', 'directory_profile', updated.id, { userId });
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error assigning Directory profile:", error);
+      res.status(400).json({ message: error.message || "Failed to assign profile" });
+    }
+  });
+
+  // Admin toggle verification
+  app.put('/api/directory/admin/profiles/:id/verify', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const adminId = getUserId(req);
+      const { isVerified } = req.body;
+      const updated = await storage.updateDirectoryProfile(req.params.id, { isVerified: !!isVerified });
+      await logAdminAction(adminId, 'verify_directory_profile', 'directory_profile', updated.id, { isVerified: updated.isVerified });
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error verifying Directory profile:", error);
+      res.status(400).json({ message: error.message || "Failed to verify profile" });
+    }
+  });
 
   // SupportMatch Profile routes
   app.get('/api/supportmatch/profile', isAuthenticated, async (req: any, res) => {
