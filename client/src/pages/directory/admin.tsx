@@ -11,7 +11,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { DirectoryProfile, User } from "@shared/schema";
 import { ShieldCheck, Shield, Plus } from "lucide-react";
 
-export default function DirectoryAdminPage() {
+export default function AdminDirectoryPage() {
   const { toast } = useToast();
   const { data: profiles = [], isLoading } = useQuery<DirectoryProfile[]>({
     queryKey: ["/api/directory/admin/profiles"],
