@@ -46,6 +46,11 @@ import SocketRelayDashboard from "@/pages/socketrelay/dashboard";
 import SocketRelayProfile from "@/pages/socketrelay/profile";
 import SocketRelayChat from "@/pages/socketrelay/chat";
 import SocketRelayAdmin from "@/pages/socketrelay/admin";
+import DirectoryProfile from "@/pages/directory/profile";
+import DirectoryAdmin from "@/pages/directory/admin";
+import PublicDirectoryProfile from "@/pages/directory/public";
+import ChatGroups from "@/pages/chatgroups/index";
+import ChatGroupsAdmin from "@/pages/chatgroups/admin";
 
 function Router() {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -55,6 +60,8 @@ function Router() {
 
   return (
     <Switch>
+      {/* Publicly viewable Directory profiles */}
+      <Route path="/apps/directory/public/:id" component={PublicDirectoryProfile} />
       {isLoading || !isAuthenticated ? (
         <Route path="/" component={Landing} />
       ) : needsInviteCode ? (
@@ -99,6 +106,13 @@ function Router() {
           <Route path="/apps/socketrelay/profile" component={SocketRelayProfile} />
           <Route path="/apps/socketrelay/chat/:id" component={SocketRelayChat} />
           <Route path="/apps/socketrelay/admin" component={SocketRelayAdmin} />
+          {/* Directory routes */}
+          <Route path="/apps/directory" component={DirectoryProfile} />
+          <Route path="/apps/directory/profile" component={DirectoryProfile} />
+          <Route path="/apps/directory/admin" component={DirectoryAdmin} />
+          {/* Chat Groups routes */}
+          <Route path="/apps/chatgroups" component={ChatGroups} />
+          <Route path="/apps/chatgroups/admin" component={ChatGroupsAdmin} />
         </>
       )}
       <Route component={NotFound} />

@@ -23,6 +23,7 @@ import {
   insertSocketrelayMessageSchema,
   insertSocketrelayProfileSchema,
   insertDirectoryProfileSchema,
+  insertChatGroupSchema,
 } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -307,7 +308,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = getUserId(req);
       const profile = await storage.getDirectoryProfileByUserId(userId);
-      res.json(profile || null);
+      if (!profile) {
+        return res.json(null);
+      }
+      let displayName: string | null = null;
+      if (profile.displayNameType === 'nickname' && profile.nickname) {
+        displayName = profile.nickname;
+      } else if (profile.displayNameType === 'first' && profile.userId) {
+        const user = await storage.getUser(profile.userId);
+        displayName = user?.firstName || null;
+      }
+      if (!displayName && profile.nickname) displayName = profile.nickname;
+      res.json({ ...profile, displayName });
     } catch (error) {
       console.error("Error fetching Directory profile:", error);
       res.status(500).json({ message: "Failed to fetch profile" });
@@ -373,7 +385,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!profile || !profile.isPublic) {
         return res.status(404).json({ message: "Profile not found" });
       }
-      res.json(profile);
+      let displayName: string | null = null;
+      if (profile.displayNameType === 'nickname' && profile.nickname) {
+        displayName = profile.nickname;
+      } else if (profile.displayNameType === 'first' && profile.userId) {
+        const user = await storage.getUser(profile.userId);
+        displayName = user?.firstName || null;
+      }
+      if (!displayName && profile.nickname) displayName = profile.nickname;
+      res.json({ ...profile, displayName });
     } catch (error) {
       console.error("Error fetching public Directory profile:", error);
       res.status(500).json({ message: "Failed to fetch profile" });
@@ -383,9 +403,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/directory/public', async (req, res) => {
     try {
       const profiles = await storage.listPublicDirectoryProfiles();
-      res.json(profiles);
+      const withNames = await Promise.all(profiles.map(async (p) => {
+        let name: string | null = null;
+        if (p.displayNameType === 'nickname' && p.nickname) {
+          name = p.nickname;
+        } else if (p.displayNameType === 'first' && p.userId) {
+          const u = await storage.getUser(p.userId);
+          name = u?.firstName || null;
+        }
+        // Fallback to nickname if no name found
+        if (!name && p.nickname) name = p.nickname;
+        // Ensure we always return displayName (even if null)
+        return { ...p, displayName: name || null };
+      }));
+      res.json(withNames);
     } catch (error) {
       console.error("Error listing public Directory profiles:", error);
+      res.status(500).json({ message: "Failed to fetch profiles" });
+    }
+  });
+
+  // Authenticated list (shows additional non-public fields like signalUrl)
+  app.get('/api/directory/list', isAuthenticated, async (_req, res) => {
+    try {
+      const profiles = await storage.listAllDirectoryProfiles();
+      const withNames = await Promise.all(profiles.map(async (p) => {
+        let name: string | null = null;
+        if (p.displayNameType === 'nickname' && p.nickname) {
+          name = p.nickname;
+        } else if (p.displayNameType === 'first' && p.userId) {
+          const u = await storage.getUser(p.userId);
+          name = u?.firstName || null;
+        }
+        // Fallback to nickname if no name found
+        if (!name && p.nickname) name = p.nickname;
+        // Ensure we always return displayName (even if null)
+        return { ...p, displayName: name || null };
+      }));
+      res.json(withNames);
+    } catch (error) {
+      console.error("Error listing Directory profiles (auth):", error);
       res.status(500).json({ message: "Failed to fetch profiles" });
     }
   });
@@ -420,13 +477,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Removed admin seed endpoint; use scripts/seedDirectory.ts instead
+
   // Admin assigns an unclaimed profile to a user
   app.put('/api/directory/admin/profiles/:id/assign', isAuthenticated, isAdmin, async (req: any, res) => {
     try {
       const adminId = getUserId(req);
       const { userId } = req.body;
       if (!userId) return res.status(400).json({ message: 'userId is required' });
-      const updated = await storage.updateDirectoryProfile(req.params.id, { userId, isClaimed: true });
+      const updated = await storage.updateDirectoryProfile(req.params.id, { userId, isClaimed: true } as any);
       await logAdminAction(adminId, 'assign_directory_profile', 'directory_profile', updated.id, { userId });
       res.json(updated);
     } catch (error: any) {
@@ -440,12 +499,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const adminId = getUserId(req);
       const { isVerified } = req.body;
-      const updated = await storage.updateDirectoryProfile(req.params.id, { isVerified: !!isVerified });
+      const updated = await storage.updateDirectoryProfile(req.params.id, { isVerified: !!isVerified } as any);
       await logAdminAction(adminId, 'verify_directory_profile', 'directory_profile', updated.id, { isVerified: updated.isVerified });
       res.json(updated);
     } catch (error: any) {
       console.error("Error verifying Directory profile:", error);
       res.status(400).json({ message: error.message || "Failed to verify profile" });
+    }
+  });
+
+  // ========================================
+  // CHAT GROUPS APP ROUTES
+  // ========================================
+
+  // Public routes - anyone can view active groups
+  app.get('/api/chatgroups', async (_req, res) => {
+    try {
+      const groups = await storage.getActiveChatGroups();
+      res.json(groups);
+    } catch (error) {
+      console.error("Error fetching chat groups:", error);
+      res.status(500).json({ message: "Failed to fetch chat groups" });
+    }
+  });
+
+  // Admin routes
+  app.get('/api/chatgroups/admin', isAuthenticated, isAdmin, async (_req, res) => {
+    try {
+      const groups = await storage.getAllChatGroups();
+      res.json(groups);
+    } catch (error) {
+      console.error("Error fetching all chat groups:", error);
+      res.status(500).json({ message: "Failed to fetch chat groups" });
+    }
+  });
+
+  app.post('/api/chatgroups/admin', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const adminId = getUserId(req);
+      const validated = insertChatGroupSchema.parse(req.body);
+      const group = await storage.createChatGroup(validated);
+      await logAdminAction(adminId, 'create_chat_group', 'chat_group', group.id);
+      res.json(group);
+    } catch (error: any) {
+      console.error("Error creating chat group:", error);
+      res.status(400).json({ message: error.message || "Failed to create chat group" });
+    }
+  });
+
+  app.put('/api/chatgroups/admin/:id', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const adminId = getUserId(req);
+      const validated = insertChatGroupSchema.partial().parse(req.body);
+      const group = await storage.updateChatGroup(req.params.id, validated);
+      await logAdminAction(adminId, 'update_chat_group', 'chat_group', group.id);
+      res.json(group);
+    } catch (error: any) {
+      console.error("Error updating chat group:", error);
+      res.status(400).json({ message: error.message || "Failed to update chat group" });
+    }
+  });
+
+  app.delete('/api/chatgroups/admin/:id', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const adminId = getUserId(req);
+      await storage.deleteChatGroup(req.params.id);
+      await logAdminAction(adminId, 'delete_chat_group', 'chat_group', req.params.id);
+      res.json({ message: "Chat group deleted" });
+    } catch (error: any) {
+      console.error("Error deleting chat group:", error);
+      res.status(400).json({ message: error.message || "Failed to delete chat group" });
     }
   });
 

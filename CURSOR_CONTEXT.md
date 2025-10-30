@@ -17,7 +17,7 @@ This is a **secure, invite-only platform** for survivors of human trafficking, b
 
 ### 1. **Mini-App (Super App) Architecture**
 
-Each service (SupportMatch, SleepStories, LightHouse, SocketRelay, Directory) is a **self-contained mini-app** with its own:
+Each service (SupportMatch, SleepStories, LightHouse, SocketRelay, Directory, ChatGroups) is a **self-contained mini-app** with its own:
 - Database tables in `shared/schema.ts`
 - Storage methods in `server/storage.ts`
 - API routes in `server/routes.ts`
@@ -52,6 +52,7 @@ project-root/
 │   │   └── useAuth.ts     ← Auth hook (user, isAdmin, loading)
 │   └── lib/
 │       └── queryClient.ts ← TanStack Query setup
+├── scripts/                ← App seeders and utility scripts (seed per mini-app)
 └── design_guidelines.md   ← Design system (READ THIS!)
 ```
 
@@ -60,6 +61,10 @@ project-root/
 ## 🔧 How to Add a New Feature
 
 ### **A. Adding a New Mini-App**
+
+**🚨 REQUIRED:** Every new mini-app MUST have:
+1. **User-facing pages** - Where regular users interact with the app
+2. **Admin page** - A dedicated admin interface under the Administration section for managing the app's content/data
 
 Follow this exact sequence:
 
@@ -257,7 +262,69 @@ const userMenuItems = [
 ];
 ```
 
-3. If admin routes needed, add to `adminMenuItems` too
+3. **REQUIRED:** Add admin page to `adminMenuItems` array:
+```typescript
+const adminMenuItems = [
+  // ... existing items
+  {
+    title: "MyApp Admin",
+    url: "/apps/myapp/admin",
+    icon: MyIcon,
+    testId: "link-myapp-admin",
+  },
+];
+```
+
+#### **Step 7: Admin Page (`client/src/pages/myapp/admin.tsx`)**
+
+**🚨 REQUIRED:** Create an admin interface for managing the mini-app's content/data. This should include:
+- List all items/records in the app
+- Create new items/records
+- Edit existing items/records
+- Delete items/records
+- Toggle active/inactive status (if applicable)
+- Any other management operations needed
+
+Example admin page:
+```typescript
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+
+export default function MyAppAdmin() {
+  const { data: items = [], isLoading } = useQuery({
+    queryKey: ['/api/myapp/admin'],
+  });
+  
+  const createMutation = useMutation({
+    mutationFn: async (data) => 
+      apiRequest('/api/myapp/admin', { method: 'POST', body: data }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/myapp/admin'] });
+    },
+  });
+  
+  // ... edit, delete mutations, etc.
+  
+  return (
+    <div className="p-4 sm:p-6 md:p-8">
+      <h1 className="text-2xl sm:text-3xl font-semibold mb-6">MyApp Administration</h1>
+      {/* Admin interface */}
+    </div>
+  );
+}
+```
+
+**Add admin route in `client/src/App.tsx`:**
+```typescript
+<Route path="/apps/myapp/admin" component={MyAppAdmin} />
+```
+
+#### **Step 8: Seeding Script (`scripts/`)**
+- Add a seed script for the mini-app, e.g. `scripts/seedMyApp.ts`
+- Use `db` and shared `schema` to insert deterministic dummy data
+- Do NOT expose seeding via API routes; seeds run via script only
 
 ---
 
@@ -281,6 +348,14 @@ const userMenuItems = [
 3. **Use shadcn components** - Button, Card, Badge, Form, etc. from `@/components/ui/`
 4. **Tailwind spacing** - Stick to 2, 4, 6, 8, 12, 16 scale
 5. **data-testid required** - Every interactive element needs unique test ID
+6. **Design spec source of truth** - Follow `design_guidelines.md` for colors, spacing, components, and accessibility. Never override without updating the guidelines.
+7. **External links must use confirmation dialog** - All external links that open in new tabs must use the `useExternalLink` hook from `@/hooks/useExternalLink` which provides a standardized confirmation dialog before opening links.
+
+### Shared Field Standards
+- **Country field (ALL profiles/apps):** Implement as a dropdown/select with a single, shared options source and identical ordering across the app.
+  - Use a shared list of countries (single source of truth) and a shared UI control so UX and data stay consistent if users update their country in different mini-apps.
+  - Do not use free-text inputs for country fields.
+  - Ensure backend schemas use consistent validation for allowed country values.
 
 ### Color Scheme:
 - Primary: Green (`#4ade80`)
@@ -428,6 +503,11 @@ Study these for patterns:
    - Public/private profiles
    - Admin/public views
 
+6. **ChatGroups** (`/apps/chatgroups`)
+   - Signal.org group links
+   - Public listing of active groups
+   - Admin management interface
+
 ---
 
 ## ✅ Checklist for New Features
@@ -438,6 +518,9 @@ Study these for patterns:
 - [ ] Frontend pages created following design guidelines
 - [ ] Routes registered in `App.tsx`
 - [ ] Sidebar navigation updated
+- [ ] Seed script created in `scripts/` for the mini-app
+- [ ] Country fields use the shared dropdown and options list
+- [ ] External links use the `useExternalLink` hook with confirmation dialog
 - [ ] All interactive elements have `data-testid` attributes
 - [ ] WCAG AAA compliance verified (contrast, keyboard nav)
 - [ ] Loading states implemented

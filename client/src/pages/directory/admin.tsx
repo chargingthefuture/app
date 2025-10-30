@@ -10,6 +10,10 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { DirectoryProfile, User } from "@shared/schema";
 import { ShieldCheck, Shield, Plus } from "lucide-react";
+import { COUNTRIES } from "@/lib/countries";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
+import { Check } from "lucide-react";
 
 export default function AdminDirectoryPage() {
   const { toast } = useToast();
@@ -21,19 +25,21 @@ export default function AdminDirectoryPage() {
   const [newDescription, setNewDescription] = useState("");
   const [newSkills, setNewSkills] = useState<string>("");
   const [newPublic, setNewPublic] = useState(false);
+  const [newCountry, setNewCountry] = useState<string>("");
 
   const createUnclaimed = useMutation({
     mutationFn: async () => {
       const payload = {
         description: newDescription.trim(),
         skills: newSkills ? newSkills.split(",").map(s => s.trim()).filter(Boolean).slice(0,3) : [],
+        country: newCountry,
         isPublic: newPublic,
       };
       return apiRequest("POST", "/api/directory/admin/profiles", payload);
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["/api/directory/admin/profiles"] });
-      setNewDescription(""); setNewSkills(""); setNewPublic(false);
+      setNewDescription(""); setNewSkills(""); setNewPublic(false); setNewCountry("");
       toast({ title: "Created", description: "Unclaimed Directory profile created" });
     },
     onError: (e: any) => toast({ title: "Error", description: e.message || "Failed to create profile", variant: "destructive" })
@@ -57,6 +63,8 @@ export default function AdminDirectoryPage() {
     onError: (e: any) => toast({ title: "Error", description: e.message || "Failed to update", variant: "destructive" })
   });
 
+  // Seed functionality removed - use scripts/seedDirectory.ts
+
   return (
     <div className="p-4 sm:p-6 md:p-8 space-y-6 sm:space-y-8">
       <div className="flex items-center justify-between">
@@ -79,13 +87,52 @@ export default function AdminDirectoryPage() {
             <Label>Skills (comma-separated, up to 3)</Label>
             <Input value={newSkills} onChange={(e) => setNewSkills(e.target.value)} placeholder="e.g. Cooking, Tutoring" />
           </div>
+          <div className="space-y-2">
+            <Label id="admin-country-label">Country</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-haspopup="listbox"
+                  aria-labelledby="admin-country-label"
+                  data-testid="combo-country-trigger-admin"
+                  className="w-full justify-between"
+                >
+                  {newCountry || "Select country"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                <Command shouldFilter>
+                  <CommandInput placeholder="Search countries…" />
+                  <CommandEmpty>No countries found.</CommandEmpty>
+                  <CommandGroup>
+                    {COUNTRIES.map((c) => (
+                      <CommandItem
+                        key={c}
+                        value={c}
+                        onSelect={() => setNewCountry(c)}
+                        data-testid={`combo-country-item-admin-${c}`}
+                        aria-selected={newCountry === c}
+                      >
+                        <Check className={`mr-2 h-4 w-4 ${newCountry === c ? "opacity-100" : "opacity-0"}`} />
+                        <span>{c}</span>
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </Command>
+              </PopoverContent>
+            </Popover>
+          </div>
           <label className="flex items-center gap-2 text-sm">
             <Checkbox checked={newPublic} onCheckedChange={(v) => setNewPublic(!!v)} />
             <span>Make public</span>
           </label>
-          <Button onClick={() => createUnclaimed.mutate()} disabled={!newDescription.trim() || createUnclaimed.isPending}>
+          <div className="flex flex-col sm:flex-row gap-2">
+          <Button data-testid="button-admin-create-unclaimed" onClick={() => createUnclaimed.mutate()} disabled={(newSkills.split(',').map(s=>s.trim()).filter(Boolean).length === 0) || !newCountry || createUnclaimed.isPending}>
             <Plus className="w-4 h-4 mr-2" /> {createUnclaimed.isPending ? "Creating…" : "Create"}
           </Button>
+          </div>
         </CardContent>
       </Card>
 

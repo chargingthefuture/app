@@ -23,6 +23,9 @@ import {
   directoryProfiles,
   type DirectoryProfile,
   type InsertDirectoryProfile,
+  chatGroups,
+  type ChatGroup,
+  type InsertChatGroup,
   type User,
   type UpsertUser,
   type InviteCode,
@@ -67,7 +70,7 @@ import {
   type InsertSocketrelayProfile,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, sql, or, inArray, gte, lte } from "drizzle-orm";
+import { eq, and, desc, asc, sql, or, inArray, gte, lte } from "drizzle-orm";
 import { randomBytes } from "crypto";
 
 // Interface for storage operations
@@ -236,10 +239,19 @@ export interface IStorage {
   // Directory operations
   getDirectoryProfileById(id: string): Promise<DirectoryProfile | undefined>;
   getDirectoryProfileByUserId(userId: string): Promise<DirectoryProfile | undefined>;
+  listAllDirectoryProfiles(): Promise<DirectoryProfile[]>;
   listPublicDirectoryProfiles(): Promise<DirectoryProfile[]>;
   createDirectoryProfile(profile: InsertDirectoryProfile): Promise<DirectoryProfile>;
   updateDirectoryProfile(id: string, profile: Partial<InsertDirectoryProfile>): Promise<DirectoryProfile>;
   deleteDirectoryProfile(id: string): Promise<void>;
+
+  // Chat Groups operations
+  getAllChatGroups(): Promise<ChatGroup[]>;
+  getActiveChatGroups(): Promise<ChatGroup[]>;
+  getChatGroupById(id: string): Promise<ChatGroup | undefined>;
+  createChatGroup(group: InsertChatGroup): Promise<ChatGroup>;
+  updateChatGroup(id: string, group: Partial<InsertChatGroup>): Promise<ChatGroup>;
+  deleteChatGroup(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1571,6 +1583,13 @@ export class DatabaseStorage implements IStorage {
     return profile;
   }
 
+  async listAllDirectoryProfiles(): Promise<DirectoryProfile[]> {
+    return await db
+      .select()
+      .from(directoryProfiles)
+      .orderBy(desc(directoryProfiles.createdAt));
+  }
+
   async listPublicDirectoryProfiles(): Promise<DirectoryProfile[]> {
     return await db
       .select()
@@ -1584,6 +1603,8 @@ export class DatabaseStorage implements IStorage {
       .insert(directoryProfiles)
       .values({
         ...profileData,
+        // Description is optional at schema level; store empty string if missing
+        description: (profileData as any).description ?? "",
         // Enforce max 3 skills at storage layer as defense-in-depth
         skills: (profileData.skills ?? []).slice(0, 3),
       })
@@ -1592,13 +1613,16 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateDirectoryProfile(id: string, profileData: Partial<InsertDirectoryProfile>): Promise<DirectoryProfile> {
+    const updateData: any = {
+      ...profileData,
+      skills: profileData.skills ? profileData.skills.slice(0, 3) : undefined,
+      updatedAt: new Date(),
+    };
+    // Remove null values that shouldn't be set to null in the DB
+    if (updateData.description === null) delete updateData.description;
     const [profile] = await db
       .update(directoryProfiles)
-      .set({
-        ...profileData,
-        skills: profileData.skills ? profileData.skills.slice(0, 3) : undefined,
-        updatedAt: new Date(),
-      })
+      .set(updateData)
       .where(eq(directoryProfiles.id, id))
       .returning();
     return profile;
@@ -1606,6 +1630,57 @@ export class DatabaseStorage implements IStorage {
 
   async deleteDirectoryProfile(id: string): Promise<void> {
     await db.delete(directoryProfiles).where(eq(directoryProfiles.id, id));
+  }
+
+  // ========================================
+  // CHAT GROUPS APP OPERATIONS
+  // ========================================
+
+  async getAllChatGroups(): Promise<ChatGroup[]> {
+    return await db
+      .select()
+      .from(chatGroups)
+      .orderBy(asc(chatGroups.displayOrder), desc(chatGroups.createdAt));
+  }
+
+  async getActiveChatGroups(): Promise<ChatGroup[]> {
+    return await db
+      .select()
+      .from(chatGroups)
+      .where(eq(chatGroups.isActive, true))
+      .orderBy(asc(chatGroups.displayOrder), desc(chatGroups.createdAt));
+  }
+
+  async getChatGroupById(id: string): Promise<ChatGroup | undefined> {
+    const [group] = await db
+      .select()
+      .from(chatGroups)
+      .where(eq(chatGroups.id, id));
+    return group;
+  }
+
+  async createChatGroup(groupData: InsertChatGroup): Promise<ChatGroup> {
+    const [group] = await db
+      .insert(chatGroups)
+      .values(groupData)
+      .returning();
+    return group;
+  }
+
+  async updateChatGroup(id: string, groupData: Partial<InsertChatGroup>): Promise<ChatGroup> {
+    const [group] = await db
+      .update(chatGroups)
+      .set({
+        ...groupData,
+        updatedAt: new Date(),
+      })
+      .where(eq(chatGroups.id, id))
+      .returning();
+    return group;
+  }
+
+  async deleteChatGroup(id: string): Promise<void> {
+    await db.delete(chatGroups).where(eq(chatGroups.id, id));
   }
 }
 

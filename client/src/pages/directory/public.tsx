@@ -74,11 +74,8 @@ export default function PublicDirectoryProfile() {
           ) : null}
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {profile.signalUrl ? (
-              <a className="text-primary inline-flex items-center gap-2" href={profile.signalUrl} target="_blank" rel="noopener noreferrer">
-                <ExternalLink className="w-4 h-4" /> Signal profile
-              </a>
-            ) : <div />}
+            {/* Intentionally hide Signal link on public profile */}
+            <div />
             {profile.quoraUrl ? (
               <a className="text-primary inline-flex items-center gap-2" href={profile.quoraUrl} target="_blank" rel="noopener noreferrer">
                 <ExternalLink className="w-4 h-4" /> Quora profile

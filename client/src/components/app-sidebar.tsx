@@ -9,7 +9,8 @@ import {
   TrendingUp,
   Moon,
   Building2,
-  Radio
+  Radio,
+  MessageCircle
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
@@ -82,10 +83,22 @@ const adminMenuItems = [
     testId: "link-lighthouse-admin",
   },
   {
+    title: "Directory Admin",
+    url: "/apps/directory/admin",
+    icon: Users,
+    testId: "link-directory-admin",
+  },
+  {
     title: "SocketRelay Admin",
     url: "/apps/socketrelay/admin",
     icon: Radio,
     testId: "link-socketrelay-admin",
+  },
+  {
+    title: "ChatGroups Admin",
+    url: "/apps/chatgroups/admin",
+    icon: MessageCircle,
+    testId: "link-chatgroups-admin",
   },
 ];
 
@@ -101,6 +114,18 @@ const userMenuItems = [
     url: "/payments",
     icon: DollarSign,
     testId: "link-payments",
+  },
+  {
+    title: "Directory",
+    url: "/apps/directory",
+    icon: Building2,
+    testId: "link-directory",
+  },
+  {
+    title: "Chat Groups",
+    url: "/apps/chatgroups",
+    icon: MessageCircle,
+    testId: "link-chatgroups",
   },
   {
     title: "LightHouse",

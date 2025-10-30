@@ -56,6 +56,7 @@ project-root/
 │   │   └── useAuth.ts     ← Auth hook (user, isAdmin, loading)
 │   └── lib/
 │       └── queryClient.ts ← TanStack Query setup
+├── scripts/                ← App seeders and utility scripts (seed per mini-app)
 └── design_guidelines.md   ← Design system (READ THIS!)
 ```
 
@@ -263,6 +264,11 @@ const userMenuItems = [
 
 3. If admin routes needed, add to `adminMenuItems` too
 
+#### **Step 7: Seeding Script (`scripts/`)**
+- Add a seed script for the mini-app, e.g. `scripts/seedMyApp.ts`
+- Use `db` and shared `schema` to insert deterministic dummy data
+- Do NOT expose seeding via API routes; seeds run via script only
+
 ---
 
 ### **B. Adding Features to Existing Mini-Apps**
@@ -285,6 +291,13 @@ const userMenuItems = [
 3. **Use shadcn components** - Button, Card, Badge, Form, etc. from `@/components/ui/`
 4. **Tailwind spacing** - Stick to 2, 4, 6, 8, 12, 16 scale
 5. **data-testid required** - Every interactive element needs unique test ID
+6. **Design spec source of truth** - Follow `design_guidelines.md` for colors, spacing, components, and accessibility. Never override without updating the guidelines.
+
+### Shared Field Standards
+- **Country field (ALL profiles/apps):** Implement as a dropdown/select with a single, shared options source and identical ordering across the app.
+  - Use a shared list of countries (single source of truth) and a shared UI control so UX and data stay consistent if users update their country in different mini-apps.
+  - Do not use free-text inputs for country fields.
+  - Ensure backend schemas use consistent validation for allowed country values.
 
 ### Color Scheme:
 - Primary: Green (`#4ade80`)
@@ -442,6 +455,8 @@ Study these for patterns:
 - [ ] Frontend pages created following design guidelines
 - [ ] Routes registered in `App.tsx`
 - [ ] Sidebar navigation updated
+- [ ] Seed script created in `scripts/` for the mini-app
+- [ ] Country fields use the shared dropdown and options list
 - [ ] All interactive elements have `data-testid` attributes
 - [ ] WCAG AAA compliance verified (contrast, keyboard nav)
 - [ ] Loading states implemented

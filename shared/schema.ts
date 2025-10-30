@@ -745,6 +745,10 @@ export const directoryProfiles = pgTable("directory_profiles", {
   state: varchar("state", { length: 100 }),
   country: varchar("country", { length: 100 }),
 
+  // Display naming for listings
+  nickname: varchar("nickname", { length: 100 }),
+  displayNameType: varchar("display_name_type", { length: 20 }).notNull().default('first'), // 'first' | 'nickname'
+
   // Verification and visibility
   isVerified: boolean("is_verified").notNull().default(false),
   isPublic: boolean("is_public").notNull().default(false),
@@ -767,12 +771,52 @@ export const insertDirectoryProfileSchema = createInsertSchema(directoryProfiles
   updatedAt: true,
   isClaimed: true,
 }).extend({
-  description: z.string().min(1, "Description is required").max(140, "Description must be 140 characters or less"),
-  skills: z.array(z.string()).max(3, "Select up to 3 skills"),
+  // Make description optional (empty allowed) but still capped at 140
+  description: z.string().max(140, "Description must be 140 characters or less").optional().nullable(),
+  // Require at least one skill, up to 3
+  skills: z.array(z.string()).min(1, "Select at least 1 skill").max(3, "Select up to 3 skills"),
   signalUrl: z.string().url().optional().nullable(),
   quoraUrl: z.string().url().optional().nullable(),
+  // Require country selection per shared standard
+  country: z.string().min(1, "Country is required").max(100, "Country must be 100 characters or less"),
+  nickname: z.string().max(100).optional().nullable(),
+  displayNameType: z.enum(['first','nickname']).optional(),
   // userId remains optional to allow unclaimed creation by admin
 });
 
 export type InsertDirectoryProfile = z.infer<typeof insertDirectoryProfileSchema>;
 export type DirectoryProfile = typeof directoryProfiles.$inferSelect;
+
+// ========================================
+// CHAT GROUPS APP TABLES
+// ========================================
+
+export const chatGroups = pgTable("chat_groups", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name", { length: 200 }).notNull(),
+  signalUrl: text("signal_url").notNull(),
+  description: text("description").notNull(),
+  displayOrder: integer("display_order").notNull().default(0),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const chatGroupsRelations = relations(chatGroups, ({ one }) => ({
+  // No relations needed
+}));
+
+export const insertChatGroupSchema = createInsertSchema(chatGroups).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  name: z.string().min(1, "Name is required").max(200, "Name must be 200 characters or less"),
+  signalUrl: z.string().url("Must be a valid URL"),
+  description: z.string().min(1, "Description is required"),
+  displayOrder: z.number().int().optional(),
+  isActive: z.boolean().optional(),
+});
+
+export type InsertChatGroup = z.infer<typeof insertChatGroupSchema>;
+export type ChatGroup = typeof chatGroups.$inferSelect;
