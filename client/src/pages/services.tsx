@@ -5,6 +5,13 @@ import { UserCheck, Moon, Building2, ArrowRight } from "lucide-react";
 
 const services = [
   {
+    title: "Directory",
+    description: "Find talented individuals to colloborate with.",
+    icon: Building2,
+    href: "/apps/directory",
+    testId: "card-service-directory",
+  },
+  {
     title: "LightHouse",
     description: "Safe housing connections for survivors. Find or offer secure, supportive living spaces in New York.",
     icon: Building2,
