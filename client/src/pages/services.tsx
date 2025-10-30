@@ -12,7 +12,7 @@ const services = [
     testId: "card-service-directory",
   },
   {
-    title: "LightHouse2",
+    title: "LightHouse",
     description: "Safe housing connections for survivors. Find or offer secure, supportive living spaces in New York.",
     icon: Building2,
     href: "/apps/lighthouse",
