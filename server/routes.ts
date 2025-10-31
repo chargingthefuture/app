@@ -314,9 +314,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let displayName: string | null = null;
       if (profile.displayNameType === 'nickname' && profile.nickname) {
         displayName = profile.nickname;
-      } else if (profile.displayNameType === 'first' && profile.userId) {
-        const user = await storage.getUser(profile.userId);
-        displayName = user?.firstName || null;
+      } else if (profile.displayNameType === 'first') {
+        if (profile.userId) {
+          const user = await storage.getUser(profile.userId);
+          displayName = user?.firstName || null;
+        } else if (profile.firstName) {
+          // For unclaimed profiles, use firstName field
+          displayName = profile.firstName;
+        }
       }
       if (!displayName && profile.nickname) displayName = profile.nickname;
       res.json({ ...profile, displayName });
@@ -388,9 +393,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let displayName: string | null = null;
       if (profile.displayNameType === 'nickname' && profile.nickname) {
         displayName = profile.nickname;
-      } else if (profile.displayNameType === 'first' && profile.userId) {
-        const user = await storage.getUser(profile.userId);
-        displayName = user?.firstName || null;
+      } else if (profile.displayNameType === 'first') {
+        if (profile.userId) {
+          const user = await storage.getUser(profile.userId);
+          displayName = user?.firstName || null;
+        } else if (profile.firstName) {
+          // For unclaimed profiles, use firstName field
+          displayName = profile.firstName;
+        }
       }
       if (!displayName && profile.nickname) displayName = profile.nickname;
       res.json({ ...profile, displayName });
@@ -407,9 +417,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         let name: string | null = null;
         if (p.displayNameType === 'nickname' && p.nickname) {
           name = p.nickname;
-        } else if (p.displayNameType === 'first' && p.userId) {
-          const u = await storage.getUser(p.userId);
-          name = u?.firstName || null;
+        } else if (p.displayNameType === 'first') {
+          if (p.userId) {
+            const u = await storage.getUser(p.userId);
+            name = u?.firstName || null;
+          } else if (p.firstName) {
+            // For unclaimed profiles, use firstName field
+            name = p.firstName;
+          }
         }
         // Fallback to nickname if no name found
         if (!name && p.nickname) name = p.nickname;
@@ -431,9 +446,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         let name: string | null = null;
         if (p.displayNameType === 'nickname' && p.nickname) {
           name = p.nickname;
-        } else if (p.displayNameType === 'first' && p.userId) {
-          const u = await storage.getUser(p.userId);
-          name = u?.firstName || null;
+        } else if (p.displayNameType === 'first') {
+          if (p.userId) {
+            const u = await storage.getUser(p.userId);
+            name = u?.firstName || null;
+          } else if (p.firstName) {
+            // For unclaimed profiles, use firstName field
+            name = p.firstName;
+          }
         }
         // Fallback to nickname if no name found
         if (!name && p.nickname) name = p.nickname;

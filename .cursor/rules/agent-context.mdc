@@ -1,7 +1,6 @@
 ---
 alwaysApply: true
 ---
-
 # Context Prompt for Cursor AI - Psyop-Free Ecosystem
 
 ## 🎯 Application Overview
@@ -21,7 +20,7 @@ This is a **secure, invite-only platform** for survivors of human trafficking, b
 
 ### 1. **Mini-App (Super App) Architecture**
 
-Each service (SupportMatch, SleepStories, LightHouse, SocketRelay, Directory) is a **self-contained mini-app** with its own:
+Each service (SupportMatch, SleepStories, LightHouse, SocketRelay, Directory, ChatGroups) is a **self-contained mini-app** with its own:
 - Database tables in `shared/schema.ts`
 - Storage methods in `server/storage.ts`
 - API routes in `server/routes.ts`
@@ -292,6 +291,7 @@ const userMenuItems = [
 4. **Tailwind spacing** - Stick to 2, 4, 6, 8, 12, 16 scale
 5. **data-testid required** - Every interactive element needs unique test ID
 6. **Design spec source of truth** - Follow `design_guidelines.md` for colors, spacing, components, and accessibility. Never override without updating the guidelines.
+7. **External links must use confirmation dialog** - All external links that open in new tabs must use the `useExternalLink` hook from `@/hooks/useExternalLink` which provides a standardized confirmation dialog before opening links.
 
 ### Shared Field Standards
 - **Country field (ALL profiles/apps):** Implement as a dropdown/select with a single, shared options source and identical ordering across the app.
@@ -445,6 +445,11 @@ Study these for patterns:
    - Public/private profiles
    - Admin/public views
 
+6. **ChatGroups** (`/apps/chatgroups`)
+   - Signal.org group links
+   - Public listing of active groups
+   - Admin management interface
+
 ---
 
 ## ✅ Checklist for New Features
@@ -457,6 +462,7 @@ Study these for patterns:
 - [ ] Sidebar navigation updated
 - [ ] Seed script created in `scripts/` for the mini-app
 - [ ] Country fields use the shared dropdown and options list
+- [ ] External links use the `useExternalLink` hook with confirmation dialog
 - [ ] All interactive elements have `data-testid` attributes
 - [ ] WCAG AAA compliance verified (contrast, keyboard nav)
 - [ ] Loading states implemented
@@ -476,3 +482,4 @@ Study these for patterns:
 ---
 
 **This platform serves vulnerable users. Every line of code should prioritize safety, privacy, and dignity.**
+

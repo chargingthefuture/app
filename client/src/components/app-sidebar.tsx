@@ -65,22 +65,10 @@ const adminMenuItems = [
     testId: "link-admin-activity",
   },
   {
-    title: "SupportMatch Admin",
-    url: "/apps/supportmatch/admin",
-    icon: UserCheck,
-    testId: "link-supportmatch-admin",
-  },
-  {
-    title: "SleepStories Admin",
-    url: "/apps/sleepstories/admin",
-    icon: Moon,
-    testId: "link-sleepstories-admin",
-  },
-  {
-    title: "LightHouse Admin",
-    url: "/apps/lighthouse/admin",
-    icon: Building2,
-    testId: "link-lighthouse-admin",
+    title: "Chat Groups Admin",
+    url: "/apps/chatgroups/admin",
+    icon: MessageCircle,
+    testId: "link-chatgroups-admin",
   },
   {
     title: "Directory Admin",
@@ -89,16 +77,28 @@ const adminMenuItems = [
     testId: "link-directory-admin",
   },
   {
+    title: "LightHouse Admin",
+    url: "/apps/lighthouse/admin",
+    icon: Building2,
+    testId: "link-lighthouse-admin",
+  },
+  {
+    title: "SleepStories Admin",
+    url: "/apps/sleepstories/admin",
+    icon: Moon,
+    testId: "link-sleepstories-admin",
+  },
+  {
     title: "SocketRelay Admin",
     url: "/apps/socketrelay/admin",
     icon: Radio,
     testId: "link-socketrelay-admin",
   },
   {
-    title: "ChatGroups Admin",
-    url: "/apps/chatgroups/admin",
-    icon: MessageCircle,
-    testId: "link-chatgroups-admin",
+    title: "SupportMatch Admin",
+    url: "/apps/supportmatch/admin",
+    icon: UserCheck,
+    testId: "link-supportmatch-admin",
   },
 ];
 
@@ -116,16 +116,16 @@ const userMenuItems = [
     testId: "link-payments",
   },
   {
-    title: "Directory",
-    url: "/apps/directory",
-    icon: Building2,
-    testId: "link-directory",
-  },
-  {
     title: "Chat Groups",
     url: "/apps/chatgroups",
     icon: MessageCircle,
     testId: "link-chatgroups",
+  },
+  {
+    title: "Directory",
+    url: "/apps/directory",
+    icon: Users,
+    testId: "link-directory",
   },
   {
     title: "LightHouse",

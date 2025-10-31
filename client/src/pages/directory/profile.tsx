@@ -15,21 +15,9 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { DirectoryProfile } from "@shared/schema";
 import { ExternalLink, ShieldCheck, Shield, Check, X } from "lucide-react";
 import { COUNTRIES } from "@/lib/countries";
+import { ALL_SKILLS } from "@/lib/skills";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useExternalLink } from "@/hooks/useExternalLink";
-
-const ALL_SKILLS = [
-  "Cooking",
-  "Tutoring",
-  "Childcare",
-  "Counseling",
-  "Job Search Help",
-  "Resume Writing",
-  "Ride Sharing",
-  "Language Exchange",
-  "Art & Crafts",
-  "Tech Support",
-];
 
 export default function DirectoryProfilePage() {
   const { toast } = useToast();

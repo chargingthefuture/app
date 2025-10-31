@@ -9,37 +9,58 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { DirectoryProfile, User } from "@shared/schema";
-import { ShieldCheck, Shield, Plus } from "lucide-react";
+import { ShieldCheck, Shield, Plus, X, ExternalLink } from "lucide-react";
 import { COUNTRIES } from "@/lib/countries";
+import { ALL_SKILLS } from "@/lib/skills";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
 import { Check } from "lucide-react";
+import { useExternalLink } from "@/hooks/useExternalLink";
 
 export default function AdminDirectoryPage() {
   const { toast } = useToast();
+  const { openExternal, ExternalLinkDialog } = useExternalLink();
   const { data: profiles = [], isLoading } = useQuery<DirectoryProfile[]>({
     queryKey: ["/api/directory/admin/profiles"],
   });
   const { data: users = [] } = useQuery<User[]>({ queryKey: ["/api/admin/users"] });
 
   const [newDescription, setNewDescription] = useState("");
-  const [newSkills, setNewSkills] = useState<string>("");
+  const [newFirstName, setNewFirstName] = useState("");
+  const [newSignalUrl, setNewSignalUrl] = useState("");
+  const [newQuoraUrl, setNewQuoraUrl] = useState("");
+  const [newSkills, setNewSkills] = useState<string[]>([]);
   const [newPublic, setNewPublic] = useState(false);
   const [newCountry, setNewCountry] = useState<string>("");
+
+  const toggleSkill = (s: string) => {
+    setNewSkills(prev => {
+      if (prev.includes(s)) return prev.filter(x => x !== s);
+      if (prev.length >= 3) {
+        toast({ title: "Limit reached", description: "Select up to 3 skills", variant: "destructive" });
+        return prev;
+      }
+      return [...prev, s];
+    });
+  };
 
   const createUnclaimed = useMutation({
     mutationFn: async () => {
       const payload = {
         description: newDescription.trim(),
-        skills: newSkills ? newSkills.split(",").map(s => s.trim()).filter(Boolean).slice(0,3) : [],
+        firstName: newFirstName.trim() || null,
+        signalUrl: newSignalUrl.trim() || null,
+        quoraUrl: newQuoraUrl.trim() || null,
+        skills: newSkills.slice(0, 3),
         country: newCountry,
         isPublic: newPublic,
+        displayNameType: 'first', // Default to 'first' for unclaimed profiles
       };
       return apiRequest("POST", "/api/directory/admin/profiles", payload);
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["/api/directory/admin/profiles"] });
-      setNewDescription(""); setNewSkills(""); setNewPublic(false); setNewCountry("");
+      setNewDescription(""); setNewFirstName(""); setNewSignalUrl(""); setNewQuoraUrl(""); setNewSkills([]); setNewPublic(false); setNewCountry("");
       toast({ title: "Created", description: "Unclaimed Directory profile created" });
     },
     onError: (e: any) => toast({ title: "Error", description: e.message || "Failed to create profile", variant: "destructive" })
@@ -84,8 +105,106 @@ export default function AdminDirectoryPage() {
             <Input value={newDescription} onChange={(e) => setNewDescription(e.target.value.slice(0,140))} placeholder="140 chars max" />
           </div>
           <div className="space-y-2">
-            <Label>Skills (comma-separated, up to 3)</Label>
-            <Input value={newSkills} onChange={(e) => setNewSkills(e.target.value)} placeholder="e.g. Cooking, Tutoring" />
+            <Label htmlFor="new-first-name">First Name</Label>
+            <Input 
+              id="new-first-name"
+              value={newFirstName} 
+              onChange={(e) => setNewFirstName(e.target.value.slice(0, 100))} 
+              placeholder="First name for display" 
+              data-testid="input-new-first-name"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="new-signal-url">Signal URL</Label>
+            <Input 
+              id="new-signal-url"
+              type="url"
+              value={newSignalUrl} 
+              onChange={(e) => setNewSignalUrl(e.target.value)} 
+              placeholder="https://signal.me/#p/…" 
+              data-testid="input-new-signal-url"
+            />
+            {newSignalUrl && (
+              <Button variant="ghost" size="sm" onClick={() => openExternal(newSignalUrl)} className="justify-start px-0 text-primary" data-testid="button-preview-signal-admin">
+                <ExternalLink className="w-4 h-4 mr-2" /> Open Signal link
+              </Button>
+            )}
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="new-quora-url">Quora Profile URL</Label>
+            <Input 
+              id="new-quora-url"
+              type="url"
+              value={newQuoraUrl} 
+              onChange={(e) => setNewQuoraUrl(e.target.value)} 
+              placeholder="https://www.quora.com/profile/…" 
+              data-testid="input-new-quora-url"
+            />
+            {newQuoraUrl && (
+              <Button variant="ghost" size="sm" onClick={() => openExternal(newQuoraUrl)} className="justify-start px-0 text-primary" data-testid="button-preview-quora-admin">
+                <ExternalLink className="w-4 h-4 mr-2" /> Open Quora link
+              </Button>
+            )}
+          </div>
+          <div className="space-y-2">
+            <Label id="admin-skills-label">Skills (up to 3) <span className="text-red-600">*</span></Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-haspopup="listbox"
+                  aria-labelledby="admin-skills-label"
+                  data-testid="combo-admin-skills-trigger"
+                  className="w-full justify-between"
+                >
+                  {newSkills.length > 0 ? `${newSkills.length} selected` : "Select skills"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                <Command shouldFilter>
+                  <CommandInput placeholder="Search skills…" />
+                  <CommandEmpty>No skills found.</CommandEmpty>
+                  <CommandGroup>
+                    {ALL_SKILLS.map((s) => {
+                      const selected = newSkills.includes(s);
+                      return (
+                        <CommandItem
+                          key={s}
+                          value={s}
+                          onSelect={() => toggleSkill(s)}
+                          data-testid={`combo-admin-skills-item-${s}`}
+                          aria-selected={selected}
+                        >
+                          <Check className={`mr-2 h-4 w-4 ${selected ? "opacity-100" : "opacity-0"}`} />
+                          <span>{s}</span>
+                        </CommandItem>
+                      );
+                    })}
+                  </CommandGroup>
+                </Command>
+              </PopoverContent>
+            </Popover>
+
+            {newSkills.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {newSkills.map((s) => (
+                  <Badge key={s} variant="outline" className="gap-1">
+                    {s}
+                    <button
+                      onClick={() => setNewSkills(prev => prev.filter(x => x !== s))}
+                      className="ml-1 hover:bg-muted rounded"
+                      data-testid={`button-remove-skill-${s}`}
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+            )}
+            {newSkills.length === 0 && (
+              <p className="text-xs text-red-600" data-testid="help-admin-skills-required">Select at least one skill.</p>
+            )}
           </div>
           <div className="space-y-2">
             <Label id="admin-country-label">Country</Label>
@@ -129,7 +248,7 @@ export default function AdminDirectoryPage() {
             <span>Make public</span>
           </label>
           <div className="flex flex-col sm:flex-row gap-2">
-          <Button data-testid="button-admin-create-unclaimed" onClick={() => createUnclaimed.mutate()} disabled={(newSkills.split(',').map(s=>s.trim()).filter(Boolean).length === 0) || !newCountry || createUnclaimed.isPending}>
+          <Button data-testid="button-admin-create-unclaimed" onClick={() => createUnclaimed.mutate()} disabled={newSkills.length === 0 || !newCountry || createUnclaimed.isPending}>
             <Plus className="w-4 h-4 mr-2" /> {createUnclaimed.isPending ? "Creating…" : "Create"}
           </Button>
           </div>
@@ -182,6 +301,8 @@ export default function AdminDirectoryPage() {
           )}
         </CardContent>
       </Card>
+
+      <ExternalLinkDialog />
     </div>
   );
 }

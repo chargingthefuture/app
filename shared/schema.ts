@@ -747,6 +747,7 @@ export const directoryProfiles = pgTable("directory_profiles", {
 
   // Display naming for listings
   nickname: varchar("nickname", { length: 100 }),
+  firstName: varchar("first_name", { length: 100 }), // For unclaimed profiles when displayNameType is 'first'
   displayNameType: varchar("display_name_type", { length: 20 }).notNull().default('first'), // 'first' | 'nickname'
 
   // Verification and visibility
@@ -780,6 +781,7 @@ export const insertDirectoryProfileSchema = createInsertSchema(directoryProfiles
   // Require country selection per shared standard
   country: z.string().min(1, "Country is required").max(100, "Country must be 100 characters or less"),
   nickname: z.string().max(100).optional().nullable(),
+  firstName: z.string().max(100).optional().nullable(),
   displayNameType: z.enum(['first','nickname']).optional(),
   // userId remains optional to allow unclaimed creation by admin
 });
