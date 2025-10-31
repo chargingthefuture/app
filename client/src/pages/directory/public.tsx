@@ -49,9 +49,12 @@ export default function PublicDirectoryProfile() {
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle className="text-lg sm:text-xl">
+            <div className="flex items-center gap-2 flex-wrap">
+              <CardTitle className="text-lg sm:text-xl">
+                {(profile as any).displayName || profile.nickname || profile.firstName || 'Directory Profile'}
+              </CardTitle>
               {(profile as any).userId && <VerifiedBadge isVerified={userIsVerified} testId="badge-verified-public" />}
-            </CardTitle>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
