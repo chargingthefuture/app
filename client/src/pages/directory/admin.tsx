@@ -13,6 +13,7 @@ import { Plus, X, ExternalLink, Edit } from "lucide-react";
 import { VerifiedBadge } from "@/components/verified-badge";
 import { Textarea } from "@/components/ui/textarea";
 import { COUNTRIES } from "@/lib/countries";
+import { US_STATES } from "@/lib/usStates";
 import { ALL_SKILLS } from "@/lib/skills";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
@@ -31,6 +32,8 @@ export default function AdminDirectoryPage() {
   const [newFirstName, setNewFirstName] = useState("");
   const [newSignalUrl, setNewSignalUrl] = useState("");
   const [newQuoraUrl, setNewQuoraUrl] = useState("");
+  const [newCity, setNewCity] = useState("");
+  const [newState, setNewState] = useState("");
   const [newSkills, setNewSkills] = useState<string[]>([]);
   const [newPublic, setNewPublic] = useState(false);
   const [newCountry, setNewCountry] = useState<string>("");
@@ -53,6 +56,8 @@ export default function AdminDirectoryPage() {
         firstName: newFirstName.trim() || null,
         signalUrl: newSignalUrl.trim() || null,
         quoraUrl: newQuoraUrl.trim() || null,
+        city: newCity.trim() || null,
+        state: newState.trim() || null,
         skills: newSkills.slice(0, 3),
         country: newCountry,
         isPublic: newPublic,
@@ -65,7 +70,7 @@ export default function AdminDirectoryPage() {
       await queryClient.invalidateQueries({ queryKey: ["/api/directory/admin/profiles"] });
       const profileId = data?.id;
       const wasPublic = newPublic;
-      setNewDescription(""); setNewFirstName(""); setNewSignalUrl(""); setNewQuoraUrl(""); setNewSkills([]); setNewPublic(false); setNewCountry("");
+      setNewDescription(""); setNewFirstName(""); setNewSignalUrl(""); setNewQuoraUrl(""); setNewCity(""); setNewState(""); setNewSkills([]); setNewPublic(false); setNewCountry("");
       if (profileId && wasPublic) {
         toast({ 
           title: "Created", 
@@ -93,6 +98,8 @@ export default function AdminDirectoryPage() {
   const [editFirstName, setEditFirstName] = useState("");
   const [editSignalUrl, setEditSignalUrl] = useState("");
   const [editQuoraUrl, setEditQuoraUrl] = useState("");
+  const [editCity, setEditCity] = useState("");
+  const [editState, setEditState] = useState("");
   const [editSkills, setEditSkills] = useState<string[]>([]);
   const [editPublic, setEditPublic] = useState(false);
   const [editCountry, setEditCountry] = useState<string>("");
@@ -113,6 +120,8 @@ export default function AdminDirectoryPage() {
     setEditFirstName(profile.firstName || "");
     setEditSignalUrl(profile.signalUrl || "");
     setEditQuoraUrl(profile.quoraUrl || "");
+    setEditCity(profile.city || "");
+    setEditState(profile.state || "");
     setEditSkills(profile.skills || []);
     setEditPublic(profile.isPublic || false);
     setEditCountry(profile.country || "");
@@ -128,6 +137,8 @@ export default function AdminDirectoryPage() {
       firstName: editFirstName.trim() || null,
       signalUrl: editSignalUrl.trim() || null,
       quoraUrl: editQuoraUrl.trim() || null,
+      city: editCity.trim() || null,
+      state: editState.trim() || null,
       skills: editSkills.slice(0, 3),
       country: editCountry || null,
       isPublic: editPublic,
@@ -268,8 +279,51 @@ export default function AdminDirectoryPage() {
               <p className="text-xs text-red-600" data-testid="help-admin-skills-required">Select at least one skill.</p>
             )}
           </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="new-city">City</Label>
+              <Input id="new-city" value={newCity} onChange={(e) => setNewCity(e.target.value)} placeholder="City" data-testid="input-new-city" />
+            </div>
+            <div className="space-y-2">
+              <Label id="new-state-label">US State</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-haspopup="listbox"
+                    aria-labelledby="new-state-label"
+                    data-testid="combo-state-trigger-admin"
+                    className="w-full justify-between"
+                  >
+                    {newState || "Select US State"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                  <Command shouldFilter>
+                    <CommandInput placeholder="Search US states…" />
+                    <CommandEmpty>No states found.</CommandEmpty>
+                    <CommandGroup>
+                      {US_STATES.map((s) => (
+                        <CommandItem
+                          key={s}
+                          value={s}
+                          onSelect={() => setNewState(s)}
+                          data-testid={`combo-state-item-admin-${s}`}
+                          aria-selected={newState === s}
+                        >
+                          <Check className={`mr-2 h-4 w-4 ${newState === s ? "opacity-100" : "opacity-0"}`} />
+                          <span>{s}</span>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
           <div className="space-y-2">
-            <Label id="admin-country-label">Country</Label>
+            <Label id="admin-country-label">Country <span className="text-red-600">*</span></Label>
             <Popover>
               <PopoverTrigger asChild>
                 <Button
@@ -350,6 +404,49 @@ export default function AdminDirectoryPage() {
                       <div className="space-y-2">
                         <Label htmlFor={`edit-quora-url-${p.id}`}>Quora Profile URL</Label>
                         <Input id={`edit-quora-url-${p.id}`} type="url" value={editQuoraUrl} onChange={(e) => setEditQuoraUrl(e.target.value)} placeholder="https://www.quora.com/profile/…" />
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="space-y-2">
+                          <Label htmlFor={`edit-city-${p.id}`}>City</Label>
+                          <Input id={`edit-city-${p.id}`} value={editCity} onChange={(e) => setEditCity(e.target.value)} placeholder="City" data-testid={`input-edit-city-${p.id}`} />
+                        </div>
+                        <div className="space-y-2">
+                          <Label id={`edit-state-label-${p.id}`}>US State</Label>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant="outline"
+                                role="combobox"
+                                aria-haspopup="listbox"
+                                aria-labelledby={`edit-state-label-${p.id}`}
+                                data-testid={`combo-state-edit-trigger-${p.id}`}
+                                className="w-full justify-between"
+                              >
+                                {editState || "Select US State"}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                              <Command shouldFilter>
+                                <CommandInput placeholder="Search US states…" />
+                                <CommandEmpty>No states found.</CommandEmpty>
+                                <CommandGroup>
+                                  {US_STATES.map((s) => (
+                                    <CommandItem
+                                      key={s}
+                                      value={s}
+                                      onSelect={() => setEditState(s)}
+                                      data-testid={`combo-state-edit-item-${p.id}-${s}`}
+                                      aria-selected={editState === s}
+                                    >
+                                      <Check className={`mr-2 h-4 w-4 ${editState === s ? "opacity-100" : "opacity-0"}`} />
+                                      <span>{s}</span>
+                                    </CommandItem>
+                                  ))}
+                                </CommandGroup>
+                              </Command>
+                            </PopoverContent>
+                          </Popover>
+                        </div>
                       </div>
                       <div className="space-y-2">
                         <Label id={`edit-skills-label-${p.id}`}>Skills (up to 3) <span className="text-red-600">*</span></Label>
@@ -484,7 +581,12 @@ export default function AdminDirectoryPage() {
                     </div>
                     <div className="flex items-center gap-2">
                       {!p.isClaimed && (
-                        <select className="border rounded h-9 px-2 text-sm" defaultValue="" onChange={(e) => e.target.value && assignMutation.mutate({ id: p.id, userId: e.target.value })}>
+                        <select 
+                          className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" 
+                          defaultValue="" 
+                          onChange={(e) => e.target.value && assignMutation.mutate({ id: p.id, userId: e.target.value })}
+                          data-testid={`select-assign-user-${p.id}`}
+                        >
                           <option value="">Assign to user…</option>
                           {users.map(u => (
                             <option key={u.id} value={u.id}>{[u.firstName, u.lastName].filter(Boolean).join(' ') || u.email || 'User'}</option>

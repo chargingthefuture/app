@@ -15,6 +15,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { DirectoryProfile } from "@shared/schema";
 import { ExternalLink, Check, X } from "lucide-react";
 import { COUNTRIES } from "@/lib/countries";
+import { US_STATES } from "@/lib/usStates";
 import { ALL_SKILLS } from "@/lib/skills";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useExternalLink } from "@/hooks/useExternalLink";
@@ -40,6 +41,7 @@ export default function DirectoryProfilePage() {
   const [isPublic, setIsPublic] = useState(false);
   const [isEditing, setIsEditing] = useState(true);
   const [nickname, setNickname] = useState("");
+  const [directoryFirstName, setDirectoryFirstName] = useState("");
   const [displayNameType, setDisplayNameType] = useState<'first' | 'nickname'>("first");
 
   const { openExternal, ExternalLinkDialog } = useExternalLink();
@@ -55,6 +57,7 @@ export default function DirectoryProfilePage() {
       setCountry(profile.country || "");
       setIsPublic(!!profile.isPublic);
       setNickname(profile.nickname || "");
+      setDirectoryFirstName(profile.firstName || "");
       setDisplayNameType((profile.displayNameType as 'first' | 'nickname') || "first");
       setIsEditing(false);
     }
@@ -70,6 +73,7 @@ export default function DirectoryProfilePage() {
         city: city || null,
         state: stateVal || null,
         country: country,
+        firstName: displayNameType === 'first' ? (directoryFirstName.trim() || null) : null,
         nickname: nickname || null,
         displayNameType,
         isPublic,
@@ -96,6 +100,7 @@ export default function DirectoryProfilePage() {
         city: city || null,
         state: stateVal || null,
         country: country,
+        firstName: displayNameType === 'first' ? (directoryFirstName.trim() || null) : null,
         nickname: nickname || null,
         displayNameType,
         isPublic,
@@ -187,7 +192,11 @@ export default function DirectoryProfilePage() {
               </div>
               <div>
                 <Label className="text-muted-foreground">Display Name</Label>
-                <p className="mt-1">{displayNameType === 'nickname' ? (nickname || '—') : 'First name'}</p>
+                <p className="mt-1">
+                  {displayNameType === 'nickname' 
+                    ? (nickname || '—') 
+                    : (directoryFirstName || (profile as any)?.displayName || 'First name')}
+                </p>
               </div>
               <div>
                 <Label className="text-muted-foreground">Skills</Label>
@@ -241,6 +250,19 @@ export default function DirectoryProfilePage() {
                 <span>Use a nickname</span>
               </label>
             </RadioGroup>
+            {displayNameType === 'first' && (
+              <div className="space-y-2">
+                <Label htmlFor="directory-first-name">First Name</Label>
+                <Input 
+                  id="directory-first-name" 
+                  value={directoryFirstName} 
+                  onChange={(e) => setDirectoryFirstName(e.target.value.slice(0, 100))} 
+                  placeholder="Override your first name (optional - leave blank to use Replit Auth first name)" 
+                  data-testid="input-directory-first-name"
+                />
+                <p className="text-xs text-muted-foreground">Leave blank to use your Replit Auth first name, or enter a custom name to override it</p>
+              </div>
+            )}
             {displayNameType === 'nickname' && (
               <div className="space-y-2">
                 <Label htmlFor="nickname">Nickname</Label>
@@ -347,8 +369,41 @@ export default function DirectoryProfilePage() {
               <Input id="city" value={city} onChange={(e) => setCity(e.target.value)} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="state">State</Label>
-              <Input id="state" value={stateVal} onChange={(e) => setStateVal(e.target.value)} />
+              <Label id="state-label">US State</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-haspopup="listbox"
+                    aria-labelledby="state-label"
+                    data-testid="combo-state-trigger"
+                    className="w-full justify-between"
+                  >
+                    {stateVal || "Select US State"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                  <Command shouldFilter>
+                    <CommandInput placeholder="Search US states…" />
+                    <CommandEmpty>No states found.</CommandEmpty>
+                    <CommandGroup>
+                      {US_STATES.map((s) => (
+                        <CommandItem
+                          key={s}
+                          value={s}
+                          onSelect={() => setStateVal(s)}
+                          data-testid={`combo-state-item-${s}`}
+                          aria-selected={stateVal === s}
+                        >
+                          <Check className={`mr-2 h-4 w-4 ${stateVal === s ? "opacity-100" : "opacity-0"}`} />
+                          <span>{s}</span>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
             <div className="space-y-2">
               <Label id="country-label">Country <span className="text-red-600">*</span></Label>

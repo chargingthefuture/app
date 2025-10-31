@@ -1,5 +1,5 @@
 import { 
-  Home, 
+  Home,
   Users, 
   Ticket, 
   DollarSign, 
@@ -8,6 +8,7 @@ import {
   UserCheck,
   TrendingUp,
   Moon,
+  Sun,
   Building2,
   Radio,
   MessageCircle
@@ -26,6 +27,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
+import { useTheme } from "@/hooks/useTheme";
 
 const adminMenuItems = [
   {
@@ -156,6 +158,7 @@ const userMenuItems = [
 export function AppSidebar() {
   const [location] = useLocation();
   const { isAdmin } = useAuth();
+  const { theme, toggleTheme } = useTheme();
 
   return (
     <Sidebar>
@@ -208,7 +211,25 @@ export function AppSidebar() {
           </SidebarGroup>
         )}
       </SidebarContent>
-      <SidebarFooter className="p-4 border-t">
+      <SidebarFooter className="p-4 border-t space-y-2">
+        <Button
+          variant="outline"
+          className="w-full justify-start"
+          onClick={toggleTheme}
+          data-testid="button-theme-toggle"
+        >
+          {theme === "dark" ? (
+            <>
+              <Sun className="w-4 h-4 mr-2" />
+              Light Mode
+            </>
+          ) : (
+            <>
+              <Moon className="w-4 h-4 mr-2" />
+              Dark Mode
+            </>
+          )}
+        </Button>
         <Button
           variant="outline"
           className="w-full justify-start"

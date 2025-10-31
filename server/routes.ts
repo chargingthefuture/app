@@ -329,13 +329,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (profile.displayNameType === 'nickname' && profile.nickname) {
         displayName = profile.nickname;
       } else if (profile.displayNameType === 'first') {
-        if (profile.userId) {
+        // Priority: Directory profile firstName (override) > user firstName
+        if (profile.firstName) {
+          displayName = profile.firstName;
+        } else if (profile.userId) {
           const user = await storage.getUser(profile.userId);
           displayName = user?.firstName || null;
+        }
+        // Get verification status
+        if (profile.userId) {
+          const user = await storage.getUser(profile.userId);
           userIsVerified = user?.isVerified || false;
-        } else if (profile.firstName) {
-          // For unclaimed profiles, use firstName field
-          displayName = profile.firstName;
         }
       } else if (profile.userId) {
         const user = await storage.getUser(profile.userId);
@@ -413,13 +417,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (profile.displayNameType === 'nickname' && profile.nickname) {
         displayName = profile.nickname;
       } else if (profile.displayNameType === 'first') {
-        if (profile.userId) {
+        // Priority: Directory profile firstName (override) > user firstName
+        if (profile.firstName) {
+          displayName = profile.firstName;
+        } else if (profile.userId) {
           const user = await storage.getUser(profile.userId);
           displayName = user?.firstName || null;
+        }
+        // Get verification status
+        if (profile.userId) {
+          const user = await storage.getUser(profile.userId);
           userIsVerified = user?.isVerified || false;
-        } else if (profile.firstName) {
-          // For unclaimed profiles, use firstName field
-          displayName = profile.firstName;
         }
       } else if (profile.userId) {
         const user = await storage.getUser(profile.userId);
@@ -442,13 +450,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (p.displayNameType === 'nickname' && p.nickname) {
           name = p.nickname;
         } else if (p.displayNameType === 'first') {
-          if (p.userId) {
+          // Priority: Directory profile firstName (override) > user firstName
+          if (p.firstName) {
+            name = p.firstName;
+          } else if (p.userId) {
             const u = await storage.getUser(p.userId);
             name = u?.firstName || null;
+          }
+          // Get verification status
+          if (p.userId) {
+            const u = await storage.getUser(p.userId);
             userIsVerified = u?.isVerified || false;
-          } else if (p.firstName) {
-            // For unclaimed profiles, use firstName field
-            name = p.firstName;
           }
         } else if (p.userId) {
           const u = await storage.getUser(p.userId);
@@ -476,13 +488,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (p.displayNameType === 'nickname' && p.nickname) {
           name = p.nickname;
         } else if (p.displayNameType === 'first') {
-          if (p.userId) {
+          // Priority: Directory profile firstName (override) > user firstName
+          if (p.firstName) {
+            name = p.firstName;
+          } else if (p.userId) {
             const u = await storage.getUser(p.userId);
             name = u?.firstName || null;
+          }
+          // Get verification status
+          if (p.userId) {
+            const u = await storage.getUser(p.userId);
             userIsVerified = u?.isVerified || false;
-          } else if (p.firstName) {
-            // For unclaimed profiles, use firstName field
-            name = p.firstName;
           }
         } else if (p.userId) {
           const u = await storage.getUser(p.userId);
