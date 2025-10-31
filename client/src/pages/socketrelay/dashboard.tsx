@@ -4,18 +4,24 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Package, Clock, CheckCircle2, MapPin, Settings } from "lucide-react";
+import { Package, Clock, CheckCircle2, MapPin, Settings, Share2, ExternalLink, Copy, Check } from "lucide-react";
 import { formatDistanceToNow, isPast } from "date-fns";
 import type { SocketrelayRequest, SocketrelayProfile } from "@shared/schema";
 import { Link } from "wouter";
+import { useExternalLink } from "@/hooks/useExternalLink";
 
 export default function SocketRelayDashboard() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { openExternal, ExternalLinkDialog } = useExternalLink();
   const [newRequest, setNewRequest] = useState("");
+  const [isPublic, setIsPublic] = useState(false);
+  const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
 
   const { data: profile, isLoading: profileLoading } = useQuery<SocketrelayProfile | null>({
     queryKey: ["/api/socketrelay/profile"],
@@ -34,17 +40,30 @@ export default function SocketRelayDashboard() {
   });
 
   const createMutation = useMutation({
-    mutationFn: async (description: string) => {
-      return await apiRequest('POST', '/api/socketrelay/requests', { description });
+    mutationFn: async (data: { description: string; isPublic: boolean }) => {
+      return await apiRequest('POST', '/api/socketrelay/requests', data);
     },
-    onSuccess: () => {
+    onSuccess: async (response) => {
       queryClient.invalidateQueries({ queryKey: ['/api/socketrelay/requests'] });
       queryClient.invalidateQueries({ queryKey: ['/api/socketrelay/my-requests'] });
+      const request = await response.json();
+      const wasPublic = isPublic;
       setNewRequest("");
-      toast({
-        title: "Request created",
-        description: "Your request has been posted and will expire in 14 days.",
-      });
+      setIsPublic(false);
+      
+      if (wasPublic && request?.id) {
+        const shareUrl = `${window.location.origin}/apps/socketrelay/public/${request.id}`;
+        toast({
+          title: "Request created",
+          description: `Your public request has been posted. Share link: ${shareUrl}`,
+          duration: 8000,
+        });
+      } else {
+        toast({
+          title: "Request created",
+          description: "Your request has been posted and will expire in 14 days.",
+        });
+      }
     },
     onError: (error: any) => {
       toast({
@@ -95,7 +114,25 @@ export default function SocketRelayDashboard() {
       return;
     }
 
-    createMutation.mutate(newRequest.trim());
+    createMutation.mutate({ description: newRequest.trim(), isPublic });
+  };
+
+  const copyUrl = async (url: string) => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiedUrl(url);
+      toast({
+        title: "Copied!",
+        description: "Shareable link copied to clipboard",
+      });
+      setTimeout(() => setCopiedUrl(null), 2000);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to copy link",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleFulfill = (requestId: string) => {
@@ -267,30 +304,43 @@ export default function SocketRelayDashboard() {
             Post what you're looking for (140 characters max, expires in 14 days)
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Textarea
-              value={newRequest}
-              onChange={(e) => setNewRequest(e.target.value)}
-              placeholder="I'm looking for..."
-              maxLength={140}
-              rows={3}
-              data-testid="input-request-description"
-            />
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">
-                {newRequest.length}/140 characters
-              </span>
-              <Button
-                onClick={handleCreateRequest}
-                disabled={createMutation.isPending || newRequest.trim().length === 0}
-                data-testid="button-create-request"
-              >
-                {createMutation.isPending ? "Posting..." : "Post Request"}
-              </Button>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Textarea
+                value={newRequest}
+                onChange={(e) => setNewRequest(e.target.value)}
+                placeholder="I'm looking for..."
+                maxLength={140}
+                rows={3}
+                data-testid="input-request-description"
+              />
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">
+                  {newRequest.length}/140 characters
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox 
+                  id="make-public" 
+                  checked={isPublic} 
+                  onCheckedChange={(checked) => setIsPublic(!!checked)}
+                  data-testid="checkbox-make-public"
+                />
+                <Label htmlFor="make-public" className="text-sm cursor-pointer">
+                  Make this request public (shareable link)
+                </Label>
+              </div>
+              <div className="flex items-center justify-end">
+                <Button
+                  onClick={handleCreateRequest}
+                  disabled={createMutation.isPending || newRequest.trim().length === 0}
+                  data-testid="button-create-request"
+                >
+                  {createMutation.isPending ? "Posting..." : "Post Request"}
+                </Button>
+              </div>
             </div>
-          </div>
-        </CardContent>
+          </CardContent>
       </Card>
 
       {myRequests.length > 0 && (
@@ -299,24 +349,67 @@ export default function SocketRelayDashboard() {
             <CardTitle>My Requests</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {myRequests.map((request: SocketrelayRequest) => (
-              <Card key={request.id} data-testid={`card-my-request-${request.id}`}>
-                <CardContent className="pt-6">
-                  <div className="space-y-3">
-                    <div className="flex items-start justify-between gap-4">
-                      <p className="flex-1">{request.description}</p>
-                      <Badge variant={request.status === 'active' ? 'default' : 'secondary'}>
-                        {request.status}
-                      </Badge>
+            {myRequests.map((request: SocketrelayRequest) => {
+              const shareUrl = request.isPublic ? `${window.location.origin}/apps/socketrelay/public/${request.id}` : null;
+              return (
+                <Card key={request.id} data-testid={`card-my-request-${request.id}`}>
+                  <CardContent className="pt-6">
+                    <div className="space-y-3">
+                      <div className="flex items-start justify-between gap-4">
+                        <p className="flex-1">{request.description}</p>
+                        <div className="flex items-center gap-2">
+                          {request.isPublic && (
+                            <Badge variant="default" className="gap-1">
+                              <Share2 className="w-3 h-3" /> Public
+                            </Badge>
+                          )}
+                          <Badge variant={request.status === 'active' ? 'default' : 'secondary'}>
+                            {request.status}
+                          </Badge>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                        <span>Expires {formatDistanceToNow(new Date(request.expiresAt), { addSuffix: true })}</span>
+                        <span>Posted {formatDistanceToNow(new Date(request.createdAt), { addSuffix: true })}</span>
+                      </div>
+                      {shareUrl && (
+                        <div className="space-y-2 pt-2 border-t">
+                          <Label className="text-xs text-muted-foreground">Shareable URL</Label>
+                          <div className="flex items-center gap-2">
+                            <code className="flex-1 font-mono text-xs sm:text-sm bg-muted px-2 py-1 rounded break-all">
+                              {shareUrl}
+                            </code>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => copyUrl(shareUrl)}
+                              className="flex-shrink-0"
+                              data-testid={`button-copy-url-${request.id}`}
+                            >
+                              {copiedUrl === shareUrl ? (
+                                <Check className="w-4 h-4 text-primary" />
+                              ) : (
+                                <Copy className="w-4 h-4" />
+                              )}
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openExternal(shareUrl)}
+                              className="text-primary flex-shrink-0"
+                              data-testid={`button-share-${request.id}`}
+                            >
+                              <ExternalLink className="w-4 h-4 mr-2" />
+                              Open
+                            </Button>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                      <span>Expires {formatDistanceToNow(new Date(request.expiresAt), { addSuffix: true })}</span>
-                      <span>Posted {formatDistanceToNow(new Date(request.createdAt), { addSuffix: true })}</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                  </CardContent>
+                </Card>
+              );
+            })}
           </CardContent>
         </Card>
       )}

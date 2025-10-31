@@ -596,6 +596,7 @@ export const socketrelayRequests = pgTable("socketrelay_requests", {
   userId: varchar("user_id").notNull().references(() => users.id),
   description: varchar("description", { length: 140 }).notNull(),
   status: varchar("status", { length: 20 }).notNull().default('active'), // active, fulfilled, closed
+  isPublic: boolean("is_public").notNull().default(false),
   expiresAt: timestamp("expires_at").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -618,6 +619,7 @@ export const insertSocketrelayRequestSchema = createInsertSchema(socketrelayRequ
   updatedAt: true,
 }).extend({
   description: z.string().min(1, "Description is required").max(140, "Request description must be 140 characters or less"),
+  isPublic: z.boolean().optional().default(false),
 });
 
 export type InsertSocketrelayRequest = z.infer<typeof insertSocketrelayRequestSchema>;

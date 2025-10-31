@@ -1,9 +1,16 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
-import { UserCheck, Moon, Building2, ArrowRight } from "lucide-react";
+import { UserCheck, Moon, Building2, ArrowRight, MessageCircle} from "lucide-react";
 
 const services = [
+  {
+    title: "Chat Groups",
+    description: "Real time chats with TIs",
+    icon: MessageCircle,
+    href: "/apps/chatgroups",
+    testId: "card-service-chatgroups",
+  },
   {
     title: "Directory",
     description: "Find talented individuals to colloborate with.",

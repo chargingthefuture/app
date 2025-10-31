@@ -28,6 +28,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/hooks/useTheme";
+import { useExternalLink } from "@/hooks/useExternalLink";
+import { ExternalLink } from "lucide-react";
 
 const adminMenuItems = [
   {
@@ -159,6 +161,9 @@ export function AppSidebar() {
   const [location] = useLocation();
   const { isAdmin } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const { openExternal, ExternalLinkDialog } = useExternalLink();
+
+  const townsquareUrl = "https://chargingthefuture.discourse.group";
 
   return (
     <Sidebar>
@@ -215,6 +220,15 @@ export function AppSidebar() {
         <Button
           variant="outline"
           className="w-full justify-start"
+          onClick={() => openExternal(townsquareUrl)}
+          data-testid="link-townsquare"
+        >
+          <ExternalLink className="w-4 h-4 mr-2" />
+          Townsquare
+        </Button>
+        <Button
+          variant="outline"
+          className="w-full justify-start"
           onClick={toggleTheme}
           data-testid="button-theme-toggle"
         >
@@ -240,6 +254,7 @@ export function AppSidebar() {
           Log Out
         </Button>
       </SidebarFooter>
+      <ExternalLinkDialog />
     </Sidebar>
   );
 }

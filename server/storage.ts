@@ -212,11 +212,13 @@ export interface IStorage {
   deactivateLighthouseAnnouncement(id: string): Promise<LighthouseAnnouncement>;
 
   // SocketRelay Request operations
-  createSocketrelayRequest(userId: string, description: string): Promise<SocketrelayRequest>;
+  createSocketrelayRequest(userId: string, description: string, isPublic?: boolean): Promise<SocketrelayRequest>;
   getActiveSocketrelayRequests(): Promise<any[]>;
   getAllSocketrelayRequests(): Promise<any[]>;
   getSocketrelayRequestById(id: string): Promise<SocketrelayRequest | undefined>;
   getSocketrelayRequestsByUser(userId: string): Promise<SocketrelayRequest[]>;
+  getPublicSocketrelayRequestById(id: string): Promise<SocketrelayRequest | undefined>;
+  listPublicSocketrelayRequests(): Promise<SocketrelayRequest[]>;
   updateSocketrelayRequestStatus(id: string, status: string): Promise<SocketrelayRequest>;
   deleteSocketrelayRequest(id: string): Promise<void>;
 
@@ -1355,7 +1357,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // SocketRelay Request operations
-  async createSocketrelayRequest(userId: string, description: string): Promise<SocketrelayRequest> {
+  async createSocketrelayRequest(userId: string, description: string, isPublic: boolean = false): Promise<SocketrelayRequest> {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 14); // 14 days from now
 
@@ -1364,6 +1366,7 @@ export class DatabaseStorage implements IStorage {
       .values({
         userId,
         description,
+        isPublic: !!isPublic,
         expiresAt,
       })
       .returning();
@@ -1408,6 +1411,37 @@ export class DatabaseStorage implements IStorage {
       .from(socketrelayRequests)
       .where(eq(socketrelayRequests.id, id));
     return request;
+  }
+
+  async getPublicSocketrelayRequestById(id: string): Promise<SocketrelayRequest | undefined> {
+    const now = new Date();
+    const [request] = await db
+      .select()
+      .from(socketrelayRequests)
+      .where(
+        and(
+          eq(socketrelayRequests.id, id),
+          eq(socketrelayRequests.isPublic, true),
+          eq(socketrelayRequests.status, 'active'),
+          gte(socketrelayRequests.expiresAt, now)
+        )
+      );
+    return request;
+  }
+
+  async listPublicSocketrelayRequests(): Promise<SocketrelayRequest[]> {
+    const now = new Date();
+    return await db
+      .select()
+      .from(socketrelayRequests)
+      .where(
+        and(
+          eq(socketrelayRequests.isPublic, true),
+          eq(socketrelayRequests.status, 'active'),
+          gte(socketrelayRequests.expiresAt, now)
+        )
+      )
+      .orderBy(desc(socketrelayRequests.createdAt));
   }
 
   async getAllSocketrelayRequests(): Promise<any[]> {

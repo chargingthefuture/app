@@ -2,6 +2,9 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated, isAdmin } from "./replitAuth";
+import { publicListingLimiter, publicItemLimiter } from "./rateLimiter";
+import { fingerprintRequests, getSuspiciousPatterns, getSuspiciousPatternsForIP, clearSuspiciousPatterns } from "./antiScraping";
+import { rotateDisplayOrder, addAntiScrapingDelay, isLikelyBot } from "./dataObfuscation";
 import { 
   insertInviteCodeSchema, 
   insertPaymentSchema,
@@ -29,6 +32,9 @@ import {
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
   await setupAuth(app);
+
+  // Anti-scraping: Fingerprint requests (must be before rate limiting)
+  app.use(fingerprintRequests);
 
   // Helper to get user ID from request
   const getUserId = (req: any): string => req.user?.claims?.sub;
@@ -145,6 +151,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching stats:", error);
       res.status(500).json({ message: "Failed to fetch stats" });
+    }
+  });
+
+  // Admin routes - Anti-scraping monitoring
+  app.get('/api/admin/anti-scraping/patterns', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const ip = req.query.ip as string | undefined;
+      const patterns = ip 
+        ? getSuspiciousPatternsForIP(ip)
+        : getSuspiciousPatterns();
+      res.json(patterns);
+    } catch (error) {
+      console.error("Error fetching suspicious patterns:", error);
+      res.status(500).json({ message: "Failed to fetch patterns" });
+    }
+  });
+
+  app.delete('/api/admin/anti-scraping/patterns', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const ip = req.query.ip as string | undefined;
+      clearSuspiciousPatterns(ip);
+      res.json({ message: ip ? `Cleared patterns for IP ${ip}` : "Cleared all patterns" });
+    } catch (error) {
+      console.error("Error clearing suspicious patterns:", error);
+      res.status(500).json({ message: "Failed to clear patterns" });
     }
   });
 
@@ -405,8 +436,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Public routes
-  app.get('/api/directory/public/:id', async (req, res) => {
+  // Public routes (with rate limiting to prevent scraping)
+  app.get('/api/directory/public/:id', publicItemLimiter, async (req, res) => {
     try {
       const profile = await storage.getDirectoryProfileById(req.params.id);
       if (!profile || !profile.isPublic) {
@@ -441,8 +472,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/directory/public', async (req, res) => {
+  app.get('/api/directory/public', publicListingLimiter, async (req, res) => {
     try {
+      // Add delay for suspicious requests
+      const isSuspicious = (req as any).isSuspicious || false;
+      const userAgent = req.headers['user-agent'];
+      const accept = req.headers['accept'];
+      const acceptLang = req.headers['accept-language'];
+      const likelyBot = isLikelyBot(userAgent, accept, acceptLang);
+      
+      if (isSuspicious || likelyBot) {
+        await addAntiScrapingDelay(true, 200, 800);
+      } else {
+        await addAntiScrapingDelay(false, 50, 200);
+      }
+
       const profiles = await storage.listPublicDirectoryProfiles();
       const withNames = await Promise.all(profiles.map(async (p) => {
         let name: string | null = null;
@@ -471,7 +515,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Ensure we always return displayName (even if null)
         return { ...p, displayName: name || null, userIsVerified };
       }));
-      res.json(withNames);
+      
+      // Rotate display order to make scraping harder
+      const rotated = rotateDisplayOrder(withNames);
+      
+      res.json(rotated);
     } catch (error) {
       console.error("Error listing public Directory profiles:", error);
       res.status(500).json({ message: "Failed to fetch profiles" });
@@ -1485,6 +1533,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get('/api/lighthouse/admin/seekers', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      // Get all seekers (both active and inactive) for admin view
+      const allProfiles = await storage.getAllLighthouseProfiles();
+      console.log(`[LightHouse Admin] Total profiles: ${allProfiles.length}`);
+      const seekers = allProfiles.filter(p => p.profileType === 'seeker');
+      console.log(`[LightHouse Admin] Found ${seekers.length} seekers`);
+      
+      // Enrich with user information
+      const seekersWithUsers = await Promise.all(seekers.map(async (seeker) => {
+        const user = seeker.userId ? await storage.getUser(seeker.userId) : null;
+        return {
+          ...seeker,
+          user: user ? {
+            id: user.id,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            email: user.email,
+            isVerified: user.isVerified,
+          } : null,
+        };
+      }));
+      console.log(`[LightHouse Admin] Returning ${seekersWithUsers.length} seekers with user data`);
+      res.json(seekersWithUsers);
+    } catch (error) {
+      console.error("Error fetching seekers:", error);
+      res.status(500).json({ message: "Failed to fetch seekers" });
+    }
+  });
+
   app.get('/api/lighthouse/admin/properties', isAuthenticated, isAdmin, async (req, res) => {
     try {
       const properties = await storage.getAllProperties();
@@ -1728,11 +1806,89 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = getUserId(req);
       const validated = insertSocketrelayRequestSchema.parse(req.body);
       
-      const request = await storage.createSocketrelayRequest(userId, validated.description);
+      const request = await storage.createSocketrelayRequest(userId, validated.description, validated.isPublic || false);
       res.json(request);
     } catch (error: any) {
       console.error("Error creating SocketRelay request:", error);
       res.status(400).json({ message: error.message || "Failed to create request" });
+    }
+  });
+
+  // Public SocketRelay request routes (no auth required, with rate limiting)
+  app.get('/api/socketrelay/public', publicListingLimiter, async (req, res) => {
+    try {
+      // Add delay for suspicious requests
+      const isSuspicious = (req as any).isSuspicious || false;
+      const userAgent = req.headers['user-agent'];
+      const accept = req.headers['accept'];
+      const acceptLang = req.headers['accept-language'];
+      const likelyBot = isLikelyBot(userAgent, accept, acceptLang);
+      
+      if (isSuspicious || likelyBot) {
+        await addAntiScrapingDelay(true, 200, 800);
+      } else {
+        await addAntiScrapingDelay(false, 50, 200);
+      }
+
+      const requests = await storage.listPublicSocketrelayRequests();
+      
+      // Enrich requests with creator info
+      const enrichedRequests = await Promise.all(requests.map(async (request) => {
+        const creatorProfile = await storage.getSocketrelayProfile(request.userId);
+        const creator = await storage.getUser(request.userId);
+        
+        return {
+          ...request,
+          creatorProfile: creatorProfile ? {
+            city: creatorProfile.city,
+            state: creatorProfile.state,
+            country: creatorProfile.country,
+          } : null,
+          creator: creator ? {
+            firstName: creator.firstName,
+            lastName: creator.lastName,
+            isVerified: creator.isVerified,
+          } : null,
+        };
+      }));
+      
+      // Rotate display order to make scraping harder
+      const rotated = rotateDisplayOrder(enrichedRequests);
+      
+      res.json(rotated);
+    } catch (error) {
+      console.error("Error fetching public SocketRelay requests:", error);
+      res.status(500).json({ message: "Failed to fetch requests" });
+    }
+  });
+
+  app.get('/api/socketrelay/public/:id', publicItemLimiter, async (req, res) => {
+    try {
+      const request = await storage.getPublicSocketrelayRequestById(req.params.id);
+      if (!request) {
+        return res.status(404).json({ message: "Request not found or not public" });
+      }
+      
+      // Get creator profile for location info
+      const creatorProfile = await storage.getSocketrelayProfile(request.userId);
+      const creator = await storage.getUser(request.userId);
+      
+      res.json({
+        ...request,
+        creatorProfile: creatorProfile ? {
+          city: creatorProfile.city,
+          state: creatorProfile.state,
+          country: creatorProfile.country,
+        } : null,
+        creator: creator ? {
+          firstName: creator.firstName,
+          lastName: creator.lastName,
+          isVerified: creator.isVerified,
+        } : null,
+      });
+    } catch (error) {
+      console.error("Error fetching public SocketRelay request:", error);
+      res.status(500).json({ message: "Failed to fetch request" });
     }
   });
 

@@ -1,6 +1,7 @@
 ---
 alwaysApply: true
 ---
+
 # Context Prompt for Cursor AI - Psyop-Free Ecosystem
 
 ## 🎯 Application Overview
@@ -64,6 +65,10 @@ project-root/
 ## 🔧 How to Add a New Feature
 
 ### **A. Adding a New Mini-App**
+
+**🚨 REQUIRED:** Every new mini-app MUST have:
+1. **User-facing pages** - Where regular users interact with the app
+2. **Admin page** - A dedicated admin interface under the Administration section for managing the app's content/data
 
 Follow this exact sequence:
 
@@ -261,9 +266,66 @@ const userMenuItems = [
 ];
 ```
 
-3. If admin routes needed, add to `adminMenuItems` too
+3. **REQUIRED:** Add admin page to `adminMenuItems` array:
+```typescript
+const adminMenuItems = [
+  // ... existing items
+  {
+    title: "MyApp Admin",
+    url: "/apps/myapp/admin",
+    icon: MyIcon,
+    testId: "link-myapp-admin",
+  },
+];
+```
 
-#### **Step 7: Seeding Script (`scripts/`)**
+#### **Step 7: Admin Page (`client/src/pages/myapp/admin.tsx`)**
+
+**🚨 REQUIRED:** Create an admin interface for managing the mini-app's content/data. This should include:
+- List all items/records in the app
+- Create new items/records
+- Edit existing items/records
+- Delete items/records
+- Toggle active/inactive status (if applicable)
+- Any other management operations needed
+
+Example admin page:
+```typescript
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+
+export default function MyAppAdmin() {
+  const { data: items = [], isLoading } = useQuery({
+    queryKey: ['/api/myapp/admin'],
+  });
+  
+  const createMutation = useMutation({
+    mutationFn: async (data) => 
+      apiRequest('/api/myapp/admin', { method: 'POST', body: data }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/myapp/admin'] });
+    },
+  });
+  
+  // ... edit, delete mutations, etc.
+  
+  return (
+    <div className="p-4 sm:p-6 md:p-8">
+      <h1 className="text-2xl sm:text-3xl font-semibold mb-6">MyApp Administration</h1>
+      {/* Admin interface */}
+    </div>
+  );
+}
+```
+
+**Add admin route in `client/src/App.tsx`:**
+```typescript
+<Route path="/apps/myapp/admin" component={MyAppAdmin} />
+```
+
+#### **Step 8: Seeding Script (`scripts/`)**
 - Add a seed script for the mini-app, e.g. `scripts/seedMyApp.ts`
 - Use `db` and shared `schema` to insert deterministic dummy data
 - Do NOT expose seeding via API routes; seeds run via script only
@@ -352,6 +414,94 @@ app.get('/api/admin-only', isAdmin, async (req: any, res) => {
   // Admin only
 });
 ```
+
+---
+
+## 🛡️ Anti-Scraping Protection for Public Endpoints
+
+**🚨 REQUIRED:** All public endpoints (endpoints accessible without authentication) MUST implement comprehensive anti-scraping protection to prevent bulk data harvesting and protect user privacy.
+
+### Protection Requirements:
+
+1. **Rate Limiting** - Apply appropriate rate limiters from `server/rateLimiter.ts`:
+   - **Listing endpoints** (`/api/{app}/public`): Use `publicListingLimiter` (10 requests/15min per IP)
+   - **Individual item endpoints** (`/api/{app}/public/:id`): Use `publicItemLimiter` (50 requests/15min per IP)
+
+2. **Request Fingerprinting** - Automatically enabled via `fingerprintRequests` middleware in `server/antiScraping.ts`:
+   - Tracks IP, user-agent, headers, referer, and request patterns
+   - Detects suspicious behavior (rapid requests, missing headers, repetitive patterns)
+
+3. **Data Obfuscation** - Implement in public listing endpoints:
+   - **Rotate display order**: Use `rotateDisplayOrder()` from `server/dataObfuscation.ts` to periodically shuffle results
+   - **Add delays**: Use `addAntiScrapingDelay()` based on request suspicion level
+   - **Bot detection**: Use `isLikelyBot()` to identify automated requests
+
+### Implementation Pattern:
+
+```typescript
+import { publicListingLimiter, publicItemLimiter } from "./rateLimiter";
+import { rotateDisplayOrder, addAntiScrapingDelay, isLikelyBot } from "./dataObfuscation";
+
+// Listing endpoint example
+app.get('/api/myapp/public', publicListingLimiter, async (req, res) => {
+  try {
+    // Add delay for suspicious requests
+    const isSuspicious = (req as any).isSuspicious || false;
+    const userAgent = req.headers['user-agent'];
+    const accept = req.headers['accept'];
+    const acceptLang = req.headers['accept-language'];
+    const likelyBot = isLikelyBot(userAgent, accept, acceptLang);
+    
+    if (isSuspicious || likelyBot) {
+      await addAntiScrapingDelay(true, 200, 800);
+    } else {
+      await addAntiScrapingDelay(false, 50, 200);
+    }
+
+    const items = await storage.listPublicItems();
+    
+    // Rotate display order to make scraping harder
+    const rotated = rotateDisplayOrder(items);
+    
+    res.json(rotated);
+  } catch (error) {
+    console.error("Error fetching public items:", error);
+    res.status(500).json({ message: "Failed to fetch items" });
+  }
+});
+
+// Individual item endpoint example
+app.get('/api/myapp/public/:id', publicItemLimiter, async (req, res) => {
+  try {
+    const item = await storage.getPublicItemById(req.params.id);
+    if (!item || !item.isPublic) {
+      return res.status(404).json({ message: "Item not found" });
+    }
+    res.json(item);
+  } catch (error) {
+    console.error("Error fetching public item:", error);
+    res.status(500).json({ message: "Failed to fetch item" });
+  }
+});
+```
+
+### Key Points:
+
+- **`fingerprintRequests` middleware is already applied globally** - All requests are automatically fingerprinted
+- **Rate limiters must be applied BEFORE route handlers** - Place them as the first middleware
+- **Display order rotation uses time-based seeding** - Results shuffle every 5 minutes automatically
+- **Delays are subtle** - Legitimate users won't notice, but bots/scrapers will be slowed
+- **Monitoring available** - Admins can view suspicious patterns via `/api/admin/anti-scraping/patterns`
+
+### Monitoring:
+
+Admin endpoints for monitoring suspicious activity:
+- `GET /api/admin/anti-scraping/patterns` - View all suspicious patterns
+- `GET /api/admin/anti-scraping/patterns?ip=X` - View patterns for specific IP
+- `DELETE /api/admin/anti-scraping/patterns` - Clear all patterns
+- `DELETE /api/admin/anti-scraping/patterns?ip=X` - Clear patterns for specific IP
+
+**🚨 CRITICAL:** Never create public endpoints without these protection measures. User privacy and safety depend on preventing bulk data harvesting.
 
 ---
 
@@ -457,6 +607,7 @@ Study these for patterns:
 - [ ] Schema added to `shared/schema.ts` with proper relations & types
 - [ ] Storage methods added to interface & implemented
 - [ ] API routes added with Zod validation & error handling
+- [ ] **Public endpoints implement anti-scraping protection** (rate limiting, fingerprinting, data obfuscation)
 - [ ] Frontend pages created following design guidelines
 - [ ] Routes registered in `App.tsx`
 - [ ] Sidebar navigation updated
@@ -482,4 +633,3 @@ Study these for patterns:
 ---
 
 **This platform serves vulnerable users. Every line of code should prioritize safety, privacy, and dignity.**
-

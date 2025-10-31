@@ -49,8 +49,11 @@ import SocketRelayAdmin from "@/pages/socketrelay/admin";
 import DirectoryProfile from "@/pages/directory/profile";
 import DirectoryAdmin from "@/pages/directory/admin";
 import PublicDirectoryProfile from "@/pages/directory/public";
+import PublicDirectoryList from "@/pages/directory/public-list";
 import ChatGroups from "@/pages/chatgroups/index";
 import ChatGroupsAdmin from "@/pages/chatgroups/admin";
+import PublicSocketRelayRequest from "@/pages/socketrelay/public";
+import PublicSocketRelayList from "@/pages/socketrelay/public-list";
 
 function Router() {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -61,7 +64,11 @@ function Router() {
   return (
     <Switch>
       {/* Publicly viewable Directory profiles */}
+      <Route path="/apps/directory/public" component={PublicDirectoryList} />
       <Route path="/apps/directory/public/:id" component={PublicDirectoryProfile} />
+      {/* Publicly viewable SocketRelay requests */}
+      <Route path="/apps/socketrelay/public" component={PublicSocketRelayList} />
+      <Route path="/apps/socketrelay/public/:id" component={PublicSocketRelayRequest} />
       {isLoading || !isAuthenticated ? (
         <Route path="/" component={Landing} />
       ) : needsInviteCode ? (
