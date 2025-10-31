@@ -3,7 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import type { DirectoryProfile } from "@shared/schema";
-import { ExternalLink, ShieldCheck, Shield } from "lucide-react";
+import { ExternalLink } from "lucide-react";
+import { VerifiedBadge } from "@/components/verified-badge";
 
 export default function PublicDirectoryProfile() {
   const { id } = useParams<{ id: string }>();
@@ -36,7 +37,7 @@ export default function PublicDirectoryProfile() {
     );
   }
 
-  const isVerified = !!profile.isVerified;
+  const userIsVerified = (profile as any).userIsVerified || false;
 
   return (
     <div className="p-4 sm:p-6 md:p-8 space-y-6 sm:space-y-8">
@@ -48,11 +49,8 @@ export default function PublicDirectoryProfile() {
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle className="text-lg sm:text-xl">{isVerified ? (
-              <Badge variant="secondary" className="gap-1"><ShieldCheck className="w-3 h-3" /> Verified by Farah</Badge>
-            ) : (
-              <Badge variant="outline" className="gap-1"><Shield className="w-3 h-3" /> Unverified</Badge>
-            )}
+            <CardTitle className="text-lg sm:text-xl">
+              {(profile as any).userId && <VerifiedBadge isVerified={userIsVerified} testId="badge-verified-public" />}
             </CardTitle>
           </div>
         </CardHeader>

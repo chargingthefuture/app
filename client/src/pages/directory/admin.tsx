@@ -9,7 +9,9 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { DirectoryProfile, User } from "@shared/schema";
-import { ShieldCheck, Shield, Plus, X, ExternalLink } from "lucide-react";
+import { Plus, X, ExternalLink, Edit } from "lucide-react";
+import { VerifiedBadge } from "@/components/verified-badge";
+import { Textarea } from "@/components/ui/textarea";
 import { COUNTRIES } from "@/lib/countries";
 import { ALL_SKILLS } from "@/lib/skills";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -56,12 +58,23 @@ export default function AdminDirectoryPage() {
         isPublic: newPublic,
         displayNameType: 'first', // Default to 'first' for unclaimed profiles
       };
-      return apiRequest("POST", "/api/directory/admin/profiles", payload);
+      const res = await apiRequest("POST", "/api/directory/admin/profiles", payload);
+      return await res.json();
     },
-    onSuccess: async () => {
+    onSuccess: async (data) => {
       await queryClient.invalidateQueries({ queryKey: ["/api/directory/admin/profiles"] });
+      const profileId = data?.id;
+      const wasPublic = newPublic;
       setNewDescription(""); setNewFirstName(""); setNewSignalUrl(""); setNewQuoraUrl(""); setNewSkills([]); setNewPublic(false); setNewCountry("");
-      toast({ title: "Created", description: "Unclaimed Directory profile created" });
+      if (profileId && wasPublic) {
+        toast({ 
+          title: "Created", 
+          description: `Profile created. Public URL: ${window.location.origin}/apps/directory/public/${profileId}`,
+          duration: 8000,
+        });
+      } else {
+        toast({ title: "Created", description: "Unclaimed Directory profile created" });
+      }
     },
     onError: (e: any) => toast({ title: "Error", description: e.message || "Failed to create profile", variant: "destructive" })
   });
@@ -75,14 +88,63 @@ export default function AdminDirectoryPage() {
     onError: (e: any) => toast({ title: "Error", description: e.message || "Failed to assign", variant: "destructive" })
   });
 
-  const verifyMutation = useMutation({
-    mutationFn: async ({ id, isVerified }: { id: string; isVerified: boolean }) => apiRequest("PUT", `/api/directory/admin/profiles/${id}/verify`, { isVerified }),
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editDescription, setEditDescription] = useState("");
+  const [editFirstName, setEditFirstName] = useState("");
+  const [editSignalUrl, setEditSignalUrl] = useState("");
+  const [editQuoraUrl, setEditQuoraUrl] = useState("");
+  const [editSkills, setEditSkills] = useState<string[]>([]);
+  const [editPublic, setEditPublic] = useState(false);
+  const [editCountry, setEditCountry] = useState<string>("");
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => apiRequest("PUT", `/api/directory/admin/profiles/${id}`, data),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["/api/directory/admin/profiles"] });
-      toast({ title: "Updated", description: "Verification updated" });
+      setEditingId(null);
+      toast({ title: "Updated", description: "Profile updated" });
     },
-    onError: (e: any) => toast({ title: "Error", description: e.message || "Failed to update", variant: "destructive" })
+    onError: (e: any) => toast({ title: "Error", description: e.message || "Failed to update profile", variant: "destructive" })
   });
+
+  const startEdit = (profile: DirectoryProfile) => {
+    setEditingId(profile.id);
+    setEditDescription(profile.description || "");
+    setEditFirstName(profile.firstName || "");
+    setEditSignalUrl(profile.signalUrl || "");
+    setEditQuoraUrl(profile.quoraUrl || "");
+    setEditSkills(profile.skills || []);
+    setEditPublic(profile.isPublic || false);
+    setEditCountry(profile.country || "");
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+  };
+
+  const handleUpdate = (id: string) => {
+    const payload = {
+      description: editDescription.trim() || null,
+      firstName: editFirstName.trim() || null,
+      signalUrl: editSignalUrl.trim() || null,
+      quoraUrl: editQuoraUrl.trim() || null,
+      skills: editSkills.slice(0, 3),
+      country: editCountry || null,
+      isPublic: editPublic,
+    };
+    updateMutation.mutate({ id, data: payload });
+  };
+
+  const toggleEditSkill = (s: string) => {
+    setEditSkills(prev => {
+      if (prev.includes(s)) return prev.filter(x => x !== s);
+      if (prev.length >= 3) {
+        toast({ title: "Limit reached", description: "Select up to 3 skills", variant: "destructive" });
+        return prev;
+      }
+      return [...prev, s];
+    });
+  };
 
   // Seed functionality removed - use scripts/seedDirectory.ts
 
@@ -266,37 +328,176 @@ export default function AdminDirectoryPage() {
             <div className="text-muted-foreground py-6 text-center">No profiles</div>
           ) : (
             <div className="space-y-3">
-              {profiles.map((p) => (
-                <div key={p.id} className="rounded-md border p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                  <div className="min-w-0">
+              {profiles.map((p) => {
+                const profileUser = p.userId ? users.find(u => u.id === p.userId) : null;
+                const isVerified = profileUser?.isVerified || false;
+                
+                return editingId === p.id ? (
+                  <Card key={p.id}>
+                    <CardContent className="p-4 space-y-4">
+                      <div className="space-y-2">
+                        <Label>Description</Label>
+                        <Textarea value={editDescription} onChange={(e) => setEditDescription(e.target.value.slice(0,140))} placeholder="140 chars max" rows={3} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor={`edit-first-name-${p.id}`}>First Name</Label>
+                        <Input id={`edit-first-name-${p.id}`} value={editFirstName} onChange={(e) => setEditFirstName(e.target.value.slice(0, 100))} placeholder="First name for display" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor={`edit-signal-url-${p.id}`}>Signal URL</Label>
+                        <Input id={`edit-signal-url-${p.id}`} type="url" value={editSignalUrl} onChange={(e) => setEditSignalUrl(e.target.value)} placeholder="https://signal.me/#p/…" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor={`edit-quora-url-${p.id}`}>Quora Profile URL</Label>
+                        <Input id={`edit-quora-url-${p.id}`} type="url" value={editQuoraUrl} onChange={(e) => setEditQuoraUrl(e.target.value)} placeholder="https://www.quora.com/profile/…" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label id={`edit-skills-label-${p.id}`}>Skills (up to 3) <span className="text-red-600">*</span></Label>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button variant="outline" role="combobox" aria-haspopup="listbox" aria-labelledby={`edit-skills-label-${p.id}`} className="w-full justify-between">
+                              {editSkills.length > 0 ? `${editSkills.length} selected` : "Select skills"}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                            <Command shouldFilter>
+                              <CommandInput placeholder="Search skills…" />
+                              <CommandEmpty>No skills found.</CommandEmpty>
+                              <CommandGroup>
+                                {ALL_SKILLS.map((s) => {
+                                  const selected = editSkills.includes(s);
+                                  return (
+                                    <CommandItem key={s} value={s} onSelect={() => toggleEditSkill(s)} aria-selected={selected}>
+                                      <Check className={`mr-2 h-4 w-4 ${selected ? "opacity-100" : "opacity-0"}`} />
+                                      <span>{s}</span>
+                                    </CommandItem>
+                                  );
+                                })}
+                              </CommandGroup>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
+                        {editSkills.length > 0 && (
+                          <div className="flex flex-wrap gap-2">
+                            {editSkills.map((s) => (
+                              <Badge key={s} variant="outline" className="gap-1">
+                                {s}
+                                <button onClick={() => setEditSkills(prev => prev.filter(x => x !== s))} className="ml-1 hover:bg-muted rounded" aria-label={`Remove ${s}`}>
+                                  <X className="w-3 h-3" />
+                                </button>
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        <Label id={`edit-country-label-${p.id}`}>Country <span className="text-red-600">*</span></Label>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button variant="outline" role="combobox" aria-haspopup="listbox" aria-labelledby={`edit-country-label-${p.id}`} className="w-full justify-between">
+                              {editCountry || "Select country"}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                            <Command shouldFilter>
+                              <CommandInput placeholder="Search countries…" />
+                              <CommandEmpty>No countries found.</CommandEmpty>
+                              <CommandGroup>
+                                {COUNTRIES.map((c) => (
+                                  <CommandItem key={c} value={c} onSelect={() => setEditCountry(c)} aria-selected={editCountry === c}>
+                                    <Check className={`mr-2 h-4 w-4 ${editCountry === c ? "opacity-100" : "opacity-0"}`} />
+                                    <span>{c}</span>
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                      <label className="flex items-center gap-2 text-sm">
+                        <Checkbox checked={editPublic} onCheckedChange={(v) => setEditPublic(!!v)} />
+                        <span>Make public</span>
+                      </label>
+                      {(editPublic || p.isPublic) && (
+                        <div className="space-y-2">
+                          <Label className="text-sm text-muted-foreground">Public Profile URL</Label>
+                          <div className="flex items-center gap-2">
+                            <Input
+                              readOnly
+                              value={`${window.location.origin}/apps/directory/public/${p.id}`}
+                              className="font-mono text-xs"
+                              data-testid={`input-public-url-${p.id}`}
+                            />
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => openExternal(`${window.location.origin}/apps/directory/public/${p.id}`)}
+                              data-testid={`button-view-public-${p.id}`}
+                            >
+                              <ExternalLink className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                      <div className="flex flex-col gap-2">
+                        <div className="flex gap-2">
+                          <Button onClick={() => handleUpdate(p.id)} disabled={editSkills.length === 0 || !editCountry || updateMutation.isPending} data-testid={`button-save-edit-${p.id}`}>
+                            {updateMutation.isPending ? "Saving…" : "Save Changes"}
+                          </Button>
+                          <Button variant="outline" onClick={cancelEdit} disabled={updateMutation.isPending} data-testid={`button-cancel-edit-${p.id}`}>
+                            <X className="w-4 h-4 mr-2" /> Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div key={p.id} className="rounded-md border p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {p.userId && <VerifiedBadge isVerified={isVerified} testId={`badge-verified-${p.id}`} />}
+                        {!p.isClaimed && <Badge variant="outline">Unclaimed</Badge>}
+                        {p.isPublic && (
+                          <Badge variant="default" className="gap-1">
+                            <ExternalLink className="w-3 h-3" /> Public
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="text-sm mt-1 truncate">{p.description}</div>
+                      <div className="text-xs text-muted-foreground truncate">
+                        {p.city || p.state || p.country ? [p.city, p.state, p.country].filter(Boolean).join(', ') : '—'}
+                      </div>
+                      {p.isPublic && (
+                        <div className="mt-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openExternal(`${window.location.origin}/apps/directory/public/${p.id}`)}
+                            className="text-primary text-xs h-auto p-0"
+                            data-testid={`button-view-public-link-${p.id}`}
+                          >
+                            <ExternalLink className="w-3 h-3 mr-1" />
+                            View Public Profile
+                          </Button>
+                        </div>
+                      )}
+                    </div>
                     <div className="flex items-center gap-2">
-                      {p.isVerified ? (
-                        <Badge variant="secondary" className="gap-1"><ShieldCheck className="w-3 h-3" /> Verified</Badge>
-                      ) : (
-                        <Badge variant="outline" className="gap-1"><Shield className="w-3 h-3" /> Unverified</Badge>
-                      )}
                       {!p.isClaimed && (
-                        <Badge variant="outline">Unclaimed</Badge>
+                        <select className="border rounded h-9 px-2 text-sm" defaultValue="" onChange={(e) => e.target.value && assignMutation.mutate({ id: p.id, userId: e.target.value })}>
+                          <option value="">Assign to user…</option>
+                          {users.map(u => (
+                            <option key={u.id} value={u.id}>{[u.firstName, u.lastName].filter(Boolean).join(' ') || u.email || 'User'}</option>
+                          ))}
+                        </select>
                       )}
-                    </div>
-                    <div className="text-sm mt-1 truncate">{p.description}</div>
-                    <div className="text-xs text-muted-foreground truncate">
-                      {p.city || p.state || p.country ? [p.city, p.state, p.country].filter(Boolean).join(', ') : '—'}
+                      <Button variant="outline" size="sm" onClick={() => startEdit(p)} data-testid={`button-edit-${p.id}`}>
+                        <Edit className="w-4 h-4 mr-2" /> Edit
+                      </Button>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <select className="border rounded h-9 px-2 text-sm" defaultValue="" onChange={(e) => e.target.value && assignMutation.mutate({ id: p.id, userId: e.target.value })}>
-                      <option value="">Assign to user…</option>
-                      {users.map(u => (
-                        <option key={u.id} value={u.id}>{[u.firstName, u.lastName].filter(Boolean).join(' ') || u.email || 'User'}</option>
-                      ))}
-                    </select>
-                    <Button variant="outline" size="sm" onClick={() => verifyMutation.mutate({ id: p.id, isVerified: !p.isVerified })}>
-                      {p.isVerified ? "Unverify" : "Verify"}
-                    </Button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </CardContent>

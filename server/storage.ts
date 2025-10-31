@@ -79,6 +79,7 @@ export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
   getAllUsers(): Promise<User[]>;
+  updateUserVerification(userId: string, isVerified: boolean): Promise<User>;
   
   // Invite code operations
   createInviteCode(inviteCode: InsertInviteCode): Promise<InviteCode>;
@@ -278,6 +279,44 @@ export class DatabaseStorage implements IStorage {
 
   async getAllUsers(): Promise<User[]> {
     return await db.select().from(users).orderBy(desc(users.createdAt));
+  }
+
+  async updateUserVerification(userId: string, isVerified: boolean): Promise<User> {
+    // Update user verification
+    const [user] = await db
+      .update(users)
+      .set({ 
+        isVerified: !!isVerified,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userId))
+      .returning();
+
+    // Update all profiles belonging to this user across all apps
+    // Directory profiles
+    await db
+      .update(directoryProfiles)
+      .set({ isVerified: !!isVerified, updatedAt: new Date() })
+      .where(eq(directoryProfiles.userId, userId));
+
+    // Lighthouse profiles
+    await db
+      .update(lighthouseProfiles)
+      .set({ isVerified: !!isVerified, updatedAt: new Date() })
+      .where(eq(lighthouseProfiles.userId, userId));
+
+    // SupportMatch profiles (if they have isVerified)
+    // Note: SupportMatch may not have isVerified, so we skip if column doesn't exist
+    try {
+      await db
+        .update(supportMatchProfiles)
+        .set({ isVerified: !!isVerified, updatedAt: new Date() } as any)
+        .where(eq(supportMatchProfiles.userId, userId));
+    } catch (e) {
+      // SupportMatch may not have isVerified field, ignore
+    }
+
+    return user;
   }
 
   // Invite code operations

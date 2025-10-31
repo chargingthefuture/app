@@ -13,11 +13,12 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { DirectoryProfile } from "@shared/schema";
-import { ExternalLink, ShieldCheck, Shield, Check, X } from "lucide-react";
+import { ExternalLink, Check, X } from "lucide-react";
 import { COUNTRIES } from "@/lib/countries";
 import { ALL_SKILLS } from "@/lib/skills";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useExternalLink } from "@/hooks/useExternalLink";
+import { VerifiedBadge } from "@/components/verified-badge";
 
 export default function DirectoryProfilePage() {
   const { toast } = useToast();
@@ -147,12 +148,7 @@ export default function DirectoryProfilePage() {
     );
   }
 
-  const isVerified = !!profile?.isVerified;
-  const badge = isVerified ? (
-    <Badge className="gap-1" variant="secondary"><ShieldCheck className="w-3 h-3" /> Verified by Farah</Badge>
-  ) : (
-    <Badge className="gap-1" variant="outline"><Shield className="w-3 h-3" /> Unverified</Badge>
-  );
+  const userIsVerified = (profile as any)?.userIsVerified || false;
 
   const shareUrl = profile?.isPublic ? `${window.location.origin}/apps/directory/public/${profile.id}` : null;
 
@@ -166,7 +162,10 @@ export default function DirectoryProfilePage() {
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle className="text-lg sm:text-xl">Your Profile {badge}</CardTitle>
+            <CardTitle className="text-lg sm:text-xl flex items-center gap-2">
+              Your Profile 
+              {profile?.userId && <VerifiedBadge isVerified={userIsVerified} testId="badge-verified-profile" />}
+            </CardTitle>
             <div className="flex items-center gap-2">
               {!isEditing && (
                 <Button variant="outline" size="sm" onClick={() => setIsEditing(true)} data-testid="button-edit-profile">Edit</Button>
@@ -447,13 +446,11 @@ export default function DirectoryProfilePage() {
                   return (
                   <div key={p.id} className="rounded-md border p-3 flex flex-col gap-2">
                     <div className="font-medium truncate">{computedName || '—'}</div>
-                    <div className="flex items-center gap-2">
-                      {p.isVerified ? (
-                        <Badge variant="secondary" className="gap-1"><ShieldCheck className="w-3 h-3" /> Verified</Badge>
-                      ) : (
-                        <Badge variant="outline" className="gap-1"><Shield className="w-3 h-3" /> Unverified</Badge>
-                      )}
-                    </div>
+                                  <div className="flex items-center gap-2">
+                                    {(p as any).userIsVerified !== undefined && (p as any).userId && (
+                                      <VerifiedBadge isVerified={(p as any).userIsVerified || false} testId={`badge-verified-${p.id}`} />
+                                    )}
+                                  </div>
                     <div className="text-sm">{p.description}</div>
                     <div className="flex flex-wrap gap-2">
                       {p.skills?.map((s: string) => (<Badge key={s} variant="outline">{s}</Badge>))}

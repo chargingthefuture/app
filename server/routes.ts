@@ -159,6 +159,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.put('/api/admin/users/:id/verify', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const adminId = getUserId(req);
+      const { isVerified } = req.body;
+      const user = await storage.updateUserVerification(req.params.id, !!isVerified);
+      await logAdminAction(adminId, 'verify_user', 'user', user.id, { isVerified: user.isVerified });
+      res.json(user);
+    } catch (error: any) {
+      console.error("Error updating user verification:", error);
+      res.status(400).json({ message: error.message || "Failed to update user verification" });
+    }
+  });
+
   // Admin routes - Invite codes
   app.get('/api/admin/invites', isAuthenticated, isAdmin, async (req, res) => {
     try {
@@ -312,19 +325,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json(null);
       }
       let displayName: string | null = null;
+      let userIsVerified = false;
       if (profile.displayNameType === 'nickname' && profile.nickname) {
         displayName = profile.nickname;
       } else if (profile.displayNameType === 'first') {
         if (profile.userId) {
           const user = await storage.getUser(profile.userId);
           displayName = user?.firstName || null;
+          userIsVerified = user?.isVerified || false;
         } else if (profile.firstName) {
           // For unclaimed profiles, use firstName field
           displayName = profile.firstName;
         }
+      } else if (profile.userId) {
+        const user = await storage.getUser(profile.userId);
+        userIsVerified = user?.isVerified || false;
       }
       if (!displayName && profile.nickname) displayName = profile.nickname;
-      res.json({ ...profile, displayName });
+      res.json({ ...profile, displayName, userIsVerified });
     } catch (error) {
       console.error("Error fetching Directory profile:", error);
       res.status(500).json({ message: "Failed to fetch profile" });
@@ -391,19 +409,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Profile not found" });
       }
       let displayName: string | null = null;
+      let userIsVerified = false;
       if (profile.displayNameType === 'nickname' && profile.nickname) {
         displayName = profile.nickname;
       } else if (profile.displayNameType === 'first') {
         if (profile.userId) {
           const user = await storage.getUser(profile.userId);
           displayName = user?.firstName || null;
+          userIsVerified = user?.isVerified || false;
         } else if (profile.firstName) {
           // For unclaimed profiles, use firstName field
           displayName = profile.firstName;
         }
+      } else if (profile.userId) {
+        const user = await storage.getUser(profile.userId);
+        userIsVerified = user?.isVerified || false;
       }
       if (!displayName && profile.nickname) displayName = profile.nickname;
-      res.json({ ...profile, displayName });
+      res.json({ ...profile, displayName, userIsVerified });
     } catch (error) {
       console.error("Error fetching public Directory profile:", error);
       res.status(500).json({ message: "Failed to fetch profile" });
@@ -415,21 +438,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const profiles = await storage.listPublicDirectoryProfiles();
       const withNames = await Promise.all(profiles.map(async (p) => {
         let name: string | null = null;
+        let userIsVerified = false;
         if (p.displayNameType === 'nickname' && p.nickname) {
           name = p.nickname;
         } else if (p.displayNameType === 'first') {
           if (p.userId) {
             const u = await storage.getUser(p.userId);
             name = u?.firstName || null;
+            userIsVerified = u?.isVerified || false;
           } else if (p.firstName) {
             // For unclaimed profiles, use firstName field
             name = p.firstName;
           }
+        } else if (p.userId) {
+          const u = await storage.getUser(p.userId);
+          userIsVerified = u?.isVerified || false;
         }
         // Fallback to nickname if no name found
         if (!name && p.nickname) name = p.nickname;
         // Ensure we always return displayName (even if null)
-        return { ...p, displayName: name || null };
+        return { ...p, displayName: name || null, userIsVerified };
       }));
       res.json(withNames);
     } catch (error) {
@@ -444,21 +472,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const profiles = await storage.listAllDirectoryProfiles();
       const withNames = await Promise.all(profiles.map(async (p) => {
         let name: string | null = null;
+        let userIsVerified = false;
         if (p.displayNameType === 'nickname' && p.nickname) {
           name = p.nickname;
         } else if (p.displayNameType === 'first') {
           if (p.userId) {
             const u = await storage.getUser(p.userId);
             name = u?.firstName || null;
+            userIsVerified = u?.isVerified || false;
           } else if (p.firstName) {
             // For unclaimed profiles, use firstName field
             name = p.firstName;
           }
+        } else if (p.userId) {
+          const u = await storage.getUser(p.userId);
+          userIsVerified = u?.isVerified || false;
         }
         // Fallback to nickname if no name found
         if (!name && p.nickname) name = p.nickname;
         // Ensure we always return displayName (even if null)
-        return { ...p, displayName: name || null };
+        return { ...p, displayName: name || null, userIsVerified };
       }));
       res.json(withNames);
     } catch (error) {
@@ -514,17 +547,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Admin toggle verification
-  app.put('/api/directory/admin/profiles/:id/verify', isAuthenticated, isAdmin, async (req: any, res) => {
+  // Admin update Directory profile (for editing unclaimed profiles)
+  app.put('/api/directory/admin/profiles/:id', isAuthenticated, isAdmin, async (req: any, res) => {
     try {
       const adminId = getUserId(req);
-      const { isVerified } = req.body;
-      const updated = await storage.updateDirectoryProfile(req.params.id, { isVerified: !!isVerified } as any);
-      await logAdminAction(adminId, 'verify_directory_profile', 'directory_profile', updated.id, { isVerified: updated.isVerified });
+      const validated = insertDirectoryProfileSchema.partial().parse(req.body);
+      const updated = await storage.updateDirectoryProfile(req.params.id, validated);
+      await logAdminAction(adminId, 'update_directory_profile', 'directory_profile', updated.id);
       res.json(updated);
     } catch (error: any) {
-      console.error("Error verifying Directory profile:", error);
-      res.status(400).json({ message: error.message || "Failed to verify profile" });
+      console.error("Error updating Directory profile:", error);
+      res.status(400).json({ message: error.message || "Failed to update profile" });
     }
   });
 

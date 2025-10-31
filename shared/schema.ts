@@ -33,6 +33,7 @@ export const users = pgTable("users", {
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
   isAdmin: boolean("is_admin").default(false).notNull(),
+  isVerified: boolean("is_verified").default(false).notNull(),
   pricingTier: decimal("pricing_tier", { precision: 10, scale: 2 }).notNull().default('1.00'),
   subscriptionStatus: varchar("subscription_status", { length: 20 }).notNull().default('active'), // active, overdue, inactive
   inviteCodeUsed: varchar("invite_code_used", { length: 50 }),

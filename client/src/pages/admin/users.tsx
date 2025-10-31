@@ -1,6 +1,7 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Table,
@@ -11,11 +12,30 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { PrivacyField } from "@/components/ui/privacy-field";
+import { VerifiedBadge } from "@/components/verified-badge";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { User } from "@shared/schema";
 
 export default function AdminUsers() {
+  const { toast } = useToast();
   const { data: users, isLoading } = useQuery<User[]>({
     queryKey: ["/api/admin/users"],
+  });
+
+  const verifyMutation = useMutation({
+    mutationFn: async ({ id, isVerified }: { id: string; isVerified: boolean }) => {
+      const res = await apiRequest("PUT", `/api/admin/users/${id}/verify`, { isVerified });
+      return await res.json();
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      toast({ title: "Updated", description: "User verification updated" });
+    },
+    onError: (e: any) => {
+      console.error("Verification error:", e);
+      toast({ title: "Error", description: e.message || "Failed to update verification", variant: "destructive" });
+    }
   });
 
   const getStatusBadge = (status: string) => {
@@ -64,10 +84,12 @@ export default function AdminUsers() {
                     <TableRow>
                       <TableHead>User</TableHead>
                       <TableHead>Email</TableHead>
+                      <TableHead>Verification</TableHead>
                       <TableHead>Pricing Tier</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Role</TableHead>
                       <TableHead>Joined</TableHead>
+                      <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -93,6 +115,9 @@ export default function AdminUsers() {
                             testId={`email-${user.id}`}
                           />
                         </TableCell>
+                        <TableCell>
+                          <VerifiedBadge isVerified={user.isVerified ?? false} testId={`badge-verified-${user.id}`} />
+                        </TableCell>
                         <TableCell className="font-mono">${user.pricingTier}/mo</TableCell>
                         <TableCell>{getStatusBadge(user.subscriptionStatus)}</TableCell>
                         <TableCell>
@@ -104,6 +129,20 @@ export default function AdminUsers() {
                         </TableCell>
                         <TableCell className="text-muted-foreground">
                           {new Date(user.createdAt).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const currentStatus = user.isVerified ?? false;
+                              verifyMutation.mutate({ id: user.id, isVerified: !currentStatus });
+                            }}
+                            disabled={verifyMutation.isPending}
+                            data-testid={`button-verify-${user.id}`}
+                          >
+                            {(user.isVerified ?? false) ? "Unverify" : "Verify"}
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -136,28 +175,51 @@ export default function AdminUsers() {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div className="space-y-2">
                         <div>
-                          <span className="text-muted-foreground">Status</span>
-                          <div className="mt-1">{getStatusBadge(user.subscriptionStatus)}</div>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground">Role</span>
+                          <span className="text-muted-foreground text-sm">Verification</span>
                           <div className="mt-1">
-                            {user.isAdmin ? (
-                              <Badge variant="secondary">Admin</Badge>
-                            ) : (
-                              <span className="text-muted-foreground">User</span>
-                            )}
+                            <VerifiedBadge isVerified={user.isVerified ?? false} testId={`badge-verified-mobile-${user.id}`} />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-sm">
+                          <div>
+                            <span className="text-muted-foreground">Status</span>
+                            <div className="mt-1">{getStatusBadge(user.subscriptionStatus)}</div>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Role</span>
+                            <div className="mt-1">
+                              {user.isAdmin ? (
+                                <Badge variant="secondary">Admin</Badge>
+                              ) : (
+                                <span className="text-muted-foreground">User</span>
+                              )}
+                            </div>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Price</span>
+                            <p className="font-mono mt-1">${user.pricingTier}/mo</p>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Joined</span>
+                            <p className="mt-1">{new Date(user.createdAt).toLocaleDateString()}</p>
                           </div>
                         </div>
                         <div>
-                          <span className="text-muted-foreground">Price</span>
-                          <p className="font-mono mt-1">${user.pricingTier}/mo</p>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground">Joined</span>
-                          <p className="mt-1">{new Date(user.createdAt).toLocaleDateString()}</p>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const currentStatus = user.isVerified ?? false;
+                              verifyMutation.mutate({ id: user.id, isVerified: !currentStatus });
+                            }}
+                            disabled={verifyMutation.isPending}
+                            data-testid={`button-verify-mobile-${user.id}`}
+                            className="w-full"
+                          >
+                            {(user.isVerified ?? false) ? "Unverify" : "Verify"}
+                          </Button>
                         </div>
                       </div>
                     </CardContent>
