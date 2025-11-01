@@ -165,7 +165,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let weekStart: Date;
       
       if (weekStartParam) {
-        weekStart = new Date(weekStartParam);
+        // Parse date string (YYYY-MM-DD) and interpret as local date, not UTC
+        const [year, month, day] = weekStartParam.split('-').map(Number);
+        weekStart = new Date(year, month - 1, day);
         if (isNaN(weekStart.getTime())) {
           return res.status(400).json({ message: "Invalid weekStart date format" });
         }
@@ -174,7 +176,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         weekStart = new Date();
       }
       
+      console.log("Weekly performance request - weekStart input:", weekStartParam || "current date");
+      console.log("Parsed weekStart date:", weekStart.toISOString());
+      
       const review = await storage.getWeeklyPerformanceReview(weekStart);
+      
+      console.log("Weekly performance review result:", {
+        currentWeekStart: review.currentWeek.startDate,
+        currentWeekEnd: review.currentWeek.endDate,
+        currentWeekNewUsers: review.currentWeek.newUsers,
+        currentWeekRevenue: review.currentWeek.revenue,
+      });
+      
       res.json(review);
     } catch (error: any) {
       console.error("Error fetching weekly performance review:", error);

@@ -659,7 +659,6 @@ export class DatabaseStorage implements IStorage {
   }> {
     // Calculate current week boundaries (Monday to Sunday)
     const currentWeekStart = this.getWeekStart(weekStart);
-    currentWeekStart.setHours(0, 0, 0, 0);
     const currentWeekEnd = this.getWeekEnd(weekStart);
     
     // Calculate previous week boundaries
@@ -667,6 +666,15 @@ export class DatabaseStorage implements IStorage {
     previousWeekStart.setDate(previousWeekStart.getDate() - 7);
     const previousWeekEnd = new Date(currentWeekEnd);
     previousWeekEnd.setDate(previousWeekEnd.getDate() - 7);
+
+    // Remove unused variables - dates are already correct for DB comparison
+
+    console.log("Week boundaries:", {
+      currentWeekStart: currentWeekStart.toISOString(),
+      currentWeekEnd: currentWeekEnd.toISOString(),
+      previousWeekStart: previousWeekStart.toISOString(),
+      previousWeekEnd: previousWeekEnd.toISOString(),
+    });
 
     // Get new users for current week
     const currentWeekNewUsers = await db
@@ -678,6 +686,8 @@ export class DatabaseStorage implements IStorage {
           lte(users.createdAt, currentWeekEnd)
         )
       );
+    
+    console.log(`Found ${currentWeekNewUsers.length} new users for current week`);
 
     // Get new users for previous week
     const previousWeekNewUsers = await db
@@ -700,6 +710,8 @@ export class DatabaseStorage implements IStorage {
           lte(payments.paymentDate, currentWeekEnd)
         )
       );
+    
+    console.log(`Found ${currentWeekPayments.length} payments for current week`);
 
     // Get payments for previous week
     const previousWeekPayments = await db
@@ -753,12 +765,14 @@ export class DatabaseStorage implements IStorage {
 
       const usersCreated = previousWeekNewUsers.filter(u => {
         const created = new Date(u.createdAt);
-        return created >= dayStart && created <= dayEnd;
+        created.setHours(0, 0, 0, 0);
+        return created.getTime() === dayStart.getTime();
       });
       const usersWithPayments = previousWeekPayments
         .filter(p => {
           const paymentDate = new Date(p.paymentDate);
-          return paymentDate >= dayStart && paymentDate <= dayEnd;
+          paymentDate.setHours(0, 0, 0, 0);
+          return paymentDate.getTime() === dayStart.getTime();
         })
         .map(p => p.userId);
       
@@ -782,7 +796,8 @@ export class DatabaseStorage implements IStorage {
 
       const dayPayments = currentWeekPayments.filter(p => {
         const paymentDate = new Date(p.paymentDate);
-        return paymentDate >= dayStart && paymentDate <= dayEnd;
+        paymentDate.setHours(0, 0, 0, 0);
+        return paymentDate.getTime() >= dayStart.getTime() && paymentDate.getTime() <= dayEnd.getTime();
       });
 
       const amount = dayPayments.reduce((sum, p) => sum + parseFloat(p.amount), 0);
@@ -800,7 +815,8 @@ export class DatabaseStorage implements IStorage {
 
       const dayPayments = previousWeekPayments.filter(p => {
         const paymentDate = new Date(p.paymentDate);
-        return paymentDate >= dayStart && paymentDate <= dayEnd;
+        paymentDate.setHours(0, 0, 0, 0);
+        return paymentDate.getTime() >= dayStart.getTime() && paymentDate.getTime() <= dayEnd.getTime();
       });
 
       const amount = dayPayments.reduce((sum, p) => sum + parseFloat(p.amount), 0);
