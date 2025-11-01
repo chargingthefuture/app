@@ -181,14 +181,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const review = await storage.getWeeklyPerformanceReview(weekStart);
       
-      console.log("Weekly performance review result:", {
-        currentWeekStart: review.currentWeek.startDate,
-        currentWeekEnd: review.currentWeek.endDate,
-        currentWeekNewUsers: review.currentWeek.newUsers,
-        currentWeekRevenue: review.currentWeek.revenue,
-      });
+      console.log("=== Weekly Performance Review Result ===");
+      console.log("Review keys:", Object.keys(review));
+      console.log("Has metrics property:", 'metrics' in review);
+      console.log("Metrics value:", review.metrics);
+      console.log("Metrics type:", typeof review.metrics);
       
-      res.json(review);
+      // ALWAYS ensure metrics is present
+      const defaultMetrics = {
+        weeklyGrowthRate: 0,
+        mrr: 0,
+        arr: 0,
+        mrrGrowth: 0,
+        mau: 0,
+        churnRate: 0,
+        clv: 0,
+        retentionRate: 0,
+      };
+      
+      const response = {
+        currentWeek: review.currentWeek,
+        previousWeek: review.previousWeek,
+        comparison: review.comparison,
+        metrics: review.metrics || defaultMetrics,
+      };
+      
+      console.log("Response keys:", Object.keys(response));
+      console.log("Response has metrics:", 'metrics' in response);
+      console.log("Response metrics:", response.metrics);
+      
+      res.json(response);
     } catch (error: any) {
       console.error("Error fetching weekly performance review:", error);
       res.status(500).json({ message: error.message || "Failed to fetch weekly performance review" });

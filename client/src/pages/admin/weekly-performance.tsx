@@ -1,10 +1,13 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import html2canvas from "html2canvas";
+import { Camera, Download } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 import {
   LineChart,
   Line,
@@ -17,7 +20,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-import { Users, DollarSign, TrendingUp, TrendingDown, Calendar } from "lucide-react";
+import { Users, DollarSign, TrendingUp, TrendingDown, Calendar, Target, Activity, Zap } from "lucide-react";
 import { format, startOfWeek, addDays, parseISO } from "date-fns";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -42,9 +45,23 @@ interface WeeklyPerformanceData {
     newUsersChange: number;
     revenueChange: number;
   };
+  metrics: {
+    weeklyGrowthRate: number;
+    mrr: number;
+    arr: number;
+    mrrGrowth: number;
+    mau: number;
+    churnRate: number;
+    clv: number;
+    retentionRate: number;
+  };
 }
 
 export default function WeeklyPerformanceReview() {
+  const { toast } = useToast();
+  const dashboardRef = useRef<HTMLDivElement>(null);
+  const [isCapturing, setIsCapturing] = useState(false);
+  
   const [selectedWeek, setSelectedWeek] = useState<string>(() => {
     // Default to current week start (Monday)
     const today = new Date();
@@ -60,12 +77,18 @@ export default function WeeklyPerformanceReview() {
     return format(selectedWeekDate, "yyyy-MM-dd") === format(currentWeekStart, "yyyy-MM-dd");
   }, [selectedWeek]);
 
-  const { data, isLoading } = useQuery<WeeklyPerformanceData>({
+  const { data, isLoading, error } = useQuery<WeeklyPerformanceData>({
     queryKey: [`/api/admin/weekly-performance${selectedWeek ? `?weekStart=${selectedWeek}` : ""}`],
     // Real-time updates only for current week
     refetchInterval: isCurrentWeek ? 30000 : false, // Poll every 30 seconds for current week
     refetchOnWindowFocus: isCurrentWeek, // Refetch on window focus for current week only
   });
+
+  // Debug: Log what we're receiving
+  if (data && !data.metrics) {
+    console.warn("Data received but no metrics property:", data);
+    console.warn("Data keys:", Object.keys(data));
+  }
 
   const formatPercentage = (value: number) => {
     const sign = value >= 0 ? "+" : "";
@@ -134,8 +157,75 @@ export default function WeeklyPerformanceReview() {
     }
   };
 
+  const captureScreenshot = async () => {
+    if (!dashboardRef.current) {
+      toast({
+        title: "Error",
+        description: "Dashboard element not found",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsCapturing(true);
+    
+    try {
+      // Hide the week selector buttons temporarily for a cleaner screenshot
+      const buttonsToHide = dashboardRef.current.querySelectorAll('button');
+      const originalStyles: Array<{ element: HTMLElement; display: string }> = [];
+      
+      buttonsToHide.forEach(button => {
+        const htmlButton = button as HTMLElement;
+        originalStyles.push({ element: htmlButton, display: htmlButton.style.display });
+        htmlButton.style.display = 'none';
+      });
+
+      // Capture the screenshot
+      const canvas = await html2canvas(dashboardRef.current, {
+        backgroundColor: '#ffffff',
+        scale: 2, // Higher quality
+        logging: false,
+        useCORS: true,
+        windowWidth: dashboardRef.current.scrollWidth,
+        windowHeight: dashboardRef.current.scrollHeight,
+      });
+
+      // Restore button visibility
+      originalStyles.forEach(({ element, display }) => {
+        element.style.display = display;
+      });
+
+      // Create download link
+      const link = document.createElement('a');
+      const weekLabel = data 
+        ? `${format(parseISO(data.currentWeek.startDate), "MMM-d")}-to-${format(parseISO(data.currentWeek.endDate), "MMM-d-yyyy")}`
+        : 'weekly-performance';
+      link.download = `weekly-performance-${weekLabel}.png`;
+      link.href = canvas.toDataURL('image/png');
+      
+      // Trigger download
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      toast({
+        title: "Screenshot captured",
+        description: "Image saved successfully!",
+      });
+    } catch (error) {
+      console.error("Error capturing screenshot:", error);
+      toast({
+        title: "Error",
+        description: "Failed to capture screenshot. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCapturing(false);
+    }
+  };
+
   return (
-    <div className="p-4 sm:p-6 md:p-8 space-y-6">
+    <div ref={dashboardRef} className="p-4 sm:p-6 md:p-8 space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-2">
@@ -183,6 +273,26 @@ export default function WeeklyPerformanceReview() {
           >
             Next →
           </Button>
+          <Button
+            variant="default"
+            size="sm"
+            onClick={captureScreenshot}
+            disabled={isCapturing || !data}
+            data-testid="button-capture-screenshot"
+            className="gap-2"
+          >
+            {isCapturing ? (
+              <>
+                <Camera className="w-4 h-4 animate-pulse" />
+                Capturing...
+              </>
+            ) : (
+              <>
+                <Camera className="w-4 h-4" />
+                Capture Screenshot
+              </>
+            )}
+          </Button>
         </div>
       </div>
 
@@ -225,6 +335,20 @@ export default function WeeklyPerformanceReview() {
         <div className="text-center py-12 text-muted-foreground">
           Loading weekly performance data...
         </div>
+      ) : error ? (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <p className="text-destructive mb-4">
+              Error loading data
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {error instanceof Error ? error.message : "Unknown error occurred"}
+            </p>
+            <p className="text-xs text-muted-foreground mt-2">
+              Check the browser console and server logs for details.
+            </p>
+          </CardContent>
+        </Card>
       ) : !data ? (
         <Card>
           <CardContent className="py-12 text-center">
@@ -236,80 +360,186 @@ export default function WeeklyPerformanceReview() {
             </p>
           </CardContent>
         </Card>
+      ) : !data?.metrics ? (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <p className="text-muted-foreground mb-4">
+              Metrics not available
+            </p>
+            <p className="text-sm text-muted-foreground">
+              The response did not include metrics data. Check server logs.
+            </p>
+            <p className="text-xs text-muted-foreground mt-2 font-mono">
+              Response keys: {data ? Object.keys(data).join(", ") : "none"}
+            </p>
+          </CardContent>
+        </Card>
       ) : (
         <>
-          {/* Summary Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* New Users */}
+          {/* Growth Metrics */}
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-2xl font-semibold mb-2">Growth Metrics</h2>
+              <p className="text-sm text-muted-foreground">
+                Key metrics to track growth and reporting
+              </p>
+            </div>
+
+            {/* Growth Rate */}
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">New Users</CardTitle>
-                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <Users className="w-5 h-5 text-primary" />
-                </div>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Target className="w-5 h-5" />
+                  Growth Rate
+                </CardTitle>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Weekly growth rate of <strong>5-7%</strong> is good, <strong>10%</strong> is exceptional
+                </p>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold tabular-nums" data-testid="stat-new-users-current">
-                  {data.currentWeek.newUsers}
-                </div>
-                <div className="flex items-center gap-2 mt-2">
+                <div className="flex items-baseline gap-4">
+                  <div className="text-4xl font-bold tabular-nums">
+                    {formatPercentage(data.metrics?.weeklyGrowthRate ?? 0)}
+                  </div>
                   <Badge
                     variant={
-                      data.comparison.newUsersChange >= 0
+                      (data.metrics?.weeklyGrowthRate ?? 0) >= 10
+                        ? "default"
+                        : (data.metrics?.weeklyGrowthRate ?? 0) >= 5
                         ? "default"
                         : "secondary"
                     }
                     className="flex items-center gap-1"
                   >
-                    {data.comparison.newUsersChange >= 0 ? (
-                      <TrendingUp className="w-3 h-3" />
+                    {(data.metrics?.weeklyGrowthRate ?? 0) >= 10 ? (
+                      <>
+                        <Zap className="w-3 h-3" />
+                        Exceptional
+                      </>
+                    ) : (data.metrics?.weeklyGrowthRate ?? 0) >= 5 ? (
+                      <>
+                        <TrendingUp className="w-3 h-3" />
+                        Good
+                      </>
                     ) : (
-                      <TrendingDown className="w-3 h-3" />
+                      <>
+                        <TrendingDown className="w-3 h-3" />
+                        Needs Improvement
+                      </>
                     )}
-                    {formatPercentage(data.comparison.newUsersChange)}
                   </Badge>
-                  <span className="text-sm text-muted-foreground">
-                    vs {data.previousWeek.newUsers} last week
-                  </span>
+                </div>
+                <p className="text-sm text-muted-foreground mt-2">
+                  New users this week vs. last week
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Revenue Metrics */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <DollarSign className="w-5 h-5" />
+                  Revenue Metrics
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div>
+                    <div className="text-sm font-medium text-muted-foreground mb-1">Monthly Recurring Revenue (MRR)</div>
+                    <div className="text-2xl font-bold tabular-nums">{formatCurrency(data.metrics?.mrr ?? 0)}</div>
+                    <div className="flex items-center gap-2 mt-2">
+                      <Badge
+                        variant={(data.metrics?.mrrGrowth ?? 0) >= 0 ? "default" : "secondary"}
+                        className="text-xs"
+                      >
+                        {formatPercentage(data.metrics?.mrrGrowth ?? 0)}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">vs last month</span>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-sm font-medium text-muted-foreground mb-1">Annual Recurring Revenue (ARR)</div>
+                    <div className="text-2xl font-bold tabular-nums">{formatCurrency(data.metrics?.arr ?? 0)}</div>
+                    <p className="text-xs text-muted-foreground mt-2">MRR × 12 + yearly payments</p>
+                  </div>
+                  <div>
+                    <div className="text-sm font-medium text-muted-foreground mb-1">MRR Growth</div>
+                    <div className="text-2xl font-bold tabular-nums">{formatPercentage(data.metrics?.mrrGrowth ?? 0)}</div>
+                    <p className="text-xs text-muted-foreground mt-2">Month-over-month change</p>
+                  </div>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Revenue */}
+            {/* Customer Metrics */}
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Revenue</CardTitle>
-                <div className="w-10 h-10 rounded-lg bg-chart-3/10 flex items-center justify-center">
-                  <DollarSign className="w-5 h-5 text-chart-3" />
-                </div>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="w-5 h-5" />
+                  Customer Metrics
+                </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold tabular-nums" data-testid="stat-revenue-current">
-                  {formatCurrency(data.currentWeek.revenue)}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div>
+                    <div className="text-sm font-medium text-muted-foreground mb-1">New Customers (This Week)</div>
+                    <div className="text-2xl font-bold tabular-nums">{data.currentWeek.newUsers}</div>
+                    <div className="flex items-center gap-2 mt-2">
+                      <Badge
+                        variant={data.comparison.newUsersChange >= 0 ? "default" : "secondary"}
+                        className="text-xs"
+                      >
+                        {formatPercentage(data.comparison.newUsersChange)}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">vs last week</span>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-sm font-medium text-muted-foreground mb-1">Churn Rate</div>
+                    <div className="text-2xl font-bold tabular-nums">{formatPercentage(data.metrics?.churnRate ?? 0)}</div>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Users who paid last month but not this month
+                    </p>
+                  </div>
+                  <div>
+                    <div className="text-sm font-medium text-muted-foreground mb-1">Customer Lifetime Value (CLV)</div>
+                    <div className="text-2xl font-bold tabular-nums">{formatCurrency(data.metrics?.clv ?? 0)}</div>
+                    <p className="text-xs text-muted-foreground mt-2">Average revenue per customer</p>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 mt-2">
-                  <Badge
-                    variant={
-                      data.comparison.revenueChange >= 0
-                        ? "default"
-                        : "secondary"
-                    }
-                    className="flex items-center gap-1"
-                  >
-                    {data.comparison.revenueChange >= 0 ? (
-                      <TrendingUp className="w-3 h-3" />
-                    ) : (
-                      <TrendingDown className="w-3 h-3" />
-                    )}
-                    {formatPercentage(data.comparison.revenueChange)}
-                  </Badge>
-                  <span className="text-sm text-muted-foreground">
-                    vs {formatCurrency(data.previousWeek.revenue)} last week
-                  </span>
+              </CardContent>
+            </Card>
+
+            {/* 4. Engagement and Retention */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Activity className="w-5 h-5" />
+                  4. Engagement and Retention
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <div className="text-sm font-medium text-muted-foreground mb-1">Monthly Active Users (MAU)</div>
+                    <div className="text-2xl font-bold tabular-nums">{data.metrics?.mau ?? 0}</div>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Users with payments in current month
+                    </p>
+                  </div>
+                  <div>
+                    <div className="text-sm font-medium text-muted-foreground mb-1">Retention Rate</div>
+                    <div className="text-2xl font-bold tabular-nums">{formatPercentage(data.metrics?.retentionRate ?? 0)}</div>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      % of last month&apos;s users still active
+                    </p>
+                  </div>
                 </div>
               </CardContent>
             </Card>
           </div>
+
 
           {/* Daily Active Users Chart */}
           <Card>

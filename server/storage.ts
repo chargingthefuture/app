@@ -147,6 +147,16 @@ export interface IStorage {
       newUsersChange: number;
       revenueChange: number;
     };
+    metrics: {
+      weeklyGrowthRate: number;
+      mrr: number;
+      arr: number;
+      mrrGrowth: number;
+      mau: number;
+      churnRate: number;
+      clv: number;
+      retentionRate: number;
+    };
   }>;
   
   // SupportMatch Profile operations
@@ -656,6 +666,16 @@ export class DatabaseStorage implements IStorage {
       newUsersChange: number;
       revenueChange: number;
     };
+    metrics: {
+      weeklyGrowthRate: number;
+      mrr: number;
+      arr: number;
+      mrrGrowth: number;
+      mau: number;
+      churnRate: number;
+      clv: number;
+      retentionRate: number;
+    };
   }> {
     // Calculate current week boundaries (Monday to Sunday)
     const currentWeekStart = this.getWeekStart(weekStart);
@@ -859,7 +879,128 @@ export class DatabaseStorage implements IStorage {
       ? (currentWeekRevenue > 0 ? 100 : 0)
       : ((currentWeekRevenue - previousWeekRevenue) / previousWeekRevenue) * 100;
 
-    return {
+    // Growth Metrics
+    // Calculate weekly growth rate (already calculated as newUsersChange, but expressed as percentage)
+    const weeklyGrowthRate = parseFloat(newUsersChange.toFixed(2));
+
+    let mrr = 0;
+    let arr = 0;
+    let mau = 0;
+    let churnRate = 0;
+    let clv = 0;
+    let retentionRate = 0;
+    let mrrGrowth = 0;
+
+    try {
+      // Calculate MRR (Monthly Recurring Revenue) - sum of monthly payments for current month
+      const currentMonth = new Date(weekStart);
+      const monthStart = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+      monthStart.setHours(0, 0, 0, 0);
+      const monthEnd = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0, 23, 59, 59, 999);
+      
+      console.log("Metrics calculation - month boundaries:", {
+        monthStart: monthStart.toISOString(),
+        monthEnd: monthEnd.toISOString(),
+      });
+      
+      const monthlyPayments = await db
+        .select()
+        .from(payments)
+        .where(
+          and(
+            gte(payments.paymentDate, monthStart),
+            lte(payments.paymentDate, monthEnd),
+            eq(payments.billingPeriod, 'monthly')
+          )
+        );
+      
+      mrr = monthlyPayments.reduce((sum, p) => sum + parseFloat(p.amount), 0);
+      
+      console.log("Metrics calculation:", {
+        monthlyPaymentsCount: monthlyPayments.length,
+        mrr,
+        monthlyPaymentsSample: monthlyPayments.slice(0, 3).map(p => ({ userId: p.userId, amount: p.amount, paymentDate: p.paymentDate?.toISOString() }))
+      });
+      
+      // Calculate ARR (Annual Recurring Revenue) - MRR * 12 + yearly payments annualized
+      const yearlyPayments = await db
+        .select()
+        .from(payments)
+        .where(
+          and(
+            gte(payments.paymentDate, monthStart),
+            lte(payments.paymentDate, monthEnd),
+            eq(payments.billingPeriod, 'yearly')
+          )
+        );
+      
+      const yearlyRevenue = yearlyPayments.reduce((sum, p) => sum + parseFloat(p.amount), 0);
+      arr = (mrr * 12) + yearlyRevenue;
+
+      // Calculate MAU (Monthly Active Users) - users with payments in current month
+      const activeUserIds = new Set([
+        ...monthlyPayments.map(p => p.userId),
+        ...yearlyPayments.map(p => p.userId)
+      ]);
+      mau = activeUserIds.size;
+
+      // Calculate Churn Rate - users who paid in previous month but not in current month
+      const previousMonth = new Date(monthStart);
+      previousMonth.setMonth(previousMonth.getMonth() - 1);
+      const previousMonthStart = new Date(previousMonth.getFullYear(), previousMonth.getMonth(), 1);
+      previousMonthStart.setHours(0, 0, 0, 0);
+      const previousMonthEnd = new Date(previousMonth.getFullYear(), previousMonth.getMonth() + 1, 0, 23, 59, 59, 999);
+      
+      const previousMonthPayments = await db
+        .select()
+        .from(payments)
+        .where(
+          and(
+            gte(payments.paymentDate, previousMonthStart),
+            lte(payments.paymentDate, previousMonthEnd)
+          )
+        );
+      
+      const previousMonthUserIds = new Set(previousMonthPayments.map(p => p.userId));
+      const previousMonthActiveUsers = previousMonthUserIds.size;
+      const churnedUsers = Array.from(previousMonthUserIds).filter(id => !activeUserIds.has(id)).length;
+      churnRate = previousMonthActiveUsers === 0 ? 0 : (churnedUsers / previousMonthActiveUsers) * 100;
+
+      // Calculate CLV (Customer Lifetime Value) - average revenue per user over their lifetime
+      const allPayments = await db.select().from(payments);
+      const userTotalRevenue = new Map<string, number>();
+      allPayments.forEach(p => {
+        const current = userTotalRevenue.get(p.userId) || 0;
+        userTotalRevenue.set(p.userId, current + parseFloat(p.amount));
+      });
+      const totalUsersWithPayments = userTotalRevenue.size;
+      const totalLifetimeRevenue = Array.from(userTotalRevenue.values()).reduce((sum, rev) => sum + rev, 0);
+      clv = totalUsersWithPayments === 0 ? 0 : totalLifetimeRevenue / totalUsersWithPayments;
+
+      // Calculate Retention Rate - % of previous month users who are still active
+      const retainedUsers = Array.from(previousMonthUserIds).filter(id => activeUserIds.has(id)).length;
+      retentionRate = previousMonthActiveUsers === 0 ? 0 : (retainedUsers / previousMonthActiveUsers) * 100;
+
+      // Calculate previous month MRR for comparison
+      const previousMonthMonthlyPayments = await db
+        .select()
+        .from(payments)
+        .where(
+          and(
+            gte(payments.paymentDate, previousMonthStart),
+            lte(payments.paymentDate, previousMonthEnd),
+            eq(payments.billingPeriod, 'monthly')
+          )
+        );
+      const previousMRR = previousMonthMonthlyPayments.reduce((sum, p) => sum + parseFloat(p.amount), 0);
+      mrrGrowth = previousMRR === 0 ? (mrr > 0 ? 100 : 0) : ((mrr - previousMRR) / previousMRR) * 100;
+    } catch (error) {
+      console.error("Error calculating metrics:", error);
+      console.error("Error stack:", error instanceof Error ? error.stack : 'No stack trace');
+      // Metrics will default to 0 values
+    }
+
+    const result = {
       currentWeek: {
         startDate: this.formatDate(currentWeekStart),
         endDate: this.formatDate(currentWeekEnd),
@@ -880,7 +1021,30 @@ export class DatabaseStorage implements IStorage {
         newUsersChange: parseFloat(newUsersChange.toFixed(2)),
         revenueChange: parseFloat(revenueChange.toFixed(2)),
       },
+      metrics: {
+        weeklyGrowthRate: weeklyGrowthRate,
+        mrr: parseFloat(mrr.toFixed(2)),
+        arr: parseFloat(arr.toFixed(2)),
+        mrrGrowth: parseFloat(mrrGrowth.toFixed(2)),
+        mau: mau,
+        churnRate: parseFloat(churnRate.toFixed(2)),
+        clv: parseFloat(clv.toFixed(2)),
+        retentionRate: parseFloat(retentionRate.toFixed(2)),
+      },
     };
+    
+    console.log("Final metrics being returned:", {
+      weeklyGrowthRate,
+      mrr: parseFloat(mrr.toFixed(2)),
+      arr: parseFloat(arr.toFixed(2)),
+      mau,
+      clv: parseFloat(clv.toFixed(2)),
+    });
+    
+    console.log("Return object keys:", Object.keys(result));
+    console.log("Return object has metrics:", 'metrics' in result);
+    
+    return result;
   }
   
   // SupportMatch Profile operations
