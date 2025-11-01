@@ -28,7 +28,6 @@ async function seedDirectory() {
 
       const payload: InsertDirectoryProfile = {
         // userId optional to allow unclaimed
-        // @ts-expect-error userId is optional in insert schema
         userId: attachToUser ? maybeUser.id : undefined,
         description: `Available for ${Math.random() < 0.5 ? 'helping' : 'learning'} (${i + 1})`,
         skills: pickSkills(),
@@ -38,12 +37,12 @@ async function seedDirectory() {
         state: null,
         country: countries[Math.floor(Math.random() * countries.length)],
         isPublic: Math.random() < 0.8,
-        // @ts-expect-error extra fields supported by insert schema
         isVerified: Math.random() < 0.4,
+        // isClaimed is automatically set based on userId presence
         // naming
         nickname: Math.random() < 0.6 ? `Helper ${i + 1}` : null,
         displayNameType: Math.random() < 0.5 ? 'nickname' : 'first',
-      } as any;
+      };
 
       await db.insert(directoryProfiles).values(payload);
     } catch (error) {

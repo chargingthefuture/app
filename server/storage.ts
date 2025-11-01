@@ -33,6 +33,9 @@ import {
   profileDeletionLogs,
   type ProfileDeletionLog,
   type InsertProfileDeletionLog,
+  npsResponses,
+  type NpsResponse,
+  type InsertNpsResponse,
   type User,
   type UpsertUser,
   type InviteCode,
@@ -156,6 +159,9 @@ export interface IStorage {
       churnRate: number;
       clv: number;
       retentionRate: number;
+      nps: number;
+      npsChange: number;
+      npsResponses: number;
     };
   }>;
   
@@ -339,6 +345,12 @@ export interface IStorage {
   deleteSocketrelayProfile(userId: string, reason?: string): Promise<void>;
   deleteDirectoryProfileWithCascade(userId: string, reason?: string): Promise<void>;
   logProfileDeletion(userId: string, appName: string, reason?: string): Promise<ProfileDeletionLog>;
+  
+  // NPS (Net Promoter Score) operations
+  createNpsResponse(response: InsertNpsResponse): Promise<NpsResponse>;
+  getUserLastNpsResponse(userId: string): Promise<NpsResponse | undefined>;
+  getNpsResponsesForWeek(weekStart: Date, weekEnd: Date): Promise<NpsResponse[]>;
+  getAllNpsResponses(): Promise<NpsResponse[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1000,6 +1012,40 @@ export class DatabaseStorage implements IStorage {
       // Metrics will default to 0 values
     }
 
+    // Calculate NPS outside try-catch for safety
+    let nps = 0;
+    let npsChange = 0;
+    let npsResponsesCount = 0;
+    
+    try {
+      const currentWeekNpsResponses = await this.getNpsResponsesForWeek(currentWeekStart, currentWeekEnd);
+      const previousWeekNpsResponses = await this.getNpsResponsesForWeek(previousWeekStart, previousWeekEnd);
+      
+      if (currentWeekNpsResponses.length > 0) {
+        const promoters = currentWeekNpsResponses.filter(r => r.score >= 9).length;
+        const detractors = currentWeekNpsResponses.filter(r => r.score <= 6).length;
+        const total = currentWeekNpsResponses.length;
+        const promoterPercent = (promoters / total) * 100;
+        const detractorPercent = (detractors / total) * 100;
+        nps = Math.round(promoterPercent - detractorPercent);
+        npsResponsesCount = total;
+      }
+      
+      if (previousWeekNpsResponses.length > 0 && currentWeekNpsResponses.length > 0) {
+        const prevPromoters = previousWeekNpsResponses.filter(r => r.score >= 9).length;
+        const prevDetractors = previousWeekNpsResponses.filter(r => r.score <= 6).length;
+        const prevTotal = previousWeekNpsResponses.length;
+        const prevPromoterPercent = (prevPromoters / prevTotal) * 100;
+        const prevDetractorPercent = (prevDetractors / prevTotal) * 100;
+        const prevNps = Math.round(prevPromoterPercent - prevDetractorPercent);
+        npsChange = nps - prevNps;
+      } else if (previousWeekNpsResponses.length === 0 && currentWeekNpsResponses.length > 0) {
+        npsChange = nps;
+      }
+    } catch (error) {
+      console.error("Error calculating NPS:", error);
+    }
+
     const result = {
       currentWeek: {
         startDate: this.formatDate(currentWeekStart),
@@ -1030,6 +1076,9 @@ export class DatabaseStorage implements IStorage {
         churnRate: parseFloat(churnRate.toFixed(2)),
         clv: parseFloat(clv.toFixed(2)),
         retentionRate: parseFloat(retentionRate.toFixed(2)),
+        nps: nps,
+        npsChange: npsChange,
+        npsResponses: npsResponsesCount,
       },
     };
     
@@ -2828,6 +2877,45 @@ export class DatabaseStorage implements IStorage {
       console.error("Failed to log profile deletion:", error);
       // Continue even if logging fails
     }
+  }
+
+  // NPS (Net Promoter Score) operations
+  async createNpsResponse(response: InsertNpsResponse): Promise<NpsResponse> {
+    const [created] = await db
+      .insert(npsResponses)
+      .values(response)
+      .returning();
+    return created;
+  }
+
+  async getUserLastNpsResponse(userId: string): Promise<NpsResponse | undefined> {
+    const [response] = await db
+      .select()
+      .from(npsResponses)
+      .where(eq(npsResponses.userId, userId))
+      .orderBy(desc(npsResponses.createdAt))
+      .limit(1);
+    return response;
+  }
+
+  async getNpsResponsesForWeek(weekStart: Date, weekEnd: Date): Promise<NpsResponse[]> {
+    return await db
+      .select()
+      .from(npsResponses)
+      .where(
+        and(
+          gte(npsResponses.createdAt, weekStart),
+          lte(npsResponses.createdAt, weekEnd)
+        )
+      )
+      .orderBy(desc(npsResponses.createdAt));
+  }
+
+  async getAllNpsResponses(): Promise<NpsResponse[]> {
+    return await db
+      .select()
+      .from(npsResponses)
+      .orderBy(desc(npsResponses.createdAt));
   }
 }
 

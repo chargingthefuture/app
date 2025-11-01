@@ -71,55 +71,63 @@ async function seedSocketRelay() {
     }
   }
 
-  // Create various requests
+  // Create various requests with mix of public and private
   const requestsData = [
     {
       userId: userIds["requester1@example.com"],
       description: "Looking for warm winter coats, size L or XL. Any condition is fine, just need something for the cold weather.",
       daysAgo: 2,
       status: 'active' as const,
+      isPublic: true, // Public - user wants to share
     },
     {
       userId: userIds["requester2@example.com"],
       description: "Need pots and pans for my new apartment. Basic cookware set would be amazing!",
       daysAgo: 5,
       status: 'active' as const,
+      isPublic: false, // Private - user chose not to share
     },
     {
       userId: userIds["requester3@example.com"],
       description: "Looking for women's professional clothes, size 8-10. Starting a new job and need interview outfits.",
       daysAgo: 1,
       status: 'active' as const,
+      isPublic: true, // Public
     },
     {
       userId: userIds["requester1@example.com"],
       description: "Need bedding - sheets, blankets, pillows. Moving into my own place for the first time.",
       daysAgo: 7,
       status: 'fulfilled' as const,
+      isPublic: true, // Public
     },
     {
       userId: userIds["requester2@example.com"],
       description: "Looking for kids clothes, boys size 6-8. Growing fast and could use hand-me-downs.",
       daysAgo: 10,
       status: 'closed' as const,
+      isPublic: false, // Private
     },
     {
       userId: userIds["requester3@example.com"],
       description: "Need basic kitchen items - plates, bowls, cups, silverware. Setting up a new home.",
       daysAgo: 3,
       status: 'active' as const,
+      isPublic: true, // Public
     },
     {
       userId: userIds["requester1@example.com"],
       description: "Looking for casual clothes - jeans, t-shirts, hoodies. Men's medium. Lost everything in recent move.",
       daysAgo: 4,
       status: 'fulfilled' as const,
+      isPublic: false, // Private - more personal request
     },
     {
       userId: userIds["requester2@example.com"],
       description: "Need towels and bathroom basics. Just moved and don't have any household items yet.",
       daysAgo: 6,
       status: 'active' as const,
+      isPublic: true, // Public
     },
   ];
 
@@ -138,6 +146,7 @@ async function seedSocketRelay() {
         userId: reqData.userId,
         description: reqData.description,
         status: reqData.status,
+        isPublic: reqData.isPublic, // User's choice - mix of public and private
         expiresAt: expiresAt,
         createdAt: createdAt,
         updatedAt: createdAt,
@@ -149,21 +158,22 @@ async function seedSocketRelay() {
   }
 
   // Create fulfillments for some requests
+  // Note: requestIndex refers to the position in requestsData array
   const fulfillmentsData = [
     {
-      requestIndex: 3, // cat watching
+      requestIndex: 3, // "Need bedding" (fulfilled request)
       fulfiller: userIds["fulfiller1@example.com"],
       status: 'completed_success' as const,
       hasMessages: true,
     },
     {
-      requestIndex: 4, // carpool
+      requestIndex: 4, // "Looking for kids clothes" (closed request)
       fulfiller: userIds["fulfiller2@example.com"],
       status: 'completed_failure' as const,
       hasMessages: true,
     },
     {
-      requestIndex: 6, // Python debugging
+      requestIndex: 6, // "Looking for casual clothes" (fulfilled request)
       fulfiller: userIds["fulfiller3@example.com"],
       status: 'active' as const,
       hasMessages: true,
@@ -234,6 +244,8 @@ async function seedSocketRelay() {
   console.log(`  - ${requestsData.filter(r => r.status === 'active').length} active requests`);
   console.log(`  - ${requestsData.filter(r => r.status === 'fulfilled').length} fulfilled requests`);
   console.log(`  - ${requestsData.filter(r => r.status === 'closed').length} closed requests`);
+  console.log(`  - ${requestsData.filter(r => r.isPublic).length} public requests (shareable)`);
+  console.log(`  - ${requestsData.filter(r => !r.isPublic).length} private requests`);
   console.log(`- ${fulfillmentsData.length} fulfillments created`);
   console.log(`  - ${fulfillmentsData.filter(f => f.status === 'active').length} active`);
   console.log(`  - ${fulfillmentsData.filter(f => f.status === 'completed_success').length} successful`);

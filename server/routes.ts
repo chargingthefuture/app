@@ -31,6 +31,7 @@ import {
   insertDirectoryAnnouncementSchema,
   insertChatGroupSchema,
   insertChatgroupsAnnouncementSchema,
+  insertNpsResponseSchema,
 } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -2519,6 +2520,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error deleting Directory announcement:", error);
       res.status(400).json({ message: error.message || "Failed to delete announcement" });
+    }
+  });
+
+  // ========================================
+  // NPS (Net Promoter Score) Routes
+  // ========================================
+
+  // Check if user should see the NPS survey
+  app.get('/api/nps/should-show', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const lastResponse = await storage.getUserLastNpsResponse(userId);
+      
+      // Get current month in YYYY-MM format
+      const now = new Date();
+      const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      
+      // Check if user has already responded this month
+      const hasRespondedThisMonth = lastResponse?.responseMonth === currentMonth;
+      
+      res.json({
+        shouldShow: !hasRespondedThisMonth,
+        lastResponseMonth: lastResponse?.responseMonth || null,
+      });
+    } catch (error) {
+      console.error("Error checking NPS survey eligibility:", error);
+      res.status(500).json({ message: "Failed to check survey eligibility" });
+    }
+  });
+
+  // Submit NPS response
+  app.post('/api/nps/response', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const now = new Date();
+      const responseMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      
+      const validatedData = insertNpsResponseSchema.parse({
+        ...req.body,
+        userId,
+        responseMonth,
+      });
+      
+      const response = await storage.createNpsResponse(validatedData);
+      res.json(response);
+    } catch (error: any) {
+      console.error("Error submitting NPS response:", error);
+      res.status(400).json({ message: error.message || "Failed to submit response" });
+    }
+  });
+
+  // Get NPS responses for admin (Weekly Performance dashboard)
+  app.get('/api/admin/nps-responses', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const weekStart = req.query.weekStart ? new Date(req.query.weekStart as string) : undefined;
+      const weekEnd = req.query.weekEnd ? new Date(req.query.weekEnd as string) : undefined;
+      
+      let responses;
+      if (weekStart && weekEnd) {
+        responses = await storage.getNpsResponsesForWeek(weekStart, weekEnd);
+      } else {
+        responses = await storage.getAllNpsResponses();
+      }
+      
+      res.json(responses);
+    } catch (error) {
+      console.error("Error fetching NPS responses:", error);
+      res.status(500).json({ message: "Failed to fetch NPS responses" });
     }
   });
 

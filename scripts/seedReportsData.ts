@@ -86,7 +86,7 @@ async function seedReportsData() {
         gender: data.gender,
         genderPreference: data.genderPreference,
         timezone: data.timezone,
-        timezonePreference: "any_timezone",
+        timezonePreference: "any_timezone", // Explicitly set
         isActive: true,
       });
 

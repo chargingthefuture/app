@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { useAuth } from "@/hooks/useAuth";
+import { NpsSurveyManager } from "@/components/nps-survey-manager";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
 import Home from "@/pages/home";
@@ -182,6 +183,7 @@ function AppContent() {
         <Router />
       )}
       <Toaster />
+      {isAuthenticated && <NpsSurveyManager />}
     </>
   );
 }

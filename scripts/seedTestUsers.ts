@@ -175,6 +175,7 @@ async function seedTestUsers() {
         gender: data.gender,
         genderPreference: data.genderPreference,
         timezone: data.timezone,
+        timezonePreference: "same_timezone", // Default preference
         isActive: true,
       });
 

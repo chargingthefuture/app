@@ -981,3 +981,33 @@ export const insertProfileDeletionLogSchema = createInsertSchema(profileDeletion
 
 export type InsertProfileDeletionLog = z.infer<typeof insertProfileDeletionLogSchema>;
 export type ProfileDeletionLog = typeof profileDeletionLogs.$inferSelect;
+
+// ========================================
+// NPS (NET PROMOTER SCORE) SURVEY
+// ========================================
+
+export const npsResponses = pgTable("nps_responses", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  score: integer("score").notNull(), // 0-10 scale
+  responseMonth: varchar("response_month", { length: 7 }).notNull(), // YYYY-MM format for tracking monthly
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const npsResponsesRelations = relations(npsResponses, ({ one }) => ({
+  user: one(users, {
+    fields: [npsResponses.userId],
+    references: [users.id],
+  }),
+}));
+
+export const insertNpsResponseSchema = createInsertSchema(npsResponses).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  score: z.number().int().min(0).max(10),
+  responseMonth: z.string().regex(/^\d{4}-\d{2}$/, "Must be in YYYY-MM format"),
+});
+
+export type InsertNpsResponse = z.infer<typeof insertNpsResponseSchema>;
+export type NpsResponse = typeof npsResponses.$inferSelect;

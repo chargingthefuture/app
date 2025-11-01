@@ -8,18 +8,6 @@ import { Button } from "@/components/ui/button";
 import html2canvas from "html2canvas";
 import { Camera, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import {
-  LineChart,
-  Line,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from "recharts";
 import { Users, DollarSign, TrendingUp, TrendingDown, Calendar, Target, Activity, Zap } from "lucide-react";
 import { format, startOfWeek, addDays, parseISO } from "date-fns";
 import { apiRequest } from "@/lib/queryClient";
@@ -54,6 +42,9 @@ interface WeeklyPerformanceData {
     churnRate: number;
     clv: number;
     retentionRate: number;
+    nps: number;
+    npsChange: number;
+    npsResponses: number;
   };
 }
 
@@ -99,34 +90,13 @@ export default function WeeklyPerformanceReview() {
     return `$${value.toFixed(2)}`;
   };
 
-  const formatDateLabel = (dateString: string) => {
-    try {
-      const date = parseISO(dateString);
-      return format(date, "EEE M/d"); // Mon 1/15
-    } catch {
-      return dateString;
-    }
-  };
 
-  // Prepare data for DAU chart (combine current and previous week)
-  const dauChartData = data?.currentWeek.dailyActiveUsers.map((current, index) => {
-    const previous = data.previousWeek.dailyActiveUsers[index];
-    return {
-      date: formatDateLabel(current.date),
-      "This Week": current.count,
-      "Last Week": previous?.count || 0,
-    };
-  }) || [];
-
-  // Prepare data for revenue chart
-  const revenueChartData = data?.currentWeek.dailyRevenue.map((current, index) => {
-    const previous = data.previousWeek.dailyRevenue[index];
-    return {
-      date: formatDateLabel(current.date),
-      "This Week": current.amount,
-      "Last Week": previous?.amount || 0,
-    };
-  }) || [];
+  // Calculate total DAU for both weeks
+  const currentWeekTotalDAU = data?.currentWeek.dailyActiveUsers.reduce((sum, day) => sum + day.count, 0) || 0;
+  const previousWeekTotalDAU = data?.previousWeek.dailyActiveUsers.reduce((sum, day) => sum + day.count, 0) || 0;
+  const dauChange = previousWeekTotalDAU === 0
+    ? (currentWeekTotalDAU > 0 ? 100 : 0)
+    : ((currentWeekTotalDAU - previousWeekTotalDAU) / previousWeekTotalDAU) * 100;
 
   const handleWeekChange = (dateString: string) => {
     setSelectedWeek(dateString);
@@ -170,8 +140,19 @@ export default function WeeklyPerformanceReview() {
     setIsCapturing(true);
     
     try {
+      // Store scroll position
+      const scrollY = window.scrollY;
+      
+      // Wait a bit for any animations or charts to fully render
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Scroll to top
+      window.scrollTo(0, 0);
+      await new Promise(resolve => setTimeout(resolve, 200));
+
       // Hide the week selector buttons temporarily for a cleaner screenshot
-      const buttonsToHide = dashboardRef.current.querySelectorAll('button');
+      const buttonsToHide = Array.from(dashboardRef.current.querySelectorAll('button'))
+        .filter(btn => btn.getAttribute('data-testid') !== 'button-capture-screenshot');
       const originalStyles: Array<{ element: HTMLElement; display: string }> = [];
       
       buttonsToHide.forEach(button => {
@@ -180,20 +161,34 @@ export default function WeeklyPerformanceReview() {
         htmlButton.style.display = 'none';
       });
 
-      // Capture the screenshot
+      // Capture the screenshot with improved options for SVG charts
       const canvas = await html2canvas(dashboardRef.current, {
         backgroundColor: '#ffffff',
-        scale: 2, // Higher quality
+        scale: 1.5,
         logging: false,
         useCORS: true,
-        windowWidth: dashboardRef.current.scrollWidth,
-        windowHeight: dashboardRef.current.scrollHeight,
+        allowTaint: true,
+        foreignObjectRendering: false,
+        removeContainer: false,
+        imageTimeout: 30000,
+        onclone: (clonedDoc) => {
+          // Force SVG elements to be visible (no longer needed since we removed charts)
+          // Keeping this for any future SVG elements
+        },
       });
 
+      // Restore scroll position
+      window.scrollTo(0, scrollY);
+      
       // Restore button visibility
       originalStyles.forEach(({ element, display }) => {
         element.style.display = display;
       });
+
+      // Verify canvas was created
+      if (!canvas || canvas.width === 0 || canvas.height === 0) {
+        throw new Error("Canvas creation failed - empty canvas");
+      }
 
       // Create download link
       const link = document.createElement('a');
@@ -214,9 +209,10 @@ export default function WeeklyPerformanceReview() {
       });
     } catch (error) {
       console.error("Error capturing screenshot:", error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
       toast({
         title: "Error",
-        description: "Failed to capture screenshot. Please try again.",
+        description: `Failed to capture screenshot: ${errorMessage}`,
         variant: "destructive",
       });
     } finally {
@@ -398,7 +394,11 @@ export default function WeeklyPerformanceReview() {
               </CardHeader>
               <CardContent>
                 <div className="flex items-baseline gap-4">
-                  <div className="text-4xl font-bold tabular-nums">
+                  <div className={`text-4xl font-bold tabular-nums ${
+                    (data.metrics?.weeklyGrowthRate ?? 0) < 0
+                      ? "text-red-600"
+                      : ""
+                  }`}>
                     {formatPercentage(data.metrics?.weeklyGrowthRate ?? 0)}
                   </div>
                   <Badge
@@ -407,7 +407,7 @@ export default function WeeklyPerformanceReview() {
                         ? "default"
                         : (data.metrics?.weeklyGrowthRate ?? 0) >= 5
                         ? "default"
-                        : "secondary"
+                        : "destructive"
                     }
                     className="flex items-center gap-1"
                   >
@@ -450,7 +450,7 @@ export default function WeeklyPerformanceReview() {
                     <div className="text-2xl font-bold tabular-nums">{formatCurrency(data.metrics?.mrr ?? 0)}</div>
                     <div className="flex items-center gap-2 mt-2">
                       <Badge
-                        variant={(data.metrics?.mrrGrowth ?? 0) >= 0 ? "default" : "secondary"}
+                        variant={(data.metrics?.mrrGrowth ?? 0) >= 0 ? "default" : "destructive"}
                         className="text-xs"
                       >
                         {formatPercentage(data.metrics?.mrrGrowth ?? 0)}
@@ -465,7 +465,13 @@ export default function WeeklyPerformanceReview() {
                   </div>
                   <div>
                     <div className="text-sm font-medium text-muted-foreground mb-1">MRR Growth</div>
-                    <div className="text-2xl font-bold tabular-nums">{formatPercentage(data.metrics?.mrrGrowth ?? 0)}</div>
+                    <div className={`text-2xl font-bold tabular-nums ${
+                      (data.metrics?.mrrGrowth ?? 0) < 0
+                        ? "text-red-600"
+                        : ""
+                    }`}>
+                      {formatPercentage(data.metrics?.mrrGrowth ?? 0)}
+                    </div>
                     <p className="text-xs text-muted-foreground mt-2">Month-over-month change</p>
                   </div>
                 </div>
@@ -487,17 +493,35 @@ export default function WeeklyPerformanceReview() {
                     <div className="text-2xl font-bold tabular-nums">{data.currentWeek.newUsers}</div>
                     <div className="flex items-center gap-2 mt-2">
                       <Badge
-                        variant={data.comparison.newUsersChange >= 0 ? "default" : "secondary"}
+                        variant={(data.comparison.newUsersChange ?? 0) >= 0 ? "default" : "destructive"}
                         className="text-xs"
                       >
-                        {formatPercentage(data.comparison.newUsersChange)}
+                        {formatPercentage(data.comparison.newUsersChange ?? 0)}
                       </Badge>
                       <span className="text-xs text-muted-foreground">vs last week</span>
                     </div>
                   </div>
                   <div>
                     <div className="text-sm font-medium text-muted-foreground mb-1">Churn Rate</div>
-                    <div className="text-2xl font-bold tabular-nums">{formatPercentage(data.metrics?.churnRate ?? 0)}</div>
+                    <div className={`text-2xl font-bold tabular-nums ${
+                      (data.metrics?.churnRate ?? 0) > 10
+                        ? "text-red-600"
+                        : ""
+                    }`}>
+                      {formatPercentage(data.metrics?.churnRate ?? 0)}
+                    </div>
+                    <div className="flex items-center gap-2 mt-2">
+                      <Badge
+                        variant={(data.metrics?.churnRate ?? 0) > 10 ? "destructive" : (data.metrics?.churnRate ?? 0) > 5 ? "secondary" : "default"}
+                        className="text-xs"
+                      >
+                        {(data.metrics?.churnRate ?? 0) > 10
+                          ? "High"
+                          : (data.metrics?.churnRate ?? 0) > 5
+                          ? "Moderate"
+                          : "Low"}
+                      </Badge>
+                    </div>
                     <p className="text-xs text-muted-foreground mt-2">
                       Users who paid last month but not this month
                     </p>
@@ -511,12 +535,12 @@ export default function WeeklyPerformanceReview() {
               </CardContent>
             </Card>
 
-            {/* 4. Engagement and Retention */}
+            {/* Engagement and Retention */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Activity className="w-5 h-5" />
-                  4. Engagement and Retention
+                  Engagement and Retention
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -530,7 +554,25 @@ export default function WeeklyPerformanceReview() {
                   </div>
                   <div>
                     <div className="text-sm font-medium text-muted-foreground mb-1">Retention Rate</div>
-                    <div className="text-2xl font-bold tabular-nums">{formatPercentage(data.metrics?.retentionRate ?? 0)}</div>
+                    <div className={`text-2xl font-bold tabular-nums ${
+                      (data.metrics?.retentionRate ?? 0) < 70
+                        ? "text-red-600"
+                        : ""
+                    }`}>
+                      {formatPercentage(data.metrics?.retentionRate ?? 0)}
+                    </div>
+                    <div className="flex items-center gap-2 mt-2">
+                      <Badge
+                        variant={(data.metrics?.retentionRate ?? 0) < 70 ? "destructive" : (data.metrics?.retentionRate ?? 0) < 85 ? "secondary" : "default"}
+                        className="text-xs"
+                      >
+                        {(data.metrics?.retentionRate ?? 0) < 70
+                          ? "Needs Improvement"
+                          : (data.metrics?.retentionRate ?? 0) < 85
+                          ? "Good"
+                          : "Excellent"}
+                      </Badge>
+                    </div>
                     <p className="text-xs text-muted-foreground mt-2">
                       % of last month&apos;s users still active
                     </p>
@@ -538,69 +580,180 @@ export default function WeeklyPerformanceReview() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Net Promoter Score (NPS) */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="w-5 h-5" />
+                  Net Promoter Score (NPS)
+                </CardTitle>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Measures customer satisfaction and likelihood to recommend
+                </p>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div>
+                    <div className="text-sm font-medium text-muted-foreground mb-1">Current Week NPS</div>
+                    <div className="text-3xl font-bold tabular-nums">
+                      {data.metrics?.nps ?? 0}
+                    </div>
+                    <div className="flex items-center gap-2 mt-2">
+                      <Badge
+                        variant={
+                          (data.metrics?.nps ?? 0) >= 50
+                            ? "default"
+                            : (data.metrics?.nps ?? 0) >= 0
+                            ? "secondary"
+                            : "destructive"
+                        }
+                        className="text-xs"
+                      >
+                        {(data.metrics?.nps ?? 0) >= 50
+                          ? "Excellent"
+                          : (data.metrics?.nps ?? 0) >= 0
+                          ? "Good"
+                          : "Needs Improvement"}
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Range: -100 to +100
+                    </p>
+                  </div>
+                  <div>
+                    <div className="text-sm font-medium text-muted-foreground mb-1">Week-over-Week Change</div>
+                    <div className={`text-2xl font-bold tabular-nums ${
+                      (data.metrics?.npsChange ?? 0) > 0
+                        ? "text-green-600"
+                        : (data.metrics?.npsChange ?? 0) < 0
+                        ? "text-red-600"
+                        : ""
+                    }`}>
+                      {(data.metrics?.npsChange ?? 0) > 0 ? "+" : ""}
+                      {data.metrics?.npsChange ?? 0}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Change from previous week
+                    </p>
+                  </div>
+                  <div>
+                    <div className="text-sm font-medium text-muted-foreground mb-1">Total Responses</div>
+                    <div className="text-2xl font-bold tabular-nums">{data.metrics?.npsResponses ?? 0}</div>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Survey responses this week
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-4 pt-4 border-t">
+                  <p className="text-xs text-muted-foreground">
+                    <strong>How NPS is calculated:</strong> Percentage of Promoters (scores 9-10) minus percentage of Detractors (scores 0-6). 
+                    Scores of 7-8 are considered Passive and don&apos;t affect the calculation.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Daily Active Users (DAU) */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Activity className="w-5 h-5" />
+                  Daily Active Users (DAU)
+                </CardTitle>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Total unique users who were active during the week
+                </p>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div>
+                    <div className="text-sm font-medium text-muted-foreground mb-1">Current Week</div>
+                    <div className="text-3xl font-bold tabular-nums">
+                      {currentWeekTotalDAU}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Total active users this week
+                    </p>
+                  </div>
+                  <div>
+                    <div className="text-sm font-medium text-muted-foreground mb-1">Previous Week</div>
+                    <div className="text-2xl font-bold tabular-nums text-muted-foreground">
+                      {previousWeekTotalDAU}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Total active users last week
+                    </p>
+                  </div>
+                  <div>
+                    <div className="text-sm font-medium text-muted-foreground mb-1">Week-over-Week Change</div>
+                    <div className={`text-2xl font-bold tabular-nums ${
+                      dauChange > 0
+                        ? "text-green-600"
+                        : dauChange < 0
+                        ? "text-red-600"
+                        : ""
+                    }`}>
+                      {formatPercentage(dauChange)}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Change from previous week
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Revenue */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <DollarSign className="w-5 h-5" />
+                  Weekly Revenue
+                </CardTitle>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Total revenue collected during the week
+                </p>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div>
+                    <div className="text-sm font-medium text-muted-foreground mb-1">Current Week</div>
+                    <div className="text-3xl font-bold tabular-nums">
+                      {formatCurrency(data?.currentWeek.revenue ?? 0)}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Total revenue this week
+                    </p>
+                  </div>
+                  <div>
+                    <div className="text-sm font-medium text-muted-foreground mb-1">Previous Week</div>
+                    <div className="text-2xl font-bold tabular-nums text-muted-foreground">
+                      {formatCurrency(data?.previousWeek.revenue ?? 0)}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Total revenue last week
+                    </p>
+                  </div>
+                  <div>
+                    <div className="text-sm font-medium text-muted-foreground mb-1">Week-over-Week Change</div>
+                    <div className={`text-2xl font-bold tabular-nums ${
+                      (data?.comparison.revenueChange ?? 0) > 0
+                        ? "text-green-600"
+                        : (data?.comparison.revenueChange ?? 0) < 0
+                        ? "text-red-600"
+                        : ""
+                    }`}>
+                      {formatPercentage(data?.comparison.revenueChange ?? 0)}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Change from previous week
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
-
-
-          {/* Daily Active Users Chart */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Daily Active Users (DAU)</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={dauChartData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Line
-                    type="monotone"
-                    dataKey="This Week"
-                    stroke="hsl(var(--primary))"
-                    strokeWidth={2}
-                    dot={{ r: 4 }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="Last Week"
-                    stroke="hsl(var(--muted-foreground))"
-                    strokeWidth={2}
-                    strokeDasharray="5 5"
-                    dot={{ r: 4 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-
-          {/* Daily Revenue Chart */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Daily Revenue</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={revenueChartData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" />
-                  <YAxis />
-                  <Tooltip formatter={(value: number) => formatCurrency(value)} />
-                  <Legend />
-                  <Bar
-                    dataKey="This Week"
-                    fill="hsl(var(--primary))"
-                    radius={[4, 4, 0, 0]}
-                  />
-                  <Bar
-                    dataKey="Last Week"
-                    fill="hsl(var(--muted-foreground))"
-                    radius={[4, 4, 0, 0]}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
 
           {/* Detailed Comparison Table */}
           <Card>
@@ -622,40 +775,60 @@ export default function WeeklyPerformanceReview() {
                     <tr className="border-b">
                       <td className="py-2 px-4 font-medium">New Users</td>
                       <td className="text-right py-2 px-4" data-testid="table-new-users-current">
-                        {data.currentWeek.newUsers}
+                        {data?.currentWeek.newUsers ?? 0}
                       </td>
                       <td className="text-right py-2 px-4" data-testid="table-new-users-previous">
-                        {data.previousWeek.newUsers}
+                        {data?.previousWeek.newUsers ?? 0}
                       </td>
                       <td className="text-right py-2 px-4">
                         <Badge
                           variant={
-                            data.comparison.newUsersChange >= 0
+                            (data?.comparison.newUsersChange ?? 0) >= 0
                               ? "default"
-                              : "secondary"
+                              : "destructive"
                           }
                         >
-                          {formatPercentage(data.comparison.newUsersChange)}
+                          {formatPercentage(data?.comparison.newUsersChange ?? 0)}
+                        </Badge>
+                      </td>
+                    </tr>
+                    <tr className="border-b">
+                      <td className="py-2 px-4 font-medium">Daily Active Users (DAU)</td>
+                      <td className="text-right py-2 px-4" data-testid="table-dau-current">
+                        {currentWeekTotalDAU}
+                      </td>
+                      <td className="text-right py-2 px-4" data-testid="table-dau-previous">
+                        {previousWeekTotalDAU}
+                      </td>
+                      <td className="text-right py-2 px-4">
+                        <Badge
+                          variant={
+                            dauChange >= 0
+                              ? "default"
+                              : "destructive"
+                          }
+                        >
+                          {formatPercentage(dauChange)}
                         </Badge>
                       </td>
                     </tr>
                     <tr className="border-b">
                       <td className="py-2 px-4 font-medium">Total Revenue</td>
                       <td className="text-right py-2 px-4" data-testid="table-revenue-current">
-                        {formatCurrency(data.currentWeek.revenue)}
+                        {formatCurrency(data?.currentWeek.revenue ?? 0)}
                       </td>
                       <td className="text-right py-2 px-4" data-testid="table-revenue-previous">
-                        {formatCurrency(data.previousWeek.revenue)}
+                        {formatCurrency(data?.previousWeek.revenue ?? 0)}
                       </td>
                       <td className="text-right py-2 px-4">
                         <Badge
                           variant={
-                            data.comparison.revenueChange >= 0
+                            (data?.comparison.revenueChange ?? 0) >= 0
                               ? "default"
-                              : "secondary"
+                              : "destructive"
                           }
                         >
-                          {formatPercentage(data.comparison.revenueChange)}
+                          {formatPercentage(data?.comparison.revenueChange ?? 0)}
                         </Badge>
                       </td>
                     </tr>
