@@ -1533,6 +1533,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get('/api/lighthouse/admin/profiles/:id', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const profile = await storage.getLighthouseProfileById(req.params.id);
+      if (!profile) {
+        return res.status(404).json({ message: "Profile not found" });
+      }
+      
+      // Enrich with user information
+      const user = profile.userId ? await storage.getUser(profile.userId) : null;
+      const profileWithUser = {
+        ...profile,
+        user: user ? {
+          id: user.id,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          email: user.email,
+          isVerified: user.isVerified,
+        } : null,
+      };
+      
+      res.json(profileWithUser);
+    } catch (error) {
+      console.error("Error fetching profile:", error);
+      res.status(500).json({ message: "Failed to fetch profile" });
+    }
+  });
+
   app.get('/api/lighthouse/admin/seekers', isAuthenticated, isAdmin, async (req, res) => {
     try {
       // Get all seekers (both active and inactive) for admin view
@@ -1560,6 +1587,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching seekers:", error);
       res.status(500).json({ message: "Failed to fetch seekers" });
+    }
+  });
+
+  app.get('/api/lighthouse/admin/hosts', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      // Get all hosts (both active and inactive) for admin view
+      const allProfiles = await storage.getAllLighthouseProfiles();
+      console.log(`[LightHouse Admin] Total profiles: ${allProfiles.length}`);
+      const hosts = allProfiles.filter(p => p.profileType === 'host');
+      console.log(`[LightHouse Admin] Found ${hosts.length} hosts`);
+      
+      // Enrich with user information
+      const hostsWithUsers = await Promise.all(hosts.map(async (host) => {
+        const user = host.userId ? await storage.getUser(host.userId) : null;
+        return {
+          ...host,
+          user: user ? {
+            id: user.id,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            email: user.email,
+            isVerified: user.isVerified,
+          } : null,
+        };
+      }));
+      console.log(`[LightHouse Admin] Returning ${hostsWithUsers.length} hosts with user data`);
+      res.json(hostsWithUsers);
+    } catch (error) {
+      console.error("Error fetching hosts:", error);
+      res.status(500).json({ message: "Failed to fetch hosts" });
     }
   });
 

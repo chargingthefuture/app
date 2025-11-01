@@ -353,7 +353,11 @@ export default function MyAppAdmin() {
 4. **Tailwind spacing** - Stick to 2, 4, 6, 8, 12, 16 scale
 5. **data-testid required** - Every interactive element needs unique test ID
 6. **Design spec source of truth** - Follow `design_guidelines.md` for colors, spacing, components, and accessibility. Never override without updating the guidelines.
-7. **External links must use confirmation dialog** - All external links that open in new tabs must use the `useExternalLink` hook from `@/hooks/useExternalLink` which provides a standardized confirmation dialog before opening links.
+7. **Links opening in new tabs MUST use confirmation dialog** - **REQUIRED**: Any link that opens in a new tab (whether internal or external) MUST use the `useExternalLink` hook from `@/hooks/useExternalLink` which provides a standardized confirmation dialog before opening links. This includes:
+   - Links to other pages within the app that open in new tabs
+   - External links to other websites
+   - Any clickable element that triggers `window.open()` or opens a new tab
+   - The hook provides `openExternal(url)` function and `<ExternalLinkDialog />` component that must be included in the component
 
 ### Shared Field Standards
 - **Country field (ALL profiles/apps):** Implement as a dropdown/select with a single, shared options source and identical ordering across the app.

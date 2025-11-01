@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Home, Users, Building2, UserCheck } from "lucide-react";
+import { Home, Users, Building2, UserCheck, ExternalLink } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -13,7 +13,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { VerifiedBadge } from "@/components/verified-badge";
 import { PrivacyField } from "@/components/ui/privacy-field";
-import type { LighthouseProfile } from "@shared/schema";
+import { useExternalLink } from "@/hooks/useExternalLink";
+import type { LighthouseProfile, LighthouseProperty, LighthouseMatch } from "@shared/schema";
 
 type SeekerWithUser = LighthouseProfile & {
   user: {
@@ -25,7 +26,19 @@ type SeekerWithUser = LighthouseProfile & {
   } | null;
 };
 
+type HostWithUser = LighthouseProfile & {
+  user: {
+    id: string;
+    firstName: string | null;
+    lastName: string | null;
+    email: string | null;
+    isVerified: boolean;
+  } | null;
+};
+
 export default function LighthouseAdminPage() {
+  const { openExternal, ExternalLinkDialog } = useExternalLink();
+  
   const { data: stats, isLoading } = useQuery<any>({
     queryKey: ["/api/lighthouse/admin/stats"],
   });
@@ -48,6 +61,34 @@ export default function LighthouseAdminPage() {
       }
       return await res.json();
     },
+  });
+
+  const { data: hosts = [], isLoading: hostsLoading, error: hostsError } = useQuery<HostWithUser[]>({
+    queryKey: ["/api/lighthouse/admin/hosts"],
+    queryFn: async () => {
+      const res = await fetch("/api/lighthouse/admin/hosts", {
+        credentials: "include",
+      });
+      const contentType = res.headers.get("content-type");
+      if (!contentType?.includes("application/json")) {
+        const text = await res.text();
+        console.error("Non-JSON response received:", text.substring(0, 500));
+        throw new Error(`Server returned ${contentType} instead of JSON. Status: ${res.status}`);
+      }
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`${res.status}: ${errorText}`);
+      }
+      return await res.json();
+    },
+  });
+
+  const { data: properties = [], isLoading: propertiesLoading, error: propertiesError } = useQuery<LighthouseProperty[]>({
+    queryKey: ["/api/lighthouse/admin/properties"],
+  });
+
+  const { data: matches = [], isLoading: matchesLoading, error: matchesError } = useQuery<LighthouseMatch[]>({
+    queryKey: ["/api/lighthouse/admin/matches"],
   });
 
   useEffect(() => {
@@ -213,9 +254,20 @@ export default function LighthouseAdminPage() {
                           ? new Date(seeker.moveInDate).toLocaleDateString()
                           : 'Not specified';
 
+                        const seekerProfileUrl = `${window.location.origin}/apps/lighthouse/admin/profile/${seeker.id}`;
+
                         return (
                           <TableRow key={seeker.id} data-testid={`row-seeker-${seeker.id}`}>
-                            <TableCell className="font-medium">{userName}</TableCell>
+                            <TableCell className="font-medium">
+                              <button
+                                onClick={() => openExternal(seekerProfileUrl)}
+                                className="text-primary hover:underline inline-flex items-center gap-1"
+                                data-testid={`link-seeker-${seeker.id}`}
+                              >
+                                {userName}
+                                <ExternalLink className="w-3 h-3" />
+                              </button>
+                            </TableCell>
                             <TableCell>{seeker.displayName}</TableCell>
                             <TableCell>
                               {seeker.user?.email ? (
@@ -260,6 +312,296 @@ export default function LighthouseAdminPage() {
           </div>
         </CardContent>
       </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Housing Hosts</CardTitle>
+          <CardDescription>
+            All host profiles in the system
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="mt-6">
+              {hostsLoading ? (
+                <div className="text-center py-8 text-muted-foreground">Loading hosts...</div>
+              ) : hostsError ? (
+                <div className="text-center py-8">
+                  <p className="text-destructive font-medium">Error loading hosts</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {hostsError instanceof Error ? hostsError.message : 'Unknown error'}
+                  </p>
+                </div>
+              ) : hosts.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">No housing hosts found</div>
+              ) : (
+                <div className="rounded-lg border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Display Name</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Verification</TableHead>
+                        <TableHead>Bio</TableHead>
+                        <TableHead>Has Property</TableHead>
+                        <TableHead>Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {hosts.map((host) => {
+                        const userName = host.user
+                          ? [host.user.firstName, host.user.lastName].filter(Boolean).join(' ') || host.user.email || 'User'
+                          : 'Unknown User';
+                        const hostProfileUrl = `${window.location.origin}/apps/lighthouse/admin/profile/${host.id}`;
+
+                        return (
+                          <TableRow key={host.id} data-testid={`row-host-${host.id}`}>
+                            <TableCell className="font-medium">
+                              <button
+                                onClick={() => openExternal(hostProfileUrl)}
+                                className="text-primary hover:underline inline-flex items-center gap-1"
+                                data-testid={`link-host-${host.id}`}
+                              >
+                                {userName}
+                                <ExternalLink className="w-3 h-3" />
+                              </button>
+                            </TableCell>
+                            <TableCell>{host.displayName}</TableCell>
+                            <TableCell>
+                              {host.user?.email ? (
+                                <PrivacyField
+                                  value={host.user.email}
+                                  type="email"
+                                  testId={`email-host-${host.id}`}
+                                />
+                              ) : (
+                                <span className="text-muted-foreground">—</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {host.user ? (
+                                <VerifiedBadge isVerified={host.user.isVerified || host.isVerified} testId={`badge-host-${host.id}`} />
+                              ) : (
+                                <Badge variant="outline">Unverified</Badge>
+                              )}
+                            </TableCell>
+                            <TableCell className="max-w-xs">
+                              <div className="truncate" title={host.bio || undefined}>
+                                {host.bio || <span className="text-muted-foreground">—</span>}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              {host.hasProperty ? (
+                                <Badge variant="default">Yes</Badge>
+                              ) : (
+                                <Badge variant="secondary">No</Badge>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {host.isActive ? (
+                                <Badge variant="default">Active</Badge>
+                              ) : (
+                                <Badge variant="secondary">Inactive</Badge>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Properties</CardTitle>
+          <CardDescription>
+            All property listings in the system
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="mt-6">
+              {propertiesLoading ? (
+                <div className="text-center py-8 text-muted-foreground">Loading properties...</div>
+              ) : propertiesError ? (
+                <div className="text-center py-8">
+                  <p className="text-destructive font-medium">Error loading properties</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {propertiesError instanceof Error ? propertiesError.message : 'Unknown error'}
+                  </p>
+                </div>
+              ) : properties.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">No properties found</div>
+              ) : (
+                <div className="rounded-lg border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Title</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Location</TableHead>
+                        <TableHead>Bedrooms</TableHead>
+                        <TableHead>Bathrooms</TableHead>
+                        <TableHead>Monthly Rent</TableHead>
+                        <TableHead>Available From</TableHead>
+                        <TableHead>Airbnb Profile</TableHead>
+                        <TableHead>Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {properties.map((property) => {
+                        const location = `${property.city}, ${property.state} ${property.zipCode}`;
+                        const availableFrom = property.availableFrom
+                          ? new Date(property.availableFrom).toLocaleDateString()
+                          : 'Not specified';
+
+                        const propertyUrl = `${window.location.origin}/apps/lighthouse/property/${property.id}`;
+
+                        return (
+                          <TableRow key={property.id} data-testid={`row-property-${property.id}`}>
+                            <TableCell className="font-medium">
+                              <button
+                                onClick={() => openExternal(propertyUrl)}
+                                className="text-primary hover:underline inline-flex items-center gap-1"
+                                data-testid={`link-property-${property.id}`}
+                              >
+                                {property.title}
+                                <ExternalLink className="w-3 h-3" />
+                              </button>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline">{property.propertyType}</Badge>
+                            </TableCell>
+                            <TableCell className="max-w-xs">
+                              <div className="truncate" title={location}>
+                                {location}
+                              </div>
+                            </TableCell>
+                            <TableCell>{property.bedrooms ?? '—'}</TableCell>
+                            <TableCell>{property.bathrooms ?? '—'}</TableCell>
+                            <TableCell className="font-mono text-sm">
+                              ${property.monthlyRent}
+                            </TableCell>
+                            <TableCell>{availableFrom}</TableCell>
+                            <TableCell>
+                              {property.airbnbProfileUrl ? (
+                                <button
+                                  onClick={() => openExternal(property.airbnbProfileUrl!)}
+                                  className="text-primary hover:underline inline-flex items-center gap-1 text-sm"
+                                  data-testid={`link-airbnb-${property.id}`}
+                                >
+                                  View Profile
+                                  <ExternalLink className="w-3 h-3" />
+                                </button>
+                              ) : (
+                                <span className="text-muted-foreground">—</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {property.isActive ? (
+                                <Badge variant="default">Active</Badge>
+                              ) : (
+                                <Badge variant="secondary">Inactive</Badge>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Active Matches</CardTitle>
+          <CardDescription>
+            All matches between seekers and properties
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="mt-6">
+              {matchesLoading ? (
+                <div className="text-center py-8 text-muted-foreground">Loading matches...</div>
+              ) : matchesError ? (
+                <div className="text-center py-8">
+                  <p className="text-destructive font-medium">Error loading matches</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {matchesError instanceof Error ? matchesError.message : 'Unknown error'}
+                  </p>
+                </div>
+              ) : matches.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">No matches found</div>
+              ) : (
+                <div className="rounded-lg border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Seeker ID</TableHead>
+                        <TableHead>Property ID</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Proposed Move-In</TableHead>
+                        <TableHead>Actual Move-In</TableHead>
+                        <TableHead>Proposed Move-Out</TableHead>
+                        <TableHead>Created</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {matches.map((match) => {
+                        const proposedMoveIn = match.proposedMoveInDate
+                          ? new Date(match.proposedMoveInDate).toLocaleDateString()
+                          : '—';
+                        const actualMoveIn = match.actualMoveInDate
+                          ? new Date(match.actualMoveInDate).toLocaleDateString()
+                          : '—';
+                        const proposedMoveOut = match.proposedMoveOutDate
+                          ? new Date(match.proposedMoveOutDate).toLocaleDateString()
+                          : '—';
+                        const created = match.createdAt
+                          ? new Date(match.createdAt).toLocaleDateString()
+                          : '—';
+
+                        const statusVariant = match.status === 'accepted' ? 'default' 
+                          : match.status === 'pending' ? 'secondary'
+                          : match.status === 'completed' ? 'default'
+                          : match.status === 'rejected' ? 'destructive'
+                          : 'outline';
+
+                        return (
+                          <TableRow key={match.id} data-testid={`row-match-${match.id}`}>
+                            <TableCell className="font-mono text-sm">{match.seekerId.substring(0, 8)}...</TableCell>
+                            <TableCell className="font-mono text-sm">{match.propertyId.substring(0, 8)}...</TableCell>
+                            <TableCell>
+                              <Badge variant={statusVariant}>{match.status}</Badge>
+                            </TableCell>
+                            <TableCell>{proposedMoveIn}</TableCell>
+                            <TableCell>{actualMoveIn}</TableCell>
+                            <TableCell>{proposedMoveOut}</TableCell>
+                            <TableCell>{created}</TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <ExternalLinkDialog />
     </div>
   );
 }

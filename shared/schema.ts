@@ -496,6 +496,9 @@ export const lighthouseProperties = pgTable("lighthouse_properties", {
   // Media
   photos: text("photos").array(), // Array of photo URLs
   
+  // External links
+  airbnbProfileUrl: text("airbnb_profile_url"), // Airbnb host profile URL
+  
   isActive: boolean("is_active").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),

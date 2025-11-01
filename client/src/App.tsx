@@ -42,6 +42,7 @@ import LighthouseAdmin from "@/pages/lighthouse/admin";
 import LighthouseMyProperties from "@/pages/lighthouse/my-properties";
 import LighthousePropertyForm from "@/pages/lighthouse/property-form";
 import LighthouseAdminAnnouncements from "@/pages/lighthouse/admin-announcements";
+import LighthouseAdminProfileView from "@/pages/lighthouse/admin-profile-view";
 import SocketRelayDashboard from "@/pages/socketrelay/dashboard";
 import SocketRelayProfile from "@/pages/socketrelay/profile";
 import SocketRelayChat from "@/pages/socketrelay/chat";
@@ -108,6 +109,7 @@ function Router() {
           <Route path="/apps/lighthouse/property/:id" component={LighthousePropertyDetail} />
           <Route path="/apps/lighthouse/matches" component={LighthouseMatches} />
           <Route path="/apps/lighthouse/admin" component={LighthouseAdmin} />
+          <Route path="/apps/lighthouse/admin/profile/:id" component={LighthouseAdminProfileView} />
           <Route path="/apps/lighthouse/admin/announcements" component={LighthouseAdminAnnouncements} />
           <Route path="/apps/socketrelay" component={SocketRelayDashboard} />
           <Route path="/apps/socketrelay/profile" component={SocketRelayProfile} />

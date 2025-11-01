@@ -56,6 +56,7 @@ export default function PropertyFormPage() {
       monthlyRent: null,
       availableFrom: null,
       housingRules: "",
+      airbnbProfileUrl: null,
       isActive: true,
     },
   });
@@ -75,6 +76,7 @@ export default function PropertyFormPage() {
         monthlyRent: property.monthlyRent,
         availableFrom: property.availableFrom ? new Date(property.availableFrom) : null,
         housingRules: property.housingRules || "",
+        airbnbProfileUrl: property.airbnbProfileUrl || null,
         isActive: property.isActive,
       });
       if (property.photos) setPhotos(property.photos);
@@ -402,6 +404,27 @@ export default function PropertyFormPage() {
                         data-testid="input-availableFrom"
                       />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="airbnbProfileUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Airbnb Profile URL (Optional)</FormLabel>
+                    <FormControl>
+                      <Input 
+                        {...field}
+                        value={field.value || ""}
+                        placeholder="https://www.airbnb.com/users/show/..."
+                        type="url"
+                        data-testid="input-airbnb-profile-url"
+                      />
+                    </FormControl>
+                    <FormDescription>Link to your Airbnb host profile for verification</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}

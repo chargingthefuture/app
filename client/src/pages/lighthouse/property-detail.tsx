@@ -7,14 +7,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Home, MapPin, BedDouble, Bath, DollarSign, Calendar, CheckCircle2 } from "lucide-react";
+import { Home, MapPin, BedDouble, Bath, DollarSign, Calendar, CheckCircle2, ExternalLink } from "lucide-react";
 import type { LighthouseProperty, LighthouseProfile } from "@shared/schema";
 import { useState } from "react";
+import { useExternalLink } from "@/hooks/useExternalLink";
 
 export default function PropertyDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const { openExternal, ExternalLinkDialog } = useExternalLink();
   const [message, setMessage] = useState("");
 
   const { data: property, isLoading: propertyLoading } = useQuery<LighthouseProperty>({
@@ -175,8 +177,25 @@ export default function PropertyDetailPage() {
               <p className="text-muted-foreground">{property.housingRules}</p>
             </div>
           )}
+
+          {property.airbnbProfileUrl && (
+            <div>
+              <h3 className="font-semibold mb-2">Host Verification</h3>
+              <Button
+                variant="outline"
+                onClick={() => openExternal(property.airbnbProfileUrl!)}
+                className="text-primary"
+                data-testid="button-airbnb-profile"
+              >
+                <ExternalLink className="w-4 h-4 mr-2" />
+                View Airbnb Host Profile
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
+
+      <ExternalLinkDialog />
 
       {canRequestMatch && (
         <Card>
