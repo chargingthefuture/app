@@ -23,10 +23,9 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { SupportmatchAnnouncement } from "@shared/schema";
+import type { DirectoryAnnouncement } from "@shared/schema";
 import { format } from "date-fns";
 import { AlertCircle, Info, Wrench, Bell, Megaphone, Plus, Trash2, ArrowLeft } from "lucide-react";
 import { Link } from "wouter";
@@ -40,12 +39,12 @@ const announcementFormSchema = z.object({
 
 type AnnouncementFormValues = z.infer<typeof announcementFormSchema>;
 
-export default function SupportMatchAdminAnnouncements() {
+export default function DirectoryAdminAnnouncements() {
   const { toast } = useToast();
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  const { data: announcements, isLoading } = useQuery<SupportmatchAnnouncement[]>({
-    queryKey: ["/api/supportmatch/admin/announcements"],
+  const { data: announcements, isLoading } = useQuery<DirectoryAnnouncement[]>({
+    queryKey: ["/api/directory/admin/announcements"],
   });
 
   const form = useForm<AnnouncementFormValues>({
@@ -64,21 +63,21 @@ export default function SupportMatchAdminAnnouncements() {
         ...data,
         expiresAt: data.expiresAt ? new Date(data.expiresAt) : undefined,
       };
-      return apiRequest("POST", "/api/supportmatch/admin/announcements", payload);
+      return apiRequest("POST", "/api/directory/admin/announcements", payload);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/supportmatch/admin/announcements"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/supportmatch/announcements"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/directory/admin/announcements"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/directory/announcements"] });
       form.reset();
       toast({
         title: "Success",
         description: "Announcement created successfully",
       });
     },
-    onError: () => {
+    onError: (error: any) => {
       toast({
         title: "Error",
-        description: "Failed to create announcement",
+        description: error.message || "Failed to create announcement",
         variant: "destructive",
       });
     },
@@ -90,11 +89,11 @@ export default function SupportMatchAdminAnnouncements() {
         ...data,
         expiresAt: data.expiresAt ? new Date(data.expiresAt) : undefined,
       };
-      return apiRequest("PUT", `/api/supportmatch/admin/announcements/${id}`, payload);
+      return apiRequest("PUT", `/api/directory/admin/announcements/${id}`, payload);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/supportmatch/admin/announcements"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/supportmatch/announcements"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/directory/admin/announcements"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/directory/announcements"] });
       form.reset();
       setEditingId(null);
       toast({
@@ -102,10 +101,10 @@ export default function SupportMatchAdminAnnouncements() {
         description: "Announcement updated successfully",
       });
     },
-    onError: () => {
+    onError: (error: any) => {
       toast({
         title: "Error",
-        description: "Failed to update announcement",
+        description: error.message || "Failed to update announcement",
         variant: "destructive",
       });
     },
@@ -113,11 +112,11 @@ export default function SupportMatchAdminAnnouncements() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      return apiRequest("DELETE", `/api/supportmatch/admin/announcements/${id}`);
+      return apiRequest("DELETE", `/api/directory/admin/announcements/${id}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/supportmatch/admin/announcements"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/supportmatch/announcements"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/directory/admin/announcements"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/directory/announcements"] });
       toast({
         title: "Success",
         description: "Announcement deleted successfully",
@@ -132,7 +131,7 @@ export default function SupportMatchAdminAnnouncements() {
     },
   });
 
-  const handleEdit = (announcement: SupportmatchAnnouncement) => {
+  const handleEdit = (announcement: DirectoryAnnouncement) => {
     setEditingId(announcement.id);
     form.reset({
       title: announcement.title,
@@ -196,15 +195,15 @@ export default function SupportMatchAdminAnnouncements() {
   return (
     <div className="p-6 md:p-8 space-y-8">
       <div className="flex items-center gap-4">
-        <Link href="/apps/supportmatch/admin">
+        <Link href="/apps/directory/admin">
           <Button variant="ghost" size="icon" data-testid="button-back">
             <ArrowLeft className="w-5 h-5" />
           </Button>
         </Link>
         <div>
-          <h1 className="text-3xl md:text-4xl font-semibold">Manage Announcements</h1>
+          <h1 className="text-3xl md:text-4xl font-semibold">Directory Announcements</h1>
           <p className="text-muted-foreground">
-            Create and manage platform announcements
+            Create and manage announcements for Directory
           </p>
         </div>
       </div>
@@ -392,3 +391,4 @@ export default function SupportMatchAdminAnnouncements() {
     </div>
   );
 }
+

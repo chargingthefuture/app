@@ -19,6 +19,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
 import { Check } from "lucide-react";
 import { useExternalLink } from "@/hooks/useExternalLink";
+import { Link } from "wouter";
 
 export default function AdminDirectoryPage() {
   const { toast } = useToast();
@@ -167,6 +168,22 @@ export default function AdminDirectoryPage() {
           <p className="text-muted-foreground text-sm sm:text-base">Manage Directory profiles</p>
         </div>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Announcements</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Create and manage announcements for Directory.
+          </p>
+          <Link href="/apps/directory/admin/announcements">
+            <Button className="w-full" data-testid="button-manage-announcements">
+              Manage Announcements
+            </Button>
+          </Link>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

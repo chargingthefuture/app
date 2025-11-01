@@ -2,16 +2,13 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "wouter";
-import { Clock, Play, Moon, AlertCircle, Info, Wrench, Bell, Megaphone } from "lucide-react";
-import type { SleepStory, SleepStoriesAnnouncement } from "@shared/schema";
+import { Clock, Play, Moon } from "lucide-react";
+import type { SleepStory } from "@shared/schema";
+import { AnnouncementBanner } from "@/components/announcement-banner";
 
 export default function SleepStoriesLibrary() {
   const { data: stories, isLoading } = useQuery<SleepStory[]>({
     queryKey: ["/api/sleepstories"],
-  });
-  
-  const { data: announcements } = useQuery<SleepStoriesAnnouncement[]>({
-    queryKey: ["/api/sleepstories/announcements"],
   });
 
   const formatDuration = (seconds: number) => {
@@ -33,32 +30,6 @@ export default function SleepStoriesLibrary() {
       general: "bg-gray-500/10 text-gray-700 dark:text-gray-400",
     };
     return colors[category] || colors.general;
-  };
-
-  const getAnnouncementIcon = (type: string) => {
-    switch (type) {
-      case "warning":
-        return <AlertCircle className="w-5 h-5" />;
-      case "maintenance":
-        return <Wrench className="w-5 h-5" />;
-      case "update":
-        return <Bell className="w-5 h-5" />;
-      case "promotion":
-        return <Megaphone className="w-5 h-5" />;
-      default:
-        return <Info className="w-5 h-5" />;
-    }
-  };
-
-  const getAnnouncementVariant = (type: string) => {
-    switch (type) {
-      case "warning":
-        return "destructive" as const;
-      case "update":
-        return "default" as const;
-      default:
-        return "secondary" as const;
-    }
   };
 
   if (isLoading) {
@@ -89,38 +60,10 @@ export default function SleepStoriesLibrary() {
         </div>
       </div>
 
-      {announcements && announcements.length > 0 && (
-        <div className="space-y-4">
-          {announcements.map((announcement) => (
-            <Card key={announcement.id} data-testid={`announcement-${announcement.id}`}>
-              <CardHeader>
-                <div className="flex items-start gap-3">
-                  <div className={`mt-1 ${
-                    announcement.type === "warning" ? "text-amber-600" :
-                    announcement.type === "maintenance" ? "text-blue-600" :
-                    announcement.type === "update" ? "text-green-600" :
-                    announcement.type === "promotion" ? "text-purple-600" :
-                    "text-gray-600"
-                  }`}>
-                    {getAnnouncementIcon(announcement.type)}
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <CardTitle className="text-lg">{announcement.title}</CardTitle>
-                      <Badge variant={getAnnouncementVariant(announcement.type)}>
-                        {announcement.type}
-                      </Badge>
-                    </div>
-                    <CardDescription className="whitespace-pre-wrap">
-                      {announcement.content}
-                    </CardDescription>
-                  </div>
-                </div>
-              </CardHeader>
-            </Card>
-          ))}
-        </div>
-      )}
+      <AnnouncementBanner 
+        apiEndpoint="/api/sleepstories/announcements"
+        queryKey="/api/sleepstories/announcements"
+      />
 
       {!stories || stories.length === 0 ? (
         <Card>

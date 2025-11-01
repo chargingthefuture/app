@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ExternalLink } from "lucide-react";
 import type { ChatGroup } from "@shared/schema";
 import { useExternalLink } from "@/hooks/useExternalLink";
+import { AnnouncementBanner } from "@/components/announcement-banner";
 
 export default function ChatGroupsPage() {
   const { openExternal, ExternalLinkDialog } = useExternalLink();
@@ -27,6 +28,11 @@ export default function ChatGroupsPage() {
         <h1 className="text-2xl sm:text-3xl md:text-4xl font-semibold mb-2">Chat Groups</h1>
         <p className="text-muted-foreground text-sm sm:text-base">Join Signal.org groups to connect with other survivors</p>
       </div>
+
+      <AnnouncementBanner 
+        apiEndpoint="/api/chatgroups/announcements"
+        queryKey="/api/chatgroups/announcements"
+      />
 
       {groups.length === 0 ? (
         <Card>

@@ -40,6 +40,7 @@ export default function AdminPayments() {
   const [selectedUserId, setSelectedUserId] = useState("");
   const [amount, setAmount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("cash");
+  const [billingPeriod, setBillingPeriod] = useState<"monthly" | "yearly">("monthly");
   const [notes, setNotes] = useState("");
 
   const { data: users } = useQuery<User[]>({
@@ -65,6 +66,7 @@ export default function AdminPayments() {
         amount: amount, // Send as string, not parseFloat(amount)
         paymentDate: new Date().toISOString(), // Send as ISO string
         paymentMethod,
+        billingPeriod,
         notes: notes || null,
       };
       
@@ -85,6 +87,7 @@ export default function AdminPayments() {
       setIsDialogOpen(false);
       setSelectedUserId("");
       setAmount("");
+      setBillingPeriod("monthly");
       setNotes("");
       toast({
         title: "Success",
@@ -158,6 +161,7 @@ export default function AdminPayments() {
                     <TableRow>
                       <TableHead>User</TableHead>
                       <TableHead>Amount</TableHead>
+                      <TableHead>Period</TableHead>
                       <TableHead>Payment Method</TableHead>
                       <TableHead>Payment Date</TableHead>
                       <TableHead>Notes</TableHead>
@@ -179,6 +183,9 @@ export default function AdminPayments() {
                         </TableCell>
                         <TableCell className="font-mono">
                           ${parseFloat(payment.amount).toFixed(2)}
+                        </TableCell>
+                        <TableCell>
+                          <span className="capitalize">{payment.billingPeriod || 'monthly'}</span>
                         </TableCell>
                         <TableCell className="capitalize">
                           {payment.paymentMethod.replace(/-/g, ' ')}
@@ -202,9 +209,14 @@ export default function AdminPayments() {
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
                           <span className="font-medium">{getUserDisplayName(payment.userId)}</span>
-                          <span className="font-mono font-semibold">
-                            ${parseFloat(payment.amount).toFixed(2)}
-                          </span>
+                          <div className="text-right">
+                            <span className="font-mono font-semibold">
+                              ${parseFloat(payment.amount).toFixed(2)}
+                            </span>
+                            <span className="ml-2 text-xs text-muted-foreground capitalize">
+                              {payment.billingPeriod || 'monthly'}
+                            </span>
+                          </div>
                         </div>
                         <PrivacyField 
                           value={users?.find(u => u.id === payment.userId)?.email || ""} 
@@ -306,6 +318,19 @@ export default function AdminPayments() {
                   <SelectItem value="walmart-onepay">Walmart OnePay</SelectItem>
                   <SelectItem value="wise">Wise</SelectItem>
                   <SelectItem value="zelle">Zelle</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="billing-period">Billing Period</Label>
+              <Select value={billingPeriod} onValueChange={(value) => setBillingPeriod(value as "monthly" | "yearly")}>
+                <SelectTrigger id="billing-period" data-testid="select-billing-period">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="monthly">Monthly</SelectItem>
+                  <SelectItem value="yearly">Yearly</SelectItem>
                 </SelectContent>
               </Select>
             </div>

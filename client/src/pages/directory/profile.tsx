@@ -21,6 +21,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useExternalLink } from "@/hooks/useExternalLink";
 import { VerifiedBadge } from "@/components/verified-badge";
 import { DeleteProfileDialog } from "@/components/delete-profile-dialog";
+import { AnnouncementBanner } from "@/components/announcement-banner";
 
 export default function DirectoryProfilePage() {
   const { toast } = useToast();
@@ -166,6 +167,11 @@ export default function DirectoryProfilePage() {
         <h1 className="text-2xl sm:text-3xl md:text-4xl font-semibold mb-2">Directory Profile</h1>
         <p className="text-muted-foreground text-sm sm:text-base">Connect and exchange skills with other survivors</p>
       </div>
+
+      <AnnouncementBanner 
+        apiEndpoint="/api/directory/announcements"
+        queryKey="/api/directory/announcements"
+      />
 
       <Card>
         <CardHeader>

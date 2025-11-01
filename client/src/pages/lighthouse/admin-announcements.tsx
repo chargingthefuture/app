@@ -75,10 +75,10 @@ export default function LighthouseAdminAnnouncements() {
         description: "Announcement created successfully",
       });
     },
-    onError: () => {
+    onError: (error: any) => {
       toast({
         title: "Error",
-        description: "Failed to create announcement",
+        description: error.message || "Failed to create announcement",
         variant: "destructive",
       });
     },
@@ -102,10 +102,10 @@ export default function LighthouseAdminAnnouncements() {
         description: "Announcement updated successfully",
       });
     },
-    onError: () => {
+    onError: (error: any) => {
       toast({
         title: "Error",
-        description: "Failed to update announcement",
+        description: error.message || "Failed to update announcement",
         variant: "destructive",
       });
     },

@@ -47,12 +47,20 @@ import SocketRelayDashboard from "@/pages/socketrelay/dashboard";
 import SocketRelayProfile from "@/pages/socketrelay/profile";
 import SocketRelayChat from "@/pages/socketrelay/chat";
 import SocketRelayAdmin from "@/pages/socketrelay/admin";
+import SocketRelayAnnouncements from "@/pages/socketrelay/announcements";
+import SocketRelayAdminAnnouncements from "@/pages/socketrelay/admin-announcements";
 import DirectoryProfile from "@/pages/directory/profile";
 import DirectoryAdmin from "@/pages/directory/admin";
+import DirectoryAnnouncements from "@/pages/directory/announcements";
+import DirectoryAdminAnnouncements from "@/pages/directory/admin-announcements";
 import PublicDirectoryProfile from "@/pages/directory/public";
 import PublicDirectoryList from "@/pages/directory/public-list";
 import ChatGroups from "@/pages/chatgroups/index";
 import ChatGroupsAdmin from "@/pages/chatgroups/admin";
+import ChatGroupsAnnouncements from "@/pages/chatgroups/announcements";
+import ChatGroupsAdminAnnouncements from "@/pages/chatgroups/admin-announcements";
+import LighthouseAnnouncements from "@/pages/lighthouse/announcements";
+import SleepStoriesAnnouncements from "@/pages/sleepstories/announcements";
 import PublicSocketRelayRequest from "@/pages/socketrelay/public";
 import PublicSocketRelayList from "@/pages/socketrelay/public-list";
 
@@ -113,15 +121,25 @@ function Router() {
           <Route path="/apps/lighthouse/admin/announcements" component={LighthouseAdminAnnouncements} />
           <Route path="/apps/socketrelay" component={SocketRelayDashboard} />
           <Route path="/apps/socketrelay/profile" component={SocketRelayProfile} />
+          <Route path="/apps/socketrelay/announcements" component={SocketRelayAnnouncements} />
           <Route path="/apps/socketrelay/chat/:id" component={SocketRelayChat} />
           <Route path="/apps/socketrelay/admin" component={SocketRelayAdmin} />
+          <Route path="/apps/socketrelay/admin/announcements" component={SocketRelayAdminAnnouncements} />
           {/* Directory routes */}
           <Route path="/apps/directory" component={DirectoryProfile} />
           <Route path="/apps/directory/profile" component={DirectoryProfile} />
+          <Route path="/apps/directory/announcements" component={DirectoryAnnouncements} />
           <Route path="/apps/directory/admin" component={DirectoryAdmin} />
+          <Route path="/apps/directory/admin/announcements" component={DirectoryAdminAnnouncements} />
           {/* Chat Groups routes */}
           <Route path="/apps/chatgroups" component={ChatGroups} />
+          <Route path="/apps/chatgroups/announcements" component={ChatGroupsAnnouncements} />
           <Route path="/apps/chatgroups/admin" component={ChatGroupsAdmin} />
+          <Route path="/apps/chatgroups/admin/announcements" component={ChatGroupsAdminAnnouncements} />
+          {/* LightHouse routes - announcements */}
+          <Route path="/apps/lighthouse/announcements" component={LighthouseAnnouncements} />
+          {/* SleepStories routes - announcements */}
+          <Route path="/apps/sleepstories/announcements" component={SleepStoriesAnnouncements} />
         </>
       )}
       <Route component={NotFound} />

@@ -10,6 +10,7 @@ import {
   exclusions,
   reports,
   announcements,
+  supportmatchAnnouncements,
   sleepStories,
   sleepStoriesAnnouncements,
   lighthouseProfiles,
@@ -20,10 +21,13 @@ import {
   socketrelayFulfillments,
   socketrelayMessages,
   socketrelayProfiles,
+  socketrelayAnnouncements,
   directoryProfiles,
+  directoryAnnouncements,
   type DirectoryProfile,
   type InsertDirectoryProfile,
   chatGroups,
+  chatgroupsAnnouncements,
   type ChatGroup,
   type InsertChatGroup,
   profileDeletionLogs,
@@ -51,6 +55,8 @@ import {
   type InsertReport,
   type Announcement,
   type InsertAnnouncement,
+  type SupportmatchAnnouncement,
+  type InsertSupportmatchAnnouncement,
   type SleepStory,
   type InsertSleepStory,
   type SleepStoriesAnnouncement,
@@ -71,6 +77,12 @@ import {
   type InsertSocketrelayMessage,
   type SocketrelayProfile,
   type InsertSocketrelayProfile,
+  type SocketrelayAnnouncement,
+  type InsertSocketrelayAnnouncement,
+  type DirectoryAnnouncement,
+  type InsertDirectoryAnnouncement,
+  type ChatgroupsAnnouncement,
+  type InsertChatgroupsAnnouncement,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, asc, sql, or, inArray, gte, lte } from "drizzle-orm";
@@ -150,6 +162,13 @@ export interface IStorage {
   getAllAnnouncements(): Promise<Announcement[]>;
   updateAnnouncement(id: string, announcement: Partial<InsertAnnouncement>): Promise<Announcement>;
   deactivateAnnouncement(id: string): Promise<Announcement>;
+  
+  // SupportMatch App Announcement operations
+  createSupportmatchAnnouncement(announcement: InsertSupportmatchAnnouncement): Promise<SupportmatchAnnouncement>;
+  getActiveSupportmatchAnnouncements(): Promise<SupportmatchAnnouncement[]>;
+  getAllSupportmatchAnnouncements(): Promise<SupportmatchAnnouncement[]>;
+  updateSupportmatchAnnouncement(id: string, announcement: Partial<InsertSupportmatchAnnouncement>): Promise<SupportmatchAnnouncement>;
+  deactivateSupportmatchAnnouncement(id: string): Promise<SupportmatchAnnouncement>;
   
   // SupportMatch Stats
   getSupportMatchStats(): Promise<{
@@ -242,6 +261,13 @@ export interface IStorage {
   createSocketrelayProfile(profile: InsertSocketrelayProfile): Promise<SocketrelayProfile>;
   updateSocketrelayProfile(userId: string, profile: Partial<InsertSocketrelayProfile>): Promise<SocketrelayProfile>;
 
+  // SocketRelay Announcement operations
+  createSocketrelayAnnouncement(announcement: InsertSocketrelayAnnouncement): Promise<SocketrelayAnnouncement>;
+  getActiveSocketrelayAnnouncements(): Promise<SocketrelayAnnouncement[]>;
+  getAllSocketrelayAnnouncements(): Promise<SocketrelayAnnouncement[]>;
+  updateSocketrelayAnnouncement(id: string, announcement: Partial<InsertSocketrelayAnnouncement>): Promise<SocketrelayAnnouncement>;
+  deactivateSocketrelayAnnouncement(id: string): Promise<SocketrelayAnnouncement>;
+
   // Directory operations
   getDirectoryProfileById(id: string): Promise<DirectoryProfile | undefined>;
   getDirectoryProfileByUserId(userId: string): Promise<DirectoryProfile | undefined>;
@@ -251,6 +277,13 @@ export interface IStorage {
   updateDirectoryProfile(id: string, profile: Partial<InsertDirectoryProfile>): Promise<DirectoryProfile>;
   deleteDirectoryProfile(id: string): Promise<void>;
 
+  // Directory Announcement operations
+  createDirectoryAnnouncement(announcement: InsertDirectoryAnnouncement): Promise<DirectoryAnnouncement>;
+  getActiveDirectoryAnnouncements(): Promise<DirectoryAnnouncement[]>;
+  getAllDirectoryAnnouncements(): Promise<DirectoryAnnouncement[]>;
+  updateDirectoryAnnouncement(id: string, announcement: Partial<InsertDirectoryAnnouncement>): Promise<DirectoryAnnouncement>;
+  deactivateDirectoryAnnouncement(id: string): Promise<DirectoryAnnouncement>;
+
   // Chat Groups operations
   getAllChatGroups(): Promise<ChatGroup[]>;
   getActiveChatGroups(): Promise<ChatGroup[]>;
@@ -258,6 +291,13 @@ export interface IStorage {
   createChatGroup(group: InsertChatGroup): Promise<ChatGroup>;
   updateChatGroup(id: string, group: Partial<InsertChatGroup>): Promise<ChatGroup>;
   deleteChatGroup(id: string): Promise<void>;
+
+  // ChatGroups Announcement operations
+  createChatgroupsAnnouncement(announcement: InsertChatgroupsAnnouncement): Promise<ChatgroupsAnnouncement>;
+  getActiveChatgroupsAnnouncements(): Promise<ChatgroupsAnnouncement[]>;
+  getAllChatgroupsAnnouncements(): Promise<ChatgroupsAnnouncement[]>;
+  updateChatgroupsAnnouncement(id: string, announcement: Partial<InsertChatgroupsAnnouncement>): Promise<ChatgroupsAnnouncement>;
+  deactivateChatgroupsAnnouncement(id: string): Promise<ChatgroupsAnnouncement>;
 
   // Profile deletion operations with cascade anonymization
   deleteSupportMatchProfile(userId: string, reason?: string): Promise<void>;
@@ -918,6 +958,63 @@ export class DatabaseStorage implements IStorage {
         updatedAt: new Date(),
       })
       .where(eq(announcements.id, id))
+      .returning();
+    return announcement;
+  }
+
+  // SupportMatch App Announcement operations
+  async createSupportmatchAnnouncement(announcementData: InsertSupportmatchAnnouncement): Promise<SupportmatchAnnouncement> {
+    const [announcement] = await db
+      .insert(supportmatchAnnouncements)
+      .values(announcementData)
+      .returning();
+    return announcement;
+  }
+  
+  async getActiveSupportmatchAnnouncements(): Promise<SupportmatchAnnouncement[]> {
+    const now = new Date();
+    return await db
+      .select()
+      .from(supportmatchAnnouncements)
+      .where(
+        and(
+          eq(supportmatchAnnouncements.isActive, true),
+          or(
+            sql`${supportmatchAnnouncements.expiresAt} IS NULL`,
+            gte(supportmatchAnnouncements.expiresAt, now)
+          )
+        )
+      )
+      .orderBy(desc(supportmatchAnnouncements.createdAt));
+  }
+  
+  async getAllSupportmatchAnnouncements(): Promise<SupportmatchAnnouncement[]> {
+    return await db
+      .select()
+      .from(supportmatchAnnouncements)
+      .orderBy(desc(supportmatchAnnouncements.createdAt));
+  }
+  
+  async updateSupportmatchAnnouncement(id: string, announcementData: Partial<InsertSupportmatchAnnouncement>): Promise<SupportmatchAnnouncement> {
+    const [announcement] = await db
+      .update(supportmatchAnnouncements)
+      .set({
+        ...announcementData,
+        updatedAt: new Date(),
+      })
+      .where(eq(supportmatchAnnouncements.id, id))
+      .returning();
+    return announcement;
+  }
+  
+  async deactivateSupportmatchAnnouncement(id: string): Promise<SupportmatchAnnouncement> {
+    const [announcement] = await db
+      .update(supportmatchAnnouncements)
+      .set({
+        isActive: false,
+        updatedAt: new Date(),
+      })
+      .where(eq(supportmatchAnnouncements.id, id))
       .returning();
     return announcement;
   }
@@ -1646,6 +1743,63 @@ export class DatabaseStorage implements IStorage {
     return profile;
   }
 
+  // SocketRelay Announcement operations
+  async createSocketrelayAnnouncement(announcementData: InsertSocketrelayAnnouncement): Promise<SocketrelayAnnouncement> {
+    const [announcement] = await db
+      .insert(socketrelayAnnouncements)
+      .values(announcementData)
+      .returning();
+    return announcement;
+  }
+  
+  async getActiveSocketrelayAnnouncements(): Promise<SocketrelayAnnouncement[]> {
+    const now = new Date();
+    return await db
+      .select()
+      .from(socketrelayAnnouncements)
+      .where(
+        and(
+          eq(socketrelayAnnouncements.isActive, true),
+          or(
+            sql`${socketrelayAnnouncements.expiresAt} IS NULL`,
+            gte(socketrelayAnnouncements.expiresAt, now)
+          )
+        )
+      )
+      .orderBy(desc(socketrelayAnnouncements.createdAt));
+  }
+  
+  async getAllSocketrelayAnnouncements(): Promise<SocketrelayAnnouncement[]> {
+    return await db
+      .select()
+      .from(socketrelayAnnouncements)
+      .orderBy(desc(socketrelayAnnouncements.createdAt));
+  }
+  
+  async updateSocketrelayAnnouncement(id: string, announcementData: Partial<InsertSocketrelayAnnouncement>): Promise<SocketrelayAnnouncement> {
+    const [announcement] = await db
+      .update(socketrelayAnnouncements)
+      .set({
+        ...announcementData,
+        updatedAt: new Date(),
+      })
+      .where(eq(socketrelayAnnouncements.id, id))
+      .returning();
+    return announcement;
+  }
+  
+  async deactivateSocketrelayAnnouncement(id: string): Promise<SocketrelayAnnouncement> {
+    const [announcement] = await db
+      .update(socketrelayAnnouncements)
+      .set({
+        isActive: false,
+        updatedAt: new Date(),
+      })
+      .where(eq(socketrelayAnnouncements.id, id))
+      .returning();
+    return announcement;
+  }
+
   // ========================================
   // DIRECTORY APP OPERATIONS
   // ========================================
@@ -1715,6 +1869,63 @@ export class DatabaseStorage implements IStorage {
     await db.delete(directoryProfiles).where(eq(directoryProfiles.id, id));
   }
 
+  // Directory Announcement operations
+  async createDirectoryAnnouncement(announcementData: InsertDirectoryAnnouncement): Promise<DirectoryAnnouncement> {
+    const [announcement] = await db
+      .insert(directoryAnnouncements)
+      .values(announcementData)
+      .returning();
+    return announcement;
+  }
+  
+  async getActiveDirectoryAnnouncements(): Promise<DirectoryAnnouncement[]> {
+    const now = new Date();
+    return await db
+      .select()
+      .from(directoryAnnouncements)
+      .where(
+        and(
+          eq(directoryAnnouncements.isActive, true),
+          or(
+            sql`${directoryAnnouncements.expiresAt} IS NULL`,
+            gte(directoryAnnouncements.expiresAt, now)
+          )
+        )
+      )
+      .orderBy(desc(directoryAnnouncements.createdAt));
+  }
+  
+  async getAllDirectoryAnnouncements(): Promise<DirectoryAnnouncement[]> {
+    return await db
+      .select()
+      .from(directoryAnnouncements)
+      .orderBy(desc(directoryAnnouncements.createdAt));
+  }
+  
+  async updateDirectoryAnnouncement(id: string, announcementData: Partial<InsertDirectoryAnnouncement>): Promise<DirectoryAnnouncement> {
+    const [announcement] = await db
+      .update(directoryAnnouncements)
+      .set({
+        ...announcementData,
+        updatedAt: new Date(),
+      })
+      .where(eq(directoryAnnouncements.id, id))
+      .returning();
+    return announcement;
+  }
+  
+  async deactivateDirectoryAnnouncement(id: string): Promise<DirectoryAnnouncement> {
+    const [announcement] = await db
+      .update(directoryAnnouncements)
+      .set({
+        isActive: false,
+        updatedAt: new Date(),
+      })
+      .where(eq(directoryAnnouncements.id, id))
+      .returning();
+    return announcement;
+  }
+
   // ========================================
   // CHAT GROUPS APP OPERATIONS
   // ========================================
@@ -1764,6 +1975,63 @@ export class DatabaseStorage implements IStorage {
 
   async deleteChatGroup(id: string): Promise<void> {
     await db.delete(chatGroups).where(eq(chatGroups.id, id));
+  }
+
+  // ChatGroups Announcement operations
+  async createChatgroupsAnnouncement(announcementData: InsertChatgroupsAnnouncement): Promise<ChatgroupsAnnouncement> {
+    const [announcement] = await db
+      .insert(chatgroupsAnnouncements)
+      .values(announcementData)
+      .returning();
+    return announcement;
+  }
+  
+  async getActiveChatgroupsAnnouncements(): Promise<ChatgroupsAnnouncement[]> {
+    const now = new Date();
+    return await db
+      .select()
+      .from(chatgroupsAnnouncements)
+      .where(
+        and(
+          eq(chatgroupsAnnouncements.isActive, true),
+          or(
+            sql`${chatgroupsAnnouncements.expiresAt} IS NULL`,
+            gte(chatgroupsAnnouncements.expiresAt, now)
+          )
+        )
+      )
+      .orderBy(desc(chatgroupsAnnouncements.createdAt));
+  }
+  
+  async getAllChatgroupsAnnouncements(): Promise<ChatgroupsAnnouncement[]> {
+    return await db
+      .select()
+      .from(chatgroupsAnnouncements)
+      .orderBy(desc(chatgroupsAnnouncements.createdAt));
+  }
+  
+  async updateChatgroupsAnnouncement(id: string, announcementData: Partial<InsertChatgroupsAnnouncement>): Promise<ChatgroupsAnnouncement> {
+    const [announcement] = await db
+      .update(chatgroupsAnnouncements)
+      .set({
+        ...announcementData,
+        updatedAt: new Date(),
+      })
+      .where(eq(chatgroupsAnnouncements.id, id))
+      .returning();
+    return announcement;
+  }
+  
+  async deactivateChatgroupsAnnouncement(id: string): Promise<ChatgroupsAnnouncement> {
+    const [announcement] = await db
+      .update(chatgroupsAnnouncements)
+      .set({
+        isActive: false,
+        updatedAt: new Date(),
+      })
+      .where(eq(chatgroupsAnnouncements.id, id))
+      .returning();
+    return announcement;
   }
 
   // ========================================
@@ -1904,18 +2172,23 @@ export class DatabaseStorage implements IStorage {
   async deleteLighthouseProfile(userId: string, reason?: string): Promise<void> {
     try {
       // Get profile first
+      console.log(`[deleteLighthouseProfile] Starting deletion for userId: ${userId}`);
       const profile = await this.getLighthouseProfileByUserId(userId);
       if (!profile) {
+        console.log(`[deleteLighthouseProfile] Profile not found for userId: ${userId}`);
         throw new Error("LightHouse profile not found");
       }
+      console.log(`[deleteLighthouseProfile] Found profile with id: ${profile.id}`);
 
       // Get all properties owned by this profile
       const properties = await this.getPropertiesByHost(profile.id);
+      console.log(`[deleteLighthouseProfile] Found ${properties.length} properties to delete`);
 
       // Delete matches where this profile is the seeker
       // Note: lighthouseMatches references lighthouseProfiles.id, not userId
       // Since we can't easily anonymize profile.id references, we delete the matches
       const matches = await this.getMatchesBySeeker(profile.id);
+      console.log(`[deleteLighthouseProfile] Found ${matches.length} matches as seeker to delete`);
       for (const match of matches) {
         // Delete matches as they become invalid without the profile
         await db.delete(lighthouseMatches).where(eq(lighthouseMatches.id, match.id));
@@ -1925,15 +2198,27 @@ export class DatabaseStorage implements IStorage {
       for (const property of properties) {
         // Delete matches associated with these properties first
         const propertyMatches = await this.getMatchesByProperty(property.id);
+        console.log(`[deleteLighthouseProfile] Found ${propertyMatches.length} matches for property ${property.id} to delete`);
         for (const match of propertyMatches) {
           await db.delete(lighthouseMatches).where(eq(lighthouseMatches.id, match.id));
         }
         // Then delete the property
+        console.log(`[deleteLighthouseProfile] Deleting property ${property.id}`);
         await db.delete(lighthouseProperties).where(eq(lighthouseProperties.id, property.id));
       }
 
       // Delete the profile
-      await db.delete(lighthouseProfiles).where(eq(lighthouseProfiles.userId, userId));
+      console.log(`[deleteLighthouseProfile] Deleting profile with id: ${profile.id}, userId: ${userId}`);
+      const deleteResult = await db.delete(lighthouseProfiles).where(eq(lighthouseProfiles.userId, userId));
+      console.log(`[deleteLighthouseProfile] Delete result:`, deleteResult);
+
+      // Verify deletion
+      const verifyProfile = await this.getLighthouseProfileByUserId(userId);
+      if (verifyProfile) {
+        console.error(`[deleteLighthouseProfile] ERROR: Profile still exists after deletion! Profile id: ${verifyProfile.id}`);
+        throw new Error("Profile deletion failed - profile still exists after delete operation");
+      }
+      console.log(`[deleteLighthouseProfile] Verified profile deletion successful`);
 
       // Log the deletion (don't fail if logging fails)
       try {

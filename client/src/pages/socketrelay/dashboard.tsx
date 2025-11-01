@@ -14,6 +14,7 @@ import { formatDistanceToNow, isPast } from "date-fns";
 import type { SocketrelayRequest, SocketrelayProfile } from "@shared/schema";
 import { Link } from "wouter";
 import { useExternalLink } from "@/hooks/useExternalLink";
+import { AnnouncementBanner } from "@/components/announcement-banner";
 
 export default function SocketRelayDashboard() {
   const { user } = useAuth();
@@ -203,6 +204,11 @@ export default function SocketRelayDashboard() {
           </Button>
         </Link>
       </div>
+
+      <AnnouncementBanner 
+        apiEndpoint="/api/socketrelay/announcements"
+        queryKey="/api/socketrelay/announcements"
+      />
 
       <Card>
         <CardHeader>

@@ -1,11 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { AnnouncementDisplay } from "@/components/announcement-display";
-import type { SupportmatchAnnouncement } from "@shared/schema";
+import type { ChatgroupsAnnouncement } from "@shared/schema";
 
-export default function SupportMatchAnnouncements() {
-  const { data: announcements, isLoading } = useQuery<SupportmatchAnnouncement[]>({
-    queryKey: ["/api/supportmatch/admin/announcements"], // Admin endpoint shows all (including inactive)
+export default function ChatGroupsAnnouncements() {
+  const { data: announcements, isLoading } = useQuery<ChatgroupsAnnouncement[]>({
+    queryKey: ["/api/chatgroups/admin/announcements"], // Admin endpoint shows all (including inactive)
   });
 
   if (isLoading) {
@@ -23,7 +23,7 @@ export default function SupportMatchAnnouncements() {
       <div>
         <h1 className="text-2xl sm:text-3xl md:text-4xl font-semibold mb-2">Announcements</h1>
         <p className="text-muted-foreground text-sm sm:text-base">
-          Stay updated with SupportMatch news and important notifications
+          Stay updated with ChatGroups news and important notifications
         </p>
       </div>
 
@@ -52,3 +52,4 @@ export default function SupportMatchAnnouncements() {
     </div>
   );
 }
+

@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { formatDistanceToNow } from "date-fns";
 import { CheckCircle2, XCircle, Clock, Trash2 } from "lucide-react";
+import { Link } from "wouter";
 import type { SocketrelayRequest, SocketrelayFulfillment } from "@shared/schema";
 
 export default function SocketRelayAdmin() {
@@ -75,6 +76,22 @@ export default function SocketRelayAdmin() {
           Oversee all requests and fulfillments in the SocketRelay system
         </p>
       </div>
+
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Announcements</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Create and manage announcements for SocketRelay.
+          </p>
+          <Link href="/apps/socketrelay/admin/announcements">
+            <Button className="w-full" data-testid="button-manage-announcements">
+              Manage Announcements
+            </Button>
+          </Link>
+        </CardContent>
+      </Card>
 
       <Tabs defaultValue="requests" className="space-y-6">
         <TabsList data-testid="tabs-admin">

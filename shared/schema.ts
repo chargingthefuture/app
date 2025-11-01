@@ -110,6 +110,7 @@ export const payments = pgTable("payments", {
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
   paymentDate: timestamp("payment_date").notNull(),
   paymentMethod: varchar("payment_method", { length: 50 }).notNull().default('cash'),
+  billingPeriod: varchar("billing_period", { length: 20 }).notNull().default('monthly'), // monthly, yearly
   notes: text("notes"),
   recordedBy: varchar("recorded_by").notNull().references(() => users.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -130,6 +131,17 @@ export const paymentsRelations = relations(payments, ({ one }) => ({
 export const insertPaymentSchema = createInsertSchema(payments).omit({
   id: true,
   createdAt: true,
+  paymentDate: true,
+}).extend({
+  paymentDate: z.preprocess(
+    (val) => {
+      if (val instanceof Date) return val;
+      if (typeof val === "string") return new Date(val);
+      return val;
+    },
+    z.date()
+  ),
+  billingPeriod: z.enum(["monthly", "yearly"]).default("monthly"),
 });
 
 export type InsertPayment = z.infer<typeof insertPaymentSchema>;
@@ -339,7 +351,7 @@ export const insertReportSchema = createInsertSchema(reports).omit({
 export type InsertReport = z.infer<typeof insertReportSchema>;
 export type Report = typeof reports.$inferSelect;
 
-// Announcements - platform communications
+// Announcements - platform communications (platform-wide announcements)
 export const announcements = pgTable("announcements", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   title: varchar("title", { length: 200 }).notNull(),
@@ -363,6 +375,29 @@ export const insertAnnouncementSchema = createInsertSchema(announcements).omit({
 
 export type InsertAnnouncement = z.infer<typeof insertAnnouncementSchema>;
 export type Announcement = typeof announcements.$inferSelect;
+
+// SupportMatch Announcements
+export const supportmatchAnnouncements = pgTable("supportmatch_announcements", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: varchar("title", { length: 200 }).notNull(),
+  content: text("content").notNull(),
+  type: varchar("type", { length: 50 }).notNull().default('info'), // info, warning, maintenance, update, promotion
+  isActive: boolean("is_active").notNull().default(true),
+  expiresAt: timestamp("expires_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertSupportmatchAnnouncementSchema = createInsertSchema(supportmatchAnnouncements).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  expiresAt: z.coerce.date().optional().nullable(),
+});
+
+export type InsertSupportmatchAnnouncement = z.infer<typeof insertSupportmatchAnnouncementSchema>;
+export type SupportmatchAnnouncement = typeof supportmatchAnnouncements.$inferSelect;
 
 // ========================================
 // SLEEPSTORIES APP TABLES
@@ -730,6 +765,29 @@ export const insertSocketrelayProfileSchema = createInsertSchema(socketrelayProf
 export type InsertSocketrelayProfile = z.infer<typeof insertSocketrelayProfileSchema>;
 export type SocketrelayProfile = typeof socketrelayProfiles.$inferSelect;
 
+// SocketRelay Announcements
+export const socketrelayAnnouncements = pgTable("socketrelay_announcements", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: varchar("title", { length: 200 }).notNull(),
+  content: text("content").notNull(),
+  type: varchar("type", { length: 50 }).notNull().default('info'), // info, warning, maintenance, update, promotion
+  isActive: boolean("is_active").notNull().default(true),
+  expiresAt: timestamp("expires_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertSocketrelayAnnouncementSchema = createInsertSchema(socketrelayAnnouncements).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  expiresAt: z.coerce.date().optional().nullable(),
+});
+
+export type InsertSocketrelayAnnouncement = z.infer<typeof insertSocketrelayAnnouncementSchema>;
+export type SocketrelayAnnouncement = typeof socketrelayAnnouncements.$inferSelect;
+
 // ========================================
 // DIRECTORY APP TABLES
 // ========================================
@@ -795,6 +853,29 @@ export const insertDirectoryProfileSchema = createInsertSchema(directoryProfiles
 export type InsertDirectoryProfile = z.infer<typeof insertDirectoryProfileSchema>;
 export type DirectoryProfile = typeof directoryProfiles.$inferSelect;
 
+// Directory Announcements
+export const directoryAnnouncements = pgTable("directory_announcements", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: varchar("title", { length: 200 }).notNull(),
+  content: text("content").notNull(),
+  type: varchar("type", { length: 50 }).notNull().default('info'), // info, warning, maintenance, update, promotion
+  isActive: boolean("is_active").notNull().default(true),
+  expiresAt: timestamp("expires_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertDirectoryAnnouncementSchema = createInsertSchema(directoryAnnouncements).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  expiresAt: z.coerce.date().optional().nullable(),
+});
+
+export type InsertDirectoryAnnouncement = z.infer<typeof insertDirectoryAnnouncementSchema>;
+export type DirectoryAnnouncement = typeof directoryAnnouncements.$inferSelect;
+
 // ========================================
 // CHAT GROUPS APP TABLES
 // ========================================
@@ -828,6 +909,29 @@ export const insertChatGroupSchema = createInsertSchema(chatGroups).omit({
 
 export type InsertChatGroup = z.infer<typeof insertChatGroupSchema>;
 export type ChatGroup = typeof chatGroups.$inferSelect;
+
+// ChatGroups Announcements
+export const chatgroupsAnnouncements = pgTable("chatgroups_announcements", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: varchar("title", { length: 200 }).notNull(),
+  content: text("content").notNull(),
+  type: varchar("type", { length: 50 }).notNull().default('info'), // info, warning, maintenance, update, promotion
+  isActive: boolean("is_active").notNull().default(true),
+  expiresAt: timestamp("expires_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertChatgroupsAnnouncementSchema = createInsertSchema(chatgroupsAnnouncements).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  expiresAt: z.coerce.date().optional().nullable(),
+});
+
+export type InsertChatgroupsAnnouncement = z.infer<typeof insertChatgroupsAnnouncementSchema>;
+export type ChatgroupsAnnouncement = typeof chatgroupsAnnouncements.$inferSelect;
 
 // ========================================
 // PROFILE DELETION LOG TABLE

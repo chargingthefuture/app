@@ -15,6 +15,7 @@ import {
   insertExclusionSchema,
   insertReportSchema,
   insertAnnouncementSchema,
+  insertSupportmatchAnnouncementSchema,
   insertSleepStorySchema,
   insertSleepStoriesAnnouncementSchema,
   insertLighthouseProfileSchema,
@@ -25,8 +26,11 @@ import {
   insertSocketrelayFulfillmentSchema,
   insertSocketrelayMessageSchema,
   insertSocketrelayProfileSchema,
+  insertSocketrelayAnnouncementSchema,
   insertDirectoryProfileSchema,
+  insertDirectoryAnnouncementSchema,
   insertChatGroupSchema,
+  insertChatgroupsAnnouncementSchema,
 } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -688,6 +692,89 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ChatGroups Announcement routes
+  app.get('/api/chatgroups/announcements', isAuthenticated, async (req, res) => {
+    try {
+      const announcements = await storage.getActiveChatgroupsAnnouncements();
+      res.json(announcements);
+    } catch (error) {
+      console.error("Error fetching ChatGroups announcements:", error);
+      res.status(500).json({ message: "Failed to fetch announcements" });
+    }
+  });
+
+  app.get('/api/chatgroups/admin/announcements', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const announcements = await storage.getAllChatgroupsAnnouncements();
+      res.json(announcements);
+    } catch (error) {
+      console.error("Error fetching ChatGroups announcements:", error);
+      res.status(500).json({ message: "Failed to fetch announcements" });
+    }
+  });
+
+  app.post('/api/chatgroups/admin/announcements', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const validatedData = insertChatgroupsAnnouncementSchema.parse(req.body);
+
+      const announcement = await storage.createChatgroupsAnnouncement(validatedData);
+      
+      await logAdminAction(
+        userId,
+        "create_chatgroups_announcement",
+        "announcement",
+        announcement.id,
+        { title: announcement.title, type: announcement.type }
+      );
+
+      res.json(announcement);
+    } catch (error: any) {
+      console.error("Error creating ChatGroups announcement:", error);
+      res.status(400).json({ message: error.message || "Failed to create announcement" });
+    }
+  });
+
+  app.put('/api/chatgroups/admin/announcements/:id', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const announcement = await storage.updateChatgroupsAnnouncement(req.params.id, req.body);
+      
+      await logAdminAction(
+        userId,
+        "update_chatgroups_announcement",
+        "announcement",
+        announcement.id,
+        { title: announcement.title }
+      );
+
+      res.json(announcement);
+    } catch (error: any) {
+      console.error("Error updating ChatGroups announcement:", error);
+      res.status(400).json({ message: error.message || "Failed to update announcement" });
+    }
+  });
+
+  app.delete('/api/chatgroups/admin/announcements/:id', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const announcement = await storage.deactivateChatgroupsAnnouncement(req.params.id);
+      
+      await logAdminAction(
+        userId,
+        "deactivate_chatgroups_announcement",
+        "announcement",
+        announcement.id,
+        { title: announcement.title }
+      );
+
+      res.json(announcement);
+    } catch (error: any) {
+      console.error("Error deleting ChatGroups announcement:", error);
+      res.status(400).json({ message: error.message || "Failed to delete announcement" });
+    }
+  });
+
   // SupportMatch Profile routes
   app.get('/api/supportmatch/profile', isAuthenticated, async (req: any, res) => {
     try {
@@ -858,12 +945,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // SupportMatch Announcement routes (public)
-  app.get('/api/supportmatch/announcements', async (req, res) => {
+  app.get('/api/supportmatch/announcements', isAuthenticated, async (req, res) => {
     try {
-      const announcements = await storage.getActiveAnnouncements();
+      const announcements = await storage.getActiveSupportmatchAnnouncements();
       res.json(announcements);
     } catch (error) {
-      console.error("Error fetching announcements:", error);
+      console.error("Error fetching SupportMatch announcements:", error);
       res.status(500).json({ message: "Failed to fetch announcements" });
     }
   });
@@ -987,10 +1074,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/supportmatch/admin/announcements', isAuthenticated, isAdmin, async (req, res) => {
     try {
-      const announcements = await storage.getAllAnnouncements();
+      const announcements = await storage.getAllSupportmatchAnnouncements();
       res.json(announcements);
     } catch (error) {
-      console.error("Error fetching announcements:", error);
+      console.error("Error fetching SupportMatch announcements:", error);
       res.status(500).json({ message: "Failed to fetch announcements" });
     }
   });
@@ -998,13 +1085,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/supportmatch/admin/announcements', isAuthenticated, isAdmin, async (req: any, res) => {
     try {
       const userId = getUserId(req);
-      const validatedData = insertAnnouncementSchema.parse(req.body);
+      const validatedData = insertSupportmatchAnnouncementSchema.parse(req.body);
 
-      const announcement = await storage.createAnnouncement(validatedData);
+      const announcement = await storage.createSupportmatchAnnouncement(validatedData);
       
       await logAdminAction(
         userId,
-        "create_announcement",
+        "create_supportmatch_announcement",
         "announcement",
         announcement.id,
         { title: announcement.title, type: announcement.type }
@@ -1012,7 +1099,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(announcement);
     } catch (error: any) {
-      console.error("Error creating announcement:", error);
+      console.error("Error creating SupportMatch announcement:", error);
       res.status(400).json({ message: error.message || "Failed to create announcement" });
     }
   });
@@ -1020,11 +1107,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put('/api/supportmatch/admin/announcements/:id', isAuthenticated, isAdmin, async (req: any, res) => {
     try {
       const userId = getUserId(req);
-      const announcement = await storage.updateAnnouncement(req.params.id, req.body);
+      const announcement = await storage.updateSupportmatchAnnouncement(req.params.id, req.body);
       
       await logAdminAction(
         userId,
-        "update_announcement",
+        "update_supportmatch_announcement",
         "announcement",
         announcement.id,
         { title: announcement.title }
@@ -1032,7 +1119,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(announcement);
     } catch (error: any) {
-      console.error("Error updating announcement:", error);
+      console.error("Error updating SupportMatch announcement:", error);
       res.status(400).json({ message: error.message || "Failed to update announcement" });
     }
   });
@@ -1040,7 +1127,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete('/api/supportmatch/admin/announcements/:id', isAuthenticated, isAdmin, async (req: any, res) => {
     try {
       const userId = getUserId(req);
-      const announcement = await storage.deactivateAnnouncement(req.params.id);
+      const announcement = await storage.deactivateSupportmatchAnnouncement(req.params.id);
       
       await logAdminAction(
         userId,
@@ -2194,6 +2281,172 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error deleting SocketRelay request:", error);
       res.status(500).json({ message: error.message || "Failed to delete request" });
+    }
+  });
+
+  // SocketRelay Announcement routes
+  app.get('/api/socketrelay/announcements', isAuthenticated, async (req, res) => {
+    try {
+      const announcements = await storage.getActiveSocketrelayAnnouncements();
+      res.json(announcements);
+    } catch (error) {
+      console.error("Error fetching SocketRelay announcements:", error);
+      res.status(500).json({ message: "Failed to fetch announcements" });
+    }
+  });
+
+  app.get('/api/socketrelay/admin/announcements', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const announcements = await storage.getAllSocketrelayAnnouncements();
+      res.json(announcements);
+    } catch (error) {
+      console.error("Error fetching SocketRelay announcements:", error);
+      res.status(500).json({ message: "Failed to fetch announcements" });
+    }
+  });
+
+  app.post('/api/socketrelay/admin/announcements', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const validatedData = insertSocketrelayAnnouncementSchema.parse(req.body);
+
+      const announcement = await storage.createSocketrelayAnnouncement(validatedData);
+      
+      await logAdminAction(
+        userId,
+        "create_socketrelay_announcement",
+        "announcement",
+        announcement.id,
+        { title: announcement.title, type: announcement.type }
+      );
+
+      res.json(announcement);
+    } catch (error: any) {
+      console.error("Error creating SocketRelay announcement:", error);
+      res.status(400).json({ message: error.message || "Failed to create announcement" });
+    }
+  });
+
+  app.put('/api/socketrelay/admin/announcements/:id', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const announcement = await storage.updateSocketrelayAnnouncement(req.params.id, req.body);
+      
+      await logAdminAction(
+        userId,
+        "update_socketrelay_announcement",
+        "announcement",
+        announcement.id,
+        { title: announcement.title }
+      );
+
+      res.json(announcement);
+    } catch (error: any) {
+      console.error("Error updating SocketRelay announcement:", error);
+      res.status(400).json({ message: error.message || "Failed to update announcement" });
+    }
+  });
+
+  app.delete('/api/socketrelay/admin/announcements/:id', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const announcement = await storage.deactivateSocketrelayAnnouncement(req.params.id);
+      
+      await logAdminAction(
+        userId,
+        "deactivate_socketrelay_announcement",
+        "announcement",
+        announcement.id,
+        { title: announcement.title }
+      );
+
+      res.json(announcement);
+    } catch (error: any) {
+      console.error("Error deleting SocketRelay announcement:", error);
+      res.status(400).json({ message: error.message || "Failed to delete announcement" });
+    }
+  });
+
+  // Directory Announcement routes
+  app.get('/api/directory/announcements', isAuthenticated, async (req, res) => {
+    try {
+      const announcements = await storage.getActiveDirectoryAnnouncements();
+      res.json(announcements);
+    } catch (error) {
+      console.error("Error fetching Directory announcements:", error);
+      res.status(500).json({ message: "Failed to fetch announcements" });
+    }
+  });
+
+  app.get('/api/directory/admin/announcements', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const announcements = await storage.getAllDirectoryAnnouncements();
+      res.json(announcements);
+    } catch (error) {
+      console.error("Error fetching Directory announcements:", error);
+      res.status(500).json({ message: "Failed to fetch announcements" });
+    }
+  });
+
+  app.post('/api/directory/admin/announcements', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const validatedData = insertDirectoryAnnouncementSchema.parse(req.body);
+
+      const announcement = await storage.createDirectoryAnnouncement(validatedData);
+      
+      await logAdminAction(
+        userId,
+        "create_directory_announcement",
+        "announcement",
+        announcement.id,
+        { title: announcement.title, type: announcement.type }
+      );
+
+      res.json(announcement);
+    } catch (error: any) {
+      console.error("Error creating Directory announcement:", error);
+      res.status(400).json({ message: error.message || "Failed to create announcement" });
+    }
+  });
+
+  app.put('/api/directory/admin/announcements/:id', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const announcement = await storage.updateDirectoryAnnouncement(req.params.id, req.body);
+      
+      await logAdminAction(
+        userId,
+        "update_directory_announcement",
+        "announcement",
+        announcement.id,
+        { title: announcement.title }
+      );
+
+      res.json(announcement);
+    } catch (error: any) {
+      console.error("Error updating Directory announcement:", error);
+      res.status(400).json({ message: error.message || "Failed to update announcement" });
+    }
+  });
+
+  app.delete('/api/directory/admin/announcements/:id', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const announcement = await storage.deactivateDirectoryAnnouncement(req.params.id);
+      
+      await logAdminAction(
+        userId,
+        "deactivate_directory_announcement",
+        "announcement",
+        announcement.id,
+        { title: announcement.title }
+      );
+
+      res.json(announcement);
+    } catch (error: any) {
+      console.error("Error deleting Directory announcement:", error);
+      res.status(400).json({ message: error.message || "Failed to delete announcement" });
     }
   });
 

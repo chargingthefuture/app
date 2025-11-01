@@ -6,6 +6,7 @@ import { Link } from "wouter";
 import { Users, Settings, Bell, MessageSquare, UserCheck, ShieldAlert } from "lucide-react";
 import type { SupportMatchProfile, Partnership } from "@shared/schema";
 import { format } from "date-fns";
+import { AnnouncementBanner } from "@/components/announcement-banner";
 
 export default function SupportMatchDashboard() {
   const { data: profile, isLoading: profileLoading } = useQuery<SupportMatchProfile | null>({
@@ -15,10 +16,6 @@ export default function SupportMatchDashboard() {
   const { data: activePartnership, isLoading: partnershipLoading } = useQuery<Partnership | null>({
     queryKey: ["/api/supportmatch/partnership/active"],
     enabled: !!profile,
-  });
-
-  const { data: announcements } = useQuery<any[]>({
-    queryKey: ["/api/supportmatch/announcements"],
   });
 
   if (profileLoading) {
@@ -72,7 +69,6 @@ export default function SupportMatchDashboard() {
   };
 
   const statusInfo = getPartnershipStatus();
-  const activeAnnouncementsCount = announcements?.filter((a) => a.showOnLogin).length || 0;
 
   return (
     <div className="p-4 sm:p-6 md:p-8 space-y-6 sm:space-y-8">
@@ -84,6 +80,11 @@ export default function SupportMatchDashboard() {
           {profile.nickname ? `Hey ${profile.nickname}!` : 'Your accountability partner connection'}
         </p>
       </div>
+
+      <AnnouncementBanner 
+        apiEndpoint="/api/supportmatch/announcements"
+        queryKey="/api/supportmatch/announcements"
+      />
 
       {/* Current Status */}
       <Card>
@@ -193,9 +194,7 @@ export default function SupportMatchDashboard() {
           </CardHeader>
           <CardContent>
             <p className="text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-4">
-              {activeAnnouncementsCount > 0 
-                ? `${activeAnnouncementsCount} new announcement${activeAnnouncementsCount > 1 ? 's' : ''}`
-                : 'View platform updates and notifications'}
+              View platform updates and notifications
             </p>
             <Link href="/apps/supportmatch/announcements">
               <Button variant="outline" className="w-full text-xs sm:text-sm" data-testid="button-view-announcements">
