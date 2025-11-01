@@ -20,6 +20,7 @@ import { ALL_SKILLS } from "@/lib/skills";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useExternalLink } from "@/hooks/useExternalLink";
 import { VerifiedBadge } from "@/components/verified-badge";
+import { DeleteProfileDialog } from "@/components/delete-profile-dialog";
 
 export default function DirectoryProfilePage() {
   const { toast } = useToast();
@@ -43,6 +44,7 @@ export default function DirectoryProfilePage() {
   const [nickname, setNickname] = useState("");
   const [directoryFirstName, setDirectoryFirstName] = useState("");
   const [displayNameType, setDisplayNameType] = useState<'first' | 'nickname'>("first");
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   const { openExternal, ExternalLinkDialog } = useExternalLink();
 
@@ -118,11 +120,12 @@ export default function DirectoryProfilePage() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async () => apiRequest("DELETE", "/api/directory/profile"),
+    mutationFn: async (reason?: string) => apiRequest("DELETE", "/api/directory/profile", { reason }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["/api/directory/profile"] });
       setDescription(""); setSkills([]); setSignalUrl(""); setQuoraUrl(""); setCity(""); setStateVal(""); setCountry(""); setIsPublic(false);
-      toast({ title: "Deleted", description: "Directory profile deleted" });
+      setDeleteDialogOpen(false);
+      toast({ title: "Deleted", description: "Directory profile deleted successfully" });
     },
     onError: (e: any) => {
       toast({ title: "Error", description: e.message || "Failed to delete profile", variant: "destructive" });
@@ -460,8 +463,8 @@ export default function DirectoryProfilePage() {
                 <Button variant="outline" onClick={() => setIsEditing(false)} disabled={updateMutation.isPending} data-testid="button-cancel-edit">
                   Cancel
                 </Button>
-                <Button variant="destructive" onClick={() => deleteMutation.mutate()} disabled={deleteMutation.isPending} data-testid="button-delete-directory-profile">
-                  {deleteMutation.isPending ? "Deleting…" : "Delete Profile"}
+                <Button variant="destructive" onClick={() => setDeleteDialogOpen(true)} disabled={deleteMutation.isPending} data-testid="button-delete-directory-profile">
+                  Delete Profile
                 </Button>
               </>
             )}
@@ -472,6 +475,16 @@ export default function DirectoryProfilePage() {
       </Card>
 
       <ExternalLinkDialog />
+
+      {profile && (
+        <DeleteProfileDialog
+          open={deleteDialogOpen}
+          onOpenChange={setDeleteDialogOpen}
+          onConfirm={(reason) => deleteMutation.mutate(reason)}
+          appName="Directory"
+          isDeleting={deleteMutation.isPending}
+        />
+      )}
 
       {profile && (
         <Card>

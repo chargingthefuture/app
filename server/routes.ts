@@ -426,13 +426,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete('/api/directory/profile', isAuthenticated, async (req: any, res) => {
     try {
       const userId = getUserId(req);
-      const profile = await storage.getDirectoryProfileByUserId(userId);
-      if (!profile) return res.status(404).json({ message: "Profile not found" });
-      await storage.deleteDirectoryProfile(profile.id);
-      res.json({ message: "Directory profile deleted" });
-    } catch (error) {
+      const { reason } = req.body;
+      await storage.deleteDirectoryProfileWithCascade(userId, reason);
+      res.json({ message: "Directory profile deleted successfully" });
+    } catch (error: any) {
       console.error("Error deleting Directory profile:", error);
-      res.status(500).json({ message: "Failed to delete profile" });
+      res.status(400).json({ message: error.message || "Failed to delete profile" });
     }
   });
 
@@ -725,6 +724,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error updating SupportMatch profile:", error);
       res.status(400).json({ message: error.message || "Failed to update profile" });
+    }
+  });
+
+  app.delete('/api/supportmatch/profile', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const { reason } = req.body;
+      await storage.deleteSupportMatchProfile(userId, reason);
+      res.json({ message: "SupportMatch profile deleted successfully" });
+    } catch (error: any) {
+      console.error("Error deleting SupportMatch profile:", error);
+      res.status(400).json({ message: error.message || "Failed to delete profile" });
     }
   });
 
@@ -1306,6 +1317,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.delete('/api/lighthouse/profile', isAuthenticated, async (req: any, res) => {
+    try {
+      console.log("DELETE /api/lighthouse/profile - Route hit");
+      const userId = getUserId(req);
+      console.log("User ID:", userId);
+      const { reason } = req.body;
+      console.log("Reason:", reason);
+      await storage.deleteLighthouseProfile(userId, reason);
+      console.log("Profile deleted successfully");
+      res.json({ message: "LightHouse profile deleted successfully" });
+    } catch (error: any) {
+      console.error("Error deleting LightHouse profile:", error);
+      res.status(400).json({ message: error.message || "Failed to delete profile" });
+    }
+  });
+
   // Property browsing routes (for seekers)
   app.get('/api/lighthouse/properties', isAuthenticated, async (req, res) => {
     try {
@@ -1817,6 +1844,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error updating SocketRelay profile:", error);
       res.status(400).json({ message: error.message || "Failed to update profile" });
+    }
+  });
+
+  app.delete('/api/socketrelay/profile', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const { reason } = req.body;
+      await storage.deleteSocketrelayProfile(userId, reason);
+      res.json({ message: "SocketRelay profile deleted successfully" });
+    } catch (error: any) {
+      console.error("Error deleting SocketRelay profile:", error);
+      res.status(400).json({ message: error.message || "Failed to delete profile" });
     }
   });
 

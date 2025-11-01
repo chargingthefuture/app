@@ -11,13 +11,17 @@ import { PrivacyField } from "@/components/ui/privacy-field";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { insertLighthouseProfileSchema, type LighthouseProfile } from "@shared/schema";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Home } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { DeleteProfileDialog } from "@/components/delete-profile-dialog";
+import { useLocation } from "wouter";
 
 export default function LighthouseProfilePage() {
   const { toast } = useToast();
   const { isAdmin } = useAuth();
+  const [, setLocation] = useLocation();
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const { data: profile, isLoading } = useQuery<LighthouseProfile | null>({
     queryKey: ["/api/lighthouse/profile"],
   });
@@ -56,11 +60,11 @@ export default function LighthouseProfilePage() {
         phoneNumber: profile.phoneNumber || "",
         housingNeeds: profile.housingNeeds || "",
         moveInDate: profile.moveInDate ? new Date(profile.moveInDate) : null,
-        budgetMin: profile.budgetMin,
-        budgetMax: profile.budgetMax,
+        budgetMin: profile.budgetMin ?? null,
+        budgetMax: profile.budgetMax ?? null,
         hasProperty: profile.hasProperty || false,
         isActive: profile.isActive,
-      });
+      } as any);
     }
   }, [profile, form]);
 
@@ -95,6 +99,30 @@ export default function LighthouseProfilePage() {
       toast({
         title: "Error",
         description: error.message || "Failed to update profile",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (reason?: string) => {
+      const res = await apiRequest("DELETE", "/api/lighthouse/profile", { reason });
+      return await res.json();
+    },
+    onSuccess: async () => {
+      setDeleteDialogOpen(false);
+      await queryClient.invalidateQueries({ queryKey: ["/api/lighthouse/profile"] });
+      toast({
+        title: "Profile Deleted",
+        description: "Your LightHouse profile has been deleted successfully.",
+      });
+      setLocation("/apps/lighthouse");
+    },
+    onError: (error: any) => {
+      console.error("Delete profile error:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete profile",
         variant: "destructive",
       });
     },
@@ -331,11 +359,31 @@ export default function LighthouseProfilePage() {
                 <Button type="submit" disabled={isSubmitting} data-testid="button-save">
                   {isSubmitting ? "Saving..." : profile ? "Update Profile" : "Create Profile"}
                 </Button>
+                {profile && (
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    onClick={() => setDeleteDialogOpen(true)}
+                    data-testid="button-delete-profile"
+                  >
+                    Delete Profile
+                  </Button>
+                )}
               </div>
             </form>
           </Form>
         </CardContent>
       </Card>
+
+      {profile && (
+        <DeleteProfileDialog
+          open={deleteDialogOpen}
+          onOpenChange={setDeleteDialogOpen}
+          onConfirm={(reason) => deleteMutation.mutate(reason)}
+          appName="LightHouse"
+          isDeleting={deleteMutation.isPending}
+        />
+      )}
     </div>
   );
 }

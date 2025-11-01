@@ -26,6 +26,9 @@ import {
   chatGroups,
   type ChatGroup,
   type InsertChatGroup,
+  profileDeletionLogs,
+  type ProfileDeletionLog,
+  type InsertProfileDeletionLog,
   type User,
   type UpsertUser,
   type InviteCode,
@@ -255,6 +258,13 @@ export interface IStorage {
   createChatGroup(group: InsertChatGroup): Promise<ChatGroup>;
   updateChatGroup(id: string, group: Partial<InsertChatGroup>): Promise<ChatGroup>;
   deleteChatGroup(id: string): Promise<void>;
+
+  // Profile deletion operations with cascade anonymization
+  deleteSupportMatchProfile(userId: string, reason?: string): Promise<void>;
+  deleteLighthouseProfile(userId: string, reason?: string): Promise<void>;
+  deleteSocketrelayProfile(userId: string, reason?: string): Promise<void>;
+  deleteDirectoryProfileWithCascade(userId: string, reason?: string): Promise<void>;
+  logProfileDeletion(userId: string, appName: string, reason?: string): Promise<ProfileDeletionLog>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1754,6 +1764,284 @@ export class DatabaseStorage implements IStorage {
 
   async deleteChatGroup(id: string): Promise<void> {
     await db.delete(chatGroups).where(eq(chatGroups.id, id));
+  }
+
+  // ========================================
+  // PROFILE DELETION OPERATIONS
+  // ========================================
+
+  /**
+   * Generates an anonymized user ID in the format: deleted_user_[random_string]
+   */
+  private generateAnonymizedUserId(): string {
+    const randomString = randomBytes(16).toString('hex');
+    return `deleted_user_${randomString}`;
+  }
+
+  /**
+   * Logs a profile deletion for auditing purposes
+   */
+  async logProfileDeletion(userId: string, appName: string, reason?: string): Promise<ProfileDeletionLog> {
+    const [log] = await db
+      .insert(profileDeletionLogs)
+      .values({
+        userId,
+        appName,
+        reason: reason || null,
+      })
+      .returning();
+    return log;
+  }
+
+  /**
+   * Deletes a SupportMatch profile and anonymizes all related data
+   */
+  async deleteSupportMatchProfile(userId: string, reason?: string): Promise<void> {
+    try {
+      // Get profile first
+      const profile = await this.getSupportMatchProfile(userId);
+      if (!profile) {
+        throw new Error("SupportMatch profile not found");
+      }
+
+      const anonymizedUserId = this.generateAnonymizedUserId();
+
+      // SupportMatch foreign keys reference supportMatchProfiles.userId, which references users.id
+      // So we need to create both a temp user and temp profile
+      try {
+        await db
+          .insert(users)
+          .values({
+            id: anonymizedUserId,
+            email: null,
+            firstName: "Deleted",
+            lastName: "User",
+            isAdmin: false,
+            isVerified: false,
+          });
+      } catch (error: any) {
+        // If user already exists (from previous deletion), that's fine
+        if (!error.message?.includes("duplicate key") && !error.message?.includes("unique constraint")) {
+          throw error;
+        }
+      }
+
+      // Create a temporary anonymized profile to satisfy foreign key constraints
+      try {
+        await db
+          .insert(supportMatchProfiles)
+          .values({
+            userId: anonymizedUserId,
+            nickname: "Deleted User",
+            isActive: false,
+          });
+      } catch (error: any) {
+        // If profile already exists (from previous deletion), that's fine
+        if (!error.message?.includes("duplicate key") && !error.message?.includes("unique constraint")) {
+          throw error;
+        }
+      }
+
+      // Anonymize partnerships (user1Id and user2Id)
+      await db
+        .update(partnerships)
+        .set({ user1Id: anonymizedUserId })
+        .where(eq(partnerships.user1Id, userId));
+      
+      await db
+        .update(partnerships)
+        .set({ user2Id: anonymizedUserId })
+        .where(eq(partnerships.user2Id, userId));
+
+      // Anonymize messages (senderId)
+      await db
+        .update(messages)
+        .set({ senderId: anonymizedUserId })
+        .where(eq(messages.senderId, userId));
+
+      // Anonymize exclusions (userId and excludedUserId)
+      await db
+        .update(exclusions)
+        .set({ userId: anonymizedUserId })
+        .where(eq(exclusions.userId, userId));
+      
+      await db
+        .update(exclusions)
+        .set({ excludedUserId: anonymizedUserId })
+        .where(eq(exclusions.excludedUserId, userId));
+
+      // Anonymize reports (reporterId and reportedUserId)
+      await db
+        .update(reports)
+        .set({ reporterId: anonymizedUserId })
+        .where(eq(reports.reporterId, userId));
+      
+      await db
+        .update(reports)
+        .set({ reportedUserId: anonymizedUserId })
+        .where(eq(reports.reportedUserId, userId));
+
+      // Delete the original profile
+      await db.delete(supportMatchProfiles).where(eq(supportMatchProfiles.userId, userId));
+
+      // Log the deletion (don't fail if logging fails)
+      try {
+        await this.logProfileDeletion(userId, "supportmatch", reason);
+      } catch (error) {
+        console.error("Failed to log profile deletion:", error);
+        // Continue even if logging fails
+      }
+    } catch (error: any) {
+      console.error("Error in deleteSupportMatchProfile:", error);
+      // Re-throw with more context
+      throw new Error(`Failed to delete SupportMatch profile: ${error.message || "Unknown error"}`);
+    }
+  }
+
+  /**
+   * Deletes a LightHouse profile and anonymizes all related data
+   */
+  async deleteLighthouseProfile(userId: string, reason?: string): Promise<void> {
+    try {
+      // Get profile first
+      const profile = await this.getLighthouseProfileByUserId(userId);
+      if (!profile) {
+        throw new Error("LightHouse profile not found");
+      }
+
+      // Get all properties owned by this profile
+      const properties = await this.getPropertiesByHost(profile.id);
+
+      // Delete matches where this profile is the seeker
+      // Note: lighthouseMatches references lighthouseProfiles.id, not userId
+      // Since we can't easily anonymize profile.id references, we delete the matches
+      const matches = await this.getMatchesBySeeker(profile.id);
+      for (const match of matches) {
+        // Delete matches as they become invalid without the profile
+        await db.delete(lighthouseMatches).where(eq(lighthouseMatches.id, match.id));
+      }
+
+      // Delete all properties owned by this profile
+      for (const property of properties) {
+        // Delete matches associated with these properties first
+        const propertyMatches = await this.getMatchesByProperty(property.id);
+        for (const match of propertyMatches) {
+          await db.delete(lighthouseMatches).where(eq(lighthouseMatches.id, match.id));
+        }
+        // Then delete the property
+        await db.delete(lighthouseProperties).where(eq(lighthouseProperties.id, property.id));
+      }
+
+      // Delete the profile
+      await db.delete(lighthouseProfiles).where(eq(lighthouseProfiles.userId, userId));
+
+      // Log the deletion (don't fail if logging fails)
+      try {
+        await this.logProfileDeletion(userId, "lighthouse", reason);
+      } catch (error) {
+        console.error("Failed to log profile deletion:", error);
+        // Continue even if logging fails
+      }
+    } catch (error: any) {
+      console.error("Error in deleteLighthouseProfile:", error);
+      // Re-throw with more context
+      throw new Error(`Failed to delete LightHouse profile: ${error.message || "Unknown error"}`);
+    }
+  }
+
+  /**
+   * Deletes a SocketRelay profile and anonymizes all related data
+   */
+  async deleteSocketrelayProfile(userId: string, reason?: string): Promise<void> {
+    try {
+      // Get profile first
+      const profile = await this.getSocketrelayProfile(userId);
+      if (!profile) {
+        throw new Error("SocketRelay profile not found");
+      }
+
+      const anonymizedUserId = this.generateAnonymizedUserId();
+
+      // SocketRelay foreign keys reference users.id, so we need to create a temp user
+      // to satisfy foreign key constraints when anonymizing
+      try {
+        await db
+          .insert(users)
+          .values({
+            id: anonymizedUserId,
+            email: null,
+            firstName: "Deleted",
+            lastName: "User",
+            isAdmin: false,
+            isVerified: false,
+          });
+      } catch (error: any) {
+        // If user already exists (from previous deletion), that's fine
+        if (!error.message?.includes("duplicate key") && !error.message?.includes("unique constraint")) {
+          throw error;
+        }
+      }
+
+      // Anonymize requests (userId references users.id)
+      await db
+        .update(socketrelayRequests)
+        .set({ userId: anonymizedUserId })
+        .where(eq(socketrelayRequests.userId, userId));
+
+      // Anonymize fulfillments (fulfillerUserId and closedBy reference users.id)
+      await db
+        .update(socketrelayFulfillments)
+        .set({ fulfillerUserId: anonymizedUserId })
+        .where(eq(socketrelayFulfillments.fulfillerUserId, userId));
+      
+      await db
+        .update(socketrelayFulfillments)
+        .set({ closedBy: anonymizedUserId })
+        .where(eq(socketrelayFulfillments.closedBy, userId));
+
+      // Anonymize messages (senderId references users.id)
+      await db
+        .update(socketrelayMessages)
+        .set({ senderId: anonymizedUserId })
+        .where(eq(socketrelayMessages.senderId, userId));
+
+      // Delete the profile
+      await db.delete(socketrelayProfiles).where(eq(socketrelayProfiles.userId, userId));
+
+      // Log the deletion (don't fail if logging fails)
+      try {
+        await this.logProfileDeletion(userId, "socketrelay", reason);
+      } catch (error) {
+        console.error("Failed to log profile deletion:", error);
+        // Continue even if logging fails
+      }
+    } catch (error: any) {
+      console.error("Error in deleteSocketrelayProfile:", error);
+      // Re-throw with more context
+      throw new Error(`Failed to delete SocketRelay profile: ${error.message || "Unknown error"}`);
+    }
+  }
+
+  /**
+   * Deletes a Directory profile with cascade handling (Directory has no relational data to anonymize)
+   */
+  async deleteDirectoryProfileWithCascade(userId: string, reason?: string): Promise<void> {
+    // Get profile first
+    const profile = await this.getDirectoryProfileByUserId(userId);
+    if (!profile) {
+      throw new Error("Directory profile not found");
+    }
+
+    // Delete the profile
+    await db.delete(directoryProfiles).where(eq(directoryProfiles.userId, userId));
+
+    // Log the deletion (don't fail if logging fails)
+    try {
+      await this.logProfileDeletion(userId, "directory", reason);
+    } catch (error) {
+      console.error("Failed to log profile deletion:", error);
+      // Continue even if logging fails
+    }
   }
 }
 

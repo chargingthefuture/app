@@ -12,8 +12,9 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import type { SocketrelayProfile, SupportMatchProfile, LighthouseProfile } from "@shared/schema";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useLocation } from "wouter";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Package } from "lucide-react";
+import { DeleteProfileDialog } from "@/components/delete-profile-dialog";
 
 const profileFormSchema = insertSocketrelayProfileSchema.omit({ userId: true });
 
@@ -22,6 +23,7 @@ type ProfileFormData = z.infer<typeof profileFormSchema>;
 export default function SocketRelayProfile() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   const { data: profile, isLoading } = useQuery<SocketrelayProfile | null>({
     queryKey: ["/api/socketrelay/profile"],
@@ -109,6 +111,30 @@ export default function SocketRelayProfile() {
       toast({
         title: "Error",
         description: error.message || "Failed to update profile",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (reason?: string) => {
+      const res = await apiRequest("DELETE", "/api/socketrelay/profile", { reason });
+      return await res.json();
+    },
+    onSuccess: async () => {
+      setDeleteDialogOpen(false);
+      await queryClient.invalidateQueries({ queryKey: ["/api/socketrelay/profile"] });
+      toast({
+        title: "Profile Deleted",
+        description: "Your SocketRelay profile has been deleted successfully.",
+      });
+      setLocation("/apps/socketrelay");
+    },
+    onError: (error: any) => {
+      console.error("Delete profile error:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete profile",
         variant: "destructive",
       });
     },
@@ -306,19 +332,41 @@ export default function SocketRelayProfile() {
                 >
                   {isSubmitting ? "Saving..." : profile ? "Update Profile" : "Create Profile"}
                 </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setLocation("/apps/socketrelay")}
-                  data-testid="button-cancel"
-                >
-                  Cancel
-                </Button>
+                {profile && (
+                  <>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setLocation("/apps/socketrelay")}
+                      data-testid="button-cancel"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      onClick={() => setDeleteDialogOpen(true)}
+                      data-testid="button-delete-profile"
+                    >
+                      Delete Profile
+                    </Button>
+                  </>
+                )}
               </div>
             </form>
           </Form>
         </CardContent>
       </Card>
+
+      {profile && (
+        <DeleteProfileDialog
+          open={deleteDialogOpen}
+          onOpenChange={setDeleteDialogOpen}
+          onConfirm={(reason) => deleteMutation.mutate(reason)}
+          appName="SocketRelay"
+          isDeleting={deleteMutation.isPending}
+        />
+      )}
     </div>
   );
 }

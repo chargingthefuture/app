@@ -20,14 +20,14 @@ const services = [
   },
   {
     title: "LightHouse",
-    description: "Safe housing connections for survivors. Find or offer secure, supportive living spaces in New York.",
+    description: "rovides safe accommodations and support resources for human trafficking survivors, guiding them towards healing and empowerment.",
     icon: Building2,
     href: "/apps/lighthouse",
     testId: "card-service-lighthouse",
   },
   {
     title: "Sleep Stories",
-    description: "Calming audio content designed to help you relax and sleep peacefully. Meditation and bedtime stories.",
+    description: "Calming audio content designed to help you relax and sleep peacefully. Audio stories to help you medaite and fall asleep.",
     icon: Moon,
     href: "/apps/sleepstories",
     testId: "card-service-sleepstories",
@@ -41,7 +41,7 @@ const services = [
   },
   {
     title: "SupportMatch",
-    description: "Connect with accountability partners who understand your journey. Find support through meaningful partnerships.",
+    description: "partner matching platform for human trafficking victims, featuring monthly partnership cycles, real-time messaging, and robust safety features.",
     icon: UserCheck,
     href: "/apps/supportmatch",
     testId: "card-service-supportmatch",

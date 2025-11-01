@@ -2,13 +2,16 @@ import { Shield, Heart, Lock, Copy, Check, Coins } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useState } from "react";
+import { useExternalLink } from "@/hooks/useExternalLink";
 
 export default function Landing() {
   const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
+  const { openExternal, ExternalLinkDialog } = useExternalLink();
 
   // TODO: Replace with actual donation addresses
   const bitcoinAddress = "bc1qqurdsmdwfg9uekvvwf29r3r7ufu3l2tenncdtd";
   const moneroAddress = "49V9nUSEjTPbqGzAEtvepMSHz5FvknBR3gYQFe8mhme5AF2VHoEoVBdcViZM1kFzMWUcpsS8w5oJeLd57pQRPUdjNhpawYr";
+  const signalGroupUrl = "https://signal.group/#CjQKILHj7074l2Kl-oYy0qGSFdydXbtu0Pf66Z_88K9IlSCtEhDDdqV_BFAW2qm2EiTGEaNs";
 
   const copyAddress = async (address: string, type: string) => {
     try {
@@ -103,15 +106,13 @@ export default function Landing() {
                     <div className="pt-3 lg:pt-4 border-t">
                       <p className="text-xs text-center text-muted-foreground leading-relaxed">
                         Need an invite code?{" "}
-                        <a 
-                          href="https://signal.group/#CjQKILHj7074l2Kl-oYy0qGSFdydXbtu0Pf66Z_88K9IlSCtEhDDdqV_BFAW2qm2EiTGEaNs"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-primary hover:underline"
+                        <button
+                          onClick={() => openExternal(signalGroupUrl)}
+                          className="text-primary hover:underline bg-transparent border-0 p-0 cursor-pointer"
                           data-testid="link-signal-group"
                         >
                           Contact our support coordinator for secure access
-                        </a>.
+                        </button>.
                       </p>
                     </div>
                   </div>
@@ -187,7 +188,7 @@ export default function Landing() {
 
                   <div className="pt-3 border-t">
                     <p className="text-xs text-center text-muted-foreground">
-                      Donations help maintain infrastructure and keep services affordable for survivors
+                      Donations help maintain infrastructure and keep services affordable for survivors.
                     </p>
                   </div>
                 </CardContent>
@@ -196,6 +197,7 @@ export default function Landing() {
           </div>
         </div>
       </div>
+      <ExternalLinkDialog />
     </div>
   );
 }

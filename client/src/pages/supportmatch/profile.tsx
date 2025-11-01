@@ -13,7 +13,8 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import type { SupportMatchProfile } from "@shared/schema";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useLocation } from "wouter";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { DeleteProfileDialog } from "@/components/delete-profile-dialog";
 
 const profileFormSchema = insertSupportMatchProfileSchema.omit({ userId: true }).extend({
   nickname: z.string().optional(),
@@ -31,6 +32,7 @@ type ProfileFormData = z.infer<typeof profileFormSchema>;
 export default function SupportMatchProfile() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   const { data: profile, isLoading } = useQuery<SupportMatchProfile | null>({
     queryKey: ["/api/supportmatch/profile"],
@@ -101,6 +103,30 @@ export default function SupportMatchProfile() {
       toast({
         title: "Error",
         description: error.message || "Failed to update profile",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (reason?: string) => {
+      const res = await apiRequest("DELETE", "/api/supportmatch/profile", { reason });
+      return await res.json();
+    },
+    onSuccess: async () => {
+      setDeleteDialogOpen(false);
+      await queryClient.invalidateQueries({ queryKey: ["/api/supportmatch/profile"] });
+      toast({
+        title: "Profile Deleted",
+        description: "Your SupportMatch profile has been deleted successfully.",
+      });
+      setLocation("/apps/supportmatch");
+    },
+    onError: (error: any) => {
+      console.error("Delete profile error:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete profile",
         variant: "destructive",
       });
     },
@@ -400,21 +426,42 @@ export default function SupportMatchProfile() {
                     : "Create Profile"}
                 </Button>
                 {profile && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setLocation("/apps/supportmatch")}
-                    data-testid="button-cancel"
-                    className="text-sm sm:text-base"
-                  >
-                    Cancel
-                  </Button>
+                  <>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setLocation("/apps/supportmatch")}
+                      data-testid="button-cancel"
+                      className="text-sm sm:text-base"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      onClick={() => setDeleteDialogOpen(true)}
+                      data-testid="button-delete-profile"
+                      className="text-sm sm:text-base sm:ml-auto"
+                    >
+                      Delete Profile
+                    </Button>
+                  </>
                 )}
               </div>
             </form>
           </Form>
         </CardContent>
       </Card>
+
+      {profile && (
+        <DeleteProfileDialog
+          open={deleteDialogOpen}
+          onOpenChange={setDeleteDialogOpen}
+          onConfirm={(reason) => deleteMutation.mutate(reason)}
+          appName="SupportMatch"
+          isDeleting={deleteMutation.isPending}
+        />
+      )}
     </div>
   );
 }
