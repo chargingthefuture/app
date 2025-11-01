@@ -125,6 +125,30 @@ export interface IStorage {
     outstandingRevenue: string;
   }>;
   
+  // Weekly Performance Review
+  getWeeklyPerformanceReview(weekStart: Date): Promise<{
+    currentWeek: {
+      startDate: string;
+      endDate: string;
+      newUsers: number;
+      dailyActiveUsers: Array<{ date: string; count: number }>;
+      revenue: number;
+      dailyRevenue: Array<{ date: string; amount: number }>;
+    };
+    previousWeek: {
+      startDate: string;
+      endDate: string;
+      newUsers: number;
+      dailyActiveUsers: Array<{ date: string; count: number }>;
+      revenue: number;
+      dailyRevenue: Array<{ date: string; amount: number }>;
+    };
+    comparison: {
+      newUsersChange: number;
+      revenueChange: number;
+    };
+  }>;
+  
   // SupportMatch Profile operations
   getSupportMatchProfile(userId: string): Promise<SupportMatchProfile | undefined>;
   createSupportMatchProfile(profile: InsertSupportMatchProfile): Promise<SupportMatchProfile>;
@@ -461,10 +485,34 @@ export class DatabaseStorage implements IStorage {
 
   // Payment operations
   async createPayment(paymentData: InsertPayment): Promise<Payment> {
+    console.log("Creating payment with data:", JSON.stringify(paymentData, null, 2));
+    
+    // Explicitly build the values object to ensure billingMonth is included
+    const values: any = {
+      userId: paymentData.userId,
+      amount: paymentData.amount,
+      paymentDate: paymentData.paymentDate,
+      paymentMethod: paymentData.paymentMethod,
+      billingPeriod: paymentData.billingPeriod,
+      notes: paymentData.notes ?? null,
+      recordedBy: paymentData.recordedBy,
+    };
+    
+    // Explicitly include billingMonth (null is fine)
+    if ('billingMonth' in paymentData) {
+      values.billingMonth = paymentData.billingMonth ?? null;
+    } else {
+      values.billingMonth = null;
+    }
+    
+    console.log("Inserting with values:", JSON.stringify(values, null, 2));
+    
     const [payment] = await db
       .insert(payments)
-      .values(paymentData)
+      .values(values)
       .returning();
+    
+    console.log("Created payment:", JSON.stringify(payment, null, 2));
     return payment;
   }
 
@@ -543,6 +591,259 @@ export class DatabaseStorage implements IStorage {
       activeInvites,
       collectedMonthlyRevenue: collectedMonthlyRevenue.toFixed(2),
       outstandingRevenue: outstandingRevenue.toFixed(2),
+    };
+  }
+
+  // Helper to get start of week (Monday) for a given date
+  private getWeekStart(date: Date): Date {
+    const d = new Date(date);
+    const day = d.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+    // Calculate days to subtract to get to Monday
+    // If Sunday (0), subtract 6 days. If Monday (1), subtract 0 days. If Tuesday (2), subtract 1 day, etc.
+    const daysToSubtract = day === 0 ? 6 : day - 1;
+    const weekStart = new Date(d);
+    weekStart.setDate(d.getDate() - daysToSubtract);
+    weekStart.setHours(0, 0, 0, 0);
+    return weekStart;
+  }
+
+  // Helper to get end of week (Sunday) for a given date
+  private getWeekEnd(date: Date): Date {
+    const weekStart = this.getWeekStart(date);
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekEnd.getDate() + 6);
+    weekEnd.setHours(23, 59, 59, 999);
+    return weekEnd;
+  }
+
+  // Helper to format date as YYYY-MM-DD
+  private formatDate(date: Date): string {
+    return date.toISOString().split('T')[0];
+  }
+
+  // Helper to get all days in a week
+  private getDaysInWeek(weekStart: Date): Array<{ date: Date; dateString: string }> {
+    const days = [];
+    for (let i = 0; i < 7; i++) {
+      const day = new Date(weekStart);
+      day.setDate(day.getDate() + i);
+      days.push({
+        date: day,
+        dateString: this.formatDate(day),
+      });
+    }
+    return days;
+  }
+
+  async getWeeklyPerformanceReview(weekStart: Date): Promise<{
+    currentWeek: {
+      startDate: string;
+      endDate: string;
+      newUsers: number;
+      dailyActiveUsers: Array<{ date: string; count: number }>;
+      revenue: number;
+      dailyRevenue: Array<{ date: string; amount: number }>;
+    };
+    previousWeek: {
+      startDate: string;
+      endDate: string;
+      newUsers: number;
+      dailyActiveUsers: Array<{ date: string; count: number }>;
+      revenue: number;
+      dailyRevenue: Array<{ date: string; amount: number }>;
+    };
+    comparison: {
+      newUsersChange: number;
+      revenueChange: number;
+    };
+  }> {
+    // Calculate current week boundaries (Monday to Sunday)
+    const currentWeekStart = this.getWeekStart(weekStart);
+    currentWeekStart.setHours(0, 0, 0, 0);
+    const currentWeekEnd = this.getWeekEnd(weekStart);
+    
+    // Calculate previous week boundaries
+    const previousWeekStart = new Date(currentWeekStart);
+    previousWeekStart.setDate(previousWeekStart.getDate() - 7);
+    const previousWeekEnd = new Date(currentWeekEnd);
+    previousWeekEnd.setDate(previousWeekEnd.getDate() - 7);
+
+    // Get new users for current week
+    const currentWeekNewUsers = await db
+      .select()
+      .from(users)
+      .where(
+        and(
+          gte(users.createdAt, currentWeekStart),
+          lte(users.createdAt, currentWeekEnd)
+        )
+      );
+
+    // Get new users for previous week
+    const previousWeekNewUsers = await db
+      .select()
+      .from(users)
+      .where(
+        and(
+          gte(users.createdAt, previousWeekStart),
+          lte(users.createdAt, previousWeekEnd)
+        )
+      );
+
+    // Get payments for current week
+    const currentWeekPayments = await db
+      .select()
+      .from(payments)
+      .where(
+        and(
+          gte(payments.paymentDate, currentWeekStart),
+          lte(payments.paymentDate, currentWeekEnd)
+        )
+      );
+
+    // Get payments for previous week
+    const previousWeekPayments = await db
+      .select()
+      .from(payments)
+      .where(
+        and(
+          gte(payments.paymentDate, previousWeekStart),
+          lte(payments.paymentDate, previousWeekEnd)
+        )
+      );
+
+    // Calculate daily active users (users who made payments or were created on that day)
+    const currentWeekDays = this.getDaysInWeek(currentWeekStart);
+    const currentWeekDAU = currentWeekDays.map(day => {
+      const dayStart = new Date(day.date);
+      dayStart.setHours(0, 0, 0, 0);
+      const dayEnd = new Date(day.date);
+      dayEnd.setHours(23, 59, 59, 999);
+
+      // Count users created or who made payments on this day
+      const usersCreated = currentWeekNewUsers.filter(u => {
+        const created = new Date(u.createdAt);
+        return created >= dayStart && created <= dayEnd;
+      });
+      const usersWithPayments = currentWeekPayments
+        .filter(p => {
+          const paymentDate = new Date(p.paymentDate);
+          return paymentDate >= dayStart && paymentDate <= dayEnd;
+        })
+        .map(p => p.userId);
+      
+      // Unique user IDs for this day
+      const uniqueUsers = new Set([
+        ...usersCreated.map(u => u.id),
+        ...usersWithPayments
+      ]);
+
+      return {
+        date: day.dateString,
+        count: uniqueUsers.size,
+      };
+    });
+
+    const previousWeekDays = this.getDaysInWeek(previousWeekStart);
+    const previousWeekDAU = previousWeekDays.map(day => {
+      const dayStart = new Date(day.date);
+      dayStart.setHours(0, 0, 0, 0);
+      const dayEnd = new Date(day.date);
+      dayEnd.setHours(23, 59, 59, 999);
+
+      const usersCreated = previousWeekNewUsers.filter(u => {
+        const created = new Date(u.createdAt);
+        return created >= dayStart && created <= dayEnd;
+      });
+      const usersWithPayments = previousWeekPayments
+        .filter(p => {
+          const paymentDate = new Date(p.paymentDate);
+          return paymentDate >= dayStart && paymentDate <= dayEnd;
+        })
+        .map(p => p.userId);
+      
+      const uniqueUsers = new Set([
+        ...usersCreated.map(u => u.id),
+        ...usersWithPayments
+      ]);
+
+      return {
+        date: day.dateString,
+        count: uniqueUsers.size,
+      };
+    });
+
+    // Calculate daily revenue
+    const currentWeekDailyRevenue = currentWeekDays.map(day => {
+      const dayStart = new Date(day.date);
+      dayStart.setHours(0, 0, 0, 0);
+      const dayEnd = new Date(day.date);
+      dayEnd.setHours(23, 59, 59, 999);
+
+      const dayPayments = currentWeekPayments.filter(p => {
+        const paymentDate = new Date(p.paymentDate);
+        return paymentDate >= dayStart && paymentDate <= dayEnd;
+      });
+
+      const amount = dayPayments.reduce((sum, p) => sum + parseFloat(p.amount), 0);
+      return {
+        date: day.dateString,
+        amount: parseFloat(amount.toFixed(2)),
+      };
+    });
+
+    const previousWeekDailyRevenue = previousWeekDays.map(day => {
+      const dayStart = new Date(day.date);
+      dayStart.setHours(0, 0, 0, 0);
+      const dayEnd = new Date(day.date);
+      dayEnd.setHours(23, 59, 59, 999);
+
+      const dayPayments = previousWeekPayments.filter(p => {
+        const paymentDate = new Date(p.paymentDate);
+        return paymentDate >= dayStart && paymentDate <= dayEnd;
+      });
+
+      const amount = dayPayments.reduce((sum, p) => sum + parseFloat(p.amount), 0);
+      return {
+        date: day.dateString,
+        amount: parseFloat(amount.toFixed(2)),
+      };
+    });
+
+    // Calculate total revenue
+    const currentWeekRevenue = currentWeekPayments.reduce((sum, p) => sum + parseFloat(p.amount), 0);
+    const previousWeekRevenue = previousWeekPayments.reduce((sum, p) => sum + parseFloat(p.amount), 0);
+
+    // Calculate percentage changes
+    const newUsersChange = previousWeekNewUsers.length === 0
+      ? (currentWeekNewUsers.length > 0 ? 100 : 0)
+      : ((currentWeekNewUsers.length - previousWeekNewUsers.length) / previousWeekNewUsers.length) * 100;
+
+    const revenueChange = previousWeekRevenue === 0
+      ? (currentWeekRevenue > 0 ? 100 : 0)
+      : ((currentWeekRevenue - previousWeekRevenue) / previousWeekRevenue) * 100;
+
+    return {
+      currentWeek: {
+        startDate: this.formatDate(currentWeekStart),
+        endDate: this.formatDate(currentWeekEnd),
+        newUsers: currentWeekNewUsers.length,
+        dailyActiveUsers: currentWeekDAU,
+        revenue: parseFloat(currentWeekRevenue.toFixed(2)),
+        dailyRevenue: currentWeekDailyRevenue,
+      },
+      previousWeek: {
+        startDate: this.formatDate(previousWeekStart),
+        endDate: this.formatDate(previousWeekEnd),
+        newUsers: previousWeekNewUsers.length,
+        dailyActiveUsers: previousWeekDAU,
+        revenue: parseFloat(previousWeekRevenue.toFixed(2)),
+        dailyRevenue: previousWeekDailyRevenue,
+      },
+      comparison: {
+        newUsersChange: parseFloat(newUsersChange.toFixed(2)),
+        revenueChange: parseFloat(revenueChange.toFixed(2)),
+      },
     };
   }
   

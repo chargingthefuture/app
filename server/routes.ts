@@ -158,6 +158,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Weekly Performance Review
+  app.get('/api/admin/weekly-performance', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const weekStartParam = req.query.weekStart;
+      let weekStart: Date;
+      
+      if (weekStartParam) {
+        weekStart = new Date(weekStartParam);
+        if (isNaN(weekStart.getTime())) {
+          return res.status(400).json({ message: "Invalid weekStart date format" });
+        }
+      } else {
+        // Default to current week
+        weekStart = new Date();
+      }
+      
+      const review = await storage.getWeeklyPerformanceReview(weekStart);
+      res.json(review);
+    } catch (error: any) {
+      console.error("Error fetching weekly performance review:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch weekly performance review" });
+    }
+  });
+
   // Admin routes - Anti-scraping monitoring
   app.get('/api/admin/anti-scraping/patterns', isAuthenticated, isAdmin, async (req, res) => {
     try {
@@ -257,12 +281,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/admin/payments', isAuthenticated, isAdmin, async (req: any, res) => {
     try {
       const userId = getUserId(req);
-      const validatedData = insertPaymentSchema.parse({
+      console.log("Payment request body:", JSON.stringify(req.body, null, 2));
+      
+      // Prepare data for validation
+      const dataToValidate: any = {
         ...req.body,
         recordedBy: userId,
-      });
+      };
+      
+      // Ensure billingMonth is explicitly null for yearly payments
+      if (req.body.billingPeriod === "yearly") {
+        dataToValidate.billingMonth = null;
+      }
+      
+      console.log("Data to validate:", JSON.stringify(dataToValidate, null, 2));
+      const validatedData = insertPaymentSchema.parse(dataToValidate);
+      console.log("Validated payment data:", JSON.stringify(validatedData, null, 2));
 
       const payment = await storage.createPayment(validatedData);
+      console.log("Created payment result:", JSON.stringify(payment, null, 2));
       
       await logAdminAction(
         userId,

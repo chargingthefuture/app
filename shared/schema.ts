@@ -111,6 +111,7 @@ export const payments = pgTable("payments", {
   paymentDate: timestamp("payment_date").notNull(),
   paymentMethod: varchar("payment_method", { length: 50 }).notNull().default('cash'),
   billingPeriod: varchar("billing_period", { length: 20 }).notNull().default('monthly'), // monthly, yearly
+  billingMonth: varchar("billing_month", { length: 7 }), // YYYY-MM format for calendar month
   notes: text("notes"),
   recordedBy: varchar("recorded_by").notNull().references(() => users.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -142,6 +143,24 @@ export const insertPaymentSchema = createInsertSchema(payments).omit({
     z.date()
   ),
   billingPeriod: z.enum(["monthly", "yearly"]).default("monthly"),
+  billingMonth: z.preprocess(
+    (val) => {
+      // Normalize: convert undefined/empty to null
+      if (val === undefined || val === "" || val === null) {
+        return null;
+      }
+      // If it's a string, validate format
+      if (typeof val === "string" && /^\d{4}-\d{2}$/.test(val)) {
+        return val;
+      }
+      // If it doesn't match, still return it (validation will catch it)
+      return val;
+    },
+    z.union([
+      z.string().regex(/^\d{4}-\d{2}$/, "Must be in YYYY-MM format"),
+      z.null(),
+    ]).optional()
+  ),
 });
 
 export type InsertPayment = z.infer<typeof insertPaymentSchema>;

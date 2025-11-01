@@ -18,6 +18,7 @@ import AdminInvites from "@/pages/admin/invites";
 import AdminPayments from "@/pages/admin/payments";
 import AdminActivity from "@/pages/admin/activity";
 import AdminPricingTiers from "@/pages/admin/pricing-tiers";
+import AdminWeeklyPerformance from "@/pages/admin/weekly-performance";
 import SupportMatchDashboard from "@/pages/supportmatch/dashboard";
 import SupportMatchProfile from "@/pages/supportmatch/profile";
 import SupportMatchPartnership from "@/pages/supportmatch/partnership";
@@ -93,6 +94,7 @@ function Router() {
           <Route path="/admin/payments" component={AdminPayments} />
           <Route path="/admin/pricing" component={AdminPricingTiers} />
           <Route path="/admin/activity" component={AdminActivity} />
+          <Route path="/admin/weekly-performance" component={AdminWeeklyPerformance} />
           <Route path="/apps/supportmatch" component={SupportMatchDashboard} />
           <Route path="/apps/supportmatch/profile" component={SupportMatchProfile} />
           <Route path="/apps/supportmatch/partnership" component={SupportMatchPartnership} />

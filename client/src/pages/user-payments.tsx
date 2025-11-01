@@ -100,6 +100,17 @@ export default function UserPayments() {
     }
   };
 
+  const formatBillingMonth = (billingMonth: string | null) => {
+    if (!billingMonth) return "-";
+    try {
+      const [year, month] = billingMonth.split("-");
+      const date = new Date(parseInt(year), parseInt(month) - 1);
+      return date.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+    } catch {
+      return billingMonth;
+    }
+  };
+
   return (
     <div className="p-6 md:p-8 space-y-6">
       <div>
@@ -446,6 +457,7 @@ export default function UserPayments() {
                   <TableRow>
                     <TableHead>Amount</TableHead>
                     <TableHead>Period</TableHead>
+                    <TableHead>Billing Month</TableHead>
                     <TableHead>Payment Method</TableHead>
                     <TableHead>Payment Date</TableHead>
                     <TableHead>Notes</TableHead>
@@ -459,6 +471,11 @@ export default function UserPayments() {
                       </TableCell>
                       <TableCell>
                         <span className="capitalize">{payment.billingPeriod || 'monthly'}</span>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {payment.billingPeriod === "monthly" 
+                          ? formatBillingMonth(payment.billingMonth)
+                          : "-"}
                       </TableCell>
                       <TableCell className="capitalize">
                         {payment.paymentMethod}

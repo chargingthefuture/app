@@ -11,7 +11,8 @@ import {
   Sun,
   Building2,
   Radio,
-  MessageCircle
+  MessageCircle,
+  BarChart3
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
@@ -67,6 +68,12 @@ const adminMenuItems = [
     url: "/admin/activity",
     icon: FileText,
     testId: "link-admin-activity",
+  },
+  {
+    title: "Weekly Performance",
+    url: "/admin/weekly-performance",
+    icon: BarChart3,
+    testId: "link-admin-weekly-performance",
   },
   {
     title: "Chat Groups Admin",

@@ -28,19 +28,39 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { PrivacyField } from "@/components/ui/privacy-field";
 import type { User, Payment } from "@shared/schema";
-import { DollarSign } from "lucide-react";
+import { DollarSign, Check, ChevronsUpDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export default function AdminPayments() {
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState("");
+  const [userSearchOpen, setUserSearchOpen] = useState(false);
   const [amount, setAmount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [billingPeriod, setBillingPeriod] = useState<"monthly" | "yearly">("monthly");
+  const [billingMonth, setBillingMonth] = useState<string>(() => {
+    // Default to current month in YYYY-MM format
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
   const [notes, setNotes] = useState("");
 
   const { data: users } = useQuery<User[]>({
@@ -61,7 +81,12 @@ export default function AdminPayments() {
         throw new Error("Please enter a valid amount");
       }
       
-      const payload = {
+      // Validate billingMonth is set for monthly payments
+      if (billingPeriod === "monthly" && !billingMonth) {
+        throw new Error("Please select the billing month");
+      }
+      
+      const payload: any = {
         userId: selectedUserId,
         amount: amount, // Send as string, not parseFloat(amount)
         paymentDate: new Date().toISOString(), // Send as ISO string
@@ -70,12 +95,21 @@ export default function AdminPayments() {
         notes: notes || null,
       };
       
+      // Include billingMonth for monthly payments (validation ensures it exists)
+      if (billingPeriod === "monthly" && billingMonth) {
+        payload.billingMonth = billingMonth;
+      }
+      // For yearly payments, omit billingMonth (it will be null in database)
+      
       console.log("Payment payload:", payload);
       console.log("Payload types:", {
         userId: typeof payload.userId,
         amount: typeof payload.amount,
         paymentDate: typeof payload.paymentDate,
         paymentMethod: typeof payload.paymentMethod,
+        billingPeriod: typeof payload.billingPeriod,
+        billingMonth: typeof payload.billingMonth,
+        billingMonthValue: payload.billingMonth,
         notes: typeof payload.notes,
       });
       
@@ -86,8 +120,11 @@ export default function AdminPayments() {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
       setIsDialogOpen(false);
       setSelectedUserId("");
+      setUserSearchOpen(false);
       setAmount("");
       setBillingPeriod("monthly");
+      const now = new Date();
+      setBillingMonth(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`);
       setNotes("");
       toast({
         title: "Success",
@@ -123,6 +160,26 @@ export default function AdminPayments() {
     return user.firstName && user.lastName 
       ? `${user.firstName} ${user.lastName}`
       : "User";
+  };
+
+  const formatBillingMonth = (billingMonth: string | null) => {
+    if (!billingMonth) return "-";
+    try {
+      const [year, month] = billingMonth.split("-");
+      const date = new Date(parseInt(year), parseInt(month) - 1);
+      return date.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+    } catch {
+      return billingMonth;
+    }
+  };
+
+  const getSelectedUserDisplay = () => {
+    if (!selectedUserId) return "Select a user...";
+    const user = users?.find(u => u.id === selectedUserId);
+    if (!user) return "Select a user...";
+    return user.firstName && user.lastName 
+      ? `${user.firstName} ${user.lastName}`
+      : user.email || "User";
   };
 
   return (
@@ -162,6 +219,7 @@ export default function AdminPayments() {
                       <TableHead>User</TableHead>
                       <TableHead>Amount</TableHead>
                       <TableHead>Period</TableHead>
+                      <TableHead>Billing Month</TableHead>
                       <TableHead>Payment Method</TableHead>
                       <TableHead>Payment Date</TableHead>
                       <TableHead>Notes</TableHead>
@@ -186,6 +244,11 @@ export default function AdminPayments() {
                         </TableCell>
                         <TableCell>
                           <span className="capitalize">{payment.billingPeriod || 'monthly'}</span>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {payment.billingPeriod === "monthly" 
+                            ? formatBillingMonth(payment.billingMonth)
+                            : "-"}
                         </TableCell>
                         <TableCell className="capitalize">
                           {payment.paymentMethod.replace(/-/g, ' ')}
@@ -226,6 +289,12 @@ export default function AdminPayments() {
                         />
                       </div>
                       
+                      {payment.billingPeriod === "monthly" && payment.billingMonth && (
+                        <div className="text-sm">
+                          <span className="text-muted-foreground">Billing Month: </span>
+                          <span>{formatBillingMonth(payment.billingMonth)}</span>
+                        </div>
+                      )}
                       <div className="grid grid-cols-2 gap-2 text-sm">
                         <div>
                           <span className="text-muted-foreground">Method</span>
@@ -252,7 +321,12 @@ export default function AdminPayments() {
         </CardContent>
       </Card>
 
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+      <Dialog open={isDialogOpen} onOpenChange={(open) => {
+        setIsDialogOpen(open);
+        if (!open) {
+          setUserSearchOpen(false);
+        }
+      }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Record Payment</DialogTitle>
@@ -263,30 +337,64 @@ export default function AdminPayments() {
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="user">User</Label>
-              <Select value={selectedUserId} onValueChange={setSelectedUserId}>
-                <SelectTrigger id="user" data-testid="select-user">
-                  <SelectValue placeholder="Select a user" />
-                </SelectTrigger>
-                <SelectContent>
-                  {users?.map(user => (
-                    <SelectItem key={user.id} value={user.id}>
-                      <div className="flex flex-col">
-                        <span>
-                          {user.firstName && user.lastName 
+              <Popover open={userSearchOpen} onOpenChange={setUserSearchOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={userSearchOpen}
+                    className="w-full justify-between"
+                    id="user"
+                    data-testid="button-select-user"
+                  >
+                    {getSelectedUserDisplay()}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                  <Command shouldFilter>
+                    <CommandInput placeholder="Search users by name or email..." />
+                    <CommandList>
+                      <CommandEmpty>No user found.</CommandEmpty>
+                      <CommandGroup>
+                        {users?.map((user) => {
+                          const selected = selectedUserId === user.id;
+                          const displayName = user.firstName && user.lastName 
                             ? `${user.firstName} ${user.lastName}`
-                            : "User"}
-                        </span>
-                        <PrivacyField 
-                          value={user.email || ""} 
-                          type="email"
-                          testId={`select-email-${user.id}`}
-                          className="text-xs"
-                        />
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                            : "User";
+                          return (
+                            <CommandItem
+                              key={user.id}
+                              value={`${displayName} ${user.email || ""}`}
+                              onSelect={() => {
+                                setSelectedUserId(user.id);
+                                setUserSearchOpen(false);
+                              }}
+                              data-testid={`command-user-${user.id}`}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  selected ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              <div className="flex flex-col">
+                                <span>{displayName}</span>
+                                <PrivacyField 
+                                  value={user.email || ""} 
+                                  type="email"
+                                  testId={`command-email-${user.id}`}
+                                  className="text-xs"
+                                />
+                              </div>
+                            </CommandItem>
+                          );
+                        })}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
 
             <div className="space-y-2">
@@ -335,6 +443,23 @@ export default function AdminPayments() {
               </Select>
             </div>
 
+            {billingPeriod === "monthly" && (
+              <div className="space-y-2">
+                <Label htmlFor="billing-month">Billing Month</Label>
+                <Input
+                  id="billing-month"
+                  type="month"
+                  value={billingMonth}
+                  onChange={(e) => setBillingMonth(e.target.value)}
+                  data-testid="input-billing-month"
+                  required
+                />
+                <p className="text-xs text-muted-foreground">
+                  Select which calendar month this payment is for
+                </p>
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label htmlFor="notes">Notes (Optional)</Label>
               <Textarea
@@ -352,7 +477,12 @@ export default function AdminPayments() {
             </Button>
             <Button
               onClick={() => recordPaymentMutation.mutate()}
-              disabled={!selectedUserId || !amount || recordPaymentMutation.isPending}
+              disabled={
+                !selectedUserId || 
+                !amount || 
+                (billingPeriod === "monthly" && !billingMonth) ||
+                recordPaymentMutation.isPending
+              }
               data-testid="button-submit-payment"
             >
               {recordPaymentMutation.isPending ? "Recording..." : "Record Payment"}
