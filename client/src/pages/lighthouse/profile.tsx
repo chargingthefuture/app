@@ -13,9 +13,11 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { insertLighthouseProfileSchema, type LighthouseProfile } from "@shared/schema";
 import { useEffect } from "react";
 import { Home } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function LighthouseProfilePage() {
   const { toast } = useToast();
+  const { isAdmin } = useAuth();
   const { data: profile, isLoading } = useQuery<LighthouseProfile | null>({
     queryKey: ["/api/lighthouse/profile"],
   });
@@ -153,7 +155,7 @@ export default function LighthouseProfilePage() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>I am a</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value} disabled={!!profile}>
+                    <Select onValueChange={field.onChange} value={field.value} disabled={!!profile && !isAdmin}>
                       <FormControl>
                         <SelectTrigger data-testid="select-profileType">
                           <SelectValue placeholder="Select profile type" />
@@ -164,9 +166,14 @@ export default function LighthouseProfilePage() {
                         <SelectItem value="host">Housing Host (I have housing to offer)</SelectItem>
                       </SelectContent>
                     </Select>
-                    {profile && (
+                    {profile && !isAdmin && (
                       <FormDescription>
                         Profile type cannot be changed after creation
+                      </FormDescription>
+                    )}
+                    {profile && isAdmin && (
+                      <FormDescription>
+                        Admin: Profile type can be changed to view both marketplaces
                       </FormDescription>
                     )}
                     <FormMessage />
