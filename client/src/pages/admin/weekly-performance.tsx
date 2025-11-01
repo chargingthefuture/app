@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -52,12 +52,19 @@ export default function WeeklyPerformanceReview() {
     return format(weekStart, "yyyy-MM-dd");
   });
 
+  // Check if selected week is the current week (for real-time updates)
+  const isCurrentWeek = useMemo(() => {
+    const today = new Date();
+    const currentWeekStart = startOfWeek(today, { weekStartsOn: 1 });
+    const selectedWeekDate = parseISO(selectedWeek);
+    return format(selectedWeekDate, "yyyy-MM-dd") === format(currentWeekStart, "yyyy-MM-dd");
+  }, [selectedWeek]);
+
   const { data, isLoading } = useQuery<WeeklyPerformanceData>({
-    queryKey: ["/api/admin/weekly-performance", selectedWeek],
-    queryFn: async () => {
-      const weekStartDate = selectedWeek ? `?weekStart=${selectedWeek}` : "";
-      return apiRequest(`/api/admin/weekly-performance${weekStartDate}`);
-    },
+    queryKey: [`/api/admin/weekly-performance${selectedWeek ? `?weekStart=${selectedWeek}` : ""}`],
+    // Real-time updates only for current week
+    refetchInterval: isCurrentWeek ? 30000 : false, // Poll every 30 seconds for current week
+    refetchOnWindowFocus: isCurrentWeek, // Refetch on window focus for current week only
   });
 
   const formatPercentage = (value: number) => {
@@ -131,11 +138,19 @@ export default function WeeklyPerformanceReview() {
     <div className="p-4 sm:p-6 md:p-8 space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl md:text-4xl font-semibold mb-2">
-            Weekly Performance Review
-          </h1>
+          <div className="flex items-center gap-2 mb-2">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-semibold">
+              Weekly Performance Review
+            </h1>
+            {isCurrentWeek && (
+              <Badge variant="default" className="animate-pulse">
+                Live
+              </Badge>
+            )}
+          </div>
           <p className="text-sm sm:text-base text-muted-foreground">
             Track key metrics week-over-week with calendar week comparison
+            {isCurrentWeek && " (updating in real-time)"}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -211,9 +226,16 @@ export default function WeeklyPerformanceReview() {
           Loading weekly performance data...
         </div>
       ) : !data ? (
-        <div className="text-center py-12 text-muted-foreground">
-          No data available for the selected week
-        </div>
+        <Card>
+          <CardContent className="py-12 text-center">
+            <p className="text-muted-foreground mb-4">
+              No data available for the selected week
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Try selecting a different week or check back later when users and payments are recorded.
+            </p>
+          </CardContent>
+        </Card>
       ) : (
         <>
           {/* Summary Cards */}

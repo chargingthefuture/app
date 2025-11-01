@@ -669,12 +669,22 @@ export class DatabaseStorage implements IStorage {
 
     // Remove unused variables - dates are already correct for DB comparison
 
+    // Log week boundaries for debugging
     console.log("Week boundaries:", {
+      inputDate: weekStart.toISOString(),
       currentWeekStart: currentWeekStart.toISOString(),
       currentWeekEnd: currentWeekEnd.toISOString(),
       previousWeekStart: previousWeekStart.toISOString(),
       previousWeekEnd: previousWeekEnd.toISOString(),
+      currentWeekStartLocal: currentWeekStart.toLocaleString(),
+      currentWeekEndLocal: currentWeekEnd.toLocaleString(),
     });
+
+    // Debug: Get a sample of all users and payments to see date ranges
+    const allUsersSample = await db.select().from(users).limit(5);
+    const allPaymentsSample = await db.select().from(payments).limit(5);
+    console.log("Sample user dates:", allUsersSample.map(u => ({ id: u.id, createdAt: u.createdAt?.toISOString() })));
+    console.log("Sample payment dates:", allPaymentsSample.map(p => ({ id: p.id, paymentDate: p.paymentDate?.toISOString() })));
 
     // Get new users for current week
     const currentWeekNewUsers = await db
@@ -687,7 +697,12 @@ export class DatabaseStorage implements IStorage {
         )
       );
     
-    console.log(`Found ${currentWeekNewUsers.length} new users for current week`);
+    console.log(`Found ${currentWeekNewUsers.length} new users for current week (range: ${currentWeekStart.toISOString()} to ${currentWeekEnd.toISOString()})`);
+    
+    // Debug: Show sample user dates if any exist
+    if (currentWeekNewUsers.length > 0) {
+      console.log("Sample user created dates:", currentWeekNewUsers.slice(0, 3).map(u => u.createdAt?.toISOString()));
+    }
 
     // Get new users for previous week
     const previousWeekNewUsers = await db
@@ -711,7 +726,12 @@ export class DatabaseStorage implements IStorage {
         )
       );
     
-    console.log(`Found ${currentWeekPayments.length} payments for current week`);
+    console.log(`Found ${currentWeekPayments.length} payments for current week (range: ${currentWeekStart.toISOString()} to ${currentWeekEnd.toISOString()})`);
+    
+    // Debug: Show sample payment dates if any exist
+    if (currentWeekPayments.length > 0) {
+      console.log("Sample payment dates:", currentWeekPayments.slice(0, 3).map(p => ({ date: p.paymentDate, amount: p.amount })));
+    }
 
     // Get payments for previous week
     const previousWeekPayments = await db
