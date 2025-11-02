@@ -286,7 +286,7 @@ export default function AdminDirectoryPage() {
               <Input id="new-city" value={newCity} onChange={(e) => setNewCity(e.target.value)} placeholder="City" data-testid="input-new-city" />
             </div>
             <div className="space-y-2">
-              <Label id="new-state-label">US State</Label>
+              <Label id="new-state-label">US State (Optional)</Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
@@ -412,7 +412,7 @@ export default function AdminDirectoryPage() {
                           <Input id={`edit-city-${p.id}`} value={editCity} onChange={(e) => setEditCity(e.target.value)} placeholder="City" data-testid={`input-edit-city-${p.id}`} />
                         </div>
                         <div className="space-y-2">
-                          <Label id={`edit-state-label-${p.id}`}>US State</Label>
+                          <Label id={`edit-state-label-${p.id}`}>US State (Optional)</Label>
                           <Popover>
                             <PopoverTrigger asChild>
                               <Button

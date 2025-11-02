@@ -392,7 +392,7 @@ export default function DirectoryProfilePage() {
               <Input id="city" value={city} onChange={(e) => setCity(e.target.value)} />
             </div>
             <div className="space-y-2">
-              <Label id="state-label">US State</Label>
+              <Label id="state-label">US State (Optional)</Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button

@@ -86,6 +86,15 @@ import {
   type InsertDirectoryAnnouncement,
   type ChatgroupsAnnouncement,
   type InsertChatgroupsAnnouncement,
+  trusttransportProfiles,
+  trusttransportRideRequests,
+  trusttransportAnnouncements,
+  type TrusttransportProfile,
+  type InsertTrusttransportProfile,
+  type TrusttransportRideRequest,
+  type InsertTrusttransportRideRequest,
+  type TrusttransportAnnouncement,
+  type InsertTrusttransportAnnouncement,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, asc, sql, or, inArray, gte, lte } from "drizzle-orm";
@@ -339,11 +348,35 @@ export interface IStorage {
   updateChatgroupsAnnouncement(id: string, announcement: Partial<InsertChatgroupsAnnouncement>): Promise<ChatgroupsAnnouncement>;
   deactivateChatgroupsAnnouncement(id: string): Promise<ChatgroupsAnnouncement>;
 
+  // TrustTransport Profile operations
+  getTrusttransportProfile(userId: string): Promise<TrusttransportProfile | undefined>;
+  createTrusttransportProfile(profile: InsertTrusttransportProfile): Promise<TrusttransportProfile>;
+  updateTrusttransportProfile(userId: string, profile: Partial<InsertTrusttransportProfile>): Promise<TrusttransportProfile>;
+  deleteTrusttransportProfile(userId: string, reason?: string): Promise<void>;
+
+  // TrustTransport Ride Request operations (simplified model)
+  createTrusttransportRideRequest(request: InsertTrusttransportRideRequest & { riderId?: string }): Promise<TrusttransportRideRequest>;
+  getTrusttransportRideRequestById(id: string): Promise<TrusttransportRideRequest | undefined>;
+  getTrusttransportRideRequestsByRider(riderId: string): Promise<TrusttransportRideRequest[]>;
+  getOpenTrusttransportRideRequests(): Promise<TrusttransportRideRequest[]>; // For drivers to see available requests
+  getTrusttransportRideRequestsByDriver(driverId: string): Promise<TrusttransportRideRequest[]>; // Requests claimed by driver
+  claimTrusttransportRideRequest(requestId: string, driverId: string, driverMessage?: string): Promise<TrusttransportRideRequest>;
+  updateTrusttransportRideRequest(id: string, request: Partial<InsertTrusttransportRideRequest>): Promise<TrusttransportRideRequest>;
+  cancelTrusttransportRideRequest(id: string, userId: string): Promise<TrusttransportRideRequest>; // Cancel by rider or driver
+
+  // TrustTransport Announcement operations
+  createTrusttransportAnnouncement(announcement: InsertTrusttransportAnnouncement): Promise<TrusttransportAnnouncement>;
+  getActiveTrusttransportAnnouncements(): Promise<TrusttransportAnnouncement[]>;
+  getAllTrusttransportAnnouncements(): Promise<TrusttransportAnnouncement[]>;
+  updateTrusttransportAnnouncement(id: string, announcement: Partial<InsertTrusttransportAnnouncement>): Promise<TrusttransportAnnouncement>;
+  deactivateTrusttransportAnnouncement(id: string): Promise<TrusttransportAnnouncement>;
+
   // Profile deletion operations with cascade anonymization
   deleteSupportMatchProfile(userId: string, reason?: string): Promise<void>;
   deleteLighthouseProfile(userId: string, reason?: string): Promise<void>;
   deleteSocketrelayProfile(userId: string, reason?: string): Promise<void>;
   deleteDirectoryProfileWithCascade(userId: string, reason?: string): Promise<void>;
+  deleteTrusttransportProfile(userId: string, reason?: string): Promise<void>;
   logProfileDeletion(userId: string, appName: string, reason?: string): Promise<ProfileDeletionLog>;
   
   // NPS (Net Promoter Score) operations
@@ -2585,6 +2618,265 @@ export class DatabaseStorage implements IStorage {
   }
 
   // ========================================
+  // TRUSTTRANSPORT OPERATIONS
+  // ========================================
+
+  // TrustTransport Profile operations
+  async getTrusttransportProfile(userId: string): Promise<TrusttransportProfile | undefined> {
+    const [profile] = await db
+      .select()
+      .from(trusttransportProfiles)
+      .where(eq(trusttransportProfiles.userId, userId));
+    return profile;
+  }
+
+  async createTrusttransportProfile(profileData: InsertTrusttransportProfile): Promise<TrusttransportProfile> {
+    const [profile] = await db
+      .insert(trusttransportProfiles)
+      .values(profileData)
+      .returning();
+    return profile;
+  }
+
+  async updateTrusttransportProfile(userId: string, profileData: Partial<InsertTrusttransportProfile>): Promise<TrusttransportProfile> {
+    const [profile] = await db
+      .update(trusttransportProfiles)
+      .set({
+        ...profileData,
+        updatedAt: new Date(),
+      })
+      .where(eq(trusttransportProfiles.userId, userId))
+      .returning();
+    return profile;
+  }
+
+  // TrustTransport Ride Request operations (simplified model)
+  async createTrusttransportRideRequest(requestData: InsertTrusttransportRideRequest & { riderId?: string }): Promise<TrusttransportRideRequest> {
+    if (!requestData.riderId) {
+      throw new Error("riderId is required to create a ride request");
+    }
+    
+    // Explicitly build values object to ensure riderId is included
+    // TypeScript may strip riderId from spread since it's not in InsertTrusttransportRideRequest type
+    const values: any = {
+      riderId: requestData.riderId,
+      pickupLocation: requestData.pickupLocation,
+      dropoffLocation: requestData.dropoffLocation,
+      pickupCity: requestData.pickupCity,
+      pickupState: requestData.pickupState ?? null,
+      dropoffCity: requestData.dropoffCity,
+      dropoffState: requestData.dropoffState ?? null,
+      departureDateTime: requestData.departureDateTime,
+      requestedSeats: requestData.requestedSeats,
+      requestedCarType: requestData.requestedCarType ?? null,
+      requiresHeat: requestData.requiresHeat ?? false,
+      requiresAC: requestData.requiresAC ?? false,
+      requiresWheelchairAccess: requestData.requiresWheelchairAccess ?? false,
+      requiresChildSeat: requestData.requiresChildSeat ?? false,
+      riderMessage: requestData.riderMessage ?? null,
+      status: 'open', // New requests start as 'open'
+    };
+    
+    console.log("Creating ride request with values:", JSON.stringify(values, null, 2));
+    
+    const [request] = await db
+      .insert(trusttransportRideRequests)
+      .values(values)
+      .returning();
+    
+    console.log("Created ride request:", JSON.stringify(request, null, 2));
+    return request;
+  }
+
+  async getTrusttransportRideRequestById(id: string): Promise<TrusttransportRideRequest | undefined> {
+    const [request] = await db
+      .select()
+      .from(trusttransportRideRequests)
+      .where(eq(trusttransportRideRequests.id, id));
+    return request;
+  }
+
+  async getTrusttransportRideRequestsByRider(riderId: string): Promise<TrusttransportRideRequest[]> {
+    return await db
+      .select()
+      .from(trusttransportRideRequests)
+      .where(eq(trusttransportRideRequests.riderId, riderId))
+      .orderBy(desc(trusttransportRideRequests.createdAt));
+  }
+
+  async getOpenTrusttransportRideRequests(): Promise<TrusttransportRideRequest[]> {
+    const now = new Date();
+    return await db
+      .select()
+      .from(trusttransportRideRequests)
+      .where(
+        and(
+          eq(trusttransportRideRequests.status, 'open'),
+          gte(trusttransportRideRequests.departureDateTime, now)
+        )
+      )
+      .orderBy(asc(trusttransportRideRequests.departureDateTime));
+  }
+
+  async getTrusttransportRideRequestsByDriver(driverId: string): Promise<TrusttransportRideRequest[]> {
+    return await db
+      .select()
+      .from(trusttransportRideRequests)
+      .where(eq(trusttransportRideRequests.driverId, driverId))
+      .orderBy(desc(trusttransportRideRequests.createdAt));
+  }
+
+  async claimTrusttransportRideRequest(requestId: string, driverId: string, driverMessage?: string): Promise<TrusttransportRideRequest> {
+    const request = await this.getTrusttransportRideRequestById(requestId);
+    if (!request) {
+      throw new Error("Ride request not found");
+    }
+    if (request.status !== 'open') {
+      throw new Error("Ride request is not available to claim");
+    }
+    if (request.driverId) {
+      throw new Error("Ride request has already been claimed");
+    }
+
+    // Get driver profile to verify they meet criteria
+    // Note: driverId here is userId, need to get profile
+    const driverProfile = await db
+      .select()
+      .from(trusttransportProfiles)
+      .where(eq(trusttransportProfiles.userId, driverId))
+      .limit(1);
+    
+    if (driverProfile.length === 0 || !driverProfile[0].isDriver) {
+      throw new Error("You must be a driver to claim ride requests");
+    }
+
+    const [updated] = await db
+      .update(trusttransportRideRequests)
+      .set({
+        driverId: driverProfile[0].id,
+        status: 'claimed',
+        driverMessage: driverMessage || null,
+        updatedAt: new Date(),
+      })
+      .where(eq(trusttransportRideRequests.id, requestId))
+      .returning();
+    
+    return updated;
+  }
+
+  async updateTrusttransportRideRequest(id: string, requestData: Partial<InsertTrusttransportRideRequest>): Promise<TrusttransportRideRequest> {
+    const [request] = await db
+      .update(trusttransportRideRequests)
+      .set({
+        ...requestData,
+        updatedAt: new Date(),
+      })
+      .where(eq(trusttransportRideRequests.id, id))
+      .returning();
+    return request;
+  }
+
+  async cancelTrusttransportRideRequest(id: string, userId: string): Promise<TrusttransportRideRequest> {
+    const request = await this.getTrusttransportRideRequestById(id);
+    if (!request) {
+      throw new Error("Ride request not found");
+    }
+
+    // Get user's profile to check if they're the rider or driver
+    const profile = await this.getTrusttransportProfile(userId);
+    if (!profile) {
+      throw new Error("Profile not found");
+    }
+
+    // Check if user is the rider or the driver who claimed it
+    const isRider = request.riderId === userId;
+    const isDriver = request.driverId === profile.id && profile.isDriver;
+
+    if (!isRider && !isDriver) {
+      throw new Error("You are not authorized to cancel this ride request");
+    }
+
+    // If claimed, unclaim it (set driverId to null and status to open)
+    // If open, mark as cancelled
+    const newStatus = request.status === 'claimed' ? 'open' : 'cancelled';
+    const updateData: any = {
+      status: newStatus,
+      updatedAt: new Date(),
+    };
+
+    if (newStatus === 'open' && isDriver) {
+      // Driver is cancelling their claim - unclaim the request
+      updateData.driverId = null;
+      updateData.driverMessage = null;
+    }
+
+    const [updated] = await db
+      .update(trusttransportRideRequests)
+      .set(updateData)
+      .where(eq(trusttransportRideRequests.id, id))
+      .returning();
+    
+    return updated;
+  }
+
+  // TrustTransport Announcement operations
+  async createTrusttransportAnnouncement(announcementData: InsertTrusttransportAnnouncement): Promise<TrusttransportAnnouncement> {
+    const [announcement] = await db
+      .insert(trusttransportAnnouncements)
+      .values(announcementData)
+      .returning();
+    return announcement;
+  }
+
+  async getActiveTrusttransportAnnouncements(): Promise<TrusttransportAnnouncement[]> {
+    const now = new Date();
+    return await db
+      .select()
+      .from(trusttransportAnnouncements)
+      .where(
+        and(
+          eq(trusttransportAnnouncements.isActive, true),
+          or(
+            sql`${trusttransportAnnouncements.expiresAt} IS NULL`,
+            gte(trusttransportAnnouncements.expiresAt, now)
+          )
+        )
+      )
+      .orderBy(desc(trusttransportAnnouncements.createdAt));
+  }
+
+  async getAllTrusttransportAnnouncements(): Promise<TrusttransportAnnouncement[]> {
+    return await db
+      .select()
+      .from(trusttransportAnnouncements)
+      .orderBy(desc(trusttransportAnnouncements.createdAt));
+  }
+
+  async updateTrusttransportAnnouncement(id: string, announcementData: Partial<InsertTrusttransportAnnouncement>): Promise<TrusttransportAnnouncement> {
+    const [announcement] = await db
+      .update(trusttransportAnnouncements)
+      .set({
+        ...announcementData,
+        updatedAt: new Date(),
+      })
+      .where(eq(trusttransportAnnouncements.id, id))
+      .returning();
+    return announcement;
+  }
+
+  async deactivateTrusttransportAnnouncement(id: string): Promise<TrusttransportAnnouncement> {
+    const [announcement] = await db
+      .update(trusttransportAnnouncements)
+      .set({
+        isActive: false,
+        updatedAt: new Date(),
+      })
+      .where(eq(trusttransportAnnouncements.id, id))
+      .returning();
+    return announcement;
+  }
+
+  // ========================================
   // PROFILE DELETION OPERATIONS
   // ========================================
 
@@ -2876,6 +3168,68 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error("Failed to log profile deletion:", error);
       // Continue even if logging fails
+    }
+  }
+
+  /**
+   * Deletes a TrustTransport profile and anonymizes all related data
+   */
+  async deleteTrusttransportProfile(userId: string, reason?: string): Promise<void> {
+    try {
+      // Get profile first
+      const profile = await this.getTrusttransportProfile(userId);
+      if (!profile) {
+        throw new Error("TrustTransport profile not found");
+      }
+
+      const anonymizedUserId = this.generateAnonymizedUserId();
+      
+      // Create anonymized user if needed
+      try {
+        await db
+          .insert(users)
+          .values({
+            id: anonymizedUserId,
+            email: null,
+            firstName: "Deleted",
+            lastName: "User",
+            isAdmin: false,
+            isVerified: false,
+          });
+      } catch (error: any) {
+        // If user already exists (from previous deletion), that's fine
+        if (!error.message?.includes("duplicate key") && !error.message?.includes("unique constraint")) {
+          throw error;
+        }
+      }
+
+      // Anonymize ride requests by riderId
+      await db
+        .update(trusttransportRideRequests)
+        .set({ riderId: anonymizedUserId })
+        .where(eq(trusttransportRideRequests.riderId, userId));
+      
+      // Anonymize ride requests by driverId (if user was a driver)
+      // Note: driverId references profile.id, so we need to null it out when profile is deleted
+      await db
+        .update(trusttransportRideRequests)
+        .set({ driverId: null, status: 'open' }) // Unclaim requests when driver profile is deleted
+        .where(eq(trusttransportRideRequests.driverId, profile.id));
+
+      // Delete the profile
+      await db.delete(trusttransportProfiles).where(eq(trusttransportProfiles.userId, userId));
+
+      // Log the deletion (don't fail if logging fails)
+      try {
+        await this.logProfileDeletion(userId, "trusttransport", reason);
+      } catch (error) {
+        console.error("Failed to log profile deletion:", error);
+        // Continue even if logging fails
+      }
+    } catch (error: any) {
+      console.error("Error in deleteTrusttransportProfile:", error);
+      // Re-throw with more context
+      throw new Error(`Failed to delete TrustTransport profile: ${error.message || "Unknown error"}`);
     }
   }
 

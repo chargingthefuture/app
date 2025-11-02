@@ -46,6 +46,7 @@ export async function setupVite(app: Express, server: Server) {
 
     // Don't serve HTML for API routes - let them return JSON errors
     if (url.startsWith("/api/")) {
+      console.log("Vite middleware: Skipping API route:", url);
       return next();
     }
 

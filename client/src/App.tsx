@@ -66,6 +66,16 @@ import LighthouseAnnouncements from "@/pages/lighthouse/announcements";
 import SleepStoriesAnnouncements from "@/pages/sleepstories/announcements";
 import PublicSocketRelayRequest from "@/pages/socketrelay/public";
 import PublicSocketRelayList from "@/pages/socketrelay/public-list";
+import TrustTransportDashboard from "@/pages/trusttransport/dashboard";
+import TrustTransportProfile from "@/pages/trusttransport/profile";
+import TrustTransportBrowse from "@/pages/trusttransport/browse";
+import TrustTransportRequestNew from "@/pages/trusttransport/request-new";
+import TrustTransportRequestDetail from "@/pages/trusttransport/request-detail";
+import TrustTransportMyRequests from "@/pages/trusttransport/my-requests";
+import TrustTransportMyClaimed from "@/pages/trusttransport/my-claimed";
+import TrustTransportAnnouncements from "@/pages/trusttransport/announcements";
+import TrustTransportAdmin from "@/pages/trusttransport/admin";
+import TrustTransportAdminAnnouncements from "@/pages/trusttransport/admin-announcements";
 
 function Router() {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -144,6 +154,17 @@ function Router() {
           <Route path="/apps/lighthouse/announcements" component={LighthouseAnnouncements} />
           {/* SleepStories routes - announcements */}
           <Route path="/apps/sleepstories/announcements" component={SleepStoriesAnnouncements} />
+          {/* TrustTransport routes */}
+          <Route path="/apps/trusttransport" component={TrustTransportDashboard} />
+          <Route path="/apps/trusttransport/profile" component={TrustTransportProfile} />
+          <Route path="/apps/trusttransport/browse" component={TrustTransportBrowse} />
+          <Route path="/apps/trusttransport/request/new" component={TrustTransportRequestNew} />
+          <Route path="/apps/trusttransport/request/:id" component={TrustTransportRequestDetail} />
+          <Route path="/apps/trusttransport/my-requests" component={TrustTransportMyRequests} />
+          <Route path="/apps/trusttransport/my-claimed" component={TrustTransportMyClaimed} />
+          <Route path="/apps/trusttransport/announcements" component={TrustTransportAnnouncements} />
+          <Route path="/apps/trusttransport/admin" component={TrustTransportAdmin} />
+          <Route path="/apps/trusttransport/admin/announcements" component={TrustTransportAdminAnnouncements} />
         </>
       )}
       <Route component={NotFound} />

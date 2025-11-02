@@ -12,8 +12,11 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { insertLighthousePropertySchema, type LighthouseProperty, type LighthouseProfile } from "@shared/schema";
 import { useEffect, useState } from "react";
-import { Home, Plus, X } from "lucide-react";
+import { Home, Plus, X, Check as CheckIcon } from "lucide-react";
 import { z } from "zod";
+import { US_STATES } from "@/lib/usStates";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
 
 export default function PropertyFormPage() {
   const { id } = useParams<{ id: string }>();
@@ -23,6 +26,7 @@ export default function PropertyFormPage() {
   const [photos, setPhotos] = useState<string[]>([]);
   const [amenities, setAmenities] = useState<string[]>([]);
   const [newAmenity, setNewAmenity] = useState("");
+  const [stateOpen, setStateOpen] = useState(false);
 
   const { data: profile } = useQuery<LighthouseProfile | null>({
     queryKey: ["/api/lighthouse/profile"],
@@ -49,7 +53,7 @@ export default function PropertyFormPage() {
       propertyType: "room",
       address: "",
       city: "",
-      state: "",
+      state: null,
       zipCode: "",
       bedrooms: null,
       bathrooms: null,
@@ -69,7 +73,7 @@ export default function PropertyFormPage() {
         propertyType: property.propertyType,
         address: property.address,
         city: property.city,
-        state: property.state,
+        state: property.state || null,
         zipCode: property.zipCode,
         bedrooms: property.bedrooms,
         bathrooms: property.bathrooms,
@@ -187,6 +191,7 @@ export default function PropertyFormPage() {
   }
 
   const isSubmitting = createMutation.isPending || updateMutation.isPending;
+  const state = form.watch("state");
 
   return (
     <div className="p-6 md:p-8 max-w-4xl mx-auto space-y-6">
@@ -346,10 +351,43 @@ export default function PropertyFormPage() {
                   name="state"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>State</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="State" data-testid="input-state" />
-                      </FormControl>
+                      <FormLabel>US State (Optional)</FormLabel>
+                      <Popover open={stateOpen} onOpenChange={setStateOpen}>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              className="w-full justify-between"
+                              data-testid="combo-state-trigger"
+                            >
+                              {state || "Select US State"}
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-full p-0" align="start">
+                          <Command shouldFilter>
+                            <CommandInput placeholder="Search US states…" />
+                            <CommandEmpty>No states found.</CommandEmpty>
+                            <CommandGroup>
+                              {US_STATES.map((s) => (
+                                <CommandItem
+                                  key={s}
+                                  value={s}
+                                  onSelect={() => {
+                                    field.onChange(s);
+                                    setStateOpen(false);
+                                  }}
+                                  data-testid={`combo-state-item-${s}`}
+                                >
+                                  <CheckIcon className={`mr-2 h-4 w-4 ${state === s ? "opacity-100" : "opacity-0"}`} />
+                                  <span>{s}</span>
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
                       <FormMessage />
                     </FormItem>
                   )}

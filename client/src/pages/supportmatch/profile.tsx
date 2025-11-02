@@ -14,6 +14,10 @@ import type { SupportMatchProfile } from "@shared/schema";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useLocation } from "wouter";
 import { useEffect, useState } from "react";
+import { US_STATES } from "@/lib/usStates";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
+import { Check as CheckIcon } from "lucide-react";
 import { DeleteProfileDialog } from "@/components/delete-profile-dialog";
 
 const profileFormSchema = insertSupportMatchProfileSchema.omit({ userId: true }).extend({
@@ -33,6 +37,7 @@ export default function SupportMatchProfile() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [stateOpen, setStateOpen] = useState(false);
 
   const { data: profile, isLoading } = useQuery<SupportMatchProfile | null>({
     queryKey: ["/api/supportmatch/profile"],
@@ -45,7 +50,7 @@ export default function SupportMatchProfile() {
       gender: "",
       genderPreference: "",
       city: "",
-      state: "",
+      state: null,
       country: "",
       timezone: "",
       timezonePreference: "same_timezone",
@@ -60,7 +65,7 @@ export default function SupportMatchProfile() {
         gender: profile.gender || "",
         genderPreference: profile.genderPreference || "",
         city: profile.city || "",
-        state: profile.state || "",
+        state: profile.state || null,
         country: profile.country || "",
         timezone: profile.timezone || "",
         timezonePreference: profile.timezonePreference || "same_timezone",
@@ -139,6 +144,9 @@ export default function SupportMatchProfile() {
       createMutation.mutate(data);
     }
   };
+
+  const isSubmitting = createMutation.isPending || updateMutation.isPending;
+  const state = form.watch("state");
 
   if (isLoading) {
     return (
@@ -260,15 +268,43 @@ export default function SupportMatchProfile() {
                   name="state"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>State/Province (Optional)</FormLabel>
-                      <FormControl>
-                        <Input 
-                          placeholder="Your state or province"
-                          data-testid="input-state"
-                          {...field}
-                          value={field.value || ""}
-                        />
-                      </FormControl>
+                      <FormLabel>US State (Optional)</FormLabel>
+                      <Popover open={stateOpen} onOpenChange={setStateOpen}>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              className="w-full justify-between"
+                              data-testid="combo-state-trigger"
+                            >
+                              {state || "Select US State"}
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-full p-0" align="start">
+                          <Command shouldFilter>
+                            <CommandInput placeholder="Search US states…" />
+                            <CommandEmpty>No states found.</CommandEmpty>
+                            <CommandGroup>
+                              {US_STATES.map((s) => (
+                                <CommandItem
+                                  key={s}
+                                  value={s}
+                                  onSelect={() => {
+                                    field.onChange(s);
+                                    setStateOpen(false);
+                                  }}
+                                  data-testid={`combo-state-item-${s}`}
+                                >
+                                  <CheckIcon className={`mr-2 h-4 w-4 ${state === s ? "opacity-100" : "opacity-0"}`} />
+                                  <span>{s}</span>
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
                       <FormMessage />
                     </FormItem>
                   )}

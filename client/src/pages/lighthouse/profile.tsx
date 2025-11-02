@@ -12,16 +12,18 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { insertLighthouseProfileSchema, type LighthouseProfile } from "@shared/schema";
 import { useEffect, useState } from "react";
-import { Home } from "lucide-react";
+import { Home, ExternalLink } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { DeleteProfileDialog } from "@/components/delete-profile-dialog";
 import { useLocation } from "wouter";
+import { useExternalLink } from "@/hooks/useExternalLink";
 
 export default function LighthouseProfilePage() {
   const { toast } = useToast();
   const { isAdmin } = useAuth();
   const [, setLocation] = useLocation();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const { openExternal, ExternalLinkDialog } = useExternalLink();
   const { data: profile, isLoading } = useQuery<LighthouseProfile | null>({
     queryKey: ["/api/lighthouse/profile"],
   });
@@ -41,6 +43,7 @@ export default function LighthouseProfilePage() {
       displayName: "",
       bio: "",
       phoneNumber: "",
+      signalUrl: "",
       housingNeeds: "",
       moveInDate: null,
       budgetMin: null,
@@ -58,6 +61,7 @@ export default function LighthouseProfilePage() {
         displayName: profile.displayName,
         bio: profile.bio || "",
         phoneNumber: profile.phoneNumber || "",
+        signalUrl: profile.signalUrl || "",
         housingNeeds: profile.housingNeeds || "",
         moveInDate: profile.moveInDate ? new Date(profile.moveInDate) : null,
         budgetMin: profile.budgetMin ?? null,
@@ -130,10 +134,17 @@ export default function LighthouseProfilePage() {
   });
 
   const onSubmit = (data: any) => {
+    // Transform empty strings to null for optional fields
+    const submitData = {
+      ...data,
+      signalUrl: data.signalUrl === "" ? null : data.signalUrl,
+      phoneNumber: data.phoneNumber === "" ? null : data.phoneNumber,
+    };
+    
     if (profile) {
-      updateMutation.mutate(data);
+      updateMutation.mutate(submitData);
     } else {
-      createMutation.mutate(data);
+      createMutation.mutate(submitData);
     }
   };
 
@@ -269,6 +280,33 @@ export default function LighthouseProfilePage() {
                 )}
               />
 
+              <FormField
+                control={form.control}
+                name="signalUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Signal Profile URL (Optional)</FormLabel>
+                    {profile?.signalUrl && (
+                      <div className="mb-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => openExternal(profile.signalUrl!)}
+                          className="justify-start px-0 text-primary"
+                          data-testid="button-open-signal-link"
+                        >
+                          <ExternalLink className="w-4 h-4 mr-2" /> Open Signal link
+                        </Button>
+                      </div>
+                    )}
+                    <FormControl>
+                      <Input {...field} value={field.value || ""} placeholder="https://signal.me/#p/…" data-testid="input-signalUrl" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
               {profileType === "seeker" && (
                 <>
                   <FormField
@@ -385,6 +423,7 @@ export default function LighthouseProfilePage() {
           isDeleting={deleteMutation.isPending}
         />
       )}
+      <ExternalLinkDialog />
     </div>
   );
 }

@@ -31,7 +31,11 @@ import {
   insertDirectoryAnnouncementSchema,
   insertChatGroupSchema,
   insertChatgroupsAnnouncementSchema,
+  insertTrusttransportProfileSchema,
+  insertTrusttransportRideRequestSchema,
+  insertTrusttransportAnnouncementSchema,
   insertNpsResponseSchema,
+  type InsertTrusttransportRideRequest,
 } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -2519,6 +2523,288 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(announcement);
     } catch (error: any) {
       console.error("Error deleting Directory announcement:", error);
+      res.status(400).json({ message: error.message || "Failed to delete announcement" });
+    }
+  });
+
+  // ========================================
+  // TRUSTTRANSPORT ROUTES
+  // ========================================
+
+  // TrustTransport Announcement routes (public)
+  app.get('/api/trusttransport/announcements', isAuthenticated, async (req, res) => {
+    try {
+      const announcements = await storage.getActiveTrusttransportAnnouncements();
+      res.json(announcements);
+    } catch (error) {
+      console.error("Error fetching TrustTransport announcements:", error);
+      res.status(500).json({ message: "Failed to fetch announcements" });
+    }
+  });
+
+  // TrustTransport Profile routes
+  app.get('/api/trusttransport/profile', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const profile = await storage.getTrusttransportProfile(userId);
+      res.json(profile || null);
+    } catch (error: any) {
+      console.error("Error fetching TrustTransport profile:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post('/api/trusttransport/profile', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const validatedData = insertTrusttransportProfileSchema.parse({
+        ...req.body,
+        userId,
+      });
+      const profile = await storage.createTrusttransportProfile(validatedData);
+      res.json(profile);
+    } catch (error: any) {
+      console.error("Error creating TrustTransport profile:", error);
+      res.status(400).json({ message: error.message || "Failed to create profile" });
+    }
+  });
+
+  app.put('/api/trusttransport/profile', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const profile = await storage.updateTrusttransportProfile(userId, req.body);
+      res.json(profile);
+    } catch (error: any) {
+      console.error("Error updating TrustTransport profile:", error);
+      res.status(400).json({ message: error.message || "Failed to update profile" });
+    }
+  });
+
+  app.delete('/api/trusttransport/profile', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const { reason } = req.body;
+      await storage.deleteTrusttransportProfile(userId, reason);
+      res.json({ message: "TrustTransport profile deleted successfully" });
+    } catch (error: any) {
+      console.error("Error deleting TrustTransport profile:", error);
+      res.status(400).json({ message: error.message || "Failed to delete profile" });
+    }
+  });
+
+  // TrustTransport Ride Request routes (simplified model)
+  
+  // Create new ride request (as a rider) - MUST come before :id routes
+  app.post('/api/trusttransport/ride-requests', isAuthenticated, async (req: any, res) => {
+    try {
+      console.log("POST /api/trusttransport/ride-requests - Request received");
+      console.log("Request body:", JSON.stringify(req.body, null, 2));
+      const userId = getUserId(req);
+      console.log("User ID:", userId);
+      if (!userId) {
+        return res.status(401).json({ message: "User ID not found in authentication token" });
+      }
+      const profile = await storage.getTrusttransportProfile(userId);
+      if (!profile || !profile.isRider) {
+        return res.status(400).json({ message: "You must be a rider to create ride requests" });
+      }
+      const validatedData = insertTrusttransportRideRequestSchema.parse(req.body);
+      console.log("Validated data:", JSON.stringify(validatedData, null, 2));
+      // Add riderId after validation since it's omitted from the schema
+      const requestData = {
+        ...validatedData,
+        riderId: userId,
+      } as InsertTrusttransportRideRequest & { riderId: string };
+      console.log("Request data with riderId:", JSON.stringify(requestData, null, 2));
+      const request = await storage.createTrusttransportRideRequest(requestData);
+      res.json(request);
+    } catch (error: any) {
+      console.error("Error creating TrustTransport ride request:", error);
+      res.status(400).json({ message: error.message || "Failed to create ride request" });
+    }
+  });
+  
+  // Get open ride requests (for drivers to browse)
+  app.get('/api/trusttransport/ride-requests/open', isAuthenticated, async (req: any, res) => {
+    try {
+      const requests = await storage.getOpenTrusttransportRideRequests();
+      res.json(requests);
+    } catch (error: any) {
+      console.error("Error fetching open TrustTransport ride requests:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch ride requests" });
+    }
+  });
+
+  // Get user's ride requests (as a rider)
+  app.get('/api/trusttransport/ride-requests/my-requests', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const requests = await storage.getTrusttransportRideRequestsByRider(userId);
+      res.json(requests);
+    } catch (error: any) {
+      console.error("Error fetching user's TrustTransport ride requests:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch ride requests" });
+    }
+  });
+
+  // Get requests claimed by driver
+  app.get('/api/trusttransport/ride-requests/my-claimed', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const profile = await storage.getTrusttransportProfile(userId);
+      if (!profile || !profile.isDriver) {
+        return res.json([]);
+      }
+      const requests = await storage.getTrusttransportRideRequestsByDriver(profile.id);
+      res.json(requests);
+    } catch (error: any) {
+      console.error("Error fetching driver's claimed requests:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch claimed requests" });
+    }
+  });
+
+  // Get single ride request
+  app.get('/api/trusttransport/ride-requests/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const request = await storage.getTrusttransportRideRequestById(req.params.id);
+      if (!request) {
+        return res.status(404).json({ message: "Ride request not found" });
+      }
+      res.json(request);
+    } catch (error: any) {
+      console.error("Error fetching TrustTransport ride request:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch ride request" });
+    }
+  });
+
+
+  // Claim a ride request (as a driver)
+  app.post('/api/trusttransport/ride-requests/:id/claim', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const { driverMessage } = req.body;
+      const request = await storage.claimTrusttransportRideRequest(req.params.id, userId, driverMessage);
+      res.json(request);
+    } catch (error: any) {
+      console.error("Error claiming TrustTransport ride request:", error);
+      res.status(400).json({ message: error.message || "Failed to claim ride request" });
+    }
+  });
+
+  // Update ride request (rider can update their request, driver can update claimed request)
+  app.put('/api/trusttransport/ride-requests/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const request = await storage.getTrusttransportRideRequestById(req.params.id);
+      if (!request) {
+        return res.status(404).json({ message: "Ride request not found" });
+      }
+      
+      const profile = await storage.getTrusttransportProfile(userId);
+      
+      // Check authorization
+      const isRider = request.riderId === userId;
+      const isDriver = request.driverId === profile?.id && profile?.isDriver;
+      
+      if (!isRider && !isDriver) {
+        return res.status(403).json({ message: "Unauthorized to update this ride request" });
+      }
+      
+      // Riders can only update open requests
+      if (isRider && request.status !== 'open') {
+        return res.status(400).json({ message: "Cannot update a request that has been claimed" });
+      }
+      
+      const validatedData = insertTrusttransportRideRequestSchema.partial().parse(req.body);
+      const updated = await storage.updateTrusttransportRideRequest(req.params.id, validatedData);
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating TrustTransport ride request:", error);
+      res.status(400).json({ message: error.message || "Failed to update ride request" });
+    }
+  });
+
+  // Cancel ride request (rider or driver can cancel)
+  app.post('/api/trusttransport/ride-requests/:id/cancel', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const request = await storage.cancelTrusttransportRideRequest(req.params.id, userId);
+      res.json(request);
+    } catch (error: any) {
+      console.error("Error cancelling TrustTransport ride request:", error);
+      res.status(400).json({ message: error.message || "Failed to cancel ride request" });
+    }
+  });
+
+  // TrustTransport Admin Announcement routes
+  app.get('/api/trusttransport/admin/announcements', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const announcements = await storage.getAllTrusttransportAnnouncements();
+      res.json(announcements);
+    } catch (error) {
+      console.error("Error fetching TrustTransport announcements:", error);
+      res.status(500).json({ message: "Failed to fetch announcements" });
+    }
+  });
+
+  app.post('/api/trusttransport/admin/announcements', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const validatedData = insertTrusttransportAnnouncementSchema.parse(req.body);
+
+      const announcement = await storage.createTrusttransportAnnouncement(validatedData);
+      
+      await logAdminAction(
+        userId,
+        "create_trusttransport_announcement",
+        "announcement",
+        announcement.id,
+        { title: announcement.title, type: announcement.type }
+      );
+
+      res.json(announcement);
+    } catch (error: any) {
+      console.error("Error creating TrustTransport announcement:", error);
+      res.status(400).json({ message: error.message || "Failed to create announcement" });
+    }
+  });
+
+  app.put('/api/trusttransport/admin/announcements/:id', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const announcement = await storage.updateTrusttransportAnnouncement(req.params.id, req.body);
+      
+      await logAdminAction(
+        userId,
+        "update_trusttransport_announcement",
+        "announcement",
+        announcement.id,
+        { title: announcement.title }
+      );
+
+      res.json(announcement);
+    } catch (error: any) {
+      console.error("Error updating TrustTransport announcement:", error);
+      res.status(400).json({ message: error.message || "Failed to update announcement" });
+    }
+  });
+
+  app.delete('/api/trusttransport/admin/announcements/:id', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const announcement = await storage.deactivateTrusttransportAnnouncement(req.params.id);
+      
+      await logAdminAction(
+        userId,
+        "deactivate_trusttransport_announcement",
+        "announcement",
+        announcement.id,
+        { title: announcement.title }
+      );
+
+      res.json(announcement);
+    } catch (error: any) {
+      console.error("Error deleting TrustTransport announcement:", error);
       res.status(400).json({ message: error.message || "Failed to delete announcement" });
     }
   });

@@ -12,7 +12,8 @@ import {
   Building2,
   Radio,
   MessageCircle,
-  BarChart3
+  BarChart3,
+  Car
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
@@ -111,6 +112,12 @@ const adminMenuItems = [
     icon: UserCheck,
     testId: "link-supportmatch-admin",
   },
+  {
+    title: "TrustTransport Admin",
+    url: "/apps/trusttransport/admin",
+    icon: Car,
+    testId: "link-trusttransport-admin",
+  },
 ];
 
 const userMenuItems = [
@@ -161,6 +168,12 @@ const userMenuItems = [
     url: "/apps/supportmatch",
     icon: UserCheck,
     testId: "link-supportmatch",
+  },
+  {
+    title: "TrustTransport",
+    url: "/apps/trusttransport",
+    icon: Car,
+    testId: "link-trusttransport",
   },
 ];
 
