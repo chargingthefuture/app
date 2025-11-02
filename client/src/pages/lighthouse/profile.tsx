@@ -76,6 +76,7 @@ export default function LighthouseProfilePage() {
         title: "Success",
         description: "Profile created successfully",
       });
+      setLocation("/apps/lighthouse");
     },
     onError: (error: any) => {
       toast({

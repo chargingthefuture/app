@@ -171,22 +171,6 @@ export default function AdminDirectoryPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Announcements</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            Create and manage announcements for Directory.
-          </p>
-          <Link href="/apps/directory/admin/announcements">
-            <Button className="w-full" data-testid="button-manage-announcements">
-              Manage Announcements
-            </Button>
-          </Link>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
           <CardTitle className="text-lg sm:text-xl">Create Unclaimed Profile</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -619,6 +603,23 @@ export default function AdminDirectoryPage() {
               })}
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Announcements Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Announcements</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Create and manage announcements for Directory.
+          </p>
+          <Link href="/apps/directory/admin/announcements">
+            <Button className="w-full" data-testid="button-manage-announcements">
+              Manage Announcements
+            </Button>
+          </Link>
         </CardContent>
       </Card>
 

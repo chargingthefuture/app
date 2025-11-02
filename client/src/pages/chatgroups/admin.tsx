@@ -136,22 +136,6 @@ export default function ChatGroupsAdmin() {
         <p className="text-muted-foreground text-sm sm:text-base">Create and manage Signal.org chat groups</p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Announcements</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            Create and manage announcements for ChatGroups.
-          </p>
-          <Link href="/apps/chatgroups/admin/announcements">
-            <Button className="w-full" data-testid="button-manage-announcements">
-              Manage Announcements
-            </Button>
-          </Link>
-        </CardContent>
-      </Card>
-
       {/* Create New Group */}
       <Card>
         <CardHeader>
@@ -349,6 +333,23 @@ export default function ChatGroupsAdmin() {
               ))}
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Announcements Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Announcements</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Create and manage announcements for ChatGroups.
+          </p>
+          <Link href="/apps/chatgroups/admin/announcements">
+            <Button className="w-full" data-testid="button-manage-announcements">
+              Manage Announcements
+            </Button>
+          </Link>
         </CardContent>
       </Card>
     </div>

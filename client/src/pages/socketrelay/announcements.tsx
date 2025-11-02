@@ -5,7 +5,7 @@ import type { SocketrelayAnnouncement } from "@shared/schema";
 
 export default function SocketRelayAnnouncements() {
   const { data: announcements, isLoading } = useQuery<SocketrelayAnnouncement[]>({
-    queryKey: ["/api/socketrelay/admin/announcements"], // Admin endpoint shows all (including inactive)
+    queryKey: ["/api/socketrelay/announcements"], // Public endpoint shows only active announcements
   });
 
   if (isLoading) {

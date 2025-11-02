@@ -59,8 +59,8 @@ export default function AdminActivity() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Action</TableHead>
-                      <TableHead>Target Type</TableHead>
-                      <TableHead>Target ID</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>ID</TableHead>
                       <TableHead>Timestamp</TableHead>
                     </TableRow>
                   </TableHeader>

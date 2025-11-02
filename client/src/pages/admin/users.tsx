@@ -23,6 +23,9 @@ export default function AdminUsers() {
     queryKey: ["/api/admin/users"],
   });
 
+  // Filter out deleted users (identified by ID starting with "deleted_user_")
+  const activeUsers = users?.filter((user) => !user.id.startsWith("deleted_user_")) || [];
+
   const verifyMutation = useMutation({
     mutationFn: async ({ id, isVerified }: { id: string; isVerified: boolean }) => {
       const res = await apiRequest("PUT", `/api/admin/users/${id}/verify`, { isVerified });
@@ -72,7 +75,7 @@ export default function AdminUsers() {
             <div className="text-center py-8 text-muted-foreground">
               Loading users...
             </div>
-          ) : !users || users.length === 0 ? (
+          ) : !activeUsers || activeUsers.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               No users found
             </div>
@@ -93,7 +96,7 @@ export default function AdminUsers() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {users.map((user) => (
+                    {activeUsers.map((user) => (
                       <TableRow key={user.id} className="hover-elevate" data-testid={`row-user-${user.id}`}>
                         <TableCell>
                           <div className="flex items-center gap-3">
@@ -151,7 +154,7 @@ export default function AdminUsers() {
               </div>
 
               <div className="md:hidden space-y-3">
-                {users.map((user) => (
+                {activeUsers.map((user) => (
                   <Card key={user.id} data-testid={`row-user-${user.id}`}>
                     <CardContent className="p-4 space-y-3">
                       <div className="flex items-center gap-3">

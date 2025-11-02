@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "wouter";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Bell } from "lucide-react";
 import type { DirectoryProfile } from "@shared/schema";
 import { AnnouncementBanner } from "@/components/announcement-banner";
 import { VerifiedBadge } from "@/components/verified-badge";
@@ -146,6 +146,30 @@ export default function DirectoryDashboard() {
           )}
         </CardContent>
       </Card>
+
+      {/* Announcements Section */}
+      <div className="grid md:grid-cols-3 gap-4">
+        <Card className="hover-elevate">
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Bell className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+              </div>
+              <CardTitle className="text-base sm:text-lg">Announcements</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <p className="text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-4">
+              View platform updates and notifications
+            </p>
+            <Link href="/apps/directory/announcements">
+              <Button variant="outline" className="w-full text-xs sm:text-sm" data-testid="button-view-announcements">
+                View Announcements
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
 
       <ExternalLinkDialog />
     </div>

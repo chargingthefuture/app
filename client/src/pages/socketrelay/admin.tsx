@@ -77,22 +77,6 @@ export default function SocketRelayAdmin() {
         </p>
       </div>
 
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>Announcements</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            Create and manage announcements for SocketRelay.
-          </p>
-          <Link href="/apps/socketrelay/admin/announcements">
-            <Button className="w-full" data-testid="button-manage-announcements">
-              Manage Announcements
-            </Button>
-          </Link>
-        </CardContent>
-      </Card>
-
       <Tabs defaultValue="requests" className="space-y-6">
         <TabsList data-testid="tabs-admin">
           <TabsTrigger value="requests" data-testid="tab-requests">Requests</TabsTrigger>
@@ -256,6 +240,23 @@ export default function SocketRelayAdmin() {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Announcements Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Announcements</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Create and manage announcements for SocketRelay.
+          </p>
+          <Link href="/apps/socketrelay/admin/announcements">
+            <Button className="w-full" data-testid="button-manage-announcements">
+              Manage Announcements
+            </Button>
+          </Link>
+        </CardContent>
+      </Card>
     </div>
   );
 }

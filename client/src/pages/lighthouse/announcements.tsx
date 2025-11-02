@@ -5,7 +5,7 @@ import type { LighthouseAnnouncement } from "@shared/schema";
 
 export default function LighthouseAnnouncements() {
   const { data: announcements, isLoading } = useQuery<LighthouseAnnouncement[]>({
-    queryKey: ["/api/lighthouse/admin/announcements"], // Admin endpoint shows all (including inactive)
+    queryKey: ["/api/lighthouse/announcements"], // Public endpoint shows only active announcements
   });
 
   if (isLoading) {

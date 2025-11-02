@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/table";
 import { DollarSign, Calendar, CheckCircle, Mail, CreditCard, Copy, Check, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { PrivacyField } from "@/components/ui/privacy-field";
 import type { Payment } from "@shared/schema";
 
 const PAYMENT_ACKNOWLEDGMENT_KEY = "payment-person-acknowledged";
@@ -235,7 +236,12 @@ export default function UserPayments() {
                 <p className="font-semibold mb-1">Amazon Gift Card</p>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Mail className="w-4 h-4 flex-shrink-0" />
-                  <span className="break-all">yam-antiques-human@duck.com</span>
+                  <PrivacyField
+                    value="yam-antiques-human@duck.com"
+                    type="email"
+                    testId="privacy-amazon-email"
+                    className="break-all"
+                  />
                 </div>
               </div>
               <Button
@@ -262,7 +268,12 @@ export default function UserPayments() {
                 <p className="font-semibold mb-1">Apple Gift Card</p>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Mail className="w-4 h-4 flex-shrink-0" />
-                  <span className="break-all">yam-antiques-human@duck.com</span>
+                  <PrivacyField
+                    value="yam-antiques-human@duck.com"
+                    type="email"
+                    testId="privacy-apple-email"
+                    className="break-all"
+                  />
                 </div>
               </div>
               <Button
@@ -287,7 +298,13 @@ export default function UserPayments() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-semibold mb-1">Venmo</p>
-                <p className="text-sm text-muted-foreground font-mono">@farahb</p>
+                <div className="text-sm text-muted-foreground">
+                  <PrivacyField
+                    value="@farahb"
+                    type="text"
+                    testId="privacy-venmo"
+                  />
+                </div>
               </div>
               <Button
                 variant="ghost"
@@ -311,7 +328,13 @@ export default function UserPayments() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-semibold mb-1">PayPal</p>
-                <p className="text-sm text-muted-foreground font-mono">@farahb</p>
+                <div className="text-sm text-muted-foreground">
+                  <PrivacyField
+                    value="@farahb"
+                    type="text"
+                    testId="privacy-paypal"
+                  />
+                </div>
               </div>
               <Button
                 variant="ghost"
@@ -335,7 +358,13 @@ export default function UserPayments() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-semibold mb-1">Walmart OnePay</p>
-                <p className="text-sm text-muted-foreground font-mono">@farah-brunache</p>
+                <div className="text-sm text-muted-foreground">
+                  <PrivacyField
+                    value="@farah-brunache"
+                    type="text"
+                    testId="privacy-walmart"
+                  />
+                </div>
               </div>
               <Button
                 variant="ghost"
@@ -359,7 +388,13 @@ export default function UserPayments() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-semibold mb-1">Chime</p>
-                <p className="text-sm text-muted-foreground font-mono">@farahb</p>
+                <div className="text-sm text-muted-foreground">
+                  <PrivacyField
+                    value="@farahb"
+                    type="text"
+                    testId="privacy-chime"
+                  />
+                </div>
               </div>
               <Button
                 variant="ghost"
@@ -383,7 +418,13 @@ export default function UserPayments() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-semibold mb-1">Wise</p>
-                <p className="text-sm text-muted-foreground font-mono">@farahb540</p>
+                <div className="text-sm text-muted-foreground">
+                  <PrivacyField
+                    value="@farahb540"
+                    type="text"
+                    testId="privacy-wise"
+                  />
+                </div>
               </div>
               <Button
                 variant="ghost"
@@ -394,33 +435,6 @@ export default function UserPayments() {
                 aria-label="Copy Wise username"
               >
                 {copiedId === "wise" ? (
-                  <Check className="h-4 w-4 text-primary" />
-                ) : (
-                  <Copy className="h-4 w-4" />
-                )}
-              </Button>
-            </div>
-
-            <div className="flex items-start gap-3 p-4 rounded-lg border">
-              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                <Mail className="w-5 h-5 text-primary" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold mb-1">Zelle</p>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Mail className="w-4 h-4 flex-shrink-0" />
-                  <span className="break-all">farah@hey.com</span>
-                </div>
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 flex-shrink-0"
-                onClick={() => copyToClipboard("farah@hey.com", "zelle", "Zelle email")}
-                data-testid="button-copy-zelle"
-                aria-label="Copy Zelle email"
-              >
-                {copiedId === "zelle" ? (
                   <Check className="h-4 w-4 text-primary" />
                 ) : (
                   <Copy className="h-4 w-4" />

@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Home, Users, Building2, UserCheck, ExternalLink } from "lucide-react";
 import {
   Table,
@@ -14,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { VerifiedBadge } from "@/components/verified-badge";
 import { PrivacyField } from "@/components/ui/privacy-field";
 import { useExternalLink } from "@/hooks/useExternalLink";
+import { Link } from "wouter";
 import type { LighthouseProfile, LighthouseProperty, LighthouseMatch } from "@shared/schema";
 
 type SeekerWithUser = LighthouseProfile & {
@@ -598,6 +600,22 @@ export default function LighthouseAdminPage() {
               )}
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Announcements</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Create and manage announcements for LightHouse.
+          </p>
+          <Link href="/apps/lighthouse/admin/announcements">
+            <Button className="w-full" data-testid="button-manage-announcements">
+              Manage Announcements
+            </Button>
+          </Link>
         </CardContent>
       </Card>
 

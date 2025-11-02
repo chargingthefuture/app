@@ -5,7 +5,7 @@ import type { DirectoryAnnouncement } from "@shared/schema";
 
 export default function DirectoryAnnouncements() {
   const { data: announcements, isLoading } = useQuery<DirectoryAnnouncement[]>({
-    queryKey: ["/api/directory/admin/announcements"], // Admin endpoint shows all (including inactive)
+    queryKey: ["/api/directory/announcements"], // Public endpoint shows only active announcements
   });
 
   if (isLoading) {
