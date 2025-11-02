@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,12 +26,9 @@ import { AnnouncementBanner } from "@/components/announcement-banner";
 
 export default function DirectoryProfilePage() {
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
   const { data: profile, isLoading } = useQuery<DirectoryProfile | null>({
     queryKey: ["/api/directory/profile"],
-  });
-  const { data: publicProfiles = [], isLoading: listLoading } = useQuery<any[]>({
-    queryKey: ["/api/directory/list"],
-    enabled: !!profile,
   });
 
   const [description, setDescription] = useState("");
@@ -41,7 +39,7 @@ export default function DirectoryProfilePage() {
   const [stateVal, setStateVal] = useState("");
   const [country, setCountry] = useState("");
   const [isPublic, setIsPublic] = useState(false);
-  const [isEditing, setIsEditing] = useState(true);
+  const [isEditing, setIsEditing] = useState(false);
   const [nickname, setNickname] = useState("");
   const [directoryFirstName, setDirectoryFirstName] = useState("");
   const [displayNameType, setDisplayNameType] = useState<'first' | 'nickname'>("first");
@@ -87,6 +85,7 @@ export default function DirectoryProfilePage() {
       await queryClient.invalidateQueries({ queryKey: ["/api/directory/profile"] });
       toast({ title: "Saved", description: "Directory profile created" });
       setIsEditing(false);
+      setLocation("/apps/directory");
     },
     onError: (e: any) => {
       toast({ title: "Error", description: e.message || "Failed to create profile", variant: "destructive" });
@@ -121,14 +120,29 @@ export default function DirectoryProfilePage() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (reason?: string) => apiRequest("DELETE", "/api/directory/profile", { reason }),
+    mutationFn: async (reason?: string) => {
+      const res = await apiRequest("DELETE", "/api/directory/profile", { reason });
+      return await res.json();
+    },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["/api/directory/profile"] });
-      setDescription(""); setSkills([]); setSignalUrl(""); setQuoraUrl(""); setCity(""); setStateVal(""); setCountry(""); setIsPublic(false);
       setDeleteDialogOpen(false);
+      await queryClient.invalidateQueries({ queryKey: ["/api/directory/profile"] });
+      // Reset all form state
+      setDescription(""); 
+      setSkills([]); 
+      setSignalUrl(""); 
+      setQuoraUrl(""); 
+      setCity(""); 
+      setStateVal(""); 
+      setCountry(""); 
+      setIsPublic(false);
+      setIsEditing(true); // Show form for creating new profile
       toast({ title: "Deleted", description: "Directory profile deleted successfully" });
+      // Navigate to dashboard which will show welcome message
+      setLocation("/apps/directory");
     },
     onError: (e: any) => {
+      console.error("Delete profile error:", e);
       toast({ title: "Error", description: e.message || "Failed to delete profile", variant: "destructive" });
     }
   });
@@ -177,11 +191,11 @@ export default function DirectoryProfilePage() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg sm:text-xl flex items-center gap-2">
-              Your Profile 
+              {profile ? "Your Profile" : "Create Your Profile"}
               {profile?.userId && <VerifiedBadge isVerified={userIsVerified} testId="badge-verified-profile" />}
             </CardTitle>
             <div className="flex items-center gap-2">
-              {!isEditing && (
+              {profile && !isEditing && (
                 <Button variant="outline" size="sm" onClick={() => setIsEditing(true)} data-testid="button-edit-profile">Edit</Button>
               )}
               {shareUrl && (
@@ -193,7 +207,7 @@ export default function DirectoryProfilePage() {
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {!isEditing ? (
+          {profile && !isEditing ? (
             <div className="space-y-4">
               <div>
                 <Label className="text-muted-foreground">Description</Label>
@@ -490,69 +504,6 @@ export default function DirectoryProfilePage() {
           appName="Directory"
           isDeleting={deleteMutation.isPending}
         />
-      )}
-
-      {profile && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg sm:text-xl">Explore the Directory</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {listLoading ? (
-              <div className="text-muted-foreground py-6 text-center">Loading…</div>
-            ) : (
-              (() => {
-                const profilesToShow = (publicProfiles && publicProfiles.length > 0) ? publicProfiles : [profile];
-                if (!profilesToShow || profilesToShow.length === 0) {
-                  return <div className="text-muted-foreground py-6 text-center">No profiles yet</div>;
-                }
-                return (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {profilesToShow.map((p: any) => {
-                  // Compute displayName if not present
-                  let computedName = p.displayName;
-                  if (!computedName) {
-                    if (p.displayNameType === 'nickname' && p.nickname) {
-                      computedName = p.nickname;
-                    }
-                    if (!computedName && p.nickname) computedName = p.nickname;
-                  }
-                  return (
-                  <div key={p.id} className="rounded-md border p-3 flex flex-col gap-2">
-                    <div className="font-medium truncate">{computedName || '—'}</div>
-                                  <div className="flex items-center gap-2">
-                                    {(p as any).userIsVerified !== undefined && (p as any).userId && (
-                                      <VerifiedBadge isVerified={(p as any).userIsVerified || false} testId={`badge-verified-${p.id}`} />
-                                    )}
-                                  </div>
-                    <div className="text-sm">{p.description}</div>
-                    <div className="flex flex-wrap gap-2">
-                      {p.skills?.map((s: string) => (<Badge key={s} variant="outline">{s}</Badge>))}
-                    </div>
-                    {p.signalUrl ? (
-                      <div>
-                        <Button variant="ghost" size="sm" onClick={() => openExternal(p.signalUrl)} className="justify-start px-0 text-primary">
-                          <ExternalLink className="w-4 h-4 mr-2" /> Signal profile
-                        </Button>
-                      </div>
-                    ) : null}
-                    <div className="text-xs text-muted-foreground">
-                      {[p.city, p.state, p.country].filter(Boolean).join(', ')}
-                    </div>
-                    <div>
-                      <Button asChild variant="outline" size="sm" data-testid={`button-view-public-${p.id}`}>
-                        <a href={`/apps/directory/public/${p.id}`}>View</a>
-                      </Button>
-                    </div>
-                  </div>
-                  );
-                })}
-              </div>
-                );
-              })()
-            )}
-          </CardContent>
-        </Card>
       )}
     </div>
   );

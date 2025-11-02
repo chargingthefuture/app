@@ -51,6 +51,7 @@ import SocketRelayChat from "@/pages/socketrelay/chat";
 import SocketRelayAdmin from "@/pages/socketrelay/admin";
 import SocketRelayAnnouncements from "@/pages/socketrelay/announcements";
 import SocketRelayAdminAnnouncements from "@/pages/socketrelay/admin-announcements";
+import DirectoryDashboard from "@/pages/directory/dashboard";
 import DirectoryProfile from "@/pages/directory/profile";
 import DirectoryAdmin from "@/pages/directory/admin";
 import DirectoryAnnouncements from "@/pages/directory/announcements";
@@ -129,7 +130,7 @@ function Router() {
           <Route path="/apps/socketrelay/admin" component={SocketRelayAdmin} />
           <Route path="/apps/socketrelay/admin/announcements" component={SocketRelayAdminAnnouncements} />
           {/* Directory routes */}
-          <Route path="/apps/directory" component={DirectoryProfile} />
+          <Route path="/apps/directory" component={DirectoryDashboard} />
           <Route path="/apps/directory/profile" component={DirectoryProfile} />
           <Route path="/apps/directory/announcements" component={DirectoryAnnouncements} />
           <Route path="/apps/directory/admin" component={DirectoryAdmin} />
