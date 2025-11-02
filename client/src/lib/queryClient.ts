@@ -28,14 +28,48 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
+/**
+ * Get CSRF token from cookie
+ */
+function getCsrfTokenFromCookie(): string | null {
+  const cookies = document.cookie.split(';');
+  for (const cookie of cookies) {
+    const [name, value] = cookie.trim().split('=');
+    if (name === 'X-CSRF-Token') {
+      return decodeURIComponent(value);
+    }
+  }
+  return null;
+}
+
 export async function apiRequest(
   method: string,
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
+  // Check if this is an admin endpoint that requires CSRF protection
+  const isAdminEndpoint = url.includes('/api/admin') || url.match(/\/api\/[^/]+\/admin/);
+  
+  // For state-changing methods on admin endpoints, include CSRF token
+  const stateChangingMethods = ['POST', 'PUT', 'DELETE', 'PATCH'];
+  const needsCsrfToken = isAdminEndpoint && stateChangingMethods.includes(method.toUpperCase());
+  
+  const headers: Record<string, string> = {};
+  if (data) {
+    headers["Content-Type"] = "application/json";
+  }
+  
+  // Add CSRF token header if needed
+  if (needsCsrfToken) {
+    const csrfToken = getCsrfTokenFromCookie();
+    if (csrfToken) {
+      headers["X-CSRF-Token"] = csrfToken;
+    }
+  }
+  
   const res = await fetch(url, {
     method,
-    headers: data ? { "Content-Type": "application/json" } : {},
+    headers,
     body: data ? JSON.stringify(data) : undefined,
     credentials: "include",
   });

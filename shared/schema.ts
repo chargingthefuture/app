@@ -10,6 +10,8 @@ import {
   integer,
   boolean,
   decimal,
+  numeric,
+  date,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -1130,7 +1132,7 @@ export type TrusttransportAnnouncement = typeof trusttransportAnnouncements.$inf
 export const profileDeletionLogs = pgTable("profile_deletion_logs", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull(), // Original user ID before deletion
-  appName: varchar("app_name", { length: 50 }).notNull(), // supportmatch, lighthouse, socketrelay, directory, trusttransport
+  appName: varchar("app_name", { length: 50 }).notNull(), // supportmatch, lighthouse, socketrelay, directory, trusttransport, mechanicmatch
   deletedAt: timestamp("deleted_at").defaultNow().notNull(),
   reason: text("reason"), // Optional reason provided by user
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -1181,3 +1183,1084 @@ export const insertNpsResponseSchema = createInsertSchema(npsResponses).omit({
 
 export type InsertNpsResponse = z.infer<typeof insertNpsResponseSchema>;
 export type NpsResponse = typeof npsResponses.$inferSelect;
+
+// ========================================
+// MECHANICMATCH APP TABLES
+// ========================================
+
+// MechanicMatch Profiles (users can be both car owners and mechanics)
+export const mechanicmatchProfiles = pgTable("mechanicmatch_profiles", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().unique().references(() => users.id),
+  
+  // Role flags
+  isCarOwner: boolean("is_car_owner").notNull().default(false),
+  isMechanic: boolean("is_mechanic").notNull().default(false),
+  
+  // Common fields
+  displayName: varchar("display_name", { length: 100 }).notNull(),
+  city: varchar("city", { length: 100 }),
+  state: varchar("state", { length: 100 }),
+  country: varchar("country", { length: 100 }),
+  phoneNumber: varchar("phone_number", { length: 20 }),
+  signalUrl: text("signal_url"), // Link to Signal profile
+  
+  // Car Owner specific fields
+  ownerBio: text("owner_bio"),
+  
+  // Mechanic specific fields
+  mechanicBio: text("mechanic_bio"),
+  experience: integer("experience"), // Years of experience
+  shopLocation: text("shop_location"), // Physical shop address
+  isMobileMechanic: boolean("is_mobile_mechanic").notNull().default(false),
+  hourlyRate: decimal("hourly_rate", { precision: 10, scale: 2 }), // Hourly rate in dollars
+  specialties: text("specialties"), // Comma-separated list or JSON array of specialties (e.g., "Engine Repair, Transmission, Brakes")
+  certifications: text("certifications"), // JSON array of certifications
+  sampleJobs: text("sample_jobs"), // JSON array of sample job descriptions/photos
+  portfolioPhotos: text("portfolio_photos"), // JSON array of photo URLs
+  responseTimeHours: integer("response_time_hours"), // Average response time in hours
+  totalJobsCompleted: integer("total_jobs_completed").notNull().default(0),
+  averageRating: decimal("average_rating", { precision: 3, scale: 2 }), // Average rating (0-5)
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const mechanicmatchProfilesRelations = relations(mechanicmatchProfiles, ({ one, many }) => ({
+  user: one(users, {
+    fields: [mechanicmatchProfiles.userId],
+    references: [users.id],
+  }),
+  vehicles: many(mechanicmatchVehicles, { relationName: "owner" }),
+  serviceRequests: many(mechanicmatchServiceRequests, { relationName: "owner" }),
+  jobsAsOwner: many(mechanicmatchJobs, { relationName: "owner" }),
+  jobsAsMechanic: many(mechanicmatchJobs, { relationName: "mechanic" }),
+  availability: many(mechanicmatchAvailability),
+  reviewsGiven: many(mechanicmatchReviews, { relationName: "reviewer" }),
+  reviewsReceived: many(mechanicmatchReviews, { relationName: "reviewee" }),
+}));
+
+export const insertMechanicmatchProfileSchema = createInsertSchema(mechanicmatchProfiles).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  totalJobsCompleted: true,
+}).extend({
+  displayName: z.string().min(1, "Display name is required").max(100, "Display name must be 100 characters or less"),
+  isCarOwner: z.boolean().default(false),
+  isMechanic: z.boolean().default(false),
+  city: z.string().max(100).optional().nullable(),
+  state: z.string().max(100).optional().nullable(),
+  country: z.string().max(100).optional().nullable(),
+  phoneNumber: z.string().max(20).optional().nullable(),
+  signalUrl: z.string().url().optional().nullable().or(z.literal("")),
+  ownerBio: z.string().optional().nullable(),
+  mechanicBio: z.string().optional().nullable(),
+  experience: z.number().int().min(0).max(100).optional().nullable(),
+  shopLocation: z.string().optional().nullable(),
+  isMobileMechanic: z.boolean().default(false),
+  hourlyRate: z.coerce.number().min(0).max(10000).optional().nullable(),
+  specialties: z.string().optional().nullable(), // Will store as JSON string
+  certifications: z.string().optional().nullable(), // Will store as JSON string
+  sampleJobs: z.string().optional().nullable(), // Will store as JSON string
+  portfolioPhotos: z.string().optional().nullable(), // Will store as JSON string
+  responseTimeHours: z.number().int().min(0).optional().nullable(),
+  averageRating: z.coerce.number().min(0).max(5).optional().nullable(),
+});
+
+export type InsertMechanicmatchProfile = z.infer<typeof insertMechanicmatchProfileSchema>;
+export type MechanicmatchProfile = typeof mechanicmatchProfiles.$inferSelect;
+
+// Vehicles owned by car owners
+export const mechanicmatchVehicles = pgTable("mechanicmatch_vehicles", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  ownerId: varchar("owner_id").notNull().references(() => users.id), // Reference to user, not profile
+  make: varchar("make", { length: 50 }).notNull(),
+  model: varchar("model", { length: 100 }).notNull(),
+  year: integer("year").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const mechanicmatchVehiclesRelations = relations(mechanicmatchVehicles, ({ one }) => ({
+  owner: one(mechanicmatchProfiles, {
+    fields: [mechanicmatchVehicles.ownerId],
+    references: [mechanicmatchProfiles.userId],
+    relationName: "owner",
+  }),
+}));
+
+export const insertMechanicmatchVehicleSchema = createInsertSchema(mechanicmatchVehicles).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  ownerId: true, // Added by server from authenticated user
+}).extend({
+  make: z.string().min(1, "Make is required").max(50, "Make must be 50 characters or less"),
+  model: z.string().min(1, "Model is required").max(100, "Model must be 100 characters or less"),
+  year: z.number().int().min(1900).max(new Date().getFullYear() + 1),
+});
+
+export type InsertMechanicmatchVehicle = z.infer<typeof insertMechanicmatchVehicleSchema>;
+export type MechanicmatchVehicle = typeof mechanicmatchVehicles.$inferSelect;
+
+// Service requests posted by car owners
+export const mechanicmatchServiceRequests = pgTable("mechanicmatch_service_requests", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  ownerId: varchar("owner_id").notNull().references(() => users.id), // Reference to user
+  vehicleId: varchar("vehicle_id").references(() => mechanicmatchVehicles.id), // Optional - can be null if vehicle not in system
+  
+  // Request details
+  symptoms: text("symptoms").notNull(),
+  photos: text("photos"), // JSON array of photo URLs
+  videoUrl: text("video_url"), // URL to short video
+  estimatedLocation: text("estimated_location"), // Location for service
+  
+  // Request type
+  requestType: varchar("request_type", { length: 20 }).notNull(), // 'advice_only', 'remote_diagnosis', 'in_person'
+  
+  // Status
+  status: varchar("status", { length: 20 }).notNull().default('open'), // 'open', 'accepted', 'in_progress', 'completed', 'cancelled'
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const mechanicmatchServiceRequestsRelations = relations(mechanicmatchServiceRequests, ({ one }) => ({
+  owner: one(mechanicmatchProfiles, {
+    fields: [mechanicmatchServiceRequests.ownerId],
+    references: [mechanicmatchProfiles.userId],
+    relationName: "owner",
+  }),
+  vehicle: one(mechanicmatchVehicles, {
+    fields: [mechanicmatchServiceRequests.vehicleId],
+    references: [mechanicmatchVehicles.id],
+  }),
+}));
+
+export const insertMechanicmatchServiceRequestSchema = createInsertSchema(mechanicmatchServiceRequests).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  ownerId: true, // Added by server from authenticated user
+  status: true,
+}).extend({
+  vehicleId: z.string().uuid().optional().nullable(),
+  symptoms: z.string().min(1, "Symptoms description is required"),
+  photos: z.string().optional().nullable(), // JSON string
+  videoUrl: z.string().url().optional().nullable().or(z.literal("")),
+  estimatedLocation: z.string().optional().nullable(),
+  requestType: z.enum(["advice_only", "remote_diagnosis", "in_person"]),
+});
+
+export type InsertMechanicmatchServiceRequest = z.infer<typeof insertMechanicmatchServiceRequestSchema>;
+export type MechanicmatchServiceRequest = typeof mechanicmatchServiceRequests.$inferSelect;
+
+// Jobs/Bookings (created when mechanic accepts a service request or when booked directly)
+export const mechanicmatchJobs = pgTable("mechanicmatch_jobs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  serviceRequestId: varchar("service_request_id").references(() => mechanicmatchServiceRequests.id), // Nullable if direct booking
+  ownerId: varchar("owner_id").notNull().references(() => users.id),
+  mechanicId: varchar("mechanic_id").notNull().references(() => mechanicmatchProfiles.id),
+  
+  // Job details
+  vehicleId: varchar("vehicle_id").references(() => mechanicmatchVehicles.id),
+  symptoms: text("symptoms").notNull(),
+  photos: text("photos"), // JSON array
+  videoUrl: text("video_url"),
+  location: text("location"),
+  
+  // Job type
+  jobType: varchar("job_type", { length: 20 }).notNull(), // 'advice_only', 'remote_diagnosis', 'in_person'
+  
+  // Scheduling
+  scheduledDateTime: timestamp("scheduled_date_time"), // For in-person bookings
+  
+  // Pricing (for remote diagnosis - per minute)
+  ratePerMinute: decimal("rate_per_minute", { precision: 10, scale: 2 }),
+  minutesUsed: integer("minutes_used"), // For remote diagnosis sessions
+  
+  // Job lifecycle
+  status: varchar("status", { length: 20 }).notNull().default('requested'), // 'requested', 'accepted', 'in_progress', 'completed', 'cancelled'
+  
+  // Completion
+  mechanicNotes: text("mechanic_notes"),
+  ownerNotes: text("owner_notes"),
+  completedAt: timestamp("completed_at"),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const mechanicmatchJobsRelations = relations(mechanicmatchJobs, ({ one }) => ({
+  serviceRequest: one(mechanicmatchServiceRequests, {
+    fields: [mechanicmatchJobs.serviceRequestId],
+    references: [mechanicmatchServiceRequests.id],
+  }),
+  owner: one(mechanicmatchProfiles, {
+    fields: [mechanicmatchJobs.ownerId],
+    references: [mechanicmatchProfiles.userId],
+    relationName: "owner",
+  }),
+  mechanic: one(mechanicmatchProfiles, {
+    fields: [mechanicmatchJobs.mechanicId],
+    references: [mechanicmatchProfiles.id],
+    relationName: "mechanic",
+  }),
+  vehicle: one(mechanicmatchVehicles, {
+    fields: [mechanicmatchJobs.vehicleId],
+    references: [mechanicmatchVehicles.id],
+  }),
+}));
+
+export const insertMechanicmatchJobSchema = createInsertSchema(mechanicmatchJobs).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  status: true,
+  completedAt: true,
+}).extend({
+  serviceRequestId: z.string().uuid().optional().nullable(),
+  vehicleId: z.string().uuid().optional().nullable(),
+  symptoms: z.string().min(1, "Symptoms description is required"),
+  photos: z.string().optional().nullable(),
+  videoUrl: z.string().url().optional().nullable().or(z.literal("")),
+  location: z.string().optional().nullable(),
+  jobType: z.enum(["advice_only", "remote_diagnosis", "in_person"]),
+  scheduledDateTime: z.coerce.date().optional().nullable(),
+  ratePerMinute: z.coerce.number().min(0).max(100).optional().nullable(),
+  minutesUsed: z.number().int().min(0).optional().nullable(),
+  mechanicNotes: z.string().optional().nullable(),
+  ownerNotes: z.string().optional().nullable(),
+});
+
+export type InsertMechanicmatchJob = z.infer<typeof insertMechanicmatchJobSchema>;
+export type MechanicmatchJob = typeof mechanicmatchJobs.$inferSelect;
+
+// Mechanic availability schedule
+export const mechanicmatchAvailability = pgTable("mechanicmatch_availability", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  mechanicId: varchar("mechanic_id").notNull().references(() => mechanicmatchProfiles.id),
+  dayOfWeek: integer("day_of_week").notNull(), // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+  startTime: varchar("start_time", { length: 5 }), // HH:MM format (e.g., "09:00")
+  endTime: varchar("end_time", { length: 5 }), // HH:MM format (e.g., "17:00")
+  isAvailable: boolean("is_available").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const mechanicmatchAvailabilityRelations = relations(mechanicmatchAvailability, ({ one }) => ({
+  mechanic: one(mechanicmatchProfiles, {
+    fields: [mechanicmatchAvailability.mechanicId],
+    references: [mechanicmatchProfiles.id],
+  }),
+}));
+
+export const insertMechanicmatchAvailabilitySchema = createInsertSchema(mechanicmatchAvailability).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  dayOfWeek: z.number().int().min(0).max(6),
+  startTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/).optional().nullable(), // HH:MM format
+  endTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/).optional().nullable(), // HH:MM format
+  isAvailable: z.boolean().default(true),
+});
+
+export type InsertMechanicmatchAvailability = z.infer<typeof insertMechanicmatchAvailabilitySchema>;
+export type MechanicmatchAvailability = typeof mechanicmatchAvailability.$inferSelect;
+
+// Reviews/ratings
+export const mechanicmatchReviews = pgTable("mechanicmatch_reviews", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  jobId: varchar("job_id").references(() => mechanicmatchJobs.id), // Optional - can review without job
+  reviewerId: varchar("reviewer_id").notNull().references(() => users.id), // User who wrote the review
+  revieweeId: varchar("reviewee_id").notNull().references(() => mechanicmatchProfiles.id), // Profile being reviewed (mechanic or owner)
+  rating: integer("rating").notNull(), // 1-5 stars
+  comment: text("comment"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const mechanicmatchReviewsRelations = relations(mechanicmatchReviews, ({ one }) => ({
+  job: one(mechanicmatchJobs, {
+    fields: [mechanicmatchReviews.jobId],
+    references: [mechanicmatchJobs.id],
+  }),
+  reviewer: one(mechanicmatchProfiles, {
+    fields: [mechanicmatchReviews.reviewerId],
+    references: [mechanicmatchProfiles.userId],
+    relationName: "reviewer",
+  }),
+  reviewee: one(mechanicmatchProfiles, {
+    fields: [mechanicmatchReviews.revieweeId],
+    references: [mechanicmatchProfiles.id],
+    relationName: "reviewee",
+  }),
+}));
+
+export const insertMechanicmatchReviewSchema = createInsertSchema(mechanicmatchReviews).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  reviewerId: true, // Added by server from authenticated user
+}).extend({
+  jobId: z.string().uuid().optional().nullable(),
+  rating: z.number().int().min(1).max(5),
+  comment: z.string().optional().nullable(),
+});
+
+export type InsertMechanicmatchReview = z.infer<typeof insertMechanicmatchReviewSchema>;
+export type MechanicmatchReview = typeof mechanicmatchReviews.$inferSelect;
+
+// Messages between car owners and mechanics
+export const mechanicmatchMessages = pgTable("mechanicmatch_messages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  jobId: varchar("job_id").references(() => mechanicmatchJobs.id), // Optional - can message outside of job context
+  senderId: varchar("sender_id").notNull().references(() => users.id),
+  recipientId: varchar("recipient_id").notNull().references(() => users.id),
+  content: text("content").notNull(),
+  isRead: boolean("is_read").notNull().default(false),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const mechanicmatchMessagesRelations = relations(mechanicmatchMessages, ({ one }) => ({
+  job: one(mechanicmatchJobs, {
+    fields: [mechanicmatchMessages.jobId],
+    references: [mechanicmatchJobs.id],
+  }),
+  sender: one(users, {
+    fields: [mechanicmatchMessages.senderId],
+    references: [users.id],
+  }),
+  recipient: one(users, {
+    fields: [mechanicmatchMessages.recipientId],
+    references: [users.id],
+  }),
+}));
+
+export const insertMechanicmatchMessageSchema = createInsertSchema(mechanicmatchMessages).omit({
+  id: true,
+  createdAt: true,
+  senderId: true, // Added by server from authenticated user
+}).extend({
+  jobId: z.string().uuid().optional().nullable(),
+  content: z.string().min(1, "Message content is required"),
+  isRead: z.boolean().default(false),
+});
+
+export type InsertMechanicmatchMessage = z.infer<typeof insertMechanicmatchMessageSchema>;
+export type MechanicmatchMessage = typeof mechanicmatchMessages.$inferSelect;
+
+// MechanicMatch Announcements
+export const mechanicmatchAnnouncements = pgTable("mechanicmatch_announcements", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: varchar("title", { length: 200 }).notNull(),
+  content: text("content").notNull(),
+  type: varchar("type", { length: 50 }).notNull().default('info'), // info, warning, maintenance, update, promotion
+  isActive: boolean("is_active").notNull().default(true),
+  expiresAt: timestamp("expires_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertMechanicmatchAnnouncementSchema = createInsertSchema(mechanicmatchAnnouncements).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  expiresAt: z.coerce.date().optional().nullable(),
+});
+
+export type InsertMechanicmatchAnnouncement = z.infer<typeof insertMechanicmatchAnnouncementSchema>;
+export type MechanicmatchAnnouncement = typeof mechanicmatchAnnouncements.$inferSelect;
+
+// ========================================
+// LOSTMAIL APP TABLES
+// ========================================
+
+// LostMail Incidents
+export const lostmailIncidents = pgTable("lostmail_incidents", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Reporter information
+  reporterName: varchar("reporter_name", { length: 200 }).notNull(),
+  reporterEmail: varchar("reporter_email", { length: 255 }).notNull(),
+  reporterPhone: varchar("reporter_phone", { length: 50 }),
+  
+  // Incident details
+  incidentType: varchar("incident_type", { length: 50 }).notNull(), // 'lost', 'damaged', 'tampered', 'delayed'
+  carrier: varchar("carrier", { length: 100 }),
+  trackingNumber: varchar("tracking_number", { length: 100 }).notNull(),
+  expectedDeliveryDate: timestamp("expected_delivery_date").notNull(),
+  noticedDate: timestamp("noticed_date"),
+  description: text("description").notNull(),
+  
+  // Photos (stored as JSON array of file paths)
+  photos: text("photos"), // JSON array of photo file paths
+  
+  // Incident management
+  severity: varchar("severity", { length: 20 }).notNull().default('medium'), // 'low', 'medium', 'high'
+  status: varchar("status", { length: 20 }).notNull().default('submitted'), // 'submitted', 'under_review', 'in_progress', 'resolved', 'closed'
+  
+  // Consent and assignment
+  consent: boolean("consent").notNull().default(false),
+  assignedTo: varchar("assigned_to", { length: 200 }), // Admin name or user ID
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const lostmailIncidentsRelations = relations(lostmailIncidents, ({ many }) => ({
+  auditTrail: many(lostmailAuditTrail),
+}));
+
+export const insertLostmailIncidentSchema = createInsertSchema(lostmailIncidents).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  reporterName: z.string().min(1, "Reporter name is required").max(200, "Name must be 200 characters or less"),
+  reporterEmail: z.string().email("Valid email is required").max(255, "Email must be 255 characters or less"),
+  reporterPhone: z.string().max(50).optional().nullable(),
+  incidentType: z.enum(["lost", "damaged", "tampered", "delayed"]),
+  carrier: z.string().max(100).optional().nullable(),
+  trackingNumber: z.string().min(1, "Tracking number is required").max(100, "Tracking number must be 100 characters or less"),
+  expectedDeliveryDate: z.coerce.date(),
+  noticedDate: z.coerce.date().optional().nullable(),
+  description: z.string().min(1, "Description is required"),
+  photos: z.string().optional().nullable(), // JSON string array
+  severity: z.enum(["low", "medium", "high"]).default("medium"),
+  status: z.enum(["submitted", "under_review", "in_progress", "resolved", "closed"]).default("submitted"),
+  consent: z.boolean().default(false),
+  assignedTo: z.string().max(200).optional().nullable(),
+});
+
+export type InsertLostmailIncident = z.infer<typeof insertLostmailIncidentSchema>;
+export type LostmailIncident = typeof lostmailIncidents.$inferSelect;
+
+// LostMail Audit Trail
+export const lostmailAuditTrail = pgTable("lostmail_audit_trail", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  incidentId: varchar("incident_id").notNull().references(() => lostmailIncidents.id),
+  adminName: varchar("admin_name", { length: 200 }).notNull(),
+  action: varchar("action", { length: 50 }).notNull(), // 'status_change', 'note_added', 'assigned', etc.
+  note: text("note"),
+  timestamp: timestamp("timestamp").defaultNow().notNull(),
+});
+
+export const lostmailAuditTrailRelations = relations(lostmailAuditTrail, ({ one }) => ({
+  incident: one(lostmailIncidents, {
+    fields: [lostmailAuditTrail.incidentId],
+    references: [lostmailIncidents.id],
+  }),
+}));
+
+export const insertLostmailAuditTrailSchema = createInsertSchema(lostmailAuditTrail).omit({
+  id: true,
+  timestamp: true,
+}).extend({
+  adminName: z.string().min(1, "Admin name is required").max(200),
+  action: z.string().min(1, "Action is required").max(50),
+  note: z.string().optional().nullable(),
+});
+
+export type InsertLostmailAuditTrail = z.infer<typeof insertLostmailAuditTrailSchema>;
+export type LostmailAuditTrail = typeof lostmailAuditTrail.$inferSelect;
+
+// LostMail Announcements
+export const lostmailAnnouncements = pgTable("lostmail_announcements", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: varchar("title", { length: 200 }).notNull(),
+  content: text("content").notNull(),
+  type: varchar("type", { length: 50 }).notNull().default('info'), // info, warning, maintenance, update, promotion
+  isActive: boolean("is_active").notNull().default(true),
+  expiresAt: timestamp("expires_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertLostmailAnnouncementSchema = createInsertSchema(lostmailAnnouncements).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  expiresAt: z.coerce.date().optional().nullable(),
+});
+
+export type InsertLostmailAnnouncement = z.infer<typeof insertLostmailAnnouncementSchema>;
+export type LostmailAnnouncement = typeof lostmailAnnouncements.$inferSelect;
+
+// ========================================
+// RESEARCH APP TABLES
+// ========================================
+
+// Research Items (questions/posts)
+export const researchItems = pgTable("research_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  title: varchar("title", { length: 300 }).notNull(),
+  bodyMd: text("body_md").notNull(),
+  tags: text("tags"), // JSON array of strings
+  attachments: text("attachments"), // JSON array of file paths/URLs
+  deadline: timestamp("deadline"),
+  isPublic: boolean("is_public").notNull().default(false),
+  status: varchar("status", { length: 50 }).notNull().default("open"), // open, in_progress, answered, closed
+  acceptedAnswerId: varchar("accepted_answer_id"),
+  viewCount: integer("view_count").default(0).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const researchItemsRelations = relations(researchItems, ({ one, many }) => ({
+  user: one(users, {
+    fields: [researchItems.userId],
+    references: [users.id],
+  }),
+  acceptedAnswer: one(researchAnswers, {
+    fields: [researchItems.acceptedAnswerId],
+    references: [researchAnswers.id],
+  }),
+  answers: many(researchAnswers),
+  comments: many(researchComments),
+  votes: many(researchVotes),
+  bookmarks: many(researchBookmarks),
+  reports: many(researchReports),
+}));
+
+export const insertResearchItemSchema = createInsertSchema(researchItems).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  viewCount: true,
+  acceptedAnswerId: true,
+}).extend({
+  title: z.string().min(1, "Title is required").max(300, "Title must be 300 characters or less"),
+  bodyMd: z.string().min(1, "Description is required"),
+  tags: z.array(z.string()).optional().nullable(),
+  attachments: z.array(z.string()).optional().nullable(),
+  deadline: z.coerce.date().optional().nullable(),
+  isPublic: z.boolean().default(false),
+  status: z.enum(["open", "in_progress", "answered", "closed"]).default("open"),
+});
+
+export type InsertResearchItem = z.infer<typeof insertResearchItemSchema>;
+export type ResearchItem = typeof researchItems.$inferSelect;
+
+// Research Answers
+export const researchAnswers = pgTable("research_answers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  researchItemId: varchar("research_item_id").notNull().references(() => researchItems.id),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  bodyMd: text("body_md").notNull(),
+  links: text("links"), // JSON array of URLs
+  attachments: text("attachments"), // JSON array of file paths/URLs
+  confidenceScore: integer("confidence_score"), // 0-100
+  score: integer("score").default(0).notNull(), // Calculated from votes
+  isAccepted: boolean("is_accepted").default(false).notNull(),
+  relevanceScore: numeric("relevance_score", { precision: 10, scale: 6 }), // Calculated relevance
+  verificationScore: numeric("verification_score", { precision: 10, scale: 6 }), // Link verification score
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const researchAnswersRelations = relations(researchAnswers, ({ one, many }) => ({
+  researchItem: one(researchItems, {
+    fields: [researchAnswers.researchItemId],
+    references: [researchItems.id],
+  }),
+  user: one(users, {
+    fields: [researchAnswers.userId],
+    references: [users.id],
+  }),
+  comments: many(researchComments),
+  votes: many(researchVotes),
+  linkProvenances: many(researchLinkProvenances),
+}));
+
+export const insertResearchAnswerSchema = createInsertSchema(researchAnswers).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  score: true,
+  isAccepted: true,
+  relevanceScore: true,
+  verificationScore: true,
+}).extend({
+  bodyMd: z.string().min(1, "Answer is required"),
+  links: z.array(z.string().url()).optional().nullable(),
+  attachments: z.array(z.string()).optional().nullable(),
+  confidenceScore: z.number().int().min(0).max(100).optional().nullable(),
+});
+
+export type InsertResearchAnswer = z.infer<typeof insertResearchAnswerSchema>;
+export type ResearchAnswer = typeof researchAnswers.$inferSelect;
+
+// Research Comments (nested one level)
+export const researchComments = pgTable("research_comments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  researchItemId: varchar("research_item_id").references(() => researchItems.id),
+  answerId: varchar("answer_id").references(() => researchAnswers.id),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  bodyMd: text("body_md").notNull(),
+  parentCommentId: varchar("parent_comment_id"), // For one-level nesting
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const researchCommentsRelations = relations(researchComments, ({ one, many }) => ({
+  researchItem: one(researchItems, {
+    fields: [researchComments.researchItemId],
+    references: [researchItems.id],
+  }),
+  answer: one(researchAnswers, {
+    fields: [researchComments.answerId],
+    references: [researchAnswers.id],
+  }),
+  user: one(users, {
+    fields: [researchComments.userId],
+    references: [users.id],
+  }),
+  parentComment: one(researchComments, {
+    fields: [researchComments.parentCommentId],
+    references: [researchComments.id],
+  }),
+  replies: many(researchComments),
+}));
+
+export const insertResearchCommentSchema = createInsertSchema(researchComments).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  bodyMd: z.string().min(1, "Comment is required"),
+  researchItemId: z.string().optional().nullable(),
+  answerId: z.string().optional().nullable(),
+  parentCommentId: z.string().optional().nullable(),
+});
+
+export type InsertResearchComment = z.infer<typeof insertResearchCommentSchema>;
+export type ResearchComment = typeof researchComments.$inferSelect;
+
+// Research Votes
+export const researchVotes = pgTable("research_votes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  researchItemId: varchar("research_item_id").references(() => researchItems.id),
+  answerId: varchar("answer_id").references(() => researchAnswers.id),
+  value: integer("value").notNull(), // 1 for upvote, -1 for downvote
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const researchVotesRelations = relations(researchVotes, ({ one }) => ({
+  user: one(users, {
+    fields: [researchVotes.userId],
+    references: [users.id],
+  }),
+  researchItem: one(researchItems, {
+    fields: [researchVotes.researchItemId],
+    references: [researchItems.id],
+  }),
+  answer: one(researchAnswers, {
+    fields: [researchVotes.answerId],
+    references: [researchAnswers.id],
+  }),
+}));
+
+export const insertResearchVoteSchema = createInsertSchema(researchVotes).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  researchItemId: z.string().optional().nullable(),
+  answerId: z.string().optional().nullable(),
+  value: z.enum([-1, 1]),
+});
+
+export type InsertResearchVote = z.infer<typeof insertResearchVoteSchema>;
+export type ResearchVote = typeof researchVotes.$inferSelect;
+
+// Link Provenance (for link verification)
+export const researchLinkProvenances = pgTable("research_link_provenances", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  answerId: varchar("answer_id").notNull().references(() => researchAnswers.id),
+  url: varchar("url", { length: 2048 }).notNull(),
+  httpStatus: integer("http_status"),
+  title: text("title"),
+  snippet: text("snippet"),
+  domain: varchar("domain", { length: 255 }),
+  domainScore: numeric("domain_score", { precision: 5, scale: 2 }), // 0-1 trust score
+  fetchDate: timestamp("fetch_date").defaultNow(),
+  similarityScore: numeric("similarity_score", { precision: 5, scale: 4 }), // 0-1 similarity to claim
+  isSupportive: boolean("is_supportive").default(false), // True if similarity > threshold and domain_score > threshold
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const researchLinkProvenancesRelations = relations(researchLinkProvenances, ({ one }) => ({
+  answer: one(researchAnswers, {
+    fields: [researchLinkProvenances.answerId],
+    references: [researchAnswers.id],
+  }),
+}));
+
+export const insertResearchLinkProvenanceSchema = createInsertSchema(researchLinkProvenances).omit({
+  id: true,
+  createdAt: true,
+  fetchDate: true,
+}).extend({
+  url: z.string().url(),
+  httpStatus: z.number().int().optional().nullable(),
+  domainScore: z.number().min(0).max(1).optional().nullable(),
+  similarityScore: z.number().min(0).max(1).optional().nullable(),
+});
+
+export type InsertResearchLinkProvenance = z.infer<typeof insertResearchLinkProvenanceSchema>;
+export type ResearchLinkProvenance = typeof researchLinkProvenances.$inferSelect;
+
+// Research Bookmarks/Saves
+export const researchBookmarks = pgTable("research_bookmarks", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  researchItemId: varchar("research_item_id").notNull().references(() => researchItems.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const researchBookmarksRelations = relations(researchBookmarks, ({ one }) => ({
+  user: one(users, {
+    fields: [researchBookmarks.userId],
+    references: [users.id],
+  }),
+  researchItem: one(researchItems, {
+    fields: [researchBookmarks.researchItemId],
+    references: [researchItems.id],
+  }),
+}));
+
+export const insertResearchBookmarkSchema = createInsertSchema(researchBookmarks).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertResearchBookmark = z.infer<typeof insertResearchBookmarkSchema>;
+export type ResearchBookmark = typeof researchBookmarks.$inferSelect;
+
+// Research Follows
+export const researchFollows = pgTable("research_follows", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  followedUserId: varchar("followed_user_id").references(() => users.id),
+  researchItemId: varchar("research_item_id").references(() => researchItems.id),
+  tag: varchar("tag", { length: 100 }), // Follow a tag
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const researchFollowsRelations = relations(researchFollows, ({ one }) => ({
+  user: one(users, {
+    fields: [researchFollows.userId],
+    references: [users.id],
+  }),
+  followedUser: one(users, {
+    fields: [researchFollows.followedUserId],
+    references: [users.id],
+  }),
+  researchItem: one(researchItems, {
+    fields: [researchFollows.researchItemId],
+    references: [researchItems.id],
+  }),
+}));
+
+export const insertResearchFollowSchema = createInsertSchema(researchFollows).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  followedUserId: z.string().optional().nullable(),
+  researchItemId: z.string().optional().nullable(),
+  tag: z.string().optional().nullable(),
+});
+
+export type InsertResearchFollow = z.infer<typeof insertResearchFollowSchema>;
+export type ResearchFollow = typeof researchFollows.$inferSelect;
+
+// Research Boards (Trello-style)
+export const researchBoards = pgTable("research_boards", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  researchItemId: varchar("research_item_id").notNull().references(() => researchItems.id),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  name: varchar("name", { length: 200 }).notNull(),
+  position: integer("position").default(0).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const researchBoardsRelations = relations(researchBoards, ({ one, many }) => ({
+  researchItem: one(researchItems, {
+    fields: [researchBoards.researchItemId],
+    references: [researchItems.id],
+  }),
+  user: one(users, {
+    fields: [researchBoards.userId],
+    references: [users.id],
+  }),
+  columns: many(researchColumns),
+}));
+
+export const insertResearchBoardSchema = createInsertSchema(researchBoards).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertResearchBoard = z.infer<typeof insertResearchBoardSchema>;
+export type ResearchBoard = typeof researchBoards.$inferSelect;
+
+// Research Columns (Trello-style)
+export const researchColumns = pgTable("research_columns", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  boardId: varchar("board_id").notNull().references(() => researchBoards.id),
+  name: varchar("name", { length: 200 }).notNull(),
+  position: integer("position").default(0).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const researchColumnsRelations = relations(researchColumns, ({ one, many }) => ({
+  board: one(researchBoards, {
+    fields: [researchColumns.boardId],
+    references: [researchBoards.id],
+  }),
+  cards: many(researchCards),
+}));
+
+export const insertResearchColumnSchema = createInsertSchema(researchColumns).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertResearchColumn = z.infer<typeof insertResearchColumnSchema>;
+export type ResearchColumn = typeof researchColumns.$inferSelect;
+
+// Research Cards (Trello-style)
+export const researchCards = pgTable("research_cards", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  columnId: varchar("column_id").notNull().references(() => researchColumns.id),
+  answerId: varchar("answer_id").references(() => researchAnswers.id),
+  linkId: varchar("link_id").references(() => researchLinkProvenances.id),
+  title: varchar("title", { length: 300 }).notNull(),
+  description: text("description"),
+  position: integer("position").default(0).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const researchCardsRelations = relations(researchCards, ({ one }) => ({
+  column: one(researchColumns, {
+    fields: [researchCards.columnId],
+    references: [researchColumns.id],
+  }),
+  answer: one(researchAnswers, {
+    fields: [researchCards.answerId],
+    references: [researchAnswers.id],
+  }),
+  link: one(researchLinkProvenances, {
+    fields: [researchCards.linkId],
+    references: [researchLinkProvenances.id],
+  }),
+}));
+
+export const insertResearchCardSchema = createInsertSchema(researchCards).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  answerId: z.string().optional().nullable(),
+  linkId: z.string().optional().nullable(),
+});
+
+export type InsertResearchCard = z.infer<typeof insertResearchCardSchema>;
+export type ResearchCard = typeof researchCards.$inferSelect;
+
+// Research Reports (moderation)
+export const researchReports = pgTable("research_reports", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  researchItemId: varchar("research_item_id").references(() => researchItems.id),
+  answerId: varchar("answer_id").references(() => researchAnswers.id),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  reason: varchar("reason", { length: 100 }).notNull(),
+  description: text("description"),
+  status: varchar("status", { length: 50 }).notNull().default("pending"), // pending, reviewed, resolved, dismissed
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  reviewedAt: timestamp("reviewed_at"),
+  reviewedBy: varchar("reviewed_by").references(() => users.id),
+});
+
+export const researchReportsRelations = relations(researchReports, ({ one }) => ({
+  researchItem: one(researchItems, {
+    fields: [researchReports.researchItemId],
+    references: [researchItems.id],
+  }),
+  answer: one(researchAnswers, {
+    fields: [researchReports.answerId],
+    references: [researchAnswers.id],
+  }),
+  user: one(users, {
+    fields: [researchReports.userId],
+    references: [users.id],
+  }),
+  reviewer: one(users, {
+    fields: [researchReports.reviewedBy],
+    references: [users.id],
+  }),
+}));
+
+export const insertResearchReportSchema = createInsertSchema(researchReports).omit({
+  id: true,
+  createdAt: true,
+  reviewedAt: true,
+}).extend({
+  researchItemId: z.string().optional().nullable(),
+  answerId: z.string().optional().nullable(),
+  reason: z.string().min(1, "Reason is required"),
+  status: z.enum(["pending", "reviewed", "resolved", "dismissed"]).default("pending"),
+});
+
+export type InsertResearchReport = z.infer<typeof insertResearchReportSchema>;
+export type ResearchReport = typeof researchReports.$inferSelect;
+
+// Research Announcements
+export const researchAnnouncements = pgTable("research_announcements", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: varchar("title", { length: 200 }).notNull(),
+  content: text("content").notNull(),
+  type: varchar("type", { length: 50 }).notNull().default('info'),
+  isActive: boolean("is_active").notNull().default(true),
+  expiresAt: timestamp("expires_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertResearchAnnouncementSchema = createInsertSchema(researchAnnouncements).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  expiresAt: z.coerce.date().optional().nullable(),
+});
+
+export type InsertResearchAnnouncement = z.infer<typeof insertResearchAnnouncementSchema>;
+export type ResearchAnnouncement = typeof researchAnnouncements.$inferSelect;
+
+// ========================================
+// GENTLEPULSE APP TABLES
+// ========================================
+
+// GentlePulse Meditations
+export const gentlepulseMeditations = pgTable("gentlepulse_meditations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: varchar("title", { length: 300 }).notNull(),
+  description: text("description").notNull(),
+  thumbnail: varchar("thumbnail", { length: 500 }),
+  wistiaUrl: varchar("wistia_url", { length: 500 }).notNull(),
+  tags: text("tags"), // JSON array of strings
+  duration: integer("duration"), // Duration in minutes
+  playCount: integer("play_count").default(0).notNull(), // Aggregated play count
+  averageRating: decimal("average_rating", { precision: 3, scale: 2 }), // Calculated average
+  ratingCount: integer("rating_count").default(0).notNull(), // Number of ratings
+  position: integer("position").default(0).notNull(), // For sorting
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertGentlepulseMeditationSchema = createInsertSchema(gentlepulseMeditations).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  playCount: true,
+  averageRating: true,
+  ratingCount: true,
+}).extend({
+  title: z.string().min(1, "Title is required").max(300),
+  description: z.string().min(1, "Description is required"),
+  tags: z.array(z.string()).optional().nullable(),
+  wistiaUrl: z.string().url("Wistia URL must be a valid URL"),
+  duration: z.number().int().positive().optional().nullable(),
+});
+
+export type InsertGentlepulseMeditation = z.infer<typeof insertGentlepulseMeditationSchema>;
+export type GentlepulseMeditation = typeof gentlepulseMeditations.$inferSelect;
+
+// GentlePulse Ratings (anonymous, using clientId)
+export const gentlepulseRatings = pgTable("gentlepulse_ratings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  meditationId: varchar("meditation_id").notNull().references(() => gentlepulseMeditations.id),
+  clientId: varchar("client_id", { length: 100 }).notNull(), // Random UUID from client
+  rating: integer("rating").notNull(), // 1-5
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertGentlepulseRatingSchema = createInsertSchema(gentlepulseRatings).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  rating: z.number().int().min(1).max(5),
+  clientId: z.string().min(1),
+});
+
+export type InsertGentlepulseRating = z.infer<typeof insertGentlepulseRatingSchema>;
+export type GentlepulseRating = typeof gentlepulseRatings.$inferSelect;
+
+// GentlePulse Mood Checks (anonymous, using clientId)
+export const gentlepulseMoodChecks = pgTable("gentlepulse_mood_checks", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  clientId: varchar("client_id", { length: 100 }).notNull(), // Random UUID from client
+  moodValue: integer("mood_value").notNull(), // 1-5 (very sad to very happy)
+  date: date("date").notNull(), // Date of mood check (ISO date)
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertGentlepulseMoodCheckSchema = createInsertSchema(gentlepulseMoodChecks).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  moodValue: z.number().int().min(1).max(5),
+  clientId: z.string().min(1),
+  date: z.coerce.date(),
+});
+
+export type InsertGentlepulseMoodCheck = z.infer<typeof insertGentlepulseMoodCheckSchema>;
+export type GentlepulseMoodCheck = typeof gentlepulseMoodChecks.$inferSelect;
+
+// GentlePulse Favorites (clientId-based, no user accounts)
+export const gentlepulseFavorites = pgTable("gentlepulse_favorites", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  meditationId: varchar("meditation_id").notNull().references(() => gentlepulseMeditations.id),
+  clientId: varchar("client_id", { length: 100 }).notNull(), // Random UUID from client
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertGentlepulseFavoriteSchema = createInsertSchema(gentlepulseFavorites).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  clientId: z.string().min(1),
+});
+
+export type InsertGentlepulseFavorite = z.infer<typeof insertGentlepulseFavoriteSchema>;
+export type GentlepulseFavorite = typeof gentlepulseFavorites.$inferSelect;
+
+// GentlePulse Announcements
+export const gentlepulseAnnouncements = pgTable("gentlepulse_announcements", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: varchar("title", { length: 200 }).notNull(),
+  content: text("content").notNull(),
+  type: varchar("type", { length: 50 }).notNull().default('info'),
+  isActive: boolean("is_active").notNull().default(true),
+  expiresAt: timestamp("expires_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertGentlepulseAnnouncementSchema = createInsertSchema(gentlepulseAnnouncements).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  expiresAt: z.coerce.date().optional().nullable(),
+});
+
+export type InsertGentlepulseAnnouncement = z.infer<typeof insertGentlepulseAnnouncementSchema>;
+export type GentlepulseAnnouncement = typeof gentlepulseAnnouncements.$inferSelect;

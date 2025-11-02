@@ -628,6 +628,25 @@ const adminMenuItems = [
 ];
 ```
 
+4. **🚨 REQUIRED:** Update Available Services page (`client/src/pages/services.tsx`):
+   - Add the new mini-app to the `services` array
+   - Include `title`, `description`, `icon`, `href`, and `testId` properties
+   - Follow the existing pattern for consistency
+
+Example:
+```typescript
+const services = [
+  // ... existing services
+  {
+    title: "MyApp",
+    description: "Brief description of what MyApp does for survivors",
+    icon: MyIcon,
+    href: "/apps/myapp",
+    testId: "card-service-myapp",
+  },
+];
+```
+
 #### **Step 7: Admin Page (`client/src/pages/myapp/admin.tsx`)**
 
 **🚨 REQUIRED:** Create an admin interface for managing the mini-app's content/data. This should include:
@@ -958,6 +977,184 @@ See the **Testing Requirements** section above for detailed testing guidelines a
 
 ---
 
+## 🔍 Search & Filtering Patterns
+
+### **Fuzzy Search (REQUIRED for all search boxes)**
+
+**🚨 CRITICAL:** All search boxes app-wide MUST use fuzzy search to handle typos, partial matches, and character order variations. This improves accessibility and user experience, especially for users under stress or with disabilities.
+
+#### **Implementation:**
+
+**1. For client-side filtering:**
+Use the `useFuzzySearch` hook from `@/hooks/useFuzzySearch`:
+
+```typescript
+import { useFuzzySearch } from "@/hooks/useFuzzySearch";
+
+// In your component
+const filteredItems = useFuzzySearch(items, searchQuery, {
+  searchFields: ['name', 'description', 'title'], // Fields to search
+  threshold: 0.3, // Match quality threshold (0-1), default 0.3
+});
+```
+
+**2. For Command component (dropdown/searchable selects):**
+The Command component (`@/components/ui/command`) automatically uses fuzzy search by default. No additional configuration needed - it handles typos and partial matches out of the box.
+
+```typescript
+import { Command, CommandInput, CommandList, CommandItem } from "@/components/ui/command";
+
+<Command>
+  <CommandInput placeholder="Search..." />
+  <CommandList>
+    {items.map(item => (
+      <CommandItem key={item.id} value={item.name}>
+        {item.name}
+      </CommandItem>
+    ))}
+  </CommandList>
+</Command>
+```
+
+**3. For server-side search endpoints:**
+While backend searches use SQL ILIKE for pattern matching, consider enhancing with fuzzy matching for better results. The client-side fuzzy search is primary for user-facing filtering.
+
+**4. Fuzzy search utility functions:**
+- `fuzzySearch(items, query, options)` - Filter array of items
+- `fuzzyScore(query, text, options)` - Calculate match score (0-1)
+- `useFuzzySearch(items, query, options)` - React hook wrapper
+
+**Available options:**
+- `threshold` (0-1): Minimum match quality, default 0.3
+- `ignoreCase`: Case-insensitive matching, default true
+- `allowPartial`: Allow substring matches, default true
+- `searchFields`: Array of field names to search (for objects)
+- `getFieldValue`: Custom function to extract searchable text
+
+**Example - Client-side search:**
+```typescript
+// ❌ BAD - Simple includes() doesn't handle typos
+const filtered = items.filter(item => 
+  item.name.toLowerCase().includes(search.toLowerCase())
+);
+
+// ✅ GOOD - Fuzzy search handles typos and partial matches
+const filtered = useFuzzySearch(items, search, {
+  searchFields: ['name', 'description'],
+  threshold: 0.3,
+});
+```
+
+**Example - Multiple fields:**
+```typescript
+const filteredRequests = useFuzzySearch(requests, searchTerm, {
+  searchFields: ['pickupLocation', 'dropoffLocation', 'pickupCity', 'riderMessage'],
+  threshold: 0.3,
+});
+```
+
+**When NOT to use fuzzy search:**
+- Email address matching (use exact match)
+- ID lookups (use exact match)
+- URL matching (use exact match)
+
+**All other search boxes MUST use fuzzy search.**
+
+## 📄 Pagination Standards
+
+**🚨 REQUIRED:** All list views and data tables MUST use **pagination** (NOT infinite scroll) app-wide.
+
+### Rationale
+
+Pagination is required for:
+1. **Trauma-informed design** - Predictable, controlled navigation reduces anxiety
+2. **Accessibility** - Better keyboard navigation and screen reader support
+3. **Bandwidth efficiency** - Lower data transfer, critical for users with limited connectivity
+4. **Performance** - Faster initial load times and better mobile experience
+5. **User control** - Users can navigate to specific pages, jump ahead/back easily
+
+### Implementation
+
+**Use the standardized `PaginationControls` component** from `@/components/pagination-controls`:
+
+```typescript
+import { PaginationControls } from "@/components/pagination-controls";
+
+// State management
+const [page, setPage] = useState(0); // 0-indexed page number
+const limit = 20; // Items per page
+
+// Query with pagination
+const { data, isLoading } = useQuery<{ items: Item[]; total: number }>({
+  queryKey: [`/api/endpoint?limit=${limit}&offset=${page * limit}`],
+});
+
+const items = data?.items || [];
+const total = data?.total || 0;
+
+// Render pagination controls
+<PaginationControls
+  currentPage={page}
+  totalItems={total}
+  itemsPerPage={limit}
+  onPageChange={setPage}
+  className="mt-6"
+/>
+```
+
+### Backend Requirements
+
+All list/listing endpoints MUST support:
+- `limit` query parameter (number of items per page)
+- `offset` query parameter (number of items to skip)
+- Return both `items` array and `total` count
+
+```typescript
+// Example backend response
+{
+  items: Item[],
+  total: number // Total count for pagination calculation
+}
+```
+
+### Default Pagination Sizes
+
+- **Admin lists/tables**: 50 items per page (more data for management)
+- **User-facing lists**: 20 items per page (better UX, faster loading)
+- **Small lists (< 10 items)**: No pagination needed (hide controls automatically)
+
+### URL State (Optional)
+
+For bookmarkable pagination, consider using URL query parameters:
+
+```typescript
+const [searchParams, setSearchParams] = useSearchParams();
+const page = parseInt(searchParams.get('page') || '0', 10);
+
+const handlePageChange = (newPage: number) => {
+  setPage(newPage);
+  setSearchParams({ ...Object.fromEntries(searchParams), page: newPage.toString() });
+};
+```
+
+### When NOT to Paginate
+
+- **Single-item views** - Detail pages don't need pagination
+- **Small lists (< 10 items)** - PaginationControls automatically hides if not needed
+- **Dashboard widgets** - Fixed-size preview lists
+- **Dropdown/select menus** - Use search/filter instead
+
+### Migration from Infinite Scroll
+
+If you find infinite scroll implementations:
+1. Replace with `PaginationControls` component
+2. Add `page` state (0-indexed)
+3. Add `limit` constant
+4. Update query to include `offset=${page * limit}`
+5. Remove scroll detection logic
+
+**🚨 NEVER use infinite scroll** - It violates trauma-informed design principles and accessibility standards.
+
 ## 🎨 Design System Rules
 
 **READ `design_guidelines.md` BEFORE CODING UI!**
@@ -1036,6 +1233,72 @@ app.get('/api/admin-only', isAdmin, async (req: any, res) => {
 ```
 
 ---
+
+## 🛡️ CSRF Protection for Admin Endpoints
+
+**🚨 REQUIRED:** All state-changing admin operations (POST, PUT, DELETE, PATCH) MUST be protected against Cross-Site Request Forgery (CSRF) attacks.
+
+### Implementation
+
+The platform uses **double-submit cookie pattern** combined with **SameSite cookie attributes** for CSRF protection:
+
+1. **Double-Submit Cookie Pattern:**
+   - Server sets CSRF token in cookie (httpOnly: false, so JavaScript can read it)
+   - Client reads token from cookie and includes it in request header
+   - Server validates that cookie token matches request header token
+   - If tokens don't match, request is rejected
+
+2. **SameSite Cookie Protection:**
+   - Session cookies use `sameSite: 'strict'` to prevent cross-site cookie transmission
+   - CSRF token cookies also use `sameSite: 'strict'`
+
+### Usage
+
+**For state-changing admin operations:**
+```typescript
+import { isAuthenticated, isAdminWithCsrf } from "./replitAuth";
+
+// Use isAdminWithCsrf instead of isAdmin for POST, PUT, DELETE, PATCH
+app.post('/api/admin/endpoint', isAuthenticated, ...isAdminWithCsrf, async (req, res) => {
+  // Route handler
+});
+```
+
+**Or manually add validateCsrfToken:**
+```typescript
+import { isAuthenticated, isAdmin } from "./replitAuth";
+import { validateCsrfToken } from "./csrf";
+
+app.post('/api/admin/endpoint', isAuthenticated, isAdmin, validateCsrfToken, async (req, res) => {
+  // Route handler
+});
+```
+
+**For GET requests to admin pages:**
+CSRF tokens are automatically generated via middleware. The frontend can read the token from the `X-CSRF-Token` cookie.
+
+### Frontend Integration
+
+The `apiRequest` function in `client/src/lib/queryClient.ts` automatically:
+- Detects admin endpoints
+- Reads CSRF token from cookie
+- Includes token in `X-CSRF-Token` header for state-changing methods
+
+No additional frontend code is required - CSRF protection is transparent to React components.
+
+### Key Points
+
+- **GET requests**: Automatically generate CSRF token cookie
+- **POST/PUT/DELETE/PATCH requests**: Require CSRF token validation
+- **Token source**: Cookie (set by server) + Header (sent by client)
+- **Validation**: Tokens must match exactly
+- **Error handling**: Returns 403 with clear error message if validation fails
+
+### Files
+
+- `server/csrf.ts` - CSRF protection implementation
+- `server/replitAuth.ts` - `isAdminWithCsrf` helper middleware
+- `client/src/lib/queryClient.ts` - Automatic CSRF token inclusion
 
 ## 🛡️ Anti-Scraping Protection for Public Endpoints
 
@@ -1491,6 +1754,8 @@ When adding a new feature, ensure:
 
 7. **Don't mix mini-app concerns** - Keep each mini-app's code separate
 
+8. **Don't use simple `includes()` for search boxes** - Always use `useFuzzySearch` hook or Command component (which has fuzzy search built-in). Simple string matching doesn't handle typos and hurts accessibility.
+
 ---
 
 ## 📚 Existing Mini-Apps Reference
@@ -1572,6 +1837,7 @@ Study these for patterns:
 - [ ] **Admin announcement management page created** - REQUIRED (`admin-announcements.tsx`)
 - [ ] Routes registered in `App.tsx` (including profile route and announcement admin route)
 - [ ] Sidebar navigation updated
+- [ ] **Available Services page updated** - REQUIRED (`client/src/pages/services.tsx`) - Add new mini-app to services array
 - [ ] **Link to announcement management added to admin page** - REQUIRED
 - [ ] Seed script created in `scripts/` for the mini-app
 - [ ] Country fields use the shared dropdown and options list
@@ -1630,6 +1896,7 @@ Study these for patterns:
 6. **Test as you build** - Write tests alongside implementation, use `data-testid` for testability
 7. **Security first** - Always test authentication, authorization, and input validation
 8. **Accessibility always** - Test keyboard nav and screen readers for every UI component
+9. **Use fuzzy search** - For any search box, use `useFuzzySearch` hook or Command component
 
 ---
 

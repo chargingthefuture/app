@@ -13,7 +13,11 @@ import {
   Radio,
   MessageCircle,
   BarChart3,
-  Car
+  Car,
+  Wrench,
+  Mail,
+  Search,
+  HeartPulse
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
@@ -118,6 +122,30 @@ const adminMenuItems = [
     icon: Car,
     testId: "link-trusttransport-admin",
   },
+  {
+    title: "MechanicMatch Admin",
+    url: "/apps/mechanicmatch/admin",
+    icon: Wrench,
+    testId: "link-mechanicmatch-admin",
+  },
+  {
+    title: "LostMail Admin",
+    url: "/apps/lostmail/admin",
+    icon: Mail,
+    testId: "link-lostmail-admin",
+  },
+  {
+    title: "Research Admin",
+    url: "/apps/research/admin",
+    icon: Search,
+    testId: "link-research-admin",
+  },
+  {
+    title: "GentlePulse Admin",
+    url: "/apps/gentlepulse/admin",
+    icon: HeartPulse,
+    testId: "link-gentlepulse-admin",
+  },
 ];
 
 const userMenuItems = [
@@ -174,6 +202,30 @@ const userMenuItems = [
     url: "/apps/trusttransport",
     icon: Car,
     testId: "link-trusttransport",
+  },
+  {
+    title: "MechanicMatch",
+    url: "/apps/mechanicmatch",
+    icon: Wrench,
+    testId: "link-mechanicmatch",
+  },
+  {
+    title: "LostMail",
+    url: "/apps/lostmail",
+    icon: Mail,
+    testId: "link-lostmail",
+  },
+  {
+    title: "Research",
+    url: "/apps/research",
+    icon: Search,
+    testId: "link-research",
+  },
+  {
+    title: "GentlePulse",
+    url: "/apps/gentlepulse",
+    icon: HeartPulse,
+    testId: "link-gentlepulse",
   },
 ];
 

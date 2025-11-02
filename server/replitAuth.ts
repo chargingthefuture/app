@@ -7,6 +7,7 @@ import type { Express, RequestHandler } from "express";
 import memoize from "memoizee";
 import connectPg from "connect-pg-simple";
 import { storage } from "./storage";
+import { validateCsrfToken } from "./csrf";
 
 if (!process.env.REPLIT_DOMAINS) {
   throw new Error("Environment variable REPLIT_DOMAINS not provided");
@@ -40,6 +41,7 @@ export function getSession() {
       httpOnly: true,
       secure: true,
       maxAge: sessionTtl,
+      sameSite: 'strict', // CSRF protection - prevents cookies from being sent in cross-site requests
     },
   });
 }
@@ -197,3 +199,12 @@ export const isAdmin: RequestHandler = async (req, res, next) => {
 
   next();
 };
+
+/**
+ * Combined middleware: Admin auth + CSRF validation
+ * Use this for state-changing admin operations (POST, PUT, DELETE, PATCH)
+ * 
+ * Usage:
+ * app.post('/api/admin/endpoint', isAuthenticated, ...isAdminWithCsrf, async (req, res) => { ... });
+ */
+export const isAdminWithCsrf: RequestHandler[] = [isAdmin, validateCsrfToken];

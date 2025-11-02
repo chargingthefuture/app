@@ -95,6 +95,90 @@ import {
   type InsertTrusttransportRideRequest,
   type TrusttransportAnnouncement,
   type InsertTrusttransportAnnouncement,
+  mechanicmatchProfiles,
+  mechanicmatchVehicles,
+  mechanicmatchServiceRequests,
+  mechanicmatchJobs,
+  mechanicmatchAvailability,
+  mechanicmatchReviews,
+  mechanicmatchMessages,
+  mechanicmatchAnnouncements,
+  type MechanicmatchProfile,
+  type InsertMechanicmatchProfile,
+  type MechanicmatchVehicle,
+  type InsertMechanicmatchVehicle,
+  type MechanicmatchServiceRequest,
+  type InsertMechanicmatchServiceRequest,
+  type MechanicmatchJob,
+  type InsertMechanicmatchJob,
+  type MechanicmatchAvailability,
+  type InsertMechanicmatchAvailability,
+  type MechanicmatchReview,
+  type InsertMechanicmatchReview,
+  type MechanicmatchMessage,
+  type InsertMechanicmatchMessage,
+  type MechanicmatchAnnouncement,
+  type InsertMechanicmatchAnnouncement,
+  lostmailIncidents,
+  lostmailAuditTrail,
+  lostmailAnnouncements,
+  type LostmailIncident,
+  type InsertLostmailIncident,
+  type LostmailAuditTrail,
+  type InsertLostmailAuditTrail,
+  type LostmailAnnouncement,
+  type InsertLostmailAnnouncement,
+  researchItems,
+  researchAnswers,
+  researchComments,
+  researchVotes,
+  researchLinkProvenances,
+  researchBookmarks,
+  researchFollows,
+  researchBoards,
+  researchColumns,
+  researchCards,
+  researchReports,
+  researchAnnouncements,
+  type ResearchItem,
+  type InsertResearchItem,
+  type ResearchAnswer,
+  type InsertResearchAnswer,
+  type ResearchComment,
+  type InsertResearchComment,
+  type ResearchVote,
+  type InsertResearchVote,
+  type ResearchLinkProvenance,
+  type InsertResearchLinkProvenance,
+  type ResearchBookmark,
+  type InsertResearchBookmark,
+  type ResearchFollow,
+  type InsertResearchFollow,
+  type ResearchBoard,
+  type InsertResearchBoard,
+  type ResearchColumn,
+  type InsertResearchColumn,
+  type ResearchCard,
+  type InsertResearchCard,
+  type ResearchReport,
+  type InsertResearchReport,
+  type ResearchAnnouncement,
+  type InsertResearchAnnouncement,
+  gentlepulseMeditations,
+  gentlepulseRatings,
+  gentlepulseMoodChecks,
+  gentlepulseFavorites,
+  gentlepulseAnnouncements,
+  type GentlepulseMeditation,
+  type InsertGentlepulseMeditation,
+  type GentlepulseRating,
+  type InsertGentlepulseRating,
+  type GentlepulseMoodCheck,
+  type InsertGentlepulseMoodCheck,
+  type GentlepulseFavorite,
+  type InsertGentlepulseFavorite,
+  type GentlepulseAnnouncement,
+  type InsertGentlepulseAnnouncement,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, asc, sql, or, inArray, gte, lte } from "drizzle-orm";
@@ -370,6 +454,223 @@ export interface IStorage {
   getAllTrusttransportAnnouncements(): Promise<TrusttransportAnnouncement[]>;
   updateTrusttransportAnnouncement(id: string, announcement: Partial<InsertTrusttransportAnnouncement>): Promise<TrusttransportAnnouncement>;
   deactivateTrusttransportAnnouncement(id: string): Promise<TrusttransportAnnouncement>;
+
+  // MechanicMatch Profile operations
+  getMechanicmatchProfile(userId: string): Promise<MechanicmatchProfile | undefined>;
+  createMechanicmatchProfile(profile: InsertMechanicmatchProfile): Promise<MechanicmatchProfile>;
+  updateMechanicmatchProfile(userId: string, profile: Partial<InsertMechanicmatchProfile>): Promise<MechanicmatchProfile>;
+  deleteMechanicmatchProfile(userId: string, reason?: string): Promise<void>;
+
+  // MechanicMatch Vehicle operations
+  getMechanicmatchVehiclesByOwner(ownerId: string): Promise<MechanicmatchVehicle[]>;
+  getMechanicmatchVehicleById(id: string): Promise<MechanicmatchVehicle | undefined>;
+  createMechanicmatchVehicle(vehicle: InsertMechanicmatchVehicle & { ownerId?: string }): Promise<MechanicmatchVehicle>;
+  updateMechanicmatchVehicle(id: string, vehicle: Partial<InsertMechanicmatchVehicle>): Promise<MechanicmatchVehicle>;
+  deleteMechanicmatchVehicle(id: string, ownerId: string): Promise<void>;
+
+  // MechanicMatch Service Request operations
+  createMechanicmatchServiceRequest(request: InsertMechanicmatchServiceRequest & { ownerId?: string }): Promise<MechanicmatchServiceRequest>;
+  getMechanicmatchServiceRequestById(id: string): Promise<MechanicmatchServiceRequest | undefined>;
+  getMechanicmatchServiceRequestsByOwner(ownerId: string): Promise<MechanicmatchServiceRequest[]>;
+  getOpenMechanicmatchServiceRequests(): Promise<MechanicmatchServiceRequest[]>;
+  updateMechanicmatchServiceRequest(id: string, request: Partial<InsertMechanicmatchServiceRequest>): Promise<MechanicmatchServiceRequest>;
+
+  // MechanicMatch Job operations
+  createMechanicmatchJob(job: InsertMechanicmatchJob & { ownerId?: string }): Promise<MechanicmatchJob>;
+  getMechanicmatchJobById(id: string): Promise<MechanicmatchJob | undefined>;
+  getMechanicmatchJobsByOwner(ownerId: string): Promise<MechanicmatchJob[]>;
+  getMechanicmatchJobsByMechanic(mechanicId: string): Promise<MechanicmatchJob[]>;
+  updateMechanicmatchJob(id: string, job: Partial<InsertMechanicmatchJob>): Promise<MechanicmatchJob>;
+  acceptMechanicmatchJob(jobId: string, mechanicId: string): Promise<MechanicmatchJob>;
+
+  // MechanicMatch Availability operations
+  getMechanicmatchAvailabilityByMechanic(mechanicId: string): Promise<MechanicmatchAvailability[]>;
+  createMechanicmatchAvailability(availability: InsertMechanicmatchAvailability): Promise<MechanicmatchAvailability>;
+  updateMechanicmatchAvailability(id: string, availability: Partial<InsertMechanicmatchAvailability>): Promise<MechanicmatchAvailability>;
+  deleteMechanicmatchAvailability(id: string, mechanicId: string): Promise<void>;
+
+  // MechanicMatch Review operations
+  createMechanicmatchReview(review: InsertMechanicmatchReview & { reviewerId?: string }): Promise<MechanicmatchReview>;
+  getMechanicmatchReviewById(id: string): Promise<MechanicmatchReview | undefined>;
+  getMechanicmatchReviewsByReviewee(revieweeId: string): Promise<MechanicmatchReview[]>;
+  getMechanicmatchReviewsByReviewer(reviewerId: string): Promise<MechanicmatchReview[]>;
+  getMechanicmatchReviewsByJob(jobId: string): Promise<MechanicmatchReview[]>;
+
+  // MechanicMatch Message operations
+  createMechanicmatchMessage(message: InsertMechanicmatchMessage & { senderId?: string }): Promise<MechanicmatchMessage>;
+  getMechanicmatchMessagesByJob(jobId: string): Promise<MechanicmatchMessage[]>;
+  getMechanicmatchMessagesBetweenUsers(userId1: string, userId2: string): Promise<MechanicmatchMessage[]>;
+  markMechanicmatchMessageAsRead(messageId: string, userId: string): Promise<MechanicmatchMessage>;
+  getUnreadMechanicmatchMessages(userId: string): Promise<MechanicmatchMessage[]>;
+
+  // MechanicMatch Search/Matching operations
+  searchMechanicmatchMechanics(filters: {
+    city?: string;
+    state?: string;
+    isMobileMechanic?: boolean;
+    specialties?: string[];
+    maxHourlyRate?: number;
+    minRating?: number;
+    isAvailable?: boolean;
+  }): Promise<MechanicmatchProfile[]>;
+
+  // MechanicMatch Announcement operations
+  createMechanicmatchAnnouncement(announcement: InsertMechanicmatchAnnouncement): Promise<MechanicmatchAnnouncement>;
+  getActiveMechanicmatchAnnouncements(): Promise<MechanicmatchAnnouncement[]>;
+  getAllMechanicmatchAnnouncements(): Promise<MechanicmatchAnnouncement[]>;
+  updateMechanicmatchAnnouncement(id: string, announcement: Partial<InsertMechanicmatchAnnouncement>): Promise<MechanicmatchAnnouncement>;
+  deactivateMechanicmatchAnnouncement(id: string): Promise<MechanicmatchAnnouncement>;
+
+  // LostMail Incident operations
+  createLostmailIncident(incident: InsertLostmailIncident): Promise<LostmailIncident>;
+  getLostmailIncidentById(id: string): Promise<LostmailIncident | undefined>;
+  getLostmailIncidentsByEmail(email: string): Promise<LostmailIncident[]>;
+  getLostmailIncidents(filters?: {
+    incidentType?: string;
+    status?: string;
+    severity?: string;
+    dateFrom?: Date;
+    dateTo?: Date;
+    search?: string; // Search by tracking number, ID, or reporter name
+    limit?: number;
+    offset?: number;
+  }): Promise<{ incidents: LostmailIncident[]; total: number }>;
+  updateLostmailIncident(id: string, incident: Partial<InsertLostmailIncident>): Promise<LostmailIncident>;
+  
+  // LostMail Audit Trail operations
+  createLostmailAuditTrailEntry(entry: InsertLostmailAuditTrail): Promise<LostmailAuditTrail>;
+  getLostmailAuditTrailByIncident(incidentId: string): Promise<LostmailAuditTrail[]>;
+  
+  // LostMail Announcement operations
+  createLostmailAnnouncement(announcement: InsertLostmailAnnouncement): Promise<LostmailAnnouncement>;
+  getActiveLostmailAnnouncements(): Promise<LostmailAnnouncement[]>;
+  getAllLostmailAnnouncements(): Promise<LostmailAnnouncement[]>;
+  updateLostmailAnnouncement(id: string, announcement: Partial<InsertLostmailAnnouncement>): Promise<LostmailAnnouncement>;
+  deactivateLostmailAnnouncement(id: string): Promise<LostmailAnnouncement>;
+
+  // ========================================
+  // RESEARCH OPERATIONS
+  // ========================================
+
+  // Research Items
+  createResearchItem(item: InsertResearchItem): Promise<ResearchItem>;
+  getResearchItemById(id: string): Promise<ResearchItem | undefined>;
+  getResearchItems(filters?: {
+    userId?: string;
+    tag?: string;
+    status?: string;
+    isPublic?: boolean;
+    search?: string;
+    limit?: number;
+    offset?: number;
+    sortBy?: string; // 'relevance', 'recent', 'popular'
+  }): Promise<{ items: ResearchItem[]; total: number }>;
+  updateResearchItem(id: string, item: Partial<InsertResearchItem>): Promise<ResearchItem>;
+  incrementResearchItemViewCount(id: string): Promise<void>;
+  acceptResearchAnswer(itemId: string, answerId: string): Promise<ResearchItem>;
+
+  // Research Answers
+  createResearchAnswer(answer: InsertResearchAnswer): Promise<ResearchAnswer>;
+  getResearchAnswerById(id: string): Promise<ResearchAnswer | undefined>;
+  getResearchAnswersByItemId(itemId: string, sortBy?: string): Promise<ResearchAnswer[]>;
+  updateResearchAnswer(id: string, answer: Partial<InsertResearchAnswer>): Promise<ResearchAnswer>;
+  calculateAnswerRelevance(answerId: string): Promise<number>;
+  updateAnswerScore(answerId: string): Promise<void>;
+
+  // Research Comments
+  createResearchComment(comment: InsertResearchComment): Promise<ResearchComment>;
+  getResearchComments(filters: { researchItemId?: string; answerId?: string }): Promise<ResearchComment[]>;
+  updateResearchComment(id: string, comment: Partial<InsertResearchComment>): Promise<ResearchComment>;
+  deleteResearchComment(id: string): Promise<void>;
+
+  // Research Votes
+  createOrUpdateResearchVote(vote: InsertResearchVote): Promise<ResearchVote>;
+  getResearchVote(userId: string, researchItemId?: string, answerId?: string): Promise<ResearchVote | undefined>;
+  deleteResearchVote(userId: string, researchItemId?: string, answerId?: string): Promise<void>;
+
+  // Research Link Provenances
+  createResearchLinkProvenance(provenance: InsertResearchLinkProvenance): Promise<ResearchLinkProvenance>;
+  getResearchLinkProvenancesByAnswerId(answerId: string): Promise<ResearchLinkProvenance[]>;
+  updateResearchLinkProvenance(id: string, provenance: Partial<InsertResearchLinkProvenance>): Promise<ResearchLinkProvenance>;
+  calculateAnswerVerificationScore(answerId: string): Promise<number>;
+
+  // Research Bookmarks & Follows
+  createResearchBookmark(bookmark: InsertResearchBookmark): Promise<ResearchBookmark>;
+  deleteResearchBookmark(userId: string, researchItemId: string): Promise<void>;
+  getResearchBookmarks(userId: string): Promise<ResearchBookmark[]>;
+  createResearchFollow(follow: InsertResearchFollow): Promise<ResearchFollow>;
+  deleteResearchFollow(userId: string, filters: { followedUserId?: string; researchItemId?: string; tag?: string }): Promise<void>;
+  getResearchFollows(userId: string): Promise<ResearchFollow[]>;
+
+  // Research Boards/Columns/Cards (Trello-style)
+  createResearchBoard(board: InsertResearchBoard): Promise<ResearchBoard>;
+  getResearchBoardsByItemId(itemId: string, userId: string): Promise<ResearchBoard[]>;
+  updateResearchBoard(id: string, board: Partial<InsertResearchBoard>): Promise<ResearchBoard>;
+  createResearchColumn(column: InsertResearchColumn): Promise<ResearchColumn>;
+  getResearchColumnsByBoardId(boardId: string): Promise<ResearchColumn[]>;
+  updateResearchColumn(id: string, column: Partial<InsertResearchColumn>): Promise<ResearchColumn>;
+  createResearchCard(card: InsertResearchCard): Promise<ResearchCard>;
+  getResearchCardsByColumnId(columnId: string): Promise<ResearchCard[]>;
+  updateResearchCard(id: string, card: Partial<InsertResearchCard>): Promise<ResearchCard>;
+  moveResearchCard(cardId: string, columnId: string, position: number): Promise<ResearchCard>;
+
+  // Research Reports
+  createResearchReport(report: InsertResearchReport): Promise<ResearchReport>;
+  getResearchReports(filters?: { status?: string; limit?: number; offset?: number }): Promise<{ reports: ResearchReport[]; total: number }>;
+  updateResearchReport(id: string, report: Partial<InsertResearchReport>): Promise<ResearchReport>;
+
+  // Research Announcements
+  createResearchAnnouncement(announcement: InsertResearchAnnouncement): Promise<ResearchAnnouncement>;
+  getActiveResearchAnnouncements(): Promise<ResearchAnnouncement[]>;
+  getAllResearchAnnouncements(): Promise<ResearchAnnouncement[]>;
+  updateResearchAnnouncement(id: string, announcement: Partial<InsertResearchAnnouncement>): Promise<ResearchAnnouncement>;
+  deactivateResearchAnnouncement(id: string): Promise<ResearchAnnouncement>;
+
+  // Research Timeline/Feed
+  getResearchTimeline(userId: string, limit?: number, offset?: number): Promise<ResearchItem[]>;
+
+  // User Reputation (calculated)
+  getUserReputation(userId: string): Promise<number>;
+
+  // ========================================
+  // GENTLEPULSE OPERATIONS
+  // ========================================
+
+  // GentlePulse Meditations
+  createGentlepulseMeditation(meditation: InsertGentlepulseMeditation): Promise<GentlepulseMeditation>;
+  getGentlepulseMeditations(filters?: {
+    tag?: string;
+    sortBy?: string; // 'newest', 'most-rated', 'highest-rating'
+    limit?: number;
+    offset?: number;
+  }): Promise<{ meditations: GentlepulseMeditation[]; total: number }>;
+  getGentlepulseMeditationById(id: string): Promise<GentlepulseMeditation | undefined>;
+  updateGentlepulseMeditation(id: string, meditation: Partial<InsertGentlepulseMeditation>): Promise<GentlepulseMeditation>;
+  incrementGentlepulsePlayCount(id: string): Promise<void>;
+
+  // GentlePulse Ratings
+  createOrUpdateGentlepulseRating(rating: InsertGentlepulseRating): Promise<GentlepulseRating>;
+  getGentlepulseRatingsByMeditationId(meditationId: string): Promise<GentlepulseRating[]>;
+  getGentlepulseRatingByClientAndMeditation(clientId: string, meditationId: string): Promise<GentlepulseRating | undefined>;
+  updateGentlepulseMeditationRating(meditationId: string): Promise<void>;
+
+  // GentlePulse Mood Checks
+  createGentlepulseMoodCheck(moodCheck: InsertGentlepulseMoodCheck): Promise<GentlepulseMoodCheck>;
+  getGentlepulseMoodChecksByClientId(clientId: string, days?: number): Promise<GentlepulseMoodCheck[]>;
+  getGentlepulseMoodChecksByDateRange(startDate: Date, endDate: Date): Promise<GentlepulseMoodCheck[]>;
+
+  // GentlePulse Favorites
+  createGentlepulseFavorite(favorite: InsertGentlepulseFavorite): Promise<GentlepulseFavorite>;
+  deleteGentlepulseFavorite(clientId: string, meditationId: string): Promise<void>;
+  getGentlepulseFavoritesByClientId(clientId: string): Promise<GentlepulseFavorite[]>;
+  isGentlepulseFavorite(clientId: string, meditationId: string): Promise<boolean>;
+
+  // GentlePulse Announcements
+  createGentlepulseAnnouncement(announcement: InsertGentlepulseAnnouncement): Promise<GentlepulseAnnouncement>;
+  getActiveGentlepulseAnnouncements(): Promise<GentlepulseAnnouncement[]>;
+  getAllGentlepulseAnnouncements(): Promise<GentlepulseAnnouncement[]>;
+  updateGentlepulseAnnouncement(id: string, announcement: Partial<InsertGentlepulseAnnouncement>): Promise<GentlepulseAnnouncement>;
+  deactivateGentlepulseAnnouncement(id: string): Promise<GentlepulseAnnouncement>;
 
   // Profile deletion operations with cascade anonymization
   deleteSupportMatchProfile(userId: string, reason?: string): Promise<void>;
@@ -3147,6 +3448,1746 @@ export class DatabaseStorage implements IStorage {
       // Re-throw with more context
       throw new Error(`Failed to delete SocketRelay profile: ${error.message || "Unknown error"}`);
     }
+  }
+
+  // ========================================
+  // MECHANICMATCH OPERATIONS
+  // ========================================
+
+  // MechanicMatch Profile operations
+  async getMechanicmatchProfile(userId: string): Promise<MechanicmatchProfile | undefined> {
+    const [profile] = await db
+      .select()
+      .from(mechanicmatchProfiles)
+      .where(eq(mechanicmatchProfiles.userId, userId));
+    return profile;
+  }
+
+  async createMechanicmatchProfile(profileData: InsertMechanicmatchProfile): Promise<MechanicmatchProfile> {
+    const [profile] = await db
+      .insert(mechanicmatchProfiles)
+      .values(profileData)
+      .returning();
+    return profile;
+  }
+
+  async updateMechanicmatchProfile(userId: string, profileData: Partial<InsertMechanicmatchProfile>): Promise<MechanicmatchProfile> {
+    const [profile] = await db
+      .update(mechanicmatchProfiles)
+      .set({ ...profileData, updatedAt: new Date() })
+      .where(eq(mechanicmatchProfiles.userId, userId))
+      .returning();
+    return profile;
+  }
+
+  async deleteMechanicmatchProfile(userId: string, reason?: string): Promise<void> {
+    const profile = await this.getMechanicmatchProfile(userId);
+    if (!profile) {
+      throw new Error("MechanicMatch profile not found");
+    }
+
+    const anonymizedUserId = this.generateAnonymizedUserId();
+
+    // Anonymize related data
+    await db.update(mechanicmatchVehicles).set({ ownerId: anonymizedUserId }).where(eq(mechanicmatchVehicles.ownerId, userId));
+    await db.update(mechanicmatchServiceRequests).set({ ownerId: anonymizedUserId }).where(eq(mechanicmatchServiceRequests.ownerId, userId));
+    await db.update(mechanicmatchJobs).set({ ownerId: anonymizedUserId }).where(eq(mechanicmatchJobs.ownerId, userId));
+    await db.update(mechanicmatchReviews).set({ reviewerId: anonymizedUserId }).where(eq(mechanicmatchReviews.reviewerId, userId));
+    await db.update(mechanicmatchMessages).set({ senderId: anonymizedUserId }).where(eq(mechanicmatchMessages.senderId, userId));
+    await db.update(mechanicmatchMessages).set({ recipientId: anonymizedUserId }).where(eq(mechanicmatchMessages.recipientId, userId));
+
+    // Delete the profile
+    await db.delete(mechanicmatchProfiles).where(eq(mechanicmatchProfiles.userId, userId));
+
+    // Log the deletion
+    await this.logProfileDeletion(userId, "mechanicmatch", reason);
+  }
+
+  // MechanicMatch Vehicle operations
+  async getMechanicmatchVehiclesByOwner(ownerId: string): Promise<MechanicmatchVehicle[]> {
+    return await db
+      .select()
+      .from(mechanicmatchVehicles)
+      .where(eq(mechanicmatchVehicles.ownerId, ownerId))
+      .orderBy(desc(mechanicmatchVehicles.createdAt));
+  }
+
+  async getMechanicmatchVehicleById(id: string): Promise<MechanicmatchVehicle | undefined> {
+    const [vehicle] = await db
+      .select()
+      .from(mechanicmatchVehicles)
+      .where(eq(mechanicmatchVehicles.id, id));
+    return vehicle;
+  }
+
+  async createMechanicmatchVehicle(vehicleData: InsertMechanicmatchVehicle & { ownerId?: string }): Promise<MechanicmatchVehicle> {
+    if (!vehicleData.ownerId) {
+      throw new Error("ownerId is required to create a vehicle");
+    }
+    const [vehicle] = await db
+      .insert(mechanicmatchVehicles)
+      .values({
+        ...vehicleData,
+        ownerId: vehicleData.ownerId,
+      })
+      .returning();
+    return vehicle;
+  }
+
+  async updateMechanicmatchVehicle(id: string, vehicleData: Partial<InsertMechanicmatchVehicle>): Promise<MechanicmatchVehicle> {
+    const [vehicle] = await db
+      .update(mechanicmatchVehicles)
+      .set({ ...vehicleData, updatedAt: new Date() })
+      .where(eq(mechanicmatchVehicles.id, id))
+      .returning();
+    return vehicle;
+  }
+
+  async deleteMechanicmatchVehicle(id: string, ownerId: string): Promise<void> {
+    const vehicle = await this.getMechanicmatchVehicleById(id);
+    if (!vehicle) {
+      throw new Error("Vehicle not found");
+    }
+    if (vehicle.ownerId !== ownerId) {
+      throw new Error("You are not authorized to delete this vehicle");
+    }
+    await db.delete(mechanicmatchVehicles).where(eq(mechanicmatchVehicles.id, id));
+  }
+
+  // MechanicMatch Service Request operations
+  async createMechanicmatchServiceRequest(requestData: InsertMechanicmatchServiceRequest & { ownerId?: string }): Promise<MechanicmatchServiceRequest> {
+    if (!requestData.ownerId) {
+      throw new Error("ownerId is required to create a service request");
+    }
+    const [request] = await db
+      .insert(mechanicmatchServiceRequests)
+      .values({
+        ...requestData,
+        ownerId: requestData.ownerId,
+        status: 'open',
+      })
+      .returning();
+    return request;
+  }
+
+  async getMechanicmatchServiceRequestById(id: string): Promise<MechanicmatchServiceRequest | undefined> {
+    const [request] = await db
+      .select()
+      .from(mechanicmatchServiceRequests)
+      .where(eq(mechanicmatchServiceRequests.id, id));
+    return request;
+  }
+
+  async getMechanicmatchServiceRequestsByOwner(ownerId: string): Promise<MechanicmatchServiceRequest[]> {
+    return await db
+      .select()
+      .from(mechanicmatchServiceRequests)
+      .where(eq(mechanicmatchServiceRequests.ownerId, ownerId))
+      .orderBy(desc(mechanicmatchServiceRequests.createdAt));
+  }
+
+  async getOpenMechanicmatchServiceRequests(): Promise<MechanicmatchServiceRequest[]> {
+    return await db
+      .select()
+      .from(mechanicmatchServiceRequests)
+      .where(eq(mechanicmatchServiceRequests.status, 'open'))
+      .orderBy(desc(mechanicmatchServiceRequests.createdAt));
+  }
+
+  async updateMechanicmatchServiceRequest(id: string, requestData: Partial<InsertMechanicmatchServiceRequest>): Promise<MechanicmatchServiceRequest> {
+    const [request] = await db
+      .update(mechanicmatchServiceRequests)
+      .set({ ...requestData, updatedAt: new Date() })
+      .where(eq(mechanicmatchServiceRequests.id, id))
+      .returning();
+    return request;
+  }
+
+  // MechanicMatch Job operations
+  async createMechanicmatchJob(jobData: InsertMechanicmatchJob & { ownerId?: string }): Promise<MechanicmatchJob> {
+    if (!jobData.ownerId) {
+      throw new Error("ownerId is required to create a job");
+    }
+    const [job] = await db
+      .insert(mechanicmatchJobs)
+      .values({
+        ...jobData,
+        ownerId: jobData.ownerId,
+        status: 'requested',
+      })
+      .returning();
+    return job;
+  }
+
+  async getMechanicmatchJobById(id: string): Promise<MechanicmatchJob | undefined> {
+    const [job] = await db
+      .select()
+      .from(mechanicmatchJobs)
+      .where(eq(mechanicmatchJobs.id, id));
+    return job;
+  }
+
+  async getMechanicmatchJobsByOwner(ownerId: string): Promise<MechanicmatchJob[]> {
+    return await db
+      .select()
+      .from(mechanicmatchJobs)
+      .where(eq(mechanicmatchJobs.ownerId, ownerId))
+      .orderBy(desc(mechanicmatchJobs.createdAt));
+  }
+
+  async getMechanicmatchJobsByMechanic(mechanicId: string): Promise<MechanicmatchJob[]> {
+    return await db
+      .select()
+      .from(mechanicmatchJobs)
+      .where(eq(mechanicmatchJobs.mechanicId, mechanicId))
+      .orderBy(desc(mechanicmatchJobs.createdAt));
+  }
+
+  async updateMechanicmatchJob(id: string, jobData: Partial<InsertMechanicmatchJob>): Promise<MechanicmatchJob> {
+    const [job] = await db
+      .update(mechanicmatchJobs)
+      .set({ ...jobData, updatedAt: new Date() })
+      .where(eq(mechanicmatchJobs.id, id))
+      .returning();
+    return job;
+  }
+
+  async acceptMechanicmatchJob(jobId: string, mechanicId: string): Promise<MechanicmatchJob> {
+    const job = await this.getMechanicmatchJobById(jobId);
+    if (!job) {
+      throw new Error("Job not found");
+    }
+    if (job.mechanicId !== mechanicId) {
+      throw new Error("You are not authorized to accept this job");
+    }
+    if (job.status !== 'requested') {
+      throw new Error("Job is not in requested status");
+    }
+    const [updated] = await db
+      .update(mechanicmatchJobs)
+      .set({ status: 'accepted', updatedAt: new Date() })
+      .where(eq(mechanicmatchJobs.id, jobId))
+      .returning();
+    
+    // Update service request status if linked
+    if (job.serviceRequestId) {
+      await db
+        .update(mechanicmatchServiceRequests)
+        .set({ status: 'accepted', updatedAt: new Date() })
+        .where(eq(mechanicmatchServiceRequests.id, job.serviceRequestId));
+    }
+    
+    return updated;
+  }
+
+  // MechanicMatch Availability operations
+  async getMechanicmatchAvailabilityByMechanic(mechanicId: string): Promise<MechanicmatchAvailability[]> {
+    return await db
+      .select()
+      .from(mechanicmatchAvailability)
+      .where(eq(mechanicmatchAvailability.mechanicId, mechanicId))
+      .orderBy(asc(mechanicmatchAvailability.dayOfWeek));
+  }
+
+  async createMechanicmatchAvailability(availabilityData: InsertMechanicmatchAvailability): Promise<MechanicmatchAvailability> {
+    const [availability] = await db
+      .insert(mechanicmatchAvailability)
+      .values(availabilityData)
+      .returning();
+    return availability;
+  }
+
+  async updateMechanicmatchAvailability(id: string, availabilityData: Partial<InsertMechanicmatchAvailability>): Promise<MechanicmatchAvailability> {
+    const [availability] = await db
+      .update(mechanicmatchAvailability)
+      .set({ ...availabilityData, updatedAt: new Date() })
+      .where(eq(mechanicmatchAvailability.id, id))
+      .returning();
+    return availability;
+  }
+
+  async deleteMechanicmatchAvailability(id: string, mechanicId: string): Promise<void> {
+    const availability = await db
+      .select()
+      .from(mechanicmatchAvailability)
+      .where(and(
+        eq(mechanicmatchAvailability.id, id),
+        eq(mechanicmatchAvailability.mechanicId, mechanicId)
+      ));
+    if (!availability.length) {
+      throw new Error("Availability not found or unauthorized");
+    }
+    await db.delete(mechanicmatchAvailability).where(eq(mechanicmatchAvailability.id, id));
+  }
+
+  // MechanicMatch Review operations
+  async createMechanicmatchReview(reviewData: InsertMechanicmatchReview & { reviewerId?: string }): Promise<MechanicmatchReview> {
+    if (!reviewData.reviewerId) {
+      throw new Error("reviewerId is required to create a review");
+    }
+    const [review] = await db
+      .insert(mechanicmatchReviews)
+      .values({
+        ...reviewData,
+        reviewerId: reviewData.reviewerId,
+      })
+      .returning();
+    
+    // Update average rating for reviewee profile
+    const reviews = await this.getMechanicmatchReviewsByReviewee(review.revieweeId);
+    const avgRating = reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length;
+    await db
+      .update(mechanicmatchProfiles)
+      .set({ averageRating: avgRating.toString(), updatedAt: new Date() })
+      .where(eq(mechanicmatchProfiles.id, review.revieweeId));
+    
+    return review;
+  }
+
+  async getMechanicmatchReviewById(id: string): Promise<MechanicmatchReview | undefined> {
+    const [review] = await db
+      .select()
+      .from(mechanicmatchReviews)
+      .where(eq(mechanicmatchReviews.id, id));
+    return review;
+  }
+
+  async getMechanicmatchReviewsByReviewee(revieweeId: string): Promise<MechanicmatchReview[]> {
+    return await db
+      .select()
+      .from(mechanicmatchReviews)
+      .where(eq(mechanicmatchReviews.revieweeId, revieweeId))
+      .orderBy(desc(mechanicmatchReviews.createdAt));
+  }
+
+  async getMechanicmatchReviewsByReviewer(reviewerId: string): Promise<MechanicmatchReview[]> {
+    return await db
+      .select()
+      .from(mechanicmatchReviews)
+      .where(eq(mechanicmatchReviews.reviewerId, reviewerId))
+      .orderBy(desc(mechanicmatchReviews.createdAt));
+  }
+
+  async getMechanicmatchReviewsByJob(jobId: string): Promise<MechanicmatchReview[]> {
+    return await db
+      .select()
+      .from(mechanicmatchReviews)
+      .where(eq(mechanicmatchReviews.jobId, jobId))
+      .orderBy(desc(mechanicmatchReviews.createdAt));
+  }
+
+  // MechanicMatch Message operations
+  async createMechanicmatchMessage(messageData: InsertMechanicmatchMessage & { senderId?: string }): Promise<MechanicmatchMessage> {
+    if (!messageData.senderId) {
+      throw new Error("senderId is required to create a message");
+    }
+    const [message] = await db
+      .insert(mechanicmatchMessages)
+      .values({
+        ...messageData,
+        senderId: messageData.senderId,
+      })
+      .returning();
+    return message;
+  }
+
+  async getMechanicmatchMessagesByJob(jobId: string): Promise<MechanicmatchMessage[]> {
+    return await db
+      .select()
+      .from(mechanicmatchMessages)
+      .where(eq(mechanicmatchMessages.jobId, jobId))
+      .orderBy(asc(mechanicmatchMessages.createdAt));
+  }
+
+  async getMechanicmatchMessagesBetweenUsers(userId1: string, userId2: string): Promise<MechanicmatchMessage[]> {
+    return await db
+      .select()
+      .from(mechanicmatchMessages)
+      .where(
+        or(
+          and(
+            eq(mechanicmatchMessages.senderId, userId1),
+            eq(mechanicmatchMessages.recipientId, userId2)
+          ),
+          and(
+            eq(mechanicmatchMessages.senderId, userId2),
+            eq(mechanicmatchMessages.recipientId, userId1)
+          )
+        )
+      )
+      .orderBy(asc(mechanicmatchMessages.createdAt));
+  }
+
+  async markMechanicmatchMessageAsRead(messageId: string, userId: string): Promise<MechanicmatchMessage> {
+    const message = await db
+      .select()
+      .from(mechanicmatchMessages)
+      .where(eq(mechanicmatchMessages.id, messageId));
+    if (!message.length || message[0].recipientId !== userId) {
+      throw new Error("Message not found or unauthorized");
+    }
+    const [updated] = await db
+      .update(mechanicmatchMessages)
+      .set({ isRead: true })
+      .where(eq(mechanicmatchMessages.id, messageId))
+      .returning();
+    return updated;
+  }
+
+  async getUnreadMechanicmatchMessages(userId: string): Promise<MechanicmatchMessage[]> {
+    return await db
+      .select()
+      .from(mechanicmatchMessages)
+      .where(
+        and(
+          eq(mechanicmatchMessages.recipientId, userId),
+          eq(mechanicmatchMessages.isRead, false)
+        )
+      )
+      .orderBy(desc(mechanicmatchMessages.createdAt));
+  }
+
+  // MechanicMatch Search/Matching operations
+  async searchMechanicmatchMechanics(filters: {
+    city?: string;
+    state?: string;
+    isMobileMechanic?: boolean;
+    specialties?: string[];
+    maxHourlyRate?: number;
+    minRating?: number;
+    isAvailable?: boolean;
+  }): Promise<MechanicmatchProfile[]> {
+    let query = db
+      .select()
+      .from(mechanicmatchProfiles)
+      .where(eq(mechanicmatchProfiles.isMechanic, true));
+
+    // This is a simplified version - in production you'd want to build dynamic queries
+    // For now, we'll filter in memory after fetching (not ideal for large datasets)
+    const mechanics = await query;
+
+    return mechanics.filter(mechanic => {
+      if (filters.city && mechanic.city !== filters.city) return false;
+      if (filters.state && mechanic.state !== filters.state) return false;
+      if (filters.isMobileMechanic !== undefined && mechanic.isMobileMechanic !== filters.isMobileMechanic) return false;
+      if (filters.maxHourlyRate && mechanic.hourlyRate && parseFloat(mechanic.hourlyRate) > filters.maxHourlyRate) return false;
+      if (filters.minRating && mechanic.averageRating && parseFloat(mechanic.averageRating) < filters.minRating) return false;
+      // Specialties and availability would need more complex logic
+      return true;
+    });
+  }
+
+  // MechanicMatch Announcement operations
+  async createMechanicmatchAnnouncement(announcementData: InsertMechanicmatchAnnouncement): Promise<MechanicmatchAnnouncement> {
+    const [announcement] = await db
+      .insert(mechanicmatchAnnouncements)
+      .values(announcementData)
+      .returning();
+    return announcement;
+  }
+
+  async getActiveMechanicmatchAnnouncements(): Promise<MechanicmatchAnnouncement[]> {
+    const now = new Date();
+    return await db
+      .select()
+      .from(mechanicmatchAnnouncements)
+      .where(
+        and(
+          eq(mechanicmatchAnnouncements.isActive, true),
+          or(
+            sql`${mechanicmatchAnnouncements.expiresAt} IS NULL`,
+            gte(mechanicmatchAnnouncements.expiresAt, now)
+          )
+        )
+      )
+      .orderBy(desc(mechanicmatchAnnouncements.createdAt));
+  }
+
+  async getAllMechanicmatchAnnouncements(): Promise<MechanicmatchAnnouncement[]> {
+    return await db
+      .select()
+      .from(mechanicmatchAnnouncements)
+      .orderBy(desc(mechanicmatchAnnouncements.createdAt));
+  }
+
+  async updateMechanicmatchAnnouncement(id: string, announcementData: Partial<InsertMechanicmatchAnnouncement>): Promise<MechanicmatchAnnouncement> {
+    const [announcement] = await db
+      .update(mechanicmatchAnnouncements)
+      .set({
+        ...announcementData,
+        updatedAt: new Date(),
+      })
+      .where(eq(mechanicmatchAnnouncements.id, id))
+      .returning();
+    return announcement;
+  }
+
+  async deactivateMechanicmatchAnnouncement(id: string): Promise<MechanicmatchAnnouncement> {
+    const [announcement] = await db
+      .update(mechanicmatchAnnouncements)
+      .set({
+        isActive: false,
+        updatedAt: new Date(),
+      })
+      .where(eq(mechanicmatchAnnouncements.id, id))
+      .returning();
+    return announcement;
+  }
+
+  // ========================================
+  // LOSTMAIL OPERATIONS
+  // ========================================
+
+  // LostMail Incident operations
+  async createLostmailIncident(incidentData: InsertLostmailIncident): Promise<LostmailIncident> {
+    const [incident] = await db
+      .insert(lostmailIncidents)
+      .values({
+        ...incidentData,
+        status: 'submitted',
+      })
+      .returning();
+    return incident;
+  }
+
+  async getLostmailIncidentById(id: string): Promise<LostmailIncident | undefined> {
+    const [incident] = await db
+      .select()
+      .from(lostmailIncidents)
+      .where(eq(lostmailIncidents.id, id));
+    return incident;
+  }
+
+  async getLostmailIncidentsByEmail(email: string): Promise<LostmailIncident[]> {
+    return await db
+      .select()
+      .from(lostmailIncidents)
+      .where(eq(lostmailIncidents.reporterEmail, email))
+      .orderBy(desc(lostmailIncidents.createdAt));
+  }
+
+  async getLostmailIncidents(filters?: {
+    incidentType?: string;
+    status?: string;
+    severity?: string;
+    dateFrom?: Date;
+    dateTo?: Date;
+    search?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<{ incidents: LostmailIncident[]; total: number }> {
+    const limit = filters?.limit || 50;
+    const offset = filters?.offset || 0;
+    
+    let query = db.select().from(lostmailIncidents);
+    const conditions: any[] = [];
+
+    if (filters?.incidentType) {
+      conditions.push(eq(lostmailIncidents.incidentType, filters.incidentType));
+    }
+    if (filters?.status) {
+      conditions.push(eq(lostmailIncidents.status, filters.status));
+    }
+    if (filters?.severity) {
+      conditions.push(eq(lostmailIncidents.severity, filters.severity));
+    }
+    if (filters?.dateFrom) {
+      conditions.push(gte(lostmailIncidents.createdAt, filters.dateFrom));
+    }
+    if (filters?.dateTo) {
+      conditions.push(lte(lostmailIncidents.createdAt, filters.dateTo));
+    }
+    if (filters?.search) {
+      const searchTerm = `%${filters.search}%`;
+      conditions.push(
+        or(
+          sql`${lostmailIncidents.trackingNumber} ILIKE ${searchTerm}`,
+          sql`${lostmailIncidents.reporterName} ILIKE ${searchTerm}`,
+          sql`${lostmailIncidents.id} ILIKE ${searchTerm}`
+        )
+      );
+    }
+
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+    // Get total count
+    const totalResult = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(lostmailIncidents)
+      .where(whereClause);
+    const total = Number(totalResult[0]?.count || 0);
+
+    // Get paginated results
+    const incidents = await db
+      .select()
+      .from(lostmailIncidents)
+      .where(whereClause)
+      .orderBy(desc(lostmailIncidents.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    return { incidents, total };
+  }
+
+  async updateLostmailIncident(id: string, incidentData: Partial<InsertLostmailIncident>): Promise<LostmailIncident> {
+    const [incident] = await db
+      .update(lostmailIncidents)
+      .set({ ...incidentData, updatedAt: new Date() })
+      .where(eq(lostmailIncidents.id, id))
+      .returning();
+    return incident;
+  }
+
+  // LostMail Audit Trail operations
+  async createLostmailAuditTrailEntry(entryData: InsertLostmailAuditTrail): Promise<LostmailAuditTrail> {
+    const [entry] = await db
+      .insert(lostmailAuditTrail)
+      .values(entryData)
+      .returning();
+    return entry;
+  }
+
+  async getLostmailAuditTrailByIncident(incidentId: string): Promise<LostmailAuditTrail[]> {
+    return await db
+      .select()
+      .from(lostmailAuditTrail)
+      .where(eq(lostmailAuditTrail.incidentId, incidentId))
+      .orderBy(desc(lostmailAuditTrail.timestamp));
+  }
+
+  // LostMail Announcement operations
+  async createLostmailAnnouncement(announcementData: InsertLostmailAnnouncement): Promise<LostmailAnnouncement> {
+    const [announcement] = await db
+      .insert(lostmailAnnouncements)
+      .values(announcementData)
+      .returning();
+    return announcement;
+  }
+
+  async getActiveLostmailAnnouncements(): Promise<LostmailAnnouncement[]> {
+    const now = new Date();
+    return await db
+      .select()
+      .from(lostmailAnnouncements)
+      .where(
+        and(
+          eq(lostmailAnnouncements.isActive, true),
+          or(
+            sql`${lostmailAnnouncements.expiresAt} IS NULL`,
+            gte(lostmailAnnouncements.expiresAt, now)
+          )
+        )
+      )
+      .orderBy(desc(lostmailAnnouncements.createdAt));
+  }
+
+  async getAllLostmailAnnouncements(): Promise<LostmailAnnouncement[]> {
+    return await db
+      .select()
+      .from(lostmailAnnouncements)
+      .orderBy(desc(lostmailAnnouncements.createdAt));
+  }
+
+  async updateLostmailAnnouncement(id: string, announcementData: Partial<InsertLostmailAnnouncement>): Promise<LostmailAnnouncement> {
+    const [announcement] = await db
+      .update(lostmailAnnouncements)
+      .set({
+        ...announcementData,
+        updatedAt: new Date(),
+      })
+      .where(eq(lostmailAnnouncements.id, id))
+      .returning();
+    return announcement;
+  }
+
+  async deactivateLostmailAnnouncement(id: string): Promise<LostmailAnnouncement> {
+    const [announcement] = await db
+      .update(lostmailAnnouncements)
+      .set({
+        isActive: false,
+        updatedAt: new Date(),
+      })
+      .where(eq(lostmailAnnouncements.id, id))
+      .returning();
+    return announcement;
+  }
+
+  // ========================================
+  // RESEARCH OPERATIONS IMPLEMENTATION
+  // ========================================
+
+  // Research Items
+  async createResearchItem(itemData: InsertResearchItem): Promise<ResearchItem> {
+    const [item] = await db
+      .insert(researchItems)
+      .values({
+        ...itemData,
+        tags: itemData.tags ? JSON.stringify(itemData.tags) : null,
+        attachments: itemData.attachments ? JSON.stringify(itemData.attachments) : null,
+      })
+      .returning();
+    return item;
+  }
+
+  async getResearchItemById(id: string): Promise<ResearchItem | undefined> {
+    const [item] = await db
+      .select()
+      .from(researchItems)
+      .where(eq(researchItems.id, id));
+    return item;
+  }
+
+  async getResearchItems(filters?: {
+    userId?: string;
+    tag?: string;
+    status?: string;
+    isPublic?: boolean;
+    search?: string;
+    limit?: number;
+    offset?: number;
+    sortBy?: string;
+  }): Promise<{ items: ResearchItem[]; total: number }> {
+    const limit = filters?.limit || 50;
+    const offset = filters?.offset || 0;
+    const conditions: any[] = [];
+
+    if (filters?.userId) {
+      conditions.push(eq(researchItems.userId, filters.userId));
+    }
+    if (filters?.status) {
+      conditions.push(eq(researchItems.status, filters.status));
+    }
+    if (filters?.isPublic !== undefined) {
+      conditions.push(eq(researchItems.isPublic, filters.isPublic));
+    }
+    if (filters?.tag) {
+      conditions.push(sql`${researchItems.tags}::text ILIKE ${`%${filters.tag}%`}`);
+    }
+    if (filters?.search) {
+      const searchTerm = `%${filters.search}%`;
+      conditions.push(
+        or(
+          sql`${researchItems.title} ILIKE ${searchTerm}`,
+          sql`${researchItems.bodyMd} ILIKE ${searchTerm}`
+        )
+      );
+    }
+
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+    // Get total count
+    const totalResult = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(researchItems)
+      .where(whereClause);
+    const total = Number(totalResult[0]?.count || 0);
+
+    // Determine sort order
+    let orderBy: any = desc(researchItems.createdAt);
+    if (filters?.sortBy === "popular") {
+      orderBy = desc(researchItems.viewCount);
+    } else if (filters?.sortBy === "recent") {
+      orderBy = desc(researchItems.updatedAt);
+    }
+
+    const items = await db
+      .select()
+      .from(researchItems)
+      .where(whereClause)
+      .orderBy(orderBy)
+      .limit(limit)
+      .offset(offset);
+
+    return { items, total };
+  }
+
+  async updateResearchItem(id: string, itemData: Partial<InsertResearchItem>): Promise<ResearchItem> {
+    const updateData: any = { ...itemData, updatedAt: new Date() };
+    if (itemData.tags !== undefined) {
+      updateData.tags = itemData.tags ? JSON.stringify(itemData.tags) : null;
+    }
+    if (itemData.attachments !== undefined) {
+      updateData.attachments = itemData.attachments ? JSON.stringify(itemData.attachments) : null;
+    }
+    
+    const [item] = await db
+      .update(researchItems)
+      .set(updateData)
+      .where(eq(researchItems.id, id))
+      .returning();
+    return item;
+  }
+
+  async incrementResearchItemViewCount(id: string): Promise<void> {
+    await db
+      .update(researchItems)
+      .set({ viewCount: sql`${researchItems.viewCount} + 1` })
+      .where(eq(researchItems.id, id));
+  }
+
+  async acceptResearchAnswer(itemId: string, answerId: string): Promise<ResearchItem> {
+    // Unaccept previous answer if any
+    await db
+      .update(researchAnswers)
+      .set({ isAccepted: false })
+      .where(eq(researchAnswers.researchItemId, itemId));
+
+    // Accept new answer
+    await db
+      .update(researchAnswers)
+      .set({ isAccepted: true })
+      .where(eq(researchAnswers.id, answerId));
+
+    // Update item
+    const [item] = await db
+      .update(researchItems)
+      .set({
+        acceptedAnswerId: answerId,
+        status: "answered",
+        updatedAt: new Date(),
+      })
+      .where(eq(researchItems.id, itemId))
+      .returning();
+
+    return item;
+  }
+
+  // Research Answers
+  async createResearchAnswer(answerData: InsertResearchAnswer): Promise<ResearchAnswer> {
+    const [answer] = await db
+      .insert(researchAnswers)
+      .values({
+        ...answerData,
+        links: answerData.links ? JSON.stringify(answerData.links) : null,
+        attachments: answerData.attachments ? JSON.stringify(answerData.attachments) : null,
+      })
+      .returning();
+    
+    // Calculate initial relevance
+    await this.calculateAnswerRelevance(answer.id);
+    
+    return answer;
+  }
+
+  async getResearchAnswerById(id: string): Promise<ResearchAnswer | undefined> {
+    const [answer] = await db
+      .select()
+      .from(researchAnswers)
+      .where(eq(researchAnswers.id, id));
+    return answer;
+  }
+
+  async getResearchAnswersByItemId(itemId: string, sortBy?: string): Promise<ResearchAnswer[]> {
+    let orderBy: any = desc(researchAnswers.relevanceScore); // Default: relevance
+    
+    if (sortBy === "score") {
+      orderBy = desc(researchAnswers.score);
+    } else if (sortBy === "recent") {
+      orderBy = desc(researchAnswers.createdAt);
+    } else if (sortBy === "confidence") {
+      orderBy = desc(researchAnswers.confidenceScore);
+    }
+
+    return await db
+      .select()
+      .from(researchAnswers)
+      .where(eq(researchAnswers.researchItemId, itemId))
+      .orderBy(orderBy);
+  }
+
+  async updateResearchAnswer(id: string, answerData: Partial<InsertResearchAnswer>): Promise<ResearchAnswer> {
+    const updateData: any = { ...answerData, updatedAt: new Date() };
+    if (answerData.links !== undefined) {
+      updateData.links = answerData.links ? JSON.stringify(answerData.links) : null;
+    }
+    if (answerData.attachments !== undefined) {
+      updateData.attachments = answerData.attachments ? JSON.stringify(answerData.attachments) : null;
+    }
+
+    const [answer] = await db
+      .update(researchAnswers)
+      .set(updateData)
+      .where(eq(researchAnswers.id, id))
+      .returning();
+
+    // Recalculate relevance if links or content changed
+    if (answerData.links || answerData.bodyMd) {
+      await this.calculateAnswerRelevance(id);
+    }
+
+    return answer;
+  }
+
+  async calculateAnswerRelevance(answerId: string): Promise<number> {
+    // Get answer with related data
+    const answer = await this.getResearchAnswerById(answerId);
+    if (!answer) return 0;
+
+    // Get user reputation
+    const userRep = await this.getUserReputation(answer.userId);
+
+    // Get link provenances and calculate source trust
+    const provenances = await this.getResearchLinkProvenancesByAnswerId(answerId);
+    const avgDomainScore = provenances.length > 0
+      ? provenances.reduce((sum, p) => sum + (Number(p.domainScore || 0)), 0) / provenances.length
+      : 0;
+
+    // Get vote score
+    const voteScore = answer.score || 0;
+
+    // Calculate verification score
+    const verificationScore = Number(answer.verificationScore || 0);
+
+    // Normalize values (simple normalization - in production, use more sophisticated approach)
+    const normalizedUpvotes = Math.min(voteScore / 10, 1); // Cap at 10 upvotes = 1.0
+    const normalizedReputation = Math.min(userRep / 100, 1); // Cap at 100 rep = 1.0
+    const normalizedSourceTrust = avgDomainScore; // Already 0-1
+    const normalizedSimilarity = verificationScore; // Already 0-1
+
+    // Recency boost (decay over 30 days)
+    const daysSinceCreation = (Date.now() - new Date(answer.createdAt).getTime()) / (1000 * 60 * 60 * 24);
+    const recencyBoost = Math.max(0, 1 - (daysSinceCreation / 30));
+
+    // Weighted formula (default weights from requirements)
+    const w1 = 0.35; // upvotes
+    const w2 = 0.20; // reputation
+    const w3 = 0.25; // source trust
+    const w4 = 0.15; // similarity
+    const w5 = 0.05; // recency
+
+    const relevanceScore = (
+      w1 * normalizedUpvotes +
+      w2 * normalizedReputation +
+      w3 * normalizedSourceTrust +
+      w4 * normalizedSimilarity +
+      w5 * recencyBoost
+    );
+
+    // Update answer with relevance score
+    await db
+      .update(researchAnswers)
+      .set({ relevanceScore: relevanceScore.toString() })
+      .where(eq(researchAnswers.id, answerId));
+
+    return relevanceScore;
+  }
+
+  async updateAnswerScore(answerId: string): Promise<void> {
+    // Calculate score from votes
+    const votes = await db
+      .select()
+      .from(researchVotes)
+      .where(eq(researchVotes.answerId, answerId));
+
+    const score = votes.reduce((sum, vote) => sum + vote.value, 0);
+
+    await db
+      .update(researchAnswers)
+      .set({ score })
+      .where(eq(researchAnswers.id, answerId));
+
+    // Recalculate relevance
+    await this.calculateAnswerRelevance(answerId);
+  }
+
+  // Research Comments
+  async createResearchComment(commentData: InsertResearchComment): Promise<ResearchComment> {
+    const [comment] = await db
+      .insert(researchComments)
+      .values(commentData)
+      .returning();
+    return comment;
+  }
+
+  async getResearchComments(filters: { researchItemId?: string; answerId?: string }): Promise<ResearchComment[]> {
+    const conditions: any[] = [];
+    if (filters.researchItemId) {
+      conditions.push(eq(researchComments.researchItemId, filters.researchItemId));
+    }
+    if (filters.answerId) {
+      conditions.push(eq(researchComments.answerId, filters.answerId));
+    }
+
+    return await db
+      .select()
+      .from(researchComments)
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .orderBy(asc(researchComments.createdAt));
+  }
+
+  async updateResearchComment(id: string, commentData: Partial<InsertResearchComment>): Promise<ResearchComment> {
+    const [comment] = await db
+      .update(researchComments)
+      .set({ ...commentData, updatedAt: new Date() })
+      .where(eq(researchComments.id, id))
+      .returning();
+    return comment;
+  }
+
+  async deleteResearchComment(id: string): Promise<void> {
+    await db.delete(researchComments).where(eq(researchComments.id, id));
+  }
+
+  // Research Votes
+  async createOrUpdateResearchVote(voteData: InsertResearchVote): Promise<ResearchVote> {
+    // Check if vote exists
+    const existing = await this.getResearchVote(voteData.userId, voteData.researchItemId || undefined, voteData.answerId || undefined);
+
+    if (existing) {
+      // Update existing vote
+      const [vote] = await db
+        .update(researchVotes)
+        .set({ value: voteData.value })
+        .where(eq(researchVotes.id, existing.id))
+        .returning();
+
+      // Update answer score if voting on answer
+      if (voteData.answerId) {
+        await this.updateAnswerScore(voteData.answerId);
+      }
+
+      return vote;
+    } else {
+      // Create new vote
+      const [vote] = await db
+        .insert(researchVotes)
+        .values(voteData)
+        .returning();
+
+      // Update answer score if voting on answer
+      if (voteData.answerId) {
+        await this.updateAnswerScore(voteData.answerId);
+      }
+
+      return vote;
+    }
+  }
+
+  async getResearchVote(userId: string, researchItemId?: string, answerId?: string): Promise<ResearchVote | undefined> {
+    const conditions: any[] = [eq(researchVotes.userId, userId)];
+    if (researchItemId) {
+      conditions.push(eq(researchVotes.researchItemId, researchItemId));
+    }
+    if (answerId) {
+      conditions.push(eq(researchVotes.answerId, answerId));
+    }
+
+    const [vote] = await db
+      .select()
+      .from(researchVotes)
+      .where(and(...conditions));
+    return vote;
+  }
+
+  async deleteResearchVote(userId: string, researchItemId?: string, answerId?: string): Promise<void> {
+    const conditions: any[] = [eq(researchVotes.userId, userId)];
+    if (researchItemId) {
+      conditions.push(eq(researchVotes.researchItemId, researchItemId));
+    }
+    if (answerId) {
+      conditions.push(eq(researchVotes.answerId, answerId));
+    }
+
+    await db.delete(researchVotes).where(and(...conditions));
+
+    // Update answer score if voting on answer
+    if (answerId) {
+      await this.updateAnswerScore(answerId);
+    }
+  }
+
+  // Research Link Provenances
+  async createResearchLinkProvenance(provenanceData: InsertResearchLinkProvenance): Promise<ResearchLinkProvenance> {
+    const [provenance] = await db
+      .insert(researchLinkProvenances)
+      .values(provenanceData)
+      .returning();
+
+    // Recalculate verification score for answer
+    if (provenanceData.answerId) {
+      await this.calculateAnswerVerificationScore(provenanceData.answerId);
+    }
+
+    return provenance;
+  }
+
+  async getResearchLinkProvenancesByAnswerId(answerId: string): Promise<ResearchLinkProvenance[]> {
+    return await db
+      .select()
+      .from(researchLinkProvenances)
+      .where(eq(researchLinkProvenances.answerId, answerId))
+      .orderBy(desc(researchLinkProvenances.similarityScore));
+  }
+
+  async updateResearchLinkProvenance(id: string, provenanceData: Partial<InsertResearchLinkProvenance>): Promise<ResearchLinkProvenance> {
+    const [provenance] = await db
+      .update(researchLinkProvenances)
+      .set(provenanceData)
+      .where(eq(researchLinkProvenances.id, id))
+      .returning();
+
+    // Recalculate verification score
+    if (provenance.answerId) {
+      await this.calculateAnswerVerificationScore(provenance.answerId);
+    }
+
+    return provenance;
+  }
+
+  async calculateAnswerVerificationScore(answerId: string): Promise<number> {
+    const provenances = await this.getResearchLinkProvenancesByAnswerId(answerId);
+    
+    if (provenances.length === 0) {
+      await db
+        .update(researchAnswers)
+        .set({ verificationScore: "0" })
+        .where(eq(researchAnswers.id, answerId));
+      return 0;
+    }
+
+    // Average similarity score weighted by domain score
+    const totalWeight = provenances.reduce((sum, p) => {
+      const domainWeight = Number(p.domainScore || 0.5); // Default 0.5 if no domain score
+      const similarity = Number(p.similarityScore || 0);
+      return sum + (domainWeight * similarity);
+    }, 0);
+
+    const avgScore = totalWeight / provenances.length;
+    const normalizedScore = Math.min(Math.max(avgScore, 0), 1);
+
+    await db
+      .update(researchAnswers)
+      .set({ verificationScore: normalizedScore.toString() })
+      .where(eq(researchAnswers.id, answerId));
+
+    // Recalculate relevance
+    await this.calculateAnswerRelevance(answerId);
+
+    return normalizedScore;
+  }
+
+  // Research Bookmarks & Follows
+  async createResearchBookmark(bookmarkData: InsertResearchBookmark): Promise<ResearchBookmark> {
+    const [bookmark] = await db
+      .insert(researchBookmarks)
+      .values(bookmarkData)
+      .returning();
+    return bookmark;
+  }
+
+  async deleteResearchBookmark(userId: string, researchItemId: string): Promise<void> {
+    await db
+      .delete(researchBookmarks)
+      .where(
+        and(
+          eq(researchBookmarks.userId, userId),
+          eq(researchBookmarks.researchItemId, researchItemId)
+        )
+      );
+  }
+
+  async getResearchBookmarks(userId: string): Promise<ResearchBookmark[]> {
+    return await db
+      .select()
+      .from(researchBookmarks)
+      .where(eq(researchBookmarks.userId, userId))
+      .orderBy(desc(researchBookmarks.createdAt));
+  }
+
+  async createResearchFollow(followData: InsertResearchFollow): Promise<ResearchFollow> {
+    const [follow] = await db
+      .insert(researchFollows)
+      .values(followData)
+      .returning();
+    return follow;
+  }
+
+  async deleteResearchFollow(userId: string, filters: { followedUserId?: string; researchItemId?: string; tag?: string }): Promise<void> {
+    const conditions: any[] = [eq(researchFollows.userId, userId)];
+    if (filters.followedUserId) {
+      conditions.push(eq(researchFollows.followedUserId, filters.followedUserId));
+    }
+    if (filters.researchItemId) {
+      conditions.push(eq(researchFollows.researchItemId, filters.researchItemId));
+    }
+    if (filters.tag) {
+      conditions.push(eq(researchFollows.tag, filters.tag));
+    }
+
+    await db.delete(researchFollows).where(and(...conditions));
+  }
+
+  async getResearchFollows(userId: string): Promise<ResearchFollow[]> {
+    return await db
+      .select()
+      .from(researchFollows)
+      .where(eq(researchFollows.userId, userId));
+  }
+
+  // Research Boards/Columns/Cards (Trello-style)
+  async createResearchBoard(boardData: InsertResearchBoard): Promise<ResearchBoard> {
+    const [board] = await db
+      .insert(researchBoards)
+      .values(boardData)
+      .returning();
+    return board;
+  }
+
+  async getResearchBoardsByItemId(itemId: string, userId: string): Promise<ResearchBoard[]> {
+    return await db
+      .select()
+      .from(researchBoards)
+      .where(
+        and(
+          eq(researchBoards.researchItemId, itemId),
+          eq(researchBoards.userId, userId)
+        )
+      )
+      .orderBy(asc(researchBoards.position));
+  }
+
+  async updateResearchBoard(id: string, boardData: Partial<InsertResearchBoard>): Promise<ResearchBoard> {
+    const [board] = await db
+      .update(researchBoards)
+      .set(boardData)
+      .where(eq(researchBoards.id, id))
+      .returning();
+    return board;
+  }
+
+  async createResearchColumn(columnData: InsertResearchColumn): Promise<ResearchColumn> {
+    const [column] = await db
+      .insert(researchColumns)
+      .values(columnData)
+      .returning();
+    return column;
+  }
+
+  async getResearchColumnsByBoardId(boardId: string): Promise<ResearchColumn[]> {
+    return await db
+      .select()
+      .from(researchColumns)
+      .where(eq(researchColumns.boardId, boardId))
+      .orderBy(asc(researchColumns.position));
+  }
+
+  async updateResearchColumn(id: string, columnData: Partial<InsertResearchColumn>): Promise<ResearchColumn> {
+    const [column] = await db
+      .update(researchColumns)
+      .set(columnData)
+      .where(eq(researchColumns.id, id))
+      .returning();
+    return column;
+  }
+
+  async createResearchCard(cardData: InsertResearchCard): Promise<ResearchCard> {
+    const [card] = await db
+      .insert(researchCards)
+      .values(cardData)
+      .returning();
+    return card;
+  }
+
+  async getResearchCardsByColumnId(columnId: string): Promise<ResearchCard[]> {
+    return await db
+      .select()
+      .from(researchCards)
+      .where(eq(researchCards.columnId, columnId))
+      .orderBy(asc(researchCards.position));
+  }
+
+  async updateResearchCard(id: string, cardData: Partial<InsertResearchCard>): Promise<ResearchCard> {
+    const [card] = await db
+      .update(researchCards)
+      .set(cardData)
+      .where(eq(researchCards.id, id))
+      .returning();
+    return card;
+  }
+
+  async moveResearchCard(cardId: string, columnId: string, position: number): Promise<ResearchCard> {
+    const [card] = await db
+      .update(researchCards)
+      .set({ columnId, position })
+      .where(eq(researchCards.id, cardId))
+      .returning();
+    return card;
+  }
+
+  // Research Reports
+  async createResearchReport(reportData: InsertResearchReport): Promise<ResearchReport> {
+    const [report] = await db
+      .insert(researchReports)
+      .values(reportData)
+      .returning();
+    return report;
+  }
+
+  async getResearchReports(filters?: { status?: string; limit?: number; offset?: number }): Promise<{ reports: ResearchReport[]; total: number }> {
+    const limit = filters?.limit || 50;
+    const offset = filters?.offset || 0;
+    const conditions: any[] = [];
+
+    if (filters?.status) {
+      conditions.push(eq(researchReports.status, filters.status));
+    }
+
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+    const totalResult = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(researchReports)
+      .where(whereClause);
+    const total = Number(totalResult[0]?.count || 0);
+
+    const reports = await db
+      .select()
+      .from(researchReports)
+      .where(whereClause)
+      .orderBy(desc(researchReports.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    return { reports, total };
+  }
+
+  async updateResearchReport(id: string, reportData: Partial<InsertResearchReport>): Promise<ResearchReport> {
+    const [report] = await db
+      .update(researchReports)
+      .set(reportData)
+      .where(eq(researchReports.id, id))
+      .returning();
+    return report;
+  }
+
+  // Research Announcements
+  async createResearchAnnouncement(announcementData: InsertResearchAnnouncement): Promise<ResearchAnnouncement> {
+    const [announcement] = await db
+      .insert(researchAnnouncements)
+      .values(announcementData)
+      .returning();
+    return announcement;
+  }
+
+  async getActiveResearchAnnouncements(): Promise<ResearchAnnouncement[]> {
+    const now = new Date();
+    return await db
+      .select()
+      .from(researchAnnouncements)
+      .where(
+        and(
+          eq(researchAnnouncements.isActive, true),
+          or(
+            sql`${researchAnnouncements.expiresAt} IS NULL`,
+            gte(researchAnnouncements.expiresAt, now)
+          )
+        )
+      )
+      .orderBy(desc(researchAnnouncements.createdAt));
+  }
+
+  async getAllResearchAnnouncements(): Promise<ResearchAnnouncement[]> {
+    return await db
+      .select()
+      .from(researchAnnouncements)
+      .orderBy(desc(researchAnnouncements.createdAt));
+  }
+
+  async updateResearchAnnouncement(id: string, announcementData: Partial<InsertResearchAnnouncement>): Promise<ResearchAnnouncement> {
+    const [announcement] = await db
+      .update(researchAnnouncements)
+      .set({
+        ...announcementData,
+        updatedAt: new Date(),
+      })
+      .where(eq(researchAnnouncements.id, id))
+      .returning();
+    return announcement;
+  }
+
+  async deactivateResearchAnnouncement(id: string): Promise<ResearchAnnouncement> {
+    const [announcement] = await db
+      .update(researchAnnouncements)
+      .set({
+        isActive: false,
+        updatedAt: new Date(),
+      })
+      .where(eq(researchAnnouncements.id, id))
+      .returning();
+    return announcement;
+  }
+
+  // Research Timeline/Feed
+  async getResearchTimeline(userId: string, limit: number = 50, offset: number = 0): Promise<ResearchItem[]> {
+    // Get followed items, users, and tags
+    const follows = await this.getResearchFollows(userId);
+    
+    const conditions: any[] = [
+      or(
+        eq(researchItems.isPublic, true),
+        eq(researchItems.userId, userId)
+      )
+    ];
+
+    // Add followed users' items
+    const followedUserIds = follows.filter(f => f.followedUserId).map(f => f.followedUserId!);
+    if (followedUserIds.length > 0) {
+      conditions.push(inArray(researchItems.userId, followedUserIds));
+    }
+
+    // Add followed items
+    const followedItemIds = follows.filter(f => f.researchItemId).map(f => f.researchItemId!);
+    if (followedItemIds.length > 0) {
+      conditions.push(inArray(researchItems.id, followedItemIds));
+    }
+
+    // For followed tags, we'd need to check JSON array - simplified here
+    const followedTags = follows.filter(f => f.tag).map(f => f.tag!);
+
+    return await db
+      .select()
+      .from(researchItems)
+      .where(conditions.length > 0 ? or(...conditions) : undefined)
+      .orderBy(desc(researchItems.updatedAt))
+      .limit(limit)
+      .offset(offset);
+  }
+
+  // User Reputation (calculated)
+  async getUserReputation(userId: string): Promise<number> {
+    // Get accepted answers
+    const acceptedAnswers = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(researchAnswers)
+      .where(
+        and(
+          eq(researchAnswers.userId, userId),
+          eq(researchAnswers.isAccepted, true)
+        )
+      );
+
+    const acceptedCount = Number(acceptedAnswers[0]?.count || 0);
+
+    // Get total upvotes on user's answers
+    const upvotes = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(researchVotes)
+      .innerJoin(researchAnswers, eq(researchVotes.answerId, researchAnswers.id))
+      .where(
+        and(
+          eq(researchAnswers.userId, userId),
+          eq(researchVotes.value, 1)
+        )
+      );
+
+    const upvoteCount = Number(upvotes[0]?.count || 0);
+
+    // Simple reputation formula: 10 points per accepted answer + 1 point per upvote
+    return acceptedCount * 10 + upvoteCount;
+  }
+
+  // ========================================
+  // GENTLEPULSE OPERATIONS IMPLEMENTATION
+  // ========================================
+
+  // GentlePulse Meditations
+  async createGentlepulseMeditation(meditationData: InsertGentlepulseMeditation): Promise<GentlepulseMeditation> {
+    const [meditation] = await db
+      .insert(gentlepulseMeditations)
+      .values({
+        ...meditationData,
+        tags: meditationData.tags ? JSON.stringify(meditationData.tags) : null,
+      })
+      .returning();
+    return meditation;
+  }
+
+  async getGentlepulseMeditations(filters?: {
+    tag?: string;
+    sortBy?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<{ meditations: GentlepulseMeditation[]; total: number }> {
+    const limit = filters?.limit || 50;
+    const offset = filters?.offset || 0;
+    const conditions: any[] = [eq(gentlepulseMeditations.isActive, true)];
+
+    if (filters?.tag) {
+      conditions.push(sql`${gentlepulseMeditations.tags}::text ILIKE ${`%${filters.tag}%`}`);
+    }
+
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+    // Get total count
+    const totalResult = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(gentlepulseMeditations)
+      .where(whereClause);
+    const total = Number(totalResult[0]?.count || 0);
+
+    // Determine sort order
+    let orderBy: any = desc(gentlepulseMeditations.createdAt); // Default: newest
+    if (filters?.sortBy === "most-rated") {
+      orderBy = desc(gentlepulseMeditations.ratingCount);
+    } else if (filters?.sortBy === "highest-rating") {
+      orderBy = desc(gentlepulseMeditations.averageRating);
+    } else if (filters?.sortBy === "newest") {
+      orderBy = desc(gentlepulseMeditations.createdAt);
+    }
+
+    const meditations = await db
+      .select()
+      .from(gentlepulseMeditations)
+      .where(whereClause)
+      .orderBy(orderBy)
+      .limit(limit)
+      .offset(offset);
+
+    return { meditations, total };
+  }
+
+  async getGentlepulseMeditationById(id: string): Promise<GentlepulseMeditation | undefined> {
+    const [meditation] = await db
+      .select()
+      .from(gentlepulseMeditations)
+      .where(eq(gentlepulseMeditations.id, id));
+    return meditation;
+  }
+
+  async updateGentlepulseMeditation(id: string, meditationData: Partial<InsertGentlepulseMeditation>): Promise<GentlepulseMeditation> {
+    const updateData: any = { ...meditationData, updatedAt: new Date() };
+    if (meditationData.tags !== undefined) {
+      updateData.tags = meditationData.tags ? JSON.stringify(meditationData.tags) : null;
+    }
+    
+    const [meditation] = await db
+      .update(gentlepulseMeditations)
+      .set(updateData)
+      .where(eq(gentlepulseMeditations.id, id))
+      .returning();
+    return meditation;
+  }
+
+  async incrementGentlepulsePlayCount(id: string): Promise<void> {
+    await db
+      .update(gentlepulseMeditations)
+      .set({ playCount: sql`${gentlepulseMeditations.playCount} + 1` })
+      .where(eq(gentlepulseMeditations.id, id));
+  }
+
+  // GentlePulse Ratings
+  async createOrUpdateGentlepulseRating(ratingData: InsertGentlepulseRating): Promise<GentlepulseRating> {
+    // Check if rating exists
+    const existing = await this.getGentlepulseRatingByClientAndMeditation(
+      ratingData.clientId,
+      ratingData.meditationId
+    );
+
+    if (existing) {
+      // Update existing rating
+      const [rating] = await db
+        .update(gentlepulseRatings)
+        .set({ rating: ratingData.rating })
+        .where(eq(gentlepulseRatings.id, existing.id))
+        .returning();
+
+      // Update meditation average
+      await this.updateGentlepulseMeditationRating(ratingData.meditationId);
+      return rating;
+    } else {
+      // Create new rating
+      const [rating] = await db
+        .insert(gentlepulseRatings)
+        .values(ratingData)
+        .returning();
+
+      // Update meditation average
+      await this.updateGentlepulseMeditationRating(ratingData.meditationId);
+      return rating;
+    }
+  }
+
+  async getGentlepulseRatingsByMeditationId(meditationId: string): Promise<GentlepulseRating[]> {
+    return await db
+      .select()
+      .from(gentlepulseRatings)
+      .where(eq(gentlepulseRatings.meditationId, meditationId));
+  }
+
+  async getGentlepulseRatingByClientAndMeditation(clientId: string, meditationId: string): Promise<GentlepulseRating | undefined> {
+    const [rating] = await db
+      .select()
+      .from(gentlepulseRatings)
+      .where(
+        and(
+          eq(gentlepulseRatings.clientId, clientId),
+          eq(gentlepulseRatings.meditationId, meditationId)
+        )
+      );
+    return rating;
+  }
+
+  async updateGentlepulseMeditationRating(meditationId: string): Promise<void> {
+    // Calculate average rating and count
+    const ratings = await this.getGentlepulseRatingsByMeditationId(meditationId);
+    
+    if (ratings.length === 0) {
+      await db
+        .update(gentlepulseMeditations)
+        .set({
+          averageRating: null,
+          ratingCount: 0,
+        })
+        .where(eq(gentlepulseMeditations.id, meditationId));
+      return;
+    }
+
+    const sum = ratings.reduce((acc, r) => acc + r.rating, 0);
+    const average = sum / ratings.length;
+    const count = ratings.length;
+
+    await db
+      .update(gentlepulseMeditations)
+      .set({
+        averageRating: average.toFixed(2),
+        ratingCount: count,
+      })
+      .where(eq(gentlepulseMeditations.id, meditationId));
+  }
+
+  // GentlePulse Mood Checks
+  async createGentlepulseMoodCheck(moodCheckData: InsertGentlepulseMoodCheck): Promise<GentlepulseMoodCheck> {
+    const [moodCheck] = await db
+      .insert(gentlepulseMoodChecks)
+      .values(moodCheckData)
+      .returning();
+    return moodCheck;
+  }
+
+  async getGentlepulseMoodChecksByClientId(clientId: string, days: number = 7): Promise<GentlepulseMoodCheck[]> {
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+    
+    return await db
+      .select()
+      .from(gentlepulseMoodChecks)
+      .where(
+        and(
+          eq(gentlepulseMoodChecks.clientId, clientId),
+          gte(gentlepulseMoodChecks.date, startDate.toISOString().split('T')[0])
+        )
+      )
+      .orderBy(desc(gentlepulseMoodChecks.date));
+  }
+
+  async getGentlepulseMoodChecksByDateRange(startDate: Date, endDate: Date): Promise<GentlepulseMoodCheck[]> {
+    return await db
+      .select()
+      .from(gentlepulseMoodChecks)
+      .where(
+        and(
+          gte(gentlepulseMoodChecks.date, startDate.toISOString().split('T')[0]),
+          lte(gentlepulseMoodChecks.date, endDate.toISOString().split('T')[0])
+        )
+      );
+  }
+
+  // GentlePulse Favorites
+  async createGentlepulseFavorite(favoriteData: InsertGentlepulseFavorite): Promise<GentlepulseFavorite> {
+    const [favorite] = await db
+      .insert(gentlepulseFavorites)
+      .values(favoriteData)
+      .returning();
+    return favorite;
+  }
+
+  async deleteGentlepulseFavorite(clientId: string, meditationId: string): Promise<void> {
+    await db
+      .delete(gentlepulseFavorites)
+      .where(
+        and(
+          eq(gentlepulseFavorites.clientId, clientId),
+          eq(gentlepulseFavorites.meditationId, meditationId)
+        )
+      );
+  }
+
+  async getGentlepulseFavoritesByClientId(clientId: string): Promise<GentlepulseFavorite[]> {
+    return await db
+      .select()
+      .from(gentlepulseFavorites)
+      .where(eq(gentlepulseFavorites.clientId, clientId))
+      .orderBy(desc(gentlepulseFavorites.createdAt));
+  }
+
+  async isGentlepulseFavorite(clientId: string, meditationId: string): Promise<boolean> {
+    const [favorite] = await db
+      .select()
+      .from(gentlepulseFavorites)
+      .where(
+        and(
+          eq(gentlepulseFavorites.clientId, clientId),
+          eq(gentlepulseFavorites.meditationId, meditationId)
+        )
+      );
+    return !!favorite;
+  }
+
+  // GentlePulse Announcements
+  async createGentlepulseAnnouncement(announcementData: InsertGentlepulseAnnouncement): Promise<GentlepulseAnnouncement> {
+    const [announcement] = await db
+      .insert(gentlepulseAnnouncements)
+      .values(announcementData)
+      .returning();
+    return announcement;
+  }
+
+  async getActiveGentlepulseAnnouncements(): Promise<GentlepulseAnnouncement[]> {
+    const now = new Date();
+    return await db
+      .select()
+      .from(gentlepulseAnnouncements)
+      .where(
+        and(
+          eq(gentlepulseAnnouncements.isActive, true),
+          or(
+            sql`${gentlepulseAnnouncements.expiresAt} IS NULL`,
+            gte(gentlepulseAnnouncements.expiresAt, now)
+          )
+        )
+      )
+      .orderBy(desc(gentlepulseAnnouncements.createdAt));
+  }
+
+  async getAllGentlepulseAnnouncements(): Promise<GentlepulseAnnouncement[]> {
+    return await db
+      .select()
+      .from(gentlepulseAnnouncements)
+      .orderBy(desc(gentlepulseAnnouncements.createdAt));
+  }
+
+  async updateGentlepulseAnnouncement(id: string, announcementData: Partial<InsertGentlepulseAnnouncement>): Promise<GentlepulseAnnouncement> {
+    const [announcement] = await db
+      .update(gentlepulseAnnouncements)
+      .set({
+        ...announcementData,
+        updatedAt: new Date(),
+      })
+      .where(eq(gentlepulseAnnouncements.id, id))
+      .returning();
+    return announcement;
+  }
+
+  async deactivateGentlepulseAnnouncement(id: string): Promise<GentlepulseAnnouncement> {
+    const [announcement] = await db
+      .update(gentlepulseAnnouncements)
+      .set({
+        isActive: false,
+        updatedAt: new Date(),
+      })
+      .where(eq(gentlepulseAnnouncements.id, id))
+      .returning();
+    return announcement;
   }
 
   /**

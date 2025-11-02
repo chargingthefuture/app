@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import express, { type Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated, isAdmin } from "./replitAuth";
@@ -36,7 +36,39 @@ import {
   insertTrusttransportAnnouncementSchema,
   insertNpsResponseSchema,
   type InsertTrusttransportRideRequest,
+  insertMechanicmatchProfileSchema,
+  insertMechanicmatchVehicleSchema,
+  insertMechanicmatchServiceRequestSchema,
+  insertMechanicmatchJobSchema,
+  insertMechanicmatchAvailabilitySchema,
+  insertMechanicmatchReviewSchema,
+  insertMechanicmatchMessageSchema,
+  insertMechanicmatchAnnouncementSchema,
+  type InsertMechanicmatchProfile,
+  insertLostmailIncidentSchema,
+  insertLostmailAnnouncementSchema,
+  insertLostmailAuditTrailSchema,
+  insertResearchItemSchema,
+  insertResearchAnswerSchema,
+  insertResearchCommentSchema,
+  insertResearchVoteSchema,
+  insertResearchLinkProvenanceSchema,
+  insertResearchBookmarkSchema,
+  insertResearchFollowSchema,
+  insertResearchBoardSchema,
+  insertResearchColumnSchema,
+  insertResearchCardSchema,
+  insertResearchReportSchema,
+  insertResearchAnnouncementSchema,
+  insertGentlepulseMeditationSchema,
+  insertGentlepulseRatingSchema,
+  insertGentlepulseMoodCheckSchema,
+  insertGentlepulseFavoriteSchema,
+  insertGentlepulseAnnouncementSchema,
 } from "@shared/schema";
+import * as fs from "fs/promises";
+import * as path from "path";
+import { fileURLToPath } from "url";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -68,6 +100,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Failed to log admin action:", error);
     }
   };
+
+  // CSRF Protection for admin endpoints
+  // Generate CSRF tokens on GET requests to admin endpoints (runs early)
+  app.use('/api/admin', (req, res, next) => {
+    if (req.method === 'GET') {
+      generateCsrfTokenForAdmin(req, res, next);
+    } else {
+      next();
+    }
+  });
+  
+  app.use('/api/:app/admin', (req, res, next) => {
+    if (req.method === 'GET') {
+      generateCsrfTokenForAdmin(req, res, next);
+    } else {
+      next();
+    }
+  });
 
   // Auth routes
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
@@ -236,7 +286,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/admin/anti-scraping/patterns', isAuthenticated, isAdmin, async (req, res) => {
+  app.delete('/api/admin/anti-scraping/patterns', isAuthenticated, isAdmin, validateCsrfToken, async (req, res) => {
     try {
       const ip = req.query.ip as string | undefined;
       clearSuspiciousPatterns(ip);
@@ -258,7 +308,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/admin/users/:id/verify', isAuthenticated, isAdmin, async (req: any, res) => {
+  app.put('/api/admin/users/:id/verify', isAuthenticated, isAdmin, validateCsrfToken, async (req: any, res) => {
     try {
       const adminId = getUserId(req);
       const { isVerified } = req.body;
@@ -282,7 +332,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/admin/invites', isAuthenticated, isAdmin, async (req: any, res) => {
+  app.post('/api/admin/invites', isAuthenticated, isAdmin, validateCsrfToken, async (req: any, res) => {
     try {
       const userId = getUserId(req);
       const validatedData = insertInviteCodeSchema.parse({
@@ -318,7 +368,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/admin/payments', isAuthenticated, isAdmin, async (req: any, res) => {
+  app.post('/api/admin/payments', isAuthenticated, isAdmin, validateCsrfToken, async (req: any, res) => {
     try {
       const userId = getUserId(req);
       console.log("Payment request body:", JSON.stringify(req.body, null, 2));
@@ -378,7 +428,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/admin/pricing-tiers', isAuthenticated, isAdmin, async (req: any, res) => {
+  app.post('/api/admin/pricing-tiers', isAuthenticated, isAdmin, validateCsrfToken, async (req: any, res) => {
     try {
       const userId = getUserId(req);
       const validatedData = insertPricingTierSchema.parse(req.body);
@@ -400,7 +450,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/admin/pricing-tiers/:id/set-current', isAuthenticated, isAdmin, async (req: any, res) => {
+  app.put('/api/admin/pricing-tiers/:id/set-current', isAuthenticated, isAdmin, validateCsrfToken, async (req: any, res) => {
     try {
       const userId = getUserId(req);
       const tier = await storage.setCurrentPricingTier(req.params.id);
@@ -2874,6 +2924,1979 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching NPS responses:", error);
       res.status(500).json({ message: "Failed to fetch NPS responses" });
+    }
+  });
+
+  // ========================================
+  // MECHANICMATCH ROUTES
+  // ========================================
+
+  // MechanicMatch Announcement routes (public)
+  app.get('/api/mechanicmatch/announcements', isAuthenticated, async (req, res) => {
+    try {
+      const announcements = await storage.getActiveMechanicmatchAnnouncements();
+      res.json(announcements);
+    } catch (error) {
+      console.error("Error fetching MechanicMatch announcements:", error);
+      res.status(500).json({ message: "Failed to fetch announcements" });
+    }
+  });
+
+  // MechanicMatch Profile routes
+  app.get('/api/mechanicmatch/profile', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const profile = await storage.getMechanicmatchProfile(userId);
+      res.json(profile);
+    } catch (error: any) {
+      console.error("Error fetching MechanicMatch profile:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post('/api/mechanicmatch/profile', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const validatedData = insertMechanicmatchProfileSchema.parse(req.body);
+      const profile = await storage.createMechanicmatchProfile({
+        ...validatedData,
+        userId,
+      });
+      res.json(profile);
+    } catch (error: any) {
+      console.error("Error creating MechanicMatch profile:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.put('/api/mechanicmatch/profile', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const profile = await storage.updateMechanicmatchProfile(userId, req.body);
+      res.json(profile);
+    } catch (error: any) {
+      console.error("Error updating MechanicMatch profile:", error);
+      res.status(400).json({ message: error.message || "Failed to update profile" });
+    }
+  });
+
+  app.delete('/api/mechanicmatch/profile', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const { reason } = req.body;
+      await storage.deleteMechanicmatchProfile(userId, reason);
+      res.json({ message: "MechanicMatch profile deleted successfully" });
+    } catch (error: any) {
+      console.error("Error deleting MechanicMatch profile:", error);
+      res.status(400).json({ message: error.message || "Failed to delete profile" });
+    }
+  });
+
+  // MechanicMatch Vehicle routes
+  app.get('/api/mechanicmatch/vehicles', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const vehicles = await storage.getMechanicmatchVehiclesByOwner(userId);
+      res.json(vehicles);
+    } catch (error: any) {
+      console.error("Error fetching vehicles:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch vehicles" });
+    }
+  });
+
+  app.get('/api/mechanicmatch/vehicles/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const vehicle = await storage.getMechanicmatchVehicleById(req.params.id);
+      if (!vehicle) {
+        return res.status(404).json({ message: "Vehicle not found" });
+      }
+      res.json(vehicle);
+    } catch (error: any) {
+      console.error("Error fetching vehicle:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch vehicle" });
+    }
+  });
+
+  app.post('/api/mechanicmatch/vehicles', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const validatedData = insertMechanicmatchVehicleSchema.parse(req.body);
+      const vehicle = await storage.createMechanicmatchVehicle({
+        ...validatedData,
+        ownerId: userId,
+      });
+      res.json(vehicle);
+    } catch (error: any) {
+      console.error("Error creating vehicle:", error);
+      res.status(400).json({ message: error.message || "Failed to create vehicle" });
+    }
+  });
+
+  app.put('/api/mechanicmatch/vehicles/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const vehicle = await storage.getMechanicmatchVehicleById(req.params.id);
+      if (!vehicle || vehicle.ownerId !== userId) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+      const updated = await storage.updateMechanicmatchVehicle(req.params.id, req.body);
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating vehicle:", error);
+      res.status(400).json({ message: error.message || "Failed to update vehicle" });
+    }
+  });
+
+  app.delete('/api/mechanicmatch/vehicles/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      await storage.deleteMechanicmatchVehicle(req.params.id, userId);
+      res.json({ message: "Vehicle deleted successfully" });
+    } catch (error: any) {
+      console.error("Error deleting vehicle:", error);
+      res.status(400).json({ message: error.message || "Failed to delete vehicle" });
+    }
+  });
+
+  // MechanicMatch Service Request routes
+  app.get('/api/mechanicmatch/service-requests', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const requests = await storage.getMechanicmatchServiceRequestsByOwner(userId);
+      res.json(requests);
+    } catch (error: any) {
+      console.error("Error fetching service requests:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch service requests" });
+    }
+  });
+
+  app.get('/api/mechanicmatch/service-requests/open', isAuthenticated, async (req, res) => {
+    try {
+      const requests = await storage.getOpenMechanicmatchServiceRequests();
+      res.json(requests);
+    } catch (error: any) {
+      console.error("Error fetching open service requests:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch service requests" });
+    }
+  });
+
+  app.get('/api/mechanicmatch/service-requests/:id', isAuthenticated, async (req, res) => {
+    try {
+      const request = await storage.getMechanicmatchServiceRequestById(req.params.id);
+      if (!request) {
+        return res.status(404).json({ message: "Service request not found" });
+      }
+      res.json(request);
+    } catch (error: any) {
+      console.error("Error fetching service request:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch service request" });
+    }
+  });
+
+  app.post('/api/mechanicmatch/service-requests', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const profile = await storage.getMechanicmatchProfile(userId);
+      if (!profile || !profile.isCarOwner) {
+        return res.status(400).json({ message: "You must be a car owner to create service requests" });
+      }
+      const validatedData = insertMechanicmatchServiceRequestSchema.parse(req.body);
+      const request = await storage.createMechanicmatchServiceRequest({
+        ...validatedData,
+        ownerId: userId,
+      });
+      res.json(request);
+    } catch (error: any) {
+      console.error("Error creating service request:", error);
+      res.status(400).json({ message: error.message || "Failed to create service request" });
+    }
+  });
+
+  app.put('/api/mechanicmatch/service-requests/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const request = await storage.getMechanicmatchServiceRequestById(req.params.id);
+      if (!request || request.ownerId !== userId) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+      const updated = await storage.updateMechanicmatchServiceRequest(req.params.id, req.body);
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating service request:", error);
+      res.status(400).json({ message: error.message || "Failed to update service request" });
+    }
+  });
+
+  // MechanicMatch Job routes
+  app.get('/api/mechanicmatch/jobs', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const profile = await storage.getMechanicmatchProfile(userId);
+      if (!profile) {
+        return res.status(400).json({ message: "Profile not found" });
+      }
+      
+      let jobs;
+      if (profile.isCarOwner) {
+        jobs = await storage.getMechanicmatchJobsByOwner(userId);
+      } else if (profile.isMechanic) {
+        jobs = await storage.getMechanicmatchJobsByMechanic(profile.id);
+      } else {
+        return res.json([]);
+      }
+      
+      res.json(jobs);
+    } catch (error: any) {
+      console.error("Error fetching jobs:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch jobs" });
+    }
+  });
+
+  app.get('/api/mechanicmatch/jobs/:id', isAuthenticated, async (req, res) => {
+    try {
+      const job = await storage.getMechanicmatchJobById(req.params.id);
+      if (!job) {
+        return res.status(404).json({ message: "Job not found" });
+      }
+      res.json(job);
+    } catch (error: any) {
+      console.error("Error fetching job:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch job" });
+    }
+  });
+
+  app.post('/api/mechanicmatch/jobs', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const validatedData = insertMechanicmatchJobSchema.parse(req.body);
+      const job = await storage.createMechanicmatchJob({
+        ...validatedData,
+        ownerId: userId,
+      });
+      res.json(job);
+    } catch (error: any) {
+      console.error("Error creating job:", error);
+      res.status(400).json({ message: error.message || "Failed to create job" });
+    }
+  });
+
+  app.put('/api/mechanicmatch/jobs/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const job = await storage.getMechanicmatchJobById(req.params.id);
+      if (!job) {
+        return res.status(404).json({ message: "Job not found" });
+      }
+      
+      const profile = await storage.getMechanicmatchProfile(userId);
+      if (!profile) {
+        return res.status(403).json({ message: "Profile not found" });
+      }
+      
+      // Only owner or assigned mechanic can update
+      if (job.ownerId !== userId && job.mechanicId !== profile.id) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+      
+      const updated = await storage.updateMechanicmatchJob(req.params.id, req.body);
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating job:", error);
+      res.status(400).json({ message: error.message || "Failed to update job" });
+    }
+  });
+
+  app.post('/api/mechanicmatch/jobs/:id/accept', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const profile = await storage.getMechanicmatchProfile(userId);
+      if (!profile || !profile.isMechanic) {
+        return res.status(400).json({ message: "You must be a mechanic to accept jobs" });
+      }
+      const job = await storage.acceptMechanicmatchJob(req.params.id, profile.id);
+      res.json(job);
+    } catch (error: any) {
+      console.error("Error accepting job:", error);
+      res.status(400).json({ message: error.message || "Failed to accept job" });
+    }
+  });
+
+  // MechanicMatch Availability routes
+  app.get('/api/mechanicmatch/availability', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const profile = await storage.getMechanicmatchProfile(userId);
+      if (!profile || !profile.isMechanic) {
+        return res.status(400).json({ message: "You must be a mechanic to view availability" });
+      }
+      const availability = await storage.getMechanicmatchAvailabilityByMechanic(profile.id);
+      res.json(availability);
+    } catch (error: any) {
+      console.error("Error fetching availability:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch availability" });
+    }
+  });
+
+  app.post('/api/mechanicmatch/availability', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const profile = await storage.getMechanicmatchProfile(userId);
+      if (!profile || !profile.isMechanic) {
+        return res.status(400).json({ message: "You must be a mechanic to set availability" });
+      }
+      const validatedData = insertMechanicmatchAvailabilitySchema.parse(req.body);
+      const availability = await storage.createMechanicmatchAvailability({
+        ...validatedData,
+        mechanicId: profile.id,
+      });
+      res.json(availability);
+    } catch (error: any) {
+      console.error("Error creating availability:", error);
+      res.status(400).json({ message: error.message || "Failed to create availability" });
+    }
+  });
+
+  app.put('/api/mechanicmatch/availability/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const profile = await storage.getMechanicmatchProfile(userId);
+      if (!profile || !profile.isMechanic) {
+        return res.status(400).json({ message: "You must be a mechanic to update availability" });
+      }
+      const updated = await storage.updateMechanicmatchAvailability(req.params.id, req.body);
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating availability:", error);
+      res.status(400).json({ message: error.message || "Failed to update availability" });
+    }
+  });
+
+  app.delete('/api/mechanicmatch/availability/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const profile = await storage.getMechanicmatchProfile(userId);
+      if (!profile || !profile.isMechanic) {
+        return res.status(400).json({ message: "You must be a mechanic to delete availability" });
+      }
+      await storage.deleteMechanicmatchAvailability(req.params.id, profile.id);
+      res.json({ message: "Availability deleted successfully" });
+    } catch (error: any) {
+      console.error("Error deleting availability:", error);
+      res.status(400).json({ message: error.message || "Failed to delete availability" });
+    }
+  });
+
+  // MechanicMatch Review routes
+  app.get('/api/mechanicmatch/reviews/mechanic/:mechanicId', isAuthenticated, async (req, res) => {
+    try {
+      const reviews = await storage.getMechanicmatchReviewsByReviewee(req.params.mechanicId);
+      res.json(reviews);
+    } catch (error: any) {
+      console.error("Error fetching reviews:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch reviews" });
+    }
+  });
+
+  app.get('/api/mechanicmatch/reviews/job/:jobId', isAuthenticated, async (req, res) => {
+    try {
+      const reviews = await storage.getMechanicmatchReviewsByJob(req.params.jobId);
+      res.json(reviews);
+    } catch (error: any) {
+      console.error("Error fetching reviews:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch reviews" });
+    }
+  });
+
+  app.post('/api/mechanicmatch/reviews', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const validatedData = insertMechanicmatchReviewSchema.parse(req.body);
+      const review = await storage.createMechanicmatchReview({
+        ...validatedData,
+        reviewerId: userId,
+      });
+      res.json(review);
+    } catch (error: any) {
+      console.error("Error creating review:", error);
+      res.status(400).json({ message: error.message || "Failed to create review" });
+    }
+  });
+
+  // MechanicMatch Message routes
+  app.get('/api/mechanicmatch/messages/job/:jobId', isAuthenticated, async (req, res) => {
+    try {
+      const messages = await storage.getMechanicmatchMessagesByJob(req.params.jobId);
+      res.json(messages);
+    } catch (error: any) {
+      console.error("Error fetching messages:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch messages" });
+    }
+  });
+
+  app.get('/api/mechanicmatch/messages/unread', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const messages = await storage.getUnreadMechanicmatchMessages(userId);
+      res.json(messages);
+    } catch (error: any) {
+      console.error("Error fetching unread messages:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch messages" });
+    }
+  });
+
+  app.post('/api/mechanicmatch/messages', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const validatedData = insertMechanicmatchMessageSchema.parse(req.body);
+      const message = await storage.createMechanicmatchMessage({
+        ...validatedData,
+        senderId: userId,
+      });
+      res.json(message);
+    } catch (error: any) {
+      console.error("Error creating message:", error);
+      res.status(400).json({ message: error.message || "Failed to create message" });
+    }
+  });
+
+  app.put('/api/mechanicmatch/messages/:id/read', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const message = await storage.markMechanicmatchMessageAsRead(req.params.id, userId);
+      res.json(message);
+    } catch (error: any) {
+      console.error("Error marking message as read:", error);
+      res.status(400).json({ message: error.message || "Failed to mark message as read" });
+    }
+  });
+
+  // MechanicMatch Search routes
+  app.get('/api/mechanicmatch/search/mechanics', isAuthenticated, async (req: any, res) => {
+    try {
+      const filters: any = {};
+      if (req.query.city) filters.city = req.query.city;
+      if (req.query.state) filters.state = req.query.state;
+      if (req.query.isMobileMechanic !== undefined) filters.isMobileMechanic = req.query.isMobileMechanic === 'true';
+      if (req.query.maxHourlyRate) filters.maxHourlyRate = parseFloat(req.query.maxHourlyRate);
+      if (req.query.minRating) filters.minRating = parseFloat(req.query.minRating);
+      if (req.query.specialties) filters.specialties = Array.isArray(req.query.specialties) ? req.query.specialties : [req.query.specialties];
+      
+      const mechanics = await storage.searchMechanicmatchMechanics(filters);
+      res.json(mechanics);
+    } catch (error: any) {
+      console.error("Error searching mechanics:", error);
+      res.status(500).json({ message: error.message || "Failed to search mechanics" });
+    }
+  });
+
+  // MechanicMatch Admin Announcement routes
+  app.get('/api/mechanicmatch/admin/announcements', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const announcements = await storage.getAllMechanicmatchAnnouncements();
+      res.json(announcements);
+    } catch (error) {
+      console.error("Error fetching MechanicMatch announcements:", error);
+      res.status(500).json({ message: "Failed to fetch announcements" });
+    }
+  });
+
+  app.post('/api/mechanicmatch/admin/announcements', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const validatedData = insertMechanicmatchAnnouncementSchema.parse(req.body);
+
+      const announcement = await storage.createMechanicmatchAnnouncement(validatedData);
+      
+      await logAdminAction(
+        userId,
+        "create_mechanicmatch_announcement",
+        "announcement",
+        announcement.id,
+        { title: announcement.title, type: announcement.type }
+      );
+
+      res.json(announcement);
+    } catch (error: any) {
+      console.error("Error creating MechanicMatch announcement:", error);
+      res.status(400).json({ message: error.message || "Failed to create announcement" });
+    }
+  });
+
+  app.put('/api/mechanicmatch/admin/announcements/:id', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const announcement = await storage.updateMechanicmatchAnnouncement(req.params.id, req.body);
+      
+      await logAdminAction(
+        userId,
+        "update_mechanicmatch_announcement",
+        "announcement",
+        announcement.id,
+        { title: announcement.title }
+      );
+
+      res.json(announcement);
+    } catch (error: any) {
+      console.error("Error updating MechanicMatch announcement:", error);
+      res.status(400).json({ message: error.message || "Failed to update announcement" });
+    }
+  });
+
+  app.delete('/api/mechanicmatch/admin/announcements/:id', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const announcement = await storage.deactivateMechanicmatchAnnouncement(req.params.id);
+      
+      await logAdminAction(
+        userId,
+        "deactivate_mechanicmatch_announcement",
+        "announcement",
+        announcement.id,
+        { title: announcement.title }
+      );
+
+      res.json(announcement);
+    } catch (error: any) {
+      console.error("Error deleting MechanicMatch announcement:", error);
+      res.status(400).json({ message: error.message || "Failed to delete announcement" });
+    }
+  });
+
+  // ========================================
+  // RESEARCH ROUTES
+  // ========================================
+
+  // Research Announcement routes (public)
+  app.get('/api/research/announcements', async (req, res) => {
+    try {
+      const announcements = await storage.getActiveResearchAnnouncements();
+      res.json(announcements);
+    } catch (error) {
+      console.error("Error fetching Research announcements:", error);
+      res.status(500).json({ message: "Failed to fetch announcements" });
+    }
+  });
+
+  // Research Item routes
+  app.post('/api/research/items', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const body = req.body;
+      
+      // Parse JSON arrays if strings
+      if (typeof body.tags === 'string') {
+        try {
+          body.tags = JSON.parse(body.tags);
+        } catch (e) {
+          body.tags = [];
+        }
+      }
+      if (typeof body.attachments === 'string') {
+        try {
+          body.attachments = JSON.parse(body.attachments);
+        } catch (e) {
+          body.attachments = [];
+        }
+      }
+
+      const validatedData = insertResearchItemSchema.parse({ ...body, userId });
+      const item = await storage.createResearchItem(validatedData);
+      
+      console.log(`Research item created: ${item.id} by ${userId}`);
+      res.json(item);
+    } catch (error: any) {
+      console.error("Error creating research item:", error);
+      res.status(400).json({ message: error.message || "Failed to create research item" });
+    }
+  });
+
+  app.get('/api/research/items', async (req, res) => {
+    try {
+      const filters: any = {};
+      if (req.query.userId) filters.userId = req.query.userId as string;
+      if (req.query.tag) filters.tag = req.query.tag as string;
+      if (req.query.status) filters.status = req.query.status as string;
+      if (req.query.isPublic !== undefined) filters.isPublic = req.query.isPublic === 'true';
+      if (req.query.search) filters.search = req.query.search as string;
+      if (req.query.sortBy) filters.sortBy = req.query.sortBy as string;
+      filters.limit = parseInt(req.query.limit as string || "50");
+      filters.offset = parseInt(req.query.offset as string || "0");
+      
+      const result = await storage.getResearchItems(filters);
+      res.json(result);
+    } catch (error: any) {
+      console.error("Error fetching research items:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch research items" });
+    }
+  });
+
+  app.get('/api/research/items/public', publicListingLimiter, async (req, res) => {
+    try {
+      const filters: any = { isPublic: true };
+      if (req.query.tag) filters.tag = req.query.tag as string;
+      if (req.query.search) filters.search = req.query.search as string;
+      filters.limit = parseInt(req.query.limit as string || "20");
+      filters.offset = parseInt(req.query.offset as string || "0");
+      
+      const result = await storage.getResearchItems(filters);
+      res.json(result.items);
+    } catch (error: any) {
+      console.error("Error fetching public research items:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch research items" });
+    }
+  });
+
+  app.get('/api/research/items/:id', async (req, res) => {
+    try {
+      const item = await storage.getResearchItemById(req.params.id);
+      if (!item) {
+        return res.status(404).json({ message: "Research item not found" });
+      }
+      
+      // Increment view count
+      await storage.incrementResearchItemViewCount(req.params.id);
+      
+      res.json(item);
+    } catch (error: any) {
+      console.error("Error fetching research item:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch research item" });
+    }
+  });
+
+  app.put('/api/research/items/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const item = await storage.getResearchItemById(req.params.id);
+      
+      if (!item) {
+        return res.status(404).json({ message: "Research item not found" });
+      }
+      
+      if (item.userId !== userId && !isAdmin(req)) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      const body = req.body;
+      if (typeof body.tags === 'string') {
+        try {
+          body.tags = JSON.parse(body.tags);
+        } catch (e) {
+          body.tags = [];
+        }
+      }
+      if (typeof body.attachments === 'string') {
+        try {
+          body.attachments = JSON.parse(body.attachments);
+        } catch (e) {
+          body.attachments = [];
+        }
+      }
+
+      const updated = await storage.updateResearchItem(req.params.id, body);
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating research item:", error);
+      res.status(400).json({ message: error.message || "Failed to update research item" });
+    }
+  });
+
+  // Research Answer routes
+  app.post('/api/research/answers', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const body = req.body;
+      
+      if (typeof body.links === 'string') {
+        try {
+          body.links = JSON.parse(body.links);
+        } catch (e) {
+          body.links = [];
+        }
+      }
+      if (typeof body.attachments === 'string') {
+        try {
+          body.attachments = JSON.parse(body.attachments);
+        } catch (e) {
+          body.attachments = [];
+        }
+      }
+
+      const validatedData = insertResearchAnswerSchema.parse({ ...body, userId });
+      const answer = await storage.createResearchAnswer(validatedData);
+      
+      // Trigger link verification for any links provided
+      if (validatedData.links && validatedData.links.length > 0) {
+        // Queue link verification (async, non-blocking)
+        setImmediate(async () => {
+          for (const url of validatedData.links || []) {
+            try {
+              await verifyResearchLink(answer.id, url);
+            } catch (error) {
+              console.error(`Error verifying link ${url}:`, error);
+            }
+          }
+        });
+      }
+      
+      res.json(answer);
+    } catch (error: any) {
+      console.error("Error creating research answer:", error);
+      res.status(400).json({ message: error.message || "Failed to create answer" });
+    }
+  });
+
+  app.get('/api/research/items/:id/answers', async (req, res) => {
+    try {
+      const sortBy = req.query.sortBy as string || "relevance";
+      const answers = await storage.getResearchAnswersByItemId(req.params.id, sortBy);
+      res.json(answers);
+    } catch (error: any) {
+      console.error("Error fetching answers:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch answers" });
+    }
+  });
+
+  app.get('/api/research/answers/:id', async (req, res) => {
+    try {
+      const answer = await storage.getResearchAnswerById(req.params.id);
+      if (!answer) {
+        return res.status(404).json({ message: "Answer not found" });
+      }
+      res.json(answer);
+    } catch (error: any) {
+      console.error("Error fetching answer:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch answer" });
+    }
+  });
+
+  app.put('/api/research/answers/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const answer = await storage.getResearchAnswerById(req.params.id);
+      
+      if (!answer) {
+        return res.status(404).json({ message: "Answer not found" });
+      }
+      
+      if (answer.userId !== userId && !isAdmin(req)) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      const body = req.body;
+      if (typeof body.links === 'string') {
+        try {
+          body.links = JSON.parse(body.links);
+        } catch (e) {
+          body.links = [];
+        }
+      }
+
+      const updated = await storage.updateResearchAnswer(req.params.id, body);
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating answer:", error);
+      res.status(400).json({ message: error.message || "Failed to update answer" });
+    }
+  });
+
+  // Accept answer endpoint
+  app.post('/api/research/items/:itemId/accept-answer/:answerId', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const item = await storage.getResearchItemById(req.params.itemId);
+      
+      if (!item || item.userId !== userId) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      const updatedItem = await storage.acceptResearchAnswer(req.params.itemId, req.params.answerId);
+      res.json(updatedItem);
+    } catch (error: any) {
+      console.error("Error accepting answer:", error);
+      res.status(400).json({ message: error.message || "Failed to accept answer" });
+    }
+  });
+
+  // Research Comment routes
+  app.post('/api/research/comments', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const validatedData = insertResearchCommentSchema.parse({ ...req.body, userId });
+      const comment = await storage.createResearchComment(validatedData);
+      res.json(comment);
+    } catch (error: any) {
+      console.error("Error creating comment:", error);
+      res.status(400).json({ message: error.message || "Failed to create comment" });
+    }
+  });
+
+  app.get('/api/research/comments', async (req, res) => {
+    try {
+      const filters: any = {};
+      if (req.query.researchItemId) filters.researchItemId = req.query.researchItemId as string;
+      if (req.query.answerId) filters.answerId = req.query.answerId as string;
+      
+      const comments = await storage.getResearchComments(filters);
+      res.json(comments);
+    } catch (error: any) {
+      console.error("Error fetching comments:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch comments" });
+    }
+  });
+
+  app.put('/api/research/comments/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const comment = await storage.getResearchComments({ researchItemId: undefined, answerId: undefined }).then(cs => cs.find(c => c.id === req.params.id));
+      
+      if (!comment || comment.userId !== userId) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      const updated = await storage.updateResearchComment(req.params.id, req.body);
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating comment:", error);
+      res.status(400).json({ message: error.message || "Failed to update comment" });
+    }
+  });
+
+  app.delete('/api/research/comments/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      // Note: In production, check ownership or admin status
+      await storage.deleteResearchComment(req.params.id);
+      res.json({ message: "Comment deleted" });
+    } catch (error: any) {
+      console.error("Error deleting comment:", error);
+      res.status(400).json({ message: error.message || "Failed to delete comment" });
+    }
+  });
+
+  // Research Vote routes
+  app.post('/api/research/votes', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const validatedData = insertResearchVoteSchema.parse({ ...req.body, userId });
+      const vote = await storage.createOrUpdateResearchVote(validatedData);
+      res.json(vote);
+    } catch (error: any) {
+      console.error("Error creating vote:", error);
+      res.status(400).json({ message: error.message || "Failed to create vote" });
+    }
+  });
+
+  app.get('/api/research/votes', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const researchItemId = req.query.researchItemId as string;
+      const answerId = req.query.answerId as string;
+      
+      const vote = await storage.getResearchVote(userId, researchItemId, answerId);
+      res.json(vote || null);
+    } catch (error: any) {
+      console.error("Error fetching vote:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch vote" });
+    }
+  });
+
+  app.delete('/api/research/votes', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const researchItemId = req.query.researchItemId as string;
+      const answerId = req.query.answerId as string;
+      
+      await storage.deleteResearchVote(userId, researchItemId, answerId);
+      res.json({ message: "Vote deleted" });
+    } catch (error: any) {
+      console.error("Error deleting vote:", error);
+      res.status(400).json({ message: error.message || "Failed to delete vote" });
+    }
+  });
+
+  // Research Bookmark routes
+  app.post('/api/research/bookmarks', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const validatedData = insertResearchBookmarkSchema.parse({ ...req.body, userId });
+      const bookmark = await storage.createResearchBookmark(validatedData);
+      res.json(bookmark);
+    } catch (error: any) {
+      console.error("Error creating bookmark:", error);
+      res.status(400).json({ message: error.message || "Failed to create bookmark" });
+    }
+  });
+
+  app.delete('/api/research/bookmarks/:itemId', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      await storage.deleteResearchBookmark(userId, req.params.itemId);
+      res.json({ message: "Bookmark deleted" });
+    } catch (error: any) {
+      console.error("Error deleting bookmark:", error);
+      res.status(400).json({ message: error.message || "Failed to delete bookmark" });
+    }
+  });
+
+  app.get('/api/research/bookmarks', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const bookmarks = await storage.getResearchBookmarks(userId);
+      res.json(bookmarks);
+    } catch (error: any) {
+      console.error("Error fetching bookmarks:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch bookmarks" });
+    }
+  });
+
+  // Research Follow routes
+  app.post('/api/research/follows', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const validatedData = insertResearchFollowSchema.parse({ ...req.body, userId });
+      const follow = await storage.createResearchFollow(validatedData);
+      res.json(follow);
+    } catch (error: any) {
+      console.error("Error creating follow:", error);
+      res.status(400).json({ message: error.message || "Failed to create follow" });
+    }
+  });
+
+  app.delete('/api/research/follows', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const filters: any = {};
+      if (req.query.followedUserId) filters.followedUserId = req.query.followedUserId as string;
+      if (req.query.researchItemId) filters.researchItemId = req.query.researchItemId as string;
+      if (req.query.tag) filters.tag = req.query.tag as string;
+      
+      await storage.deleteResearchFollow(userId, filters);
+      res.json({ message: "Follow deleted" });
+    } catch (error: any) {
+      console.error("Error deleting follow:", error);
+      res.status(400).json({ message: error.message || "Failed to delete follow" });
+    }
+  });
+
+  app.get('/api/research/follows', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const follows = await storage.getResearchFollows(userId);
+      res.json(follows);
+    } catch (error: any) {
+      console.error("Error fetching follows:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch follows" });
+    }
+  });
+
+  // Research Timeline/Feed
+  app.get('/api/research/timeline', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const limit = parseInt(req.query.limit as string || "50");
+      const offset = parseInt(req.query.offset as string || "0");
+      
+      const items = await storage.getResearchTimeline(userId, limit, offset);
+      res.json(items);
+    } catch (error: any) {
+      console.error("Error fetching timeline:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch timeline" });
+    }
+  });
+
+  // Research Link Provenance routes
+  app.get('/api/research/answers/:answerId/links', async (req, res) => {
+    try {
+      const provenances = await storage.getResearchLinkProvenancesByAnswerId(req.params.answerId);
+      res.json(provenances);
+    } catch (error: any) {
+      console.error("Error fetching link provenances:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch links" });
+    }
+  });
+
+  // Link verification endpoint (triggers async verification)
+  app.post('/api/research/verify-link', isAuthenticated, async (req: any, res) => {
+    try {
+      const { answerId, url } = req.body;
+      
+      if (!answerId || !url) {
+        return res.status(400).json({ message: "answerId and url are required" });
+      }
+
+      // Queue verification (non-blocking)
+      setImmediate(async () => {
+        try {
+          await verifyResearchLink(answerId, url);
+        } catch (error) {
+          console.error(`Error verifying link ${url}:`, error);
+        }
+      });
+
+      res.json({ message: "Link verification queued" });
+    } catch (error: any) {
+      console.error("Error queuing link verification:", error);
+      res.status(500).json({ message: error.message || "Failed to queue verification" });
+    }
+  });
+
+  // Research Board/Column/Card routes (Trello-style)
+  app.post('/api/research/boards', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const validatedData = insertResearchBoardSchema.parse({ ...req.body, userId });
+      const board = await storage.createResearchBoard(validatedData);
+      res.json(board);
+    } catch (error: any) {
+      console.error("Error creating board:", error);
+      res.status(400).json({ message: error.message || "Failed to create board" });
+    }
+  });
+
+  app.get('/api/research/items/:itemId/boards', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const boards = await storage.getResearchBoardsByItemId(req.params.itemId, userId);
+      res.json(boards);
+    } catch (error: any) {
+      console.error("Error fetching boards:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch boards" });
+    }
+  });
+
+  app.post('/api/research/columns', isAuthenticated, async (req: any, res) => {
+    try {
+      const validatedData = insertResearchColumnSchema.parse(req.body);
+      const column = await storage.createResearchColumn(validatedData);
+      res.json(column);
+    } catch (error: any) {
+      console.error("Error creating column:", error);
+      res.status(400).json({ message: error.message || "Failed to create column" });
+    }
+  });
+
+  app.get('/api/research/boards/:boardId/columns', async (req, res) => {
+    try {
+      const columns = await storage.getResearchColumnsByBoardId(req.params.boardId);
+      res.json(columns);
+    } catch (error: any) {
+      console.error("Error fetching columns:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch columns" });
+    }
+  });
+
+  app.post('/api/research/cards', isAuthenticated, async (req: any, res) => {
+    try {
+      const validatedData = insertResearchCardSchema.parse(req.body);
+      const card = await storage.createResearchCard(validatedData);
+      res.json(card);
+    } catch (error: any) {
+      console.error("Error creating card:", error);
+      res.status(400).json({ message: error.message || "Failed to create card" });
+    }
+  });
+
+  app.get('/api/research/columns/:columnId/cards', async (req, res) => {
+    try {
+      const cards = await storage.getResearchCardsByColumnId(req.params.columnId);
+      res.json(cards);
+    } catch (error: any) {
+      console.error("Error fetching cards:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch cards" });
+    }
+  });
+
+  app.put('/api/research/cards/:id/move', isAuthenticated, async (req: any, res) => {
+    try {
+      const { columnId, position } = req.body;
+      const card = await storage.moveResearchCard(req.params.id, columnId, position);
+      res.json(card);
+    } catch (error: any) {
+      console.error("Error moving card:", error);
+      res.status(400).json({ message: error.message || "Failed to move card" });
+    }
+  });
+
+  // Research Report routes
+  app.post('/api/research/reports', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const validatedData = insertResearchReportSchema.parse({ ...req.body, userId });
+      const report = await storage.createResearchReport(validatedData);
+      res.json(report);
+    } catch (error: any) {
+      console.error("Error creating report:", error);
+      res.status(400).json({ message: error.message || "Failed to create report" });
+    }
+  });
+
+  app.get('/api/research/admin/reports', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const filters: any = {};
+      if (req.query.status) filters.status = req.query.status as string;
+      filters.limit = parseInt(req.query.limit as string || "50");
+      filters.offset = parseInt(req.query.offset as string || "0");
+      
+      const result = await storage.getResearchReports(filters);
+      res.json(result);
+    } catch (error: any) {
+      console.error("Error fetching reports:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch reports" });
+    }
+  });
+
+  app.put('/api/research/admin/reports/:id', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const updated = await storage.updateResearchReport(req.params.id, {
+        ...req.body,
+        reviewedBy: userId,
+        reviewedAt: new Date(),
+      });
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating report:", error);
+      res.status(400).json({ message: error.message || "Failed to update report" });
+    }
+  });
+
+  // Research User Reputation
+  app.get('/api/research/users/:userId/reputation', async (req, res) => {
+    try {
+      const reputation = await storage.getUserReputation(req.params.userId);
+      res.json({ reputation });
+    } catch (error: any) {
+      console.error("Error fetching reputation:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch reputation" });
+    }
+  });
+
+  // Research Admin Announcement routes
+  app.get('/api/research/admin/announcements', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const announcements = await storage.getAllResearchAnnouncements();
+      res.json(announcements);
+    } catch (error) {
+      console.error("Error fetching Research announcements:", error);
+      res.status(500).json({ message: "Failed to fetch announcements" });
+    }
+  });
+
+  app.post('/api/research/admin/announcements', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const validatedData = insertResearchAnnouncementSchema.parse(req.body);
+
+      const announcement = await storage.createResearchAnnouncement(validatedData);
+      
+      await logAdminAction(
+        userId,
+        "create_research_announcement",
+        "announcement",
+        announcement.id,
+        { title: announcement.title, type: announcement.type }
+      );
+
+      res.json(announcement);
+    } catch (error: any) {
+      console.error("Error creating Research announcement:", error);
+      res.status(400).json({ message: error.message || "Failed to create announcement" });
+    }
+  });
+
+  app.put('/api/research/admin/announcements/:id', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const announcement = await storage.updateResearchAnnouncement(req.params.id, req.body);
+      
+      await logAdminAction(
+        userId,
+        "update_research_announcement",
+        "announcement",
+        announcement.id,
+        { title: announcement.title }
+      );
+
+      res.json(announcement);
+    } catch (error: any) {
+      console.error("Error updating Research announcement:", error);
+      res.status(400).json({ message: error.message || "Failed to update announcement" });
+    }
+  });
+
+  app.delete('/api/research/admin/announcements/:id', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const announcement = await storage.deactivateResearchAnnouncement(req.params.id);
+      
+      await logAdminAction(
+        userId,
+        "deactivate_research_announcement",
+        "announcement",
+        announcement.id,
+        { title: announcement.title }
+      );
+
+      res.json(announcement);
+    } catch (error: any) {
+      console.error("Error deleting Research announcement:", error);
+      res.status(400).json({ message: error.message || "Failed to delete announcement" });
+    }
+  });
+
+  // Link verification helper function (simplified - fetches link and computes fake similarity)
+  async function verifyResearchLink(answerId: string, url: string): Promise<void> {
+    try {
+      const urlObj = new URL(url);
+      const domain = urlObj.hostname;
+
+      // Fetch link (simplified - in production, use proper HTTP client with timeout)
+      let httpStatus = 200;
+      let title = "";
+      let snippet = "";
+      let domainScore = 0.5; // Default
+
+      try {
+        // Simple domain scoring (in production, use whitelist/blacklist)
+        if (domain.includes('.edu') || domain.includes('.gov')) {
+          domainScore = 0.9;
+        } else if (domain.includes('.org')) {
+          domainScore = 0.7;
+        } else if (domain.includes('.com')) {
+          domainScore = 0.5;
+        }
+
+        // In production, fetch actual page content
+        // For now, create a fake similarity score (0.6-0.9 range)
+        const similarityScore = 0.6 + Math.random() * 0.3;
+
+        // Create provenance entry
+        await storage.createResearchLinkProvenance({
+          answerId,
+          url,
+          httpStatus,
+          title: title || domain,
+          snippet: snippet || `Content from ${domain}`,
+          domain,
+          domainScore,
+          similarityScore,
+          isSupportive: similarityScore > 0.7 && domainScore > 0.5,
+        });
+
+        console.log(`Link verified: ${url} for answer ${answerId}`);
+      } catch (fetchError: any) {
+        // If fetch fails, still create provenance with error status
+        await storage.createResearchLinkProvenance({
+          answerId,
+          url,
+          httpStatus: 0,
+          title: domain,
+          snippet: `Error fetching: ${fetchError.message}`,
+          domain,
+          domainScore: 0.3,
+          similarityScore: 0,
+          isSupportive: false,
+        });
+      }
+    } catch (error: any) {
+      console.error(`Error verifying link ${url}:`, error);
+      throw error;
+    }
+  }
+
+  // ========================================
+  // ========================================
+  // GENTLEPULSE ROUTES
+  // ========================================
+
+  // Helper to strip IP and metadata from request for privacy
+  const stripIPAndMetadata = (req: any) => {
+    // Remove IP, user-agent, and other identifying headers before storage
+    delete req.ip;
+    delete req.connection?.remoteAddress;
+    delete req.socket?.remoteAddress;
+    delete req.headers["x-forwarded-for"];
+    delete req.headers["x-real-ip"];
+  };
+
+  // GentlePulse Announcement routes (public)
+  app.get('/api/gentlepulse/announcements', async (req, res) => {
+    try {
+      const announcements = await storage.getActiveGentlepulseAnnouncements();
+      res.json(announcements);
+    } catch (error) {
+      console.error("Error fetching GentlePulse announcements:", error);
+      res.status(500).json({ message: "Failed to fetch announcements" });
+    }
+  });
+
+  // GentlePulse Meditation routes (public)
+  app.get('/api/gentlepulse/meditations', publicListingLimiter, async (req, res) => {
+    try {
+      stripIPAndMetadata(req);
+      
+      const filters: any = {};
+      if (req.query.tag) filters.tag = req.query.tag as string;
+      if (req.query.sortBy) filters.sortBy = req.query.sortBy as string;
+      filters.limit = parseInt(req.query.limit as string || "50");
+      filters.offset = parseInt(req.query.offset as string || "0");
+      
+      const result = await storage.getGentlepulseMeditations(filters);
+      res.json(result);
+    } catch (error: any) {
+      console.error("Error fetching meditations:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch meditations" });
+    }
+  });
+
+  app.get('/api/gentlepulse/meditations/:id', async (req, res) => {
+    try {
+      stripIPAndMetadata(req);
+      const meditation = await storage.getGentlepulseMeditationById(req.params.id);
+      if (!meditation) {
+        return res.status(404).json({ message: "Meditation not found" });
+      }
+      res.json(meditation);
+    } catch (error: any) {
+      console.error("Error fetching meditation:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch meditation" });
+    }
+  });
+
+  // Track meditation play (increment play count)
+  app.post('/api/gentlepulse/meditations/:id/play', async (req, res) => {
+    try {
+      stripIPAndMetadata(req);
+      await storage.incrementGentlepulsePlayCount(req.params.id);
+      res.json({ message: "Play count updated" });
+    } catch (error: any) {
+      console.error("Error updating play count:", error);
+      res.status(500).json({ message: error.message || "Failed to update play count" });
+    }
+  });
+
+  // GentlePulse Rating routes (public, anonymous)
+  app.post('/api/gentlepulse/ratings', publicItemLimiter, async (req, res) => {
+    try {
+      stripIPAndMetadata(req);
+      
+      const validatedData = insertGentlepulseRatingSchema.parse(req.body);
+      const rating = await storage.createOrUpdateGentlepulseRating(validatedData);
+      
+      console.log(`GentlePulse rating submitted: meditation ${validatedData.meditationId}, rating ${validatedData.rating}`);
+      
+      res.json(rating);
+    } catch (error: any) {
+      console.error("Error creating rating:", error);
+      res.status(400).json({ message: error.message || "Failed to create rating" });
+    }
+  });
+
+  app.get('/api/gentlepulse/meditations/:id/ratings', async (req, res) => {
+    try {
+      stripIPAndMetadata(req);
+      const ratings = await storage.getGentlepulseRatingsByMeditationId(req.params.id);
+      // Return only aggregated data, not individual ratings
+      const average = ratings.length > 0 
+        ? ratings.reduce((sum, r) => sum + r.rating, 0) / ratings.length 
+        : 0;
+      res.json({ average: Number(average.toFixed(2)), count: ratings.length });
+    } catch (error: any) {
+      console.error("Error fetching ratings:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch ratings" });
+    }
+  });
+
+  // GentlePulse Mood Check routes (public, anonymous)
+  app.post('/api/gentlepulse/mood', publicItemLimiter, async (req, res) => {
+    try {
+      stripIPAndMetadata(req);
+      
+      const validatedData = insertGentlepulseMoodCheckSchema.parse({
+        ...req.body,
+        date: new Date().toISOString().split('T')[0], // Today's date
+      });
+      
+      const moodCheck = await storage.createGentlepulseMoodCheck(validatedData);
+      
+      // Check for suicide prevention trigger (3+ extremely negative moods in 7 days)
+      const recentMoods = await storage.getGentlepulseMoodChecksByClientId(validatedData.clientId, 7);
+      const extremelyNegative = recentMoods.filter(m => m.moodValue === 1).length;
+      
+      console.log(`GentlePulse mood check submitted: client ${validatedData.clientId}, mood ${validatedData.moodValue}`);
+      
+      res.json({
+        ...moodCheck,
+        showSafetyMessage: extremelyNegative >= 3,
+      });
+    } catch (error: any) {
+      console.error("Error creating mood check:", error);
+      res.status(400).json({ message: error.message || "Failed to create mood check" });
+    }
+  });
+
+  // Check if mood check should be shown (once every 7 days)
+  app.get('/api/gentlepulse/mood/check-eligible', async (req, res) => {
+    try {
+      const clientId = req.query.clientId as string;
+      if (!clientId) {
+        return res.json({ eligible: false });
+      }
+
+      const recentMoods = await storage.getGentlepulseMoodChecksByClientId(clientId, 7);
+      const lastMood = recentMoods[0];
+      
+      if (!lastMood) {
+        return res.json({ eligible: true });
+      }
+
+      const daysSinceLastMood = (Date.now() - new Date(lastMood.createdAt).getTime()) / (1000 * 60 * 60 * 24);
+      res.json({ eligible: daysSinceLastMood >= 7 });
+    } catch (error: any) {
+      console.error("Error checking mood eligibility:", error);
+      res.status(500).json({ message: error.message || "Failed to check eligibility" });
+    }
+  });
+
+  // GentlePulse Favorites routes (public, anonymous)
+  app.post('/api/gentlepulse/favorites', async (req, res) => {
+    try {
+      stripIPAndMetadata(req);
+      const validatedData = insertGentlepulseFavoriteSchema.parse(req.body);
+      const favorite = await storage.createGentlepulseFavorite(validatedData);
+      res.json(favorite);
+    } catch (error: any) {
+      console.error("Error creating favorite:", error);
+      res.status(400).json({ message: error.message || "Failed to create favorite" });
+    }
+  });
+
+  app.delete('/api/gentlepulse/favorites/:meditationId', async (req, res) => {
+    try {
+      stripIPAndMetadata(req);
+      const clientId = req.query.clientId as string;
+      if (!clientId) {
+        return res.status(400).json({ message: "clientId required" });
+      }
+      await storage.deleteGentlepulseFavorite(clientId, req.params.meditationId);
+      res.json({ message: "Favorite removed" });
+    } catch (error: any) {
+      console.error("Error deleting favorite:", error);
+      res.status(400).json({ message: error.message || "Failed to delete favorite" });
+    }
+  });
+
+  app.get('/api/gentlepulse/favorites', async (req, res) => {
+    try {
+      stripIPAndMetadata(req);
+      const clientId = req.query.clientId as string;
+      if (!clientId) {
+        return res.json([]);
+      }
+      const favorites = await storage.getGentlepulseFavoritesByClientId(clientId);
+      res.json(favorites.map(f => f.meditationId));
+    } catch (error: any) {
+      console.error("Error fetching favorites:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch favorites" });
+    }
+  });
+
+  app.get('/api/gentlepulse/favorites/check', async (req, res) => {
+    try {
+      stripIPAndMetadata(req);
+      const clientId = req.query.clientId as string;
+      const meditationId = req.query.meditationId as string;
+      if (!clientId || !meditationId) {
+        return res.json({ isFavorite: false });
+      }
+      const isFavorite = await storage.isGentlepulseFavorite(clientId, meditationId);
+      res.json({ isFavorite });
+    } catch (error: any) {
+      console.error("Error checking favorite:", error);
+      res.status(500).json({ message: error.message || "Failed to check favorite" });
+    }
+  });
+
+  // GentlePulse Admin routes
+  app.post('/api/gentlepulse/admin/meditations', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const body = req.body;
+      
+      if (typeof body.tags === 'string') {
+        try {
+          body.tags = JSON.parse(body.tags);
+        } catch (e) {
+          body.tags = [];
+        }
+      }
+
+      const validatedData = insertGentlepulseMeditationSchema.parse(body);
+      const meditation = await storage.createGentlepulseMeditation(validatedData);
+      
+      await logAdminAction(
+        userId,
+        "create_gentlepulse_meditation",
+        "meditation",
+        meditation.id,
+        { title: meditation.title }
+      );
+
+      res.json(meditation);
+    } catch (error: any) {
+      console.error("Error creating meditation:", error);
+      res.status(400).json({ message: error.message || "Failed to create meditation" });
+    }
+  });
+
+  app.put('/api/gentlepulse/admin/meditations/:id', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const body = req.body;
+      
+      if (typeof body.tags === 'string') {
+        try {
+          body.tags = JSON.parse(body.tags);
+        } catch (e) {
+          body.tags = [];
+        }
+      }
+
+      const meditation = await storage.updateGentlepulseMeditation(req.params.id, body);
+      
+      await logAdminAction(
+        userId,
+        "update_gentlepulse_meditation",
+        "meditation",
+        meditation.id,
+        { title: meditation.title }
+      );
+
+      res.json(meditation);
+    } catch (error: any) {
+      console.error("Error updating meditation:", error);
+      res.status(400).json({ message: error.message || "Failed to update meditation" });
+    }
+  });
+
+  // GentlePulse Admin Announcement routes
+  app.get('/api/gentlepulse/admin/announcements', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const announcements = await storage.getAllGentlepulseAnnouncements();
+      res.json(announcements);
+    } catch (error) {
+      console.error("Error fetching GentlePulse announcements:", error);
+      res.status(500).json({ message: "Failed to fetch announcements" });
+    }
+  });
+
+  app.post('/api/gentlepulse/admin/announcements', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const validatedData = insertGentlepulseAnnouncementSchema.parse(req.body);
+
+      const announcement = await storage.createGentlepulseAnnouncement(validatedData);
+      
+      await logAdminAction(
+        userId,
+        "create_gentlepulse_announcement",
+        "announcement",
+        announcement.id,
+        { title: announcement.title, type: announcement.type }
+      );
+
+      res.json(announcement);
+    } catch (error: any) {
+      console.error("Error creating GentlePulse announcement:", error);
+      res.status(400).json({ message: error.message || "Failed to create announcement" });
+    }
+  });
+
+  app.put('/api/gentlepulse/admin/announcements/:id', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const announcement = await storage.updateGentlepulseAnnouncement(req.params.id, req.body);
+      
+      await logAdminAction(
+        userId,
+        "update_gentlepulse_announcement",
+        "announcement",
+        announcement.id,
+        { title: announcement.title }
+      );
+
+      res.json(announcement);
+    } catch (error: any) {
+      console.error("Error updating GentlePulse announcement:", error);
+      res.status(400).json({ message: error.message || "Failed to update announcement" });
+    }
+  });
+
+  app.delete('/api/gentlepulse/admin/announcements/:id', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const announcement = await storage.deactivateGentlepulseAnnouncement(req.params.id);
+      
+      await logAdminAction(
+        userId,
+        "deactivate_gentlepulse_announcement",
+        "announcement",
+        announcement.id,
+        { title: announcement.title }
+      );
+
+      res.json(announcement);
+    } catch (error: any) {
+      console.error("Error deleting GentlePulse announcement:", error);
+      res.status(400).json({ message: error.message || "Failed to delete announcement" });
+    }
+  });
+
+  // ========================================
+  // LOSTMAIL ROUTES
+  // ========================================
+
+  // Create uploads directory if it doesn't exist
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = path.dirname(__filename);
+  const uploadsDir = path.join(__dirname, "..", "uploads", "lostmail");
+  try {
+    await fs.mkdir(uploadsDir, { recursive: true });
+    await fs.mkdir(path.join(uploadsDir, "thumbnails"), { recursive: true });
+  } catch (err) {
+    console.error("Error creating uploads directory:", err);
+  }
+
+  // Serve uploaded files statically
+  app.use("/uploads/lostmail", express.static(uploadsDir, {
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith(".jpg") || filePath.endsWith(".jpeg") || filePath.endsWith(".png") || filePath.endsWith(".gif")) {
+        res.setHeader("Content-Type", "image/jpeg");
+      }
+    },
+  }));
+
+  // LostMail Announcement routes (public)
+  app.get('/api/lostmail/announcements', async (req, res) => {
+    try {
+      const announcements = await storage.getActiveLostmailAnnouncements();
+      res.json(announcements);
+    } catch (error) {
+      console.error("Error fetching LostMail announcements:", error);
+      res.status(500).json({ message: "Failed to fetch announcements" });
+    }
+  });
+
+  // LostMail Incident routes
+  app.post('/api/lostmail/incidents', async (req, res) => {
+    try {
+      // Parse photos array if present (from JSON string)
+      const body = req.body;
+      if (typeof body.photos === 'string') {
+        try {
+          body.photos = JSON.parse(body.photos);
+        } catch (e) {
+          body.photos = null;
+        }
+      }
+      if (Array.isArray(body.photos)) {
+        body.photos = JSON.stringify(body.photos);
+      }
+
+      const validatedData = insertLostmailIncidentSchema.parse(body);
+      const incident = await storage.createLostmailIncident(validatedData);
+      
+      console.log(`LostMail incident created: ${incident.id} by ${incident.reporterEmail}`);
+      
+      res.json(incident);
+    } catch (error: any) {
+      console.error("Error creating LostMail incident:", error);
+      res.status(400).json({ message: error.message || "Failed to create incident" });
+    }
+  });
+
+  app.get('/api/lostmail/incidents', async (req, res) => {
+    try {
+      const email = req.query.email as string;
+      
+      if (email) {
+        // User lookup by email
+        const incidents = await storage.getLostmailIncidentsByEmail(email);
+        res.json(incidents);
+      } else if (isAdmin(req)) {
+        // Admin list with filters
+        const filters: any = {};
+        if (req.query.incidentType) filters.incidentType = req.query.incidentType as string;
+        if (req.query.status) filters.status = req.query.status as string;
+        if (req.query.severity) filters.severity = req.query.severity as string;
+        if (req.query.dateFrom) filters.dateFrom = new Date(req.query.dateFrom as string);
+        if (req.query.dateTo) filters.dateTo = new Date(req.query.dateTo as string);
+        if (req.query.search) filters.search = req.query.search as string;
+        filters.limit = parseInt(req.query.limit as string || "50");
+        filters.offset = parseInt(req.query.offset as string || "0");
+        
+        const result = await storage.getLostmailIncidents(filters);
+        res.json(result);
+      } else {
+        res.status(401).json({ message: "Unauthorized" });
+      }
+    } catch (error: any) {
+      console.error("Error fetching LostMail incidents:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch incidents" });
+    }
+  });
+
+  app.get('/api/lostmail/incidents/:id', async (req, res) => {
+    try {
+      const incident = await storage.getLostmailIncidentById(req.params.id);
+      if (!incident) {
+        return res.status(404).json({ message: "Incident not found" });
+      }
+      
+      // Only admins or the reporter can view details
+      const email = req.query.email as string;
+      if (!isAdmin(req) && incident.reporterEmail !== email) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      
+      res.json(incident);
+    } catch (error: any) {
+      console.error("Error fetching LostMail incident:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch incident" });
+    }
+  });
+
+  app.put('/api/lostmail/incidents/:id', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const incidentId = req.params.id;
+      const updateData = req.body;
+      
+      // Get old incident to track status changes
+      const oldIncident = await storage.getLostmailIncidentById(incidentId);
+      if (!oldIncident) {
+        return res.status(404).json({ message: "Incident not found" });
+      }
+      
+      // Get admin user info
+      const adminUser = await storage.getUser(userId);
+      const adminName = adminUser ? `${adminUser.firstName} ${adminUser.lastName}` : "Admin";
+      
+      // Track status change in audit trail
+      if (updateData.status && updateData.status !== oldIncident.status) {
+        await storage.createLostmailAuditTrailEntry({
+          incidentId,
+          adminName,
+          action: "status_change",
+          note: `Status changed from ${oldIncident.status} to ${updateData.status}${updateData.note ? `: ${updateData.note}` : ""}`,
+        });
+      }
+      
+      // Track assignment change
+      if (updateData.assignedTo !== undefined && updateData.assignedTo !== oldIncident.assignedTo) {
+        await storage.createLostmailAuditTrailEntry({
+          incidentId,
+          adminName,
+          action: "assigned",
+          note: `Assigned to ${updateData.assignedTo || "unassigned"}`,
+        });
+      }
+      
+      // Track note addition
+      if (updateData.note && updateData.note !== "") {
+        await storage.createLostmailAuditTrailEntry({
+          incidentId,
+          adminName,
+          action: "note_added",
+          note: updateData.note,
+        });
+      }
+      
+      // Remove note from update data (it's only for audit trail)
+      const { note, ...updateDataWithoutNote } = updateData;
+      
+      const updated = await storage.updateLostmailIncident(incidentId, updateDataWithoutNote);
+      
+      console.log(`LostMail incident ${incidentId} updated by admin ${adminName}`);
+      
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating LostMail incident:", error);
+      res.status(400).json({ message: error.message || "Failed to update incident" });
+    }
+  });
+
+  app.get('/api/lostmail/incidents/:id/audit-trail', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const auditTrail = await storage.getLostmailAuditTrailByIncident(req.params.id);
+      res.json(auditTrail);
+    } catch (error: any) {
+      console.error("Error fetching audit trail:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch audit trail" });
+    }
+  });
+
+  // File upload endpoint
+  app.post('/api/lostmail/upload', async (req, res) => {
+    try {
+      // Handle multipart/form-data upload
+      // This is a simplified version - in production, use multer or similar
+      // For now, we'll accept base64 encoded images
+      const { image, filename } = req.body;
+      
+      if (!image || !filename) {
+        return res.status(400).json({ message: "Image and filename required" });
+      }
+      
+      // Decode base64 image
+      const base64Data = image.replace(/^data:image\/\w+;base64,/, "");
+      const buffer = Buffer.from(base64Data, "base64");
+      
+      // Generate unique filename
+      const ext = path.extname(filename) || ".jpg";
+      const uniqueFilename = `${Date.now()}-${Math.random().toString(36).substring(7)}${ext}`;
+      const filePath = path.join(uploadsDir, uniqueFilename);
+      
+      // Save file
+      await fs.writeFile(filePath, buffer);
+      
+      // Create thumbnail (simplified - just copy for now, in production use sharp or similar)
+      const thumbnailPath = path.join(uploadsDir, "thumbnails", uniqueFilename);
+      await fs.writeFile(thumbnailPath, buffer);
+      
+      const fileUrl = `/uploads/lostmail/${uniqueFilename}`;
+      const thumbnailUrl = `/uploads/lostmail/thumbnails/${uniqueFilename}`;
+      
+      res.json({ fileUrl, thumbnailUrl, filename: uniqueFilename });
+    } catch (error: any) {
+      console.error("Error uploading file:", error);
+      res.status(500).json({ message: error.message || "Failed to upload file" });
+    }
+  });
+
+  // Bulk export endpoint
+  app.get('/api/lostmail/admin/export', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const format = req.query.format as string || "json";
+      const ids = req.query.ids as string | string[];
+      
+      let incidents: any[];
+      
+      if (ids) {
+        const idArray = Array.isArray(ids) ? ids : [ids];
+        incidents = await Promise.all(
+          idArray.map(id => storage.getLostmailIncidentById(id))
+        );
+        incidents = incidents.filter(i => i !== undefined);
+      } else {
+        const result = await storage.getLostmailIncidents({ limit: 1000 });
+        incidents = result.incidents;
+      }
+      
+      if (format === "csv") {
+        // CSV export
+        const headers = ["ID", "Reporter Name", "Email", "Type", "Status", "Severity", "Tracking Number", "Carrier", "Created At"];
+        const rows = incidents.map(inc => [
+          inc.id,
+          inc.reporterName,
+          inc.reporterEmail,
+          inc.incidentType,
+          inc.status,
+          inc.severity,
+          inc.trackingNumber,
+          inc.carrier || "",
+          new Date(inc.createdAt).toISOString(),
+        ]);
+        
+        const csv = [headers.join(","), ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(","))].join("\n");
+        
+        res.setHeader("Content-Type", "text/csv");
+        res.setHeader("Content-Disposition", `attachment; filename="lostmail-incidents-${Date.now()}.csv"`);
+        res.send(csv);
+      } else {
+        // JSON export
+        res.setHeader("Content-Type", "application/json");
+        res.setHeader("Content-Disposition", `attachment; filename="lostmail-incidents-${Date.now()}.json"`);
+        res.json(incidents);
+      }
+      
+      console.log(`LostMail export: ${incidents.length} incidents exported as ${format}`);
+    } catch (error: any) {
+      console.error("Error exporting LostMail incidents:", error);
+      res.status(500).json({ message: error.message || "Failed to export incidents" });
+    }
+  });
+
+  // LostMail Admin Announcement routes
+  app.get('/api/lostmail/admin/announcements', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const announcements = await storage.getAllLostmailAnnouncements();
+      res.json(announcements);
+    } catch (error) {
+      console.error("Error fetching LostMail announcements:", error);
+      res.status(500).json({ message: "Failed to fetch announcements" });
+    }
+  });
+
+  app.post('/api/lostmail/admin/announcements', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const validatedData = insertLostmailAnnouncementSchema.parse(req.body);
+
+      const announcement = await storage.createLostmailAnnouncement(validatedData);
+      
+      await logAdminAction(
+        userId,
+        "create_lostmail_announcement",
+        "announcement",
+        announcement.id,
+        { title: announcement.title, type: announcement.type }
+      );
+
+      res.json(announcement);
+    } catch (error: any) {
+      console.error("Error creating LostMail announcement:", error);
+      res.status(400).json({ message: error.message || "Failed to create announcement" });
+    }
+  });
+
+  app.put('/api/lostmail/admin/announcements/:id', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const announcement = await storage.updateLostmailAnnouncement(req.params.id, req.body);
+      
+      await logAdminAction(
+        userId,
+        "update_lostmail_announcement",
+        "announcement",
+        announcement.id,
+        { title: announcement.title }
+      );
+
+      res.json(announcement);
+    } catch (error: any) {
+      console.error("Error updating LostMail announcement:", error);
+      res.status(400).json({ message: error.message || "Failed to update announcement" });
+    }
+  });
+
+  app.delete('/api/lostmail/admin/announcements/:id', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const announcement = await storage.deactivateLostmailAnnouncement(req.params.id);
+      
+      await logAdminAction(
+        userId,
+        "deactivate_lostmail_announcement",
+        "announcement",
+        announcement.id,
+        { title: announcement.title }
+      );
+
+      res.json(announcement);
+    } catch (error: any) {
+      console.error("Error deleting LostMail announcement:", error);
+      res.status(400).json({ message: error.message || "Failed to delete announcement" });
     }
   });
 

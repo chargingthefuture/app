@@ -76,6 +76,30 @@ import TrustTransportMyClaimed from "@/pages/trusttransport/my-claimed";
 import TrustTransportAnnouncements from "@/pages/trusttransport/announcements";
 import TrustTransportAdmin from "@/pages/trusttransport/admin";
 import TrustTransportAdminAnnouncements from "@/pages/trusttransport/admin-announcements";
+import MechanicMatchDashboard from "@/pages/mechanicmatch/dashboard";
+import MechanicMatchProfile from "@/pages/mechanicmatch/profile";
+import MechanicMatchVehicles from "@/pages/mechanicmatch/vehicles";
+import MechanicMatchRequestNew from "@/pages/mechanicmatch/request-new";
+import MechanicMatchAdmin from "@/pages/mechanicmatch/admin";
+import MechanicMatchAdminAnnouncements from "@/pages/mechanicmatch/admin-announcements";
+import LostMailDashboard from "@/pages/lostmail/dashboard";
+import LostMailReport from "@/pages/lostmail/report";
+import LostMailIncidentDetail from "@/pages/lostmail/incident-detail";
+import LostMailAdmin from "@/pages/lostmail/admin";
+import LostMailAdminAnnouncements from "@/pages/lostmail/admin-announcements";
+import ResearchTimeline from "@/pages/research/timeline";
+import ResearchItemView from "@/pages/research/item-view";
+import NewResearchItem from "@/pages/research/new-item";
+import ResearchAdmin from "@/pages/research/admin";
+import ResearchAdminAnnouncements from "@/pages/research/admin-announcements";
+import ResearchAdminReports from "@/pages/research/admin-reports";
+import GentlePulseLibrary from "@/pages/gentlepulse/library";
+import GentlePulseFavorites from "@/pages/gentlepulse/favorites";
+import GentlePulseSupport from "@/pages/gentlepulse/support";
+import GentlePulseSettings from "@/pages/gentlepulse/settings";
+import GentlePulseAdmin from "@/pages/gentlepulse/admin";
+import GentlePulseAdminAnnouncements from "@/pages/gentlepulse/admin-announcements";
+import { GentlePulseBottomNav } from "@/components/gentlepulse/bottom-nav";
 
 function Router() {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -165,6 +189,53 @@ function Router() {
           <Route path="/apps/trusttransport/announcements" component={TrustTransportAnnouncements} />
           <Route path="/apps/trusttransport/admin" component={TrustTransportAdmin} />
           <Route path="/apps/trusttransport/admin/announcements" component={TrustTransportAdminAnnouncements} />
+          {/* MechanicMatch routes */}
+          <Route path="/apps/mechanicmatch" component={MechanicMatchDashboard} />
+          <Route path="/apps/mechanicmatch/profile" component={MechanicMatchProfile} />
+          <Route path="/apps/mechanicmatch/vehicles" component={MechanicMatchVehicles} />
+          <Route path="/apps/mechanicmatch/request-new" component={MechanicMatchRequestNew} />
+          <Route path="/apps/mechanicmatch/admin" component={MechanicMatchAdmin} />
+          <Route path="/apps/mechanicmatch/admin/announcements" component={MechanicMatchAdminAnnouncements} />
+          {/* LostMail routes */}
+          <Route path="/apps/lostmail" component={LostMailDashboard} />
+          <Route path="/apps/lostmail/report" component={LostMailReport} />
+          <Route path="/apps/lostmail/incident/:id" component={LostMailIncidentDetail} />
+          <Route path="/apps/lostmail/admin" component={LostMailAdmin} />
+          <Route path="/apps/lostmail/admin/announcements" component={LostMailAdminAnnouncements} />
+          {/* Research routes */}
+          <Route path="/apps/research" component={ResearchTimeline} />
+          <Route path="/apps/research/item/:id" component={ResearchItemView} />
+          <Route path="/apps/research/new" component={NewResearchItem} />
+                <Route path="/apps/research/admin" component={ResearchAdmin} />
+                <Route path="/apps/research/admin/announcements" component={ResearchAdminAnnouncements} />
+                <Route path="/apps/research/admin/reports" component={ResearchAdminReports} />
+                {/* GentlePulse Routes */}
+                <Route path="/apps/gentlepulse" component={() => (
+                  <>
+                    <GentlePulseLibrary />
+                    <GentlePulseBottomNav />
+                  </>
+                )} />
+                <Route path="/apps/gentlepulse/favorites" component={() => (
+                  <>
+                    <GentlePulseFavorites />
+                    <GentlePulseBottomNav />
+                  </>
+                )} />
+                <Route path="/apps/gentlepulse/support" component={() => (
+                  <>
+                    <GentlePulseSupport />
+                    <GentlePulseBottomNav />
+                  </>
+                )} />
+                <Route path="/apps/gentlepulse/settings" component={() => (
+                  <>
+                    <GentlePulseSettings />
+                    <GentlePulseBottomNav />
+                  </>
+                )} />
+                <Route path="/apps/gentlepulse/admin" component={GentlePulseAdmin} />
+                <Route path="/apps/gentlepulse/admin/announcements" component={GentlePulseAdminAnnouncements} />
         </>
       )}
       <Route component={NotFound} />

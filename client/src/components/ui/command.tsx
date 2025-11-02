@@ -5,20 +5,31 @@ import { Search } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { fuzzyScore } from "@/lib/fuzzySearch"
 
 const Command = React.forwardRef<
   React.ElementRef<typeof CommandPrimitive>,
   React.ComponentPropsWithoutRef<typeof CommandPrimitive>
->(({ className, ...props }, ref) => (
-  <CommandPrimitive
-    ref={ref}
-    className={cn(
-      "flex h-full w-full flex-col overflow-hidden rounded-md bg-popover text-popover-foreground",
-      className
-    )}
-    {...props}
-  />
-))
+>(({ className, filter, ...props }, ref) => {
+  // Default fuzzy search filter
+  const fuzzyFilter = React.useCallback((value: string, search: string) => {
+    if (!search) return 1;
+    const score = fuzzyScore(search, value, { threshold: 0.3 });
+    return score >= 0.3 ? score : 0;
+  }, []);
+
+  return (
+    <CommandPrimitive
+      ref={ref}
+      className={cn(
+        "flex h-full w-full flex-col overflow-hidden rounded-md bg-popover text-popover-foreground",
+        className
+      )}
+      filter={filter || fuzzyFilter}
+      {...props}
+    />
+  );
+})
 Command.displayName = CommandPrimitive.displayName
 
 const CommandDialog = ({ children, ...props }: DialogProps) => {

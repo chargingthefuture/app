@@ -1,4 +1,5 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
+import { useFuzzySearch } from "@/hooks/useFuzzySearch";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -48,22 +49,11 @@ export default function BrowseRequestsPage() {
     },
   });
 
-  // Filter requests based on search term
-  const filteredRequests = useMemo(() => {
-    if (!requests) return [];
-    if (!searchTerm) return requests;
-    
-    const searchLower = searchTerm.toLowerCase();
-    return requests.filter(request => {
-      return (
-        request.pickupLocation.toLowerCase().includes(searchLower) ||
-        request.dropoffLocation.toLowerCase().includes(searchLower) ||
-        request.pickupCity.toLowerCase().includes(searchLower) ||
-        request.dropoffCity.toLowerCase().includes(searchLower) ||
-        (request.riderMessage && request.riderMessage.toLowerCase().includes(searchLower))
-      );
-    });
-  }, [requests, searchTerm]);
+  // Filter requests using fuzzy search
+  const filteredRequests = useFuzzySearch(requests || [], searchTerm, {
+    searchFields: ['pickupLocation', 'dropoffLocation', 'pickupCity', 'dropoffCity', 'riderMessage'],
+    threshold: 0.3,
+  });
 
   if (!profile?.isDriver) {
     return (
@@ -241,4 +231,5 @@ export default function BrowseRequestsPage() {
     </div>
   );
 }
+
 

@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
-import { UserCheck, Moon, Building2, ArrowRight, MessageCircle} from "lucide-react";
+import { UserCheck, Moon, Building2, ArrowRight, MessageCircle, Wrench, Mail, Search, HeartPulse} from "lucide-react";
 
 const services = [
   {
@@ -45,6 +45,34 @@ const services = [
     icon: UserCheck,
     href: "/apps/supportmatch",
     testId: "card-service-supportmatch",
+  },
+  {
+    title: "MechanicMatch",
+    description: "Connect with trusted mechanics for vehicle repair, remote diagnosis, or expert advice. Mechanics can build their profile and help car owners.",
+    icon: Wrench,
+    href: "/apps/mechanicmatch",
+    testId: "card-service-mechanicmatch",
+  },
+  {
+    title: "LostMail",
+    description: "Report mail incidents (lost, damaged, tampered, delayed) and track your reports. Admin dashboard available for incident management.",
+    icon: Mail,
+    href: "/apps/lostmail",
+    testId: "card-service-lostmail",
+  },
+  {
+    title: "Research",
+    description: "Post research questions, receive sourced answers, and collaboratively surface the most relevant, accurate responses with voting, tagging, and Trello-style boards.",
+    icon: Search,
+    href: "/apps/research",
+    testId: "card-service-research",
+  },
+  {
+    title: "GentlePulse",
+    description: "Access guided meditations hosted on Wistia, track your mood, and find supportive resources. Designed with privacy, accessibility, and trauma-informed care in mind.",
+    icon: HeartPulse,
+    href: "/apps/gentlepulse",
+    testId: "card-service-gentlepulse",
   },
 ];
 
