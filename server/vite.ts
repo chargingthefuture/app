@@ -52,10 +52,22 @@ export async function setupVite(app: Express, server: Server) {
 
     try {
       // In development, use process.cwd() which is the project root
-      const baseDir = process.cwd();
-      if (!baseDir || typeof baseDir !== 'string') {
-        throw new Error('Could not determine base directory for client template');
+      // Use defensive checks to ensure we always have a valid path
+      let baseDir: string = '/app'; // Default fallback
+      try {
+        const cwdResult = process.cwd();
+        if (cwdResult && typeof cwdResult === 'string' && cwdResult.length > 0) {
+          baseDir = cwdResult;
+        }
+      } catch (error) {
+        console.warn('process.cwd() failed in setupVite, using /app fallback:', error);
       }
+      
+      // Ensure baseDir is always a valid string
+      if (!baseDir || typeof baseDir !== 'string' || baseDir.length === 0) {
+        baseDir = '/app';
+      }
+      
       const clientTemplate = path.resolve(
         baseDir,
         "client",
@@ -81,18 +93,25 @@ export function serveStatic(app: Express) {
   // In production, the bundled server code is at dist/index.js
   // The frontend build is at dist/public (from vite build)
   // Use process.cwd() which is the project root where npm runs
-  let cwd: string;
+  // Use defensive checks to ensure we always have a valid path
+  let cwd: string = '/app'; // Default fallback for Railway
   try {
-    cwd = process.cwd();
-    if (!cwd || typeof cwd !== 'string') {
-      // If cwd fails, try to determine from __dirname equivalent
-      throw new Error(`process.cwd() returned invalid: ${cwd}`);
+    const cwdResult = process.cwd();
+    if (cwdResult && typeof cwdResult === 'string' && cwdResult.length > 0) {
+      cwd = cwdResult;
+    } else {
+      console.warn('process.cwd() returned invalid value, using /app fallback:', cwdResult);
     }
   } catch (error) {
     // Last resort fallback - assume we're in /app on Railway
     console.warn('process.cwd() failed, using /app as fallback:', error);
+  }
+  
+  // Ensure cwd is always a valid string before using it
+  if (!cwd || typeof cwd !== 'string' || cwd.length === 0) {
     cwd = '/app';
   }
+  
   const distPath = path.resolve(cwd, "dist", "public");
 
   if (!fs.existsSync(distPath)) {

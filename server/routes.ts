@@ -4559,18 +4559,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Create uploads directory if it doesn't exist
   // In production (bundled), import.meta.url might not work reliably, so use process.cwd()
+  // Use defensive checks to ensure we always have a valid path
   let uploadsDir: string;
-  let cwd: string;
+  let cwd: string = '/app'; // Default fallback for Railway
   try {
-    cwd = process.cwd();
-    if (!cwd || typeof cwd !== 'string') {
-      throw new Error(`process.cwd() returned invalid: ${cwd}`);
+    const cwdResult = process.cwd();
+    if (cwdResult && typeof cwdResult === 'string' && cwdResult.length > 0) {
+      cwd = cwdResult;
+    } else {
+      console.warn('process.cwd() returned invalid value, using /app fallback:', cwdResult);
     }
   } catch (cwdError) {
     // Last resort fallback - assume we're in /app on Railway
     console.warn('process.cwd() failed, using /app as fallback:', cwdError);
+  }
+  
+  // Ensure cwd is always a valid string before using it
+  if (!cwd || typeof cwd !== 'string' || cwd.length === 0) {
     cwd = '/app';
   }
+  
   uploadsDir = path.join(cwd, "uploads", "lostmail");
   try {
     await fs.mkdir(uploadsDir, { recursive: true });
