@@ -74,7 +74,10 @@ export async function setupVite(app: Express, server: Server) {
 }
 
 export function serveStatic(app: Express) {
-  const distPath = path.resolve(import.meta.dirname, "public");
+  // In production, the bundled server code is at dist/index.js
+  // The frontend build is at dist/public (from vite build)
+  // Use process.cwd() which is the project root where npm runs
+  const distPath = path.resolve(process.cwd(), "dist", "public");
 
   if (!fs.existsSync(distPath)) {
     throw new Error(
@@ -90,6 +93,10 @@ export function serveStatic(app: Express) {
     if (req.originalUrl.startsWith("/api/")) {
       return res.status(404).json({ message: "API endpoint not found" });
     }
-    res.sendFile(path.resolve(distPath, "index.html"));
+    const indexPath = path.resolve(distPath, "index.html");
+    if (!fs.existsSync(indexPath)) {
+      return res.status(404).json({ message: "Frontend build not found" });
+    }
+    res.sendFile(indexPath);
   });
 }

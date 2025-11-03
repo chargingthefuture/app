@@ -1,9 +1,20 @@
-import rateLimit from "express-rate-limit";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 
 /**
  * Rate limiting middleware to prevent scraping and abuse of public endpoints
  * Designed to protect user privacy while allowing legitimate browsing
  */
+
+// Helper function to get IP address with proper IPv6 support
+const getIpAddress = (req: any): string => {
+  // Check for forwarded IP (behind proxy/load balancer)
+  const forwarded = req.headers['x-forwarded-for'];
+  if (typeof forwarded === 'string') {
+    return forwarded.split(',')[0].trim();
+  }
+  // Use express-rate-limit's ipKeyGenerator for proper IPv6 support
+  return ipKeyGenerator(req) || req.socket.remoteAddress || 'unknown';
+};
 
 // Stricter rate limit for listing endpoints (prevents bulk scraping)
 export const publicListingLimiter = rateLimit({
@@ -12,15 +23,8 @@ export const publicListingLimiter = rateLimit({
   message: "Too many requests. Please try again later.",
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
-  // Use IP address from request
-  keyGenerator: (req) => {
-    // Check for forwarded IP (behind proxy/load balancer)
-    const forwarded = req.headers['x-forwarded-for'];
-    if (typeof forwarded === 'string') {
-      return forwarded.split(',')[0].trim();
-    }
-    return req.ip || req.socket.remoteAddress || 'unknown';
-  },
+  // Use IP address from request with proper IPv6 support
+  keyGenerator: (req) => getIpAddress(req),
   // Custom handler for rate limit exceeded
   handler: (req, res) => {
     res.status(429).json({
@@ -38,13 +42,7 @@ export const publicItemLimiter = rateLimit({
   message: "Too many requests. Please try again later.",
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => {
-    const forwarded = req.headers['x-forwarded-for'];
-    if (typeof forwarded === 'string') {
-      return forwarded.split(',')[0].trim();
-    }
-    return req.ip || req.socket.remoteAddress || 'unknown';
-  },
+  keyGenerator: (req) => getIpAddress(req),
   handler: (req, res) => {
     res.status(429).json({
       message: "Too many requests from this IP. Please try again in 15 minutes.",
@@ -60,13 +58,7 @@ export const publicApiLimiter = rateLimit({
   message: "Too many requests. Please try again later.",
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => {
-    const forwarded = req.headers['x-forwarded-for'];
-    if (typeof forwarded === 'string') {
-      return forwarded.split(',')[0].trim();
-    }
-    return req.ip || req.socket.remoteAddress || 'unknown';
-  },
+  keyGenerator: (req) => getIpAddress(req),
   handler: (req, res) => {
     res.status(429).json({
       message: "Too many requests from this IP. Please try again in 15 minutes.",
