@@ -1,0 +1,178 @@
+import { useQuery } from "@tanstack/react-query";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Link } from "wouter";
+import { ExternalLink, Bell } from "lucide-react";
+import type { DirectoryProfile } from "@shared/schema";
+import { AnnouncementBanner } from "@/components/announcement-banner";
+import { VerifiedBadge } from "@/components/verified-badge";
+import { useExternalLink } from "@/hooks/useExternalLink";
+
+export default function DirectoryDashboard() {
+  const { openExternal, ExternalLinkDialog } = useExternalLink();
+
+  const { data: profile, isLoading: profileLoading } = useQuery<DirectoryProfile | null>({
+    queryKey: ["/api/directory/profile"],
+  });
+
+  const { data: publicProfiles = [], isLoading: listLoading } = useQuery<any[]>({
+    queryKey: ["/api/directory/list"],
+    enabled: !!profile,
+  });
+
+  if (profileLoading) {
+    return (
+      <div className="p-4 sm:p-6 md:p-8">
+        <div className="text-center py-8 sm:py-12">
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show welcome message when there's no profile
+  if (!profile) {
+    return (
+      <div className="p-4 sm:p-6 md:p-8 space-y-6 sm:space-y-8">
+        <div>
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-semibold mb-2">Welcome to Directory</h1>
+          <p className="text-muted-foreground text-sm sm:text-base">Connect and exchange skills with other survivors</p>
+        </div>
+
+        <AnnouncementBanner 
+          apiEndpoint="/api/directory/announcements"
+          queryKey="/api/directory/announcements"
+        />
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg sm:text-xl">Get Started</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-muted-foreground text-sm sm:text-base">
+              To use Directory, you'll need to create your profile first. This helps you connect with other survivors and share your skills.
+            </p>
+            <Link href="/apps/directory/profile">
+              <Button className="w-full" data-testid="button-create-profile">
+                Create Your Profile
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+
+        <ExternalLinkDialog />
+      </div>
+    );
+  }
+
+  // Profile exists - show directory listing
+  return (
+    <div className="p-4 sm:p-6 md:p-8 space-y-6 sm:space-y-8">
+      <div>
+        <h1 className="text-2xl sm:text-3xl md:text-4xl font-semibold mb-2">Directory</h1>
+        <p className="text-muted-foreground text-sm sm:text-base">Connect and exchange skills with other survivors</p>
+      </div>
+
+      <AnnouncementBanner 
+        apiEndpoint="/api/directory/announcements"
+        queryKey="/api/directory/announcements"
+      />
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg sm:text-xl">Explore the Directory</CardTitle>
+            <Link href="/apps/directory/profile">
+              <Button variant="outline" size="sm" data-testid="button-edit-profile">
+                Edit Profile
+              </Button>
+            </Link>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {listLoading ? (
+            <div className="text-muted-foreground py-6 text-center">Loading…</div>
+          ) : (
+            (() => {
+              const profilesToShow = (publicProfiles && publicProfiles.length > 0) ? publicProfiles : [profile];
+              if (!profilesToShow || profilesToShow.length === 0) {
+                return <div className="text-muted-foreground py-6 text-center">No profiles yet</div>;
+              }
+              return (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {profilesToShow.map((p: any) => {
+                    // Compute displayName if not present
+                    let computedName = p.displayName;
+                    if (!computedName) {
+                      if (p.displayNameType === 'nickname' && p.nickname) {
+                        computedName = p.nickname;
+                      }
+                      if (!computedName && p.nickname) computedName = p.nickname;
+                    }
+                    return (
+                      <div key={p.id} className="rounded-md border p-3 flex flex-col gap-2">
+                        <div className="font-medium truncate">{computedName || '—'}</div>
+                        <div className="flex items-center gap-2">
+                          {(p as any).userIsVerified !== undefined && (p as any).userId && (
+                            <VerifiedBadge isVerified={(p as any).userIsVerified || false} testId={`badge-verified-${p.id}`} />
+                          )}
+                        </div>
+                        <div className="text-sm">{p.description}</div>
+                        <div className="flex flex-wrap gap-2">
+                          {p.skills?.map((s: string) => (<Badge key={s} variant="outline">{s}</Badge>))}
+                        </div>
+                        {p.signalUrl ? (
+                          <div>
+                            <Button variant="ghost" size="sm" onClick={() => openExternal(p.signalUrl)} className="justify-start px-0 text-primary">
+                              <ExternalLink className="w-4 h-4 mr-2" /> Signal profile
+                            </Button>
+                          </div>
+                        ) : null}
+                        <div className="text-xs text-muted-foreground">
+                          {[p.city, p.state, p.country].filter(Boolean).join(', ')}
+                        </div>
+                        <div>
+                          <Button asChild variant="outline" size="sm" data-testid={`button-view-public-${p.id}`}>
+                            <a href={`/apps/directory/public/${p.id}`}>View</a>
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Announcements Section */}
+      <div className="grid md:grid-cols-3 gap-4">
+        <Card className="hover-elevate">
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Bell className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+              </div>
+              <CardTitle className="text-base sm:text-lg">Announcements</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <p className="text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-4">
+              View platform updates and notifications
+            </p>
+            <Link href="/apps/directory/announcements">
+              <Button variant="outline" className="w-full text-xs sm:text-sm" data-testid="button-view-announcements">
+                View Announcements
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
+
+      <ExternalLinkDialog />
+    </div>
+  );
+}
+
