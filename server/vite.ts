@@ -51,14 +51,13 @@ export async function setupVite(app: Express, server: Server) {
     }
 
     try {
-      // In development, use import.meta.dirname or fallback to process.cwd()
-      const baseDir = import.meta.dirname || process.cwd();
+      // In development, use process.cwd() which is the project root
+      const baseDir = process.cwd();
       if (!baseDir || typeof baseDir !== 'string') {
         throw new Error('Could not determine base directory for client template');
       }
       const clientTemplate = path.resolve(
         baseDir,
-        "..",
         "client",
         "index.html",
       );
