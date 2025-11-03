@@ -4558,9 +4558,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ========================================
 
   // Create uploads directory if it doesn't exist
-  const __filename = fileURLToPath(import.meta.url);
-  const __dirname = path.dirname(__filename);
-  const uploadsDir = path.join(__dirname, "..", "uploads", "lostmail");
+  // In production (bundled), import.meta.url might not work, use process.cwd() as fallback
+  let uploadsDir: string;
+  try {
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = path.dirname(__filename);
+    uploadsDir = path.join(__dirname, "..", "uploads", "lostmail");
+  } catch {
+    // Fallback for bundled code where import.meta.url might not work
+    uploadsDir = path.join(process.cwd(), "uploads", "lostmail");
+  }
   try {
     await fs.mkdir(uploadsDir, { recursive: true });
     await fs.mkdir(path.join(uploadsDir, "thumbnails"), { recursive: true });

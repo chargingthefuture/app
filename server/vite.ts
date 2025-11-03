@@ -51,8 +51,13 @@ export async function setupVite(app: Express, server: Server) {
     }
 
     try {
+      // In development, use import.meta.dirname or fallback to process.cwd()
+      const baseDir = import.meta.dirname || process.cwd();
+      if (!baseDir || typeof baseDir !== 'string') {
+        throw new Error('Could not determine base directory for client template');
+      }
       const clientTemplate = path.resolve(
-        import.meta.dirname,
+        baseDir,
         "..",
         "client",
         "index.html",
@@ -77,7 +82,11 @@ export function serveStatic(app: Express) {
   // In production, the bundled server code is at dist/index.js
   // The frontend build is at dist/public (from vite build)
   // Use process.cwd() which is the project root where npm runs
-  const distPath = path.resolve(process.cwd(), "dist", "public");
+  const cwd = process.cwd();
+  if (!cwd || typeof cwd !== 'string') {
+    throw new Error(`Invalid working directory: ${cwd}. process.cwd() must return a string.`);
+  }
+  const distPath = path.resolve(cwd, "dist", "public");
 
   if (!fs.existsSync(distPath)) {
     throw new Error(
