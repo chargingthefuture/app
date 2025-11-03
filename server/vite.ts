@@ -82,9 +82,17 @@ export function serveStatic(app: Express) {
   // In production, the bundled server code is at dist/index.js
   // The frontend build is at dist/public (from vite build)
   // Use process.cwd() which is the project root where npm runs
-  const cwd = process.cwd();
-  if (!cwd || typeof cwd !== 'string') {
-    throw new Error(`Invalid working directory: ${cwd}. process.cwd() must return a string.`);
+  let cwd: string;
+  try {
+    cwd = process.cwd();
+    if (!cwd || typeof cwd !== 'string') {
+      // If cwd fails, try to determine from __dirname equivalent
+      throw new Error(`process.cwd() returned invalid: ${cwd}`);
+    }
+  } catch (error) {
+    // Last resort fallback - assume we're in /app on Railway
+    console.warn('process.cwd() failed, using /app as fallback:', error);
+    cwd = '/app';
   }
   const distPath = path.resolve(cwd, "dist", "public");
 

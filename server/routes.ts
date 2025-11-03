@@ -4561,12 +4561,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // In production (bundled), import.meta.url might not work, use process.cwd() as fallback
   let uploadsDir: string;
   try {
-    const __filename = fileURLToPath(import.meta.url);
-    const __dirname = path.dirname(__filename);
-    uploadsDir = path.join(__dirname, "..", "uploads", "lostmail");
-  } catch {
+    // Try to use import.meta.url if available
+    if (import.meta.url && typeof import.meta.url === 'string') {
+      const __filename = fileURLToPath(import.meta.url);
+      const __dirname = path.dirname(__filename);
+      if (__dirname && typeof __dirname === 'string') {
+        uploadsDir = path.join(__dirname, "..", "uploads", "lostmail");
+      } else {
+        throw new Error('__dirname is not a string');
+      }
+    } else {
+      throw new Error('import.meta.url is not available');
+    }
+  } catch (error) {
     // Fallback for bundled code where import.meta.url might not work
-    uploadsDir = path.join(process.cwd(), "uploads", "lostmail");
+    let cwd: string;
+    try {
+      cwd = process.cwd();
+      if (!cwd || typeof cwd !== 'string') {
+        throw new Error(`process.cwd() returned invalid: ${cwd}`);
+      }
+    } catch (cwdError) {
+      // Last resort fallback - assume we're in /app on Railway
+      console.warn('process.cwd() failed, using /app as fallback:', cwdError);
+      cwd = '/app';
+    }
+    uploadsDir = path.join(cwd, "uploads", "lostmail");
   }
   try {
     await fs.mkdir(uploadsDir, { recursive: true });
