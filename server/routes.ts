@@ -4565,20 +4565,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const cwdResult = process.cwd();
     if (cwdResult && typeof cwdResult === 'string' && cwdResult.length > 0) {
       cwd = cwdResult;
-    } else {
+      } else {
       console.warn('process.cwd() returned invalid value, using /app fallback:', cwdResult);
-    }
-  } catch (cwdError) {
-    // Last resort fallback - assume we're in /app on Railway
-    console.warn('process.cwd() failed, using /app as fallback:', cwdError);
+      }
+    } catch (cwdError) {
+      // Last resort fallback - assume we're in /app on Railway
+      console.warn('process.cwd() failed, using /app as fallback:', cwdError);
   }
   
   // Ensure cwd is always a valid string before using it
   if (!cwd || typeof cwd !== 'string' || cwd.length === 0) {
-    cwd = '/app';
-  }
+      cwd = '/app';
+    }
   
-  uploadsDir = path.join(cwd, "uploads", "lostmail");
+    uploadsDir = path.join(cwd, "uploads", "lostmail");
   try {
     await fs.mkdir(uploadsDir, { recursive: true });
     await fs.mkdir(path.join(uploadsDir, "thumbnails"), { recursive: true });

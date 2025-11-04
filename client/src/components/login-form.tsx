@@ -1,14 +1,14 @@
 import { Button } from "@/components/ui/button";
 import { Lock } from "lucide-react";
-import { useNavigate } from "wouter";
+import { useLocation } from "wouter";
 
 export function LoginForm() {
-  const navigate = useNavigate();
+  const [, setLocation] = useLocation();
 
   return (
     <div className="flex flex-col items-center space-y-4">
       <Button
-        onClick={() => navigate("/sign-in")}
+        onClick={() => setLocation("/sign-in")}
         className="w-full text-base font-semibold"
         data-testid="button-login"
       >

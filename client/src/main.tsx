@@ -1,7 +1,7 @@
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
-import { AppClerkProvider } from "./components/clerk-provider";
+import { ConditionalClerkProvider } from "./components/conditional-clerk-provider";
 
 // Initialize theme from localStorage before rendering
 const storedTheme = localStorage.getItem("theme-preference");
@@ -12,7 +12,7 @@ if (storedTheme === "dark") {
 }
 
 createRoot(document.getElementById("root")!).render(
-  <AppClerkProvider>
+  <ConditionalClerkProvider>
     <App />
-  </AppClerkProvider>
+  </ConditionalClerkProvider>
 );

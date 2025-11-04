@@ -3,7 +3,7 @@ import { ReactNode } from "react";
 
 const clerkPublishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
-export function AppClerkProvider({ children }: { children: ReactNode }) {
+export function ConditionalClerkProvider({ children }: { children: ReactNode }) {
   // Only render ClerkProvider if key is available
   // If not available, show error message instead of crashing
   if (!clerkPublishableKey) {
@@ -40,5 +40,3 @@ export function AppClerkProvider({ children }: { children: ReactNode }) {
     </ClerkProvider>
   );
 }
-
-

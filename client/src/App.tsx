@@ -137,7 +137,8 @@ function Router() {
       {/* Publicly viewable SocketRelay requests */}
       <Route path="/apps/socketrelay/public" component={PublicSocketRelayList} />
       <Route path="/apps/socketrelay/public/:id" component={PublicSocketRelayRequest} />
-      {isLoading || !isAuthenticated ? (
+      {/* Show landing page for unauthenticated users (including during loading) */}
+      {!isAuthenticated || isLoading ? (
         <Route path="/" component={Landing} />
       ) : needsInviteCode ? (
         <Route path="/" component={InviteRequired} />
