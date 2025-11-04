@@ -280,10 +280,10 @@ export default function DirectoryProfilePage() {
                   id="directory-first-name" 
                   value={directoryFirstName} 
                   onChange={(e) => setDirectoryFirstName(e.target.value.slice(0, 100))} 
-                  placeholder="Override your first name (optional - leave blank to use Auth0 first name)" 
+                  placeholder="Override your first name (optional - leave blank to use your account first name)" 
                   data-testid="input-directory-first-name"
                 />
-                <p className="text-xs text-muted-foreground">Leave blank to use your Auth0 first name, or enter a custom name to override it</p>
+                <p className="text-xs text-muted-foreground">Leave blank to use your account first name, or enter a custom name to override it</p>
               </div>
             )}
             {displayNameType === 'nickname' && (

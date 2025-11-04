@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useState } from "react";
 import { useExternalLink } from "@/hooks/useExternalLink";
+import { LoginForm } from "@/components/login-form";
 
 export default function Landing() {
   const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
@@ -90,13 +91,7 @@ export default function Landing() {
                       </p>
                     </div>
 
-                    <Button
-                      onClick={() => window.location.href = '/api/login'}
-                      className="w-full text-base font-semibold"
-                      data-testid="button-login"
-                    >
-                      Sign In Securely
-                    </Button>
+                    <LoginForm />
 
                     <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground pt-2 lg:pt-4">
                       <Lock className="w-3 h-3" />

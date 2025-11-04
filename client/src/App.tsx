@@ -1,4 +1,5 @@
 import { Switch, Route } from "wouter";
+import { SignIn, SignUp } from "@clerk/clerk-react";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -109,6 +110,27 @@ function Router() {
 
   return (
     <Switch>
+      {/* Clerk authentication routes */}
+      <Route path="/sign-in">
+        <div className="min-h-screen flex items-center justify-center p-4">
+          <SignIn
+            routing="path"
+            path="/sign-in"
+            signUpUrl="/sign-up"
+            afterSignInUrl="/"
+          />
+        </div>
+      </Route>
+      <Route path="/sign-up">
+        <div className="min-h-screen flex items-center justify-center p-4">
+          <SignUp
+            routing="path"
+            path="/sign-up"
+            signInUrl="/sign-in"
+            afterSignUpUrl="/"
+          />
+        </div>
+      </Route>
       {/* Publicly viewable Directory profiles */}
       <Route path="/apps/directory/public" component={PublicDirectoryList} />
       <Route path="/apps/directory/public/:id" component={PublicDirectoryProfile} />

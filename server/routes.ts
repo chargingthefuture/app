@@ -1,7 +1,7 @@
 import express, { type Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated, isAdmin } from "./auth";
+import { setupAuth, isAuthenticated, isAdmin, getUserId } from "./auth";
 import { validateCsrfToken } from "./csrf";
 import { publicListingLimiter, publicItemLimiter } from "./rateLimiter";
 import { fingerprintRequests, getSuspiciousPatterns, getSuspiciousPatternsForIP, clearSuspiciousPatterns } from "./antiScraping";
@@ -78,8 +78,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Anti-scraping: Fingerprint requests (must be before rate limiting)
   app.use(fingerprintRequests);
 
-  // Helper to get user ID from request
-  const getUserId = (req: any): string => req.user?.claims?.sub;
+  // Helper to get user ID from request (imported from auth module)
 
   // Helper to log admin actions
   const logAdminAction = async (

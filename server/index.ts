@@ -1,5 +1,6 @@
 import express, { type Request, Response, NextFunction } from "express";
 import cookieParser from "cookie-parser";
+import { clerkMiddleware } from "@clerk/express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
@@ -20,6 +21,9 @@ app.use(express.json({
 }));
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser()); // Required for CSRF token cookies
+
+// Clerk middleware - must be before routes
+app.use(clerkMiddleware());
 
 // Security headers middleware
 app.use((req, res, next) => {
