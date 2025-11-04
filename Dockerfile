@@ -14,6 +14,10 @@ RUN npm install --legacy-peer-deps
 COPY . .
 
 # Build the application
+# Railway automatically passes all environment variables during build
+# VITE_* variables are needed at build time for Vite to inline them
+ARG VITE_CLERK_PUBLISHABLE_KEY
+ENV VITE_CLERK_PUBLISHABLE_KEY=$VITE_CLERK_PUBLISHABLE_KEY
 RUN npm run build
 
 # Expose port (Railway sets PORT env var)
