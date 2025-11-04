@@ -1,3 +1,10 @@
+// CRITICAL: Load environment variables FIRST, before any other imports
+// This must be at the very top so env vars are available when other modules import db.ts
+import { config } from "dotenv";
+import { resolve } from "path";
+config({ path: resolve(process.cwd(), ".env.local") });
+config({ path: resolve(process.cwd(), ".env") }); // Fallback to .env
+
 import express, { type Request, Response, NextFunction } from "express";
 import cookieParser from "cookie-parser";
 import { clerkMiddleware } from "@clerk/express";

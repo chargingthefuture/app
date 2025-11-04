@@ -39,7 +39,4 @@ yarn-error.log*
 *.db
 *.sqlite
 
-# Replit (no longer used - migrated to Railway)
-.replit
-
 /docs
