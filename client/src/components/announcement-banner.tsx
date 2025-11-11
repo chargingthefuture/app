@@ -5,6 +5,7 @@ import { AlertCircle, Info, Wrench, Bell, Megaphone, X } from "lucide-react";
 import { format } from "date-fns";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { useErrorHandler } from "@/hooks/useErrorHandler";
 
 export interface AnnouncementBannerProps {
   apiEndpoint: string;
@@ -12,8 +13,10 @@ export interface AnnouncementBannerProps {
 }
 
 export function AnnouncementBanner({ apiEndpoint, queryKey }: AnnouncementBannerProps) {
+  const { handleError } = useErrorHandler({ showToast: true, toastTitle: "Announcements Error" });
   const { data: announcements, isLoading } = useQuery<any[]>({
     queryKey: [queryKey || apiEndpoint],
+    onError: (err) => handleError(err),
   });
 
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(

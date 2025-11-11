@@ -1,30 +1,39 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
+import { parseApiError } from "./errorHandler";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     // Clone the response so we can read the body without consuming it
     const clonedRes = res.clone();
     const contentType = res.headers.get("content-type");
-    let errorText: string;
+    let errorData: any;
     
     if (contentType && contentType.includes("application/json")) {
       try {
-        const json = await clonedRes.json();
-        errorText = json.message || JSON.stringify(json) || res.statusText;
+        errorData = await clonedRes.json();
       } catch {
         // If JSON parsing fails, read as text
         const textRes = res.clone();
-        errorText = (await textRes.text()) || res.statusText;
+        const errorText = (await textRes.text()) || res.statusText;
+        errorData = { message: errorText };
       }
     } else {
-      errorText = (await clonedRes.text()) || res.statusText;
+      const errorText = (await clonedRes.text()) || res.statusText;
       // If it's HTML, provide a better error message
       if (errorText.trim().startsWith("<!DOCTYPE") || errorText.trim().startsWith("<html")) {
-        errorText = `Server returned HTML error page (status ${res.status}). Please check server logs.`;
+        errorData = { 
+          message: `Server returned HTML error page (status ${res.status}). Please check server logs.` 
+        };
+      } else {
+        errorData = { message: errorText };
       }
     }
     
-    throw new Error(`${res.status}: ${errorText}`);
+    // Create error with structured data
+    const error = new Error(`${res.status}: ${JSON.stringify(errorData)}`);
+    (error as any).response = res;
+    (error as any).data = errorData;
+    throw error;
   }
 }
 

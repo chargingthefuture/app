@@ -10,6 +10,7 @@ import cookieParser from "cookie-parser";
 import { clerkMiddleware } from "@clerk/express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { errorHandler, notFoundHandler } from "./errorHandler";
 
 const app = express();
 
@@ -99,17 +100,11 @@ app.use((req, res, next) => {
 (async () => {
   const server = await registerRoutes(app);
 
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
+  // 404 handler - must be after all routes
+  app.use(notFoundHandler);
 
-    // Only send JSON response if headers haven't been sent yet
-    if (!res.headersSent) {
-      res.status(status).json({ message });
-    }
-    // Don't re-throw - it causes issues with Express error handling
-    console.error("Express error handler:", err);
-  });
+  // Error handler - must be last
+  app.use(errorHandler);
 
   // importantly only setup vite in development and after
   // setting up all the other routes so the catch-all route

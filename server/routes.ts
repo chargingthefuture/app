@@ -70,6 +70,9 @@ import {
 import * as fs from "fs/promises";
 import * as path from "path";
 import { fileURLToPath } from "url";
+import { asyncHandler } from "./errorHandler";
+import { validateWithZod } from "./validationErrorFormatter";
+import { withDatabaseErrorHandling } from "./databaseErrorHandler";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -322,153 +325,132 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin routes - Invite codes
-  app.get('/api/admin/invites', isAuthenticated, isAdmin, async (req, res) => {
-    try {
-      const invites = await storage.getAllInviteCodes();
-      res.json(invites);
-    } catch (error) {
-      console.error("Error fetching invite codes:", error);
-      res.status(500).json({ message: "Failed to fetch invite codes" });
-    }
-  });
+  app.get('/api/admin/invites', isAuthenticated, isAdmin, asyncHandler(async (_req, res) => {
+    const invites = await withDatabaseErrorHandling(
+      () => storage.getAllInviteCodes(),
+      'getAllInviteCodes'
+    );
+    res.json(invites);
+  }));
 
-  app.post('/api/admin/invites', isAuthenticated, isAdmin, validateCsrfToken, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const validatedData = insertInviteCodeSchema.parse({
-        ...req.body,
-        createdBy: userId,
-      });
+  app.post('/api/admin/invites', isAuthenticated, isAdmin, validateCsrfToken, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const validatedData = validateWithZod(insertInviteCodeSchema, {
+      ...req.body,
+      createdBy: userId,
+    }, 'Invalid invite code data');
 
-      const invite = await storage.createInviteCode(validatedData);
-      
-      await logAdminAction(
-        userId,
-        "generate_invite_code",
-        "invite_code",
-        invite.id,
-        { maxUses: invite.maxUses, expiresAt: invite.expiresAt }
-      );
+    const invite = await withDatabaseErrorHandling(
+      () => storage.createInviteCode(validatedData),
+      'createInviteCode'
+    );
+    
+    await logAdminAction(
+      userId,
+      "generate_invite_code",
+      "invite_code",
+      invite.id,
+      { maxUses: invite.maxUses, expiresAt: invite.expiresAt }
+    );
 
-      res.json(invite);
-    } catch (error: any) {
-      console.error("Error creating invite code:", error);
-      res.status(400).json({ message: error.message || "Failed to create invite code" });
-    }
-  });
+    res.json(invite);
+  }));
 
   // Admin routes - Payments
-  app.get('/api/admin/payments', isAuthenticated, isAdmin, async (req, res) => {
-    try {
-      const payments = await storage.getAllPayments();
-      res.json(payments);
-    } catch (error) {
-      console.error("Error fetching payments:", error);
-      res.status(500).json({ message: "Failed to fetch payments" });
+  app.get('/api/admin/payments', isAuthenticated, isAdmin, asyncHandler(async (_req, res) => {
+    const payments = await withDatabaseErrorHandling(
+      () => storage.getAllPayments(),
+      'getAllPayments'
+    );
+    res.json(payments);
+  }));
+
+  app.post('/api/admin/payments', isAuthenticated, isAdmin, validateCsrfToken, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    
+    // Prepare data for validation
+    const dataToValidate: any = {
+      ...req.body,
+      recordedBy: userId,
+    };
+    
+    // Ensure billingMonth is explicitly null for yearly payments
+    if (req.body.billingPeriod === "yearly") {
+      dataToValidate.billingMonth = null;
     }
-  });
+    
+    const validatedData = validateWithZod(insertPaymentSchema, dataToValidate, 'Invalid payment data');
 
-  app.post('/api/admin/payments', isAuthenticated, isAdmin, validateCsrfToken, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      console.log("Payment request body:", JSON.stringify(req.body, null, 2));
-      
-      // Prepare data for validation
-      const dataToValidate: any = {
-        ...req.body,
-        recordedBy: userId,
-      };
-      
-      // Ensure billingMonth is explicitly null for yearly payments
-      if (req.body.billingPeriod === "yearly") {
-        dataToValidate.billingMonth = null;
-      }
-      
-      console.log("Data to validate:", JSON.stringify(dataToValidate, null, 2));
-      const validatedData = insertPaymentSchema.parse(dataToValidate);
-      console.log("Validated payment data:", JSON.stringify(validatedData, null, 2));
+    const payment = await withDatabaseErrorHandling(
+      () => storage.createPayment(validatedData),
+      'createPayment'
+    );
+    
+    await logAdminAction(
+      userId,
+      "record_payment",
+      "payment",
+      payment.id,
+      { userId: payment.userId, amount: payment.amount }
+    );
 
-      const payment = await storage.createPayment(validatedData);
-      console.log("Created payment result:", JSON.stringify(payment, null, 2));
-      
-      await logAdminAction(
-        userId,
-        "record_payment",
-        "payment",
-        payment.id,
-        { userId: payment.userId, amount: payment.amount }
-      );
-
-      res.json(payment);
-    } catch (error: any) {
-      console.error("Error creating payment:", error);
-      res.status(400).json({ message: error.message || "Failed to record payment" });
-    }
-  });
+    res.json(payment);
+  }));
 
   // Admin routes - Activity log
-  app.get('/api/admin/activity', isAuthenticated, isAdmin, async (req, res) => {
-    try {
-      const logs = await storage.getAllAdminActionLogs();
-      res.json(logs);
-    } catch (error) {
-      console.error("Error fetching activity logs:", error);
-      res.status(500).json({ message: "Failed to fetch activity logs" });
-    }
-  });
+  app.get('/api/admin/activity', isAuthenticated, isAdmin, asyncHandler(async (_req, res) => {
+    const logs = await withDatabaseErrorHandling(
+      () => storage.getAllAdminActionLogs(),
+      'getAllAdminActionLogs'
+    );
+    res.json(logs);
+  }));
 
   // Admin routes - Pricing Tiers
-  app.get('/api/admin/pricing-tiers', isAuthenticated, isAdmin, async (req, res) => {
-    try {
-      const tiers = await storage.getAllPricingTiers();
-      res.json(tiers);
-    } catch (error) {
-      console.error("Error fetching pricing tiers:", error);
-      res.status(500).json({ message: "Failed to fetch pricing tiers" });
-    }
-  });
+  app.get('/api/admin/pricing-tiers', isAuthenticated, isAdmin, asyncHandler(async (_req, res) => {
+    const tiers = await withDatabaseErrorHandling(
+      () => storage.getAllPricingTiers(),
+      'getAllPricingTiers'
+    );
+    res.json(tiers);
+  }));
 
-  app.post('/api/admin/pricing-tiers', isAuthenticated, isAdmin, validateCsrfToken, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const validatedData = insertPricingTierSchema.parse(req.body);
+  app.post('/api/admin/pricing-tiers', isAuthenticated, isAdmin, validateCsrfToken, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const validatedData = validateWithZod(insertPricingTierSchema, req.body, 'Invalid pricing tier data');
+    const tier = await withDatabaseErrorHandling(
+      () => storage.createPricingTier(validatedData),
+      'createPricingTier'
+    );
+    
+    await logAdminAction(
+      userId,
+      "create_pricing_tier",
+      "pricing_tier",
+      tier.id,
+      { amount: tier.amount, effectiveDate: tier.effectiveDate, isCurrentTier: tier.isCurrentTier }
+    );
 
-      const tier = await storage.createPricingTier(validatedData);
-      
-      await logAdminAction(
-        userId,
-        "create_pricing_tier",
-        "pricing_tier",
-        tier.id,
-        { amount: tier.amount, effectiveDate: tier.effectiveDate, isCurrentTier: tier.isCurrentTier }
-      );
+    res.json(tier);
+  }));
 
-      res.json(tier);
-    } catch (error: any) {
-      console.error("Error creating pricing tier:", error);
-      res.status(400).json({ message: error.message || "Failed to create pricing tier" });
-    }
-  });
+  app.put('/api/admin/pricing-tiers/:id/set-current', isAuthenticated, isAdmin, validateCsrfToken, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const tier = await withDatabaseErrorHandling(
+      () => storage.setCurrentPricingTier(req.params.id),
+      'setCurrentPricingTier'
+    );
+    
+    await logAdminAction(
+      userId,
+      "set_current_pricing_tier",
+      "pricing_tier",
+      tier.id,
+      { amount: tier.amount }
+    );
 
-  app.put('/api/admin/pricing-tiers/:id/set-current', isAuthenticated, isAdmin, validateCsrfToken, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const tier = await storage.setCurrentPricingTier(req.params.id);
-      
-      await logAdminAction(
-        userId,
-        "set_current_pricing_tier",
-        "pricing_tier",
-        tier.id,
-        { amount: tier.amount }
-      );
-
-      res.json(tier);
-    } catch (error: any) {
-      console.error("Error setting current pricing tier:", error);
-      res.status(400).json({ message: error.message || "Failed to set current pricing tier" });
-    }
-  });
+    res.json(tier);
+  }));
 
   // ========================================
   // SUPPORTMATCH APP ROUTES
@@ -479,479 +461,472 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ========================================
 
   // Current user's Directory profile
-  app.get('/api/directory/profile', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const profile = await storage.getDirectoryProfileByUserId(userId);
-      if (!profile) {
-        return res.json(null);
-      }
-      let displayName: string | null = null;
-      let userIsVerified = false;
-      if (profile.displayNameType === 'nickname' && profile.nickname) {
-        displayName = profile.nickname;
-      } else if (profile.displayNameType === 'first') {
-        // Priority: Directory profile firstName (override) > user firstName
-        if (profile.firstName) {
-          displayName = profile.firstName;
-        } else if (profile.userId) {
-          const user = await storage.getUser(profile.userId);
-          displayName = user?.firstName || null;
-        }
-        // Get verification status
-        if (profile.userId) {
-          const user = await storage.getUser(profile.userId);
-          userIsVerified = user?.isVerified || false;
-        }
+  app.get('/api/directory/profile', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const profile = await withDatabaseErrorHandling(
+      () => storage.getDirectoryProfileByUserId(userId),
+      'getDirectoryProfileByUserId'
+    );
+    if (!profile) {
+      return res.json(null);
+    }
+    let displayName: string | null = null;
+    let userIsVerified = false;
+    if (profile.displayNameType === 'nickname' && profile.nickname) {
+      displayName = profile.nickname;
+    } else if (profile.displayNameType === 'first') {
+      // Priority: Directory profile firstName (override) > user firstName
+      if (profile.firstName) {
+        displayName = profile.firstName;
       } else if (profile.userId) {
-        const user = await storage.getUser(profile.userId);
+        const user = await withDatabaseErrorHandling(
+          () => storage.getUser(profile.userId),
+          'getUserForDirectoryProfile'
+        );
+        displayName = user?.firstName || null;
+      }
+      // Get verification status
+      if (profile.userId) {
+        const user = await withDatabaseErrorHandling(
+          () => storage.getUser(profile.userId),
+          'getUserVerificationForDirectoryProfile'
+        );
         userIsVerified = user?.isVerified || false;
       }
-      if (!displayName && profile.nickname) displayName = profile.nickname;
-      res.json({ ...profile, displayName, userIsVerified });
-    } catch (error) {
-      console.error("Error fetching Directory profile:", error);
-      res.status(500).json({ message: "Failed to fetch profile" });
+    } else if (profile.userId) {
+      const user = await withDatabaseErrorHandling(
+        () => storage.getUser(profile.userId),
+        'getUserVerificationForDirectoryProfileFallback'
+      );
+      userIsVerified = user?.isVerified || false;
     }
-  });
+    if (!displayName && profile.nickname) displayName = profile.nickname;
+    res.json({ ...profile, displayName, userIsVerified });
+  }));
 
-  app.post('/api/directory/profile', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      // Prevent duplicate
-      const existing = await storage.getDirectoryProfileByUserId(userId);
-      if (existing) {
-        return res.status(400).json({ message: "Directory profile already exists" });
-      }
-
-      const validated = insertDirectoryProfileSchema.parse({
-        ...req.body,
-        userId,
-        isClaimed: true,
-      });
-      const profile = await storage.createDirectoryProfile(validated);
-      res.json(profile);
-    } catch (error: any) {
-      console.error("Error creating Directory profile:", error);
-      res.status(400).json({ message: error.message || "Failed to create profile" });
+  app.post('/api/directory/profile', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    // Prevent duplicate
+    const existing = await withDatabaseErrorHandling(
+      () => storage.getDirectoryProfileByUserId(userId),
+      'getDirectoryProfileByUserId'
+    );
+    if (existing) {
+      // Reuse validation error pathway
+      return res.status(400).json({ message: "Directory profile already exists" });
     }
-  });
 
-  app.put('/api/directory/profile', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const profile = await storage.getDirectoryProfileByUserId(userId);
-      if (!profile) return res.status(404).json({ message: "Profile not found" });
+    const validated = validateWithZod(insertDirectoryProfileSchema, {
+      ...req.body,
+      userId,
+      isClaimed: true,
+    }, 'Invalid profile data');
+    const profile = await withDatabaseErrorHandling(
+      () => storage.createDirectoryProfile(validated),
+      'createDirectoryProfile'
+    );
+    res.json(profile);
+  }));
 
-      // Do not allow changing userId/isClaimed directly
-      const { userId: _u, isClaimed: _c, ...update } = req.body;
-      const validated = insertDirectoryProfileSchema.partial().parse(update);
-      const updated = await storage.updateDirectoryProfile(profile.id, validated);
-      res.json(updated);
-    } catch (error: any) {
-      console.error("Error updating Directory profile:", error);
-      res.status(400).json({ message: error.message || "Failed to update profile" });
-    }
-  });
+  app.put('/api/directory/profile', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const profile = await withDatabaseErrorHandling(
+      () => storage.getDirectoryProfileByUserId(userId),
+      'getDirectoryProfileByUserId'
+    );
+    if (!profile) return res.status(404).json({ message: "Profile not found" });
 
-  app.delete('/api/directory/profile', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const { reason } = req.body;
-      await storage.deleteDirectoryProfileWithCascade(userId, reason);
-      res.json({ message: "Directory profile deleted successfully" });
-    } catch (error: any) {
-      console.error("Error deleting Directory profile:", error);
-      res.status(400).json({ message: error.message || "Failed to delete profile" });
-    }
-  });
+    // Do not allow changing userId/isClaimed directly
+    const { userId: _u, isClaimed: _c, ...update } = req.body;
+    const validated = validateWithZod(insertDirectoryProfileSchema.partial() as any, update, 'Invalid profile update');
+    const updated = await withDatabaseErrorHandling(
+      () => storage.updateDirectoryProfile(profile.id, validated),
+      'updateDirectoryProfile'
+    );
+    res.json(updated);
+  }));
+
+  app.delete('/api/directory/profile', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const { reason } = req.body;
+    await withDatabaseErrorHandling(
+      () => storage.deleteDirectoryProfileWithCascade(userId, reason),
+      'deleteDirectoryProfileWithCascade'
+    );
+    res.json({ message: "Directory profile deleted successfully" });
+  }));
 
   // Public routes (with rate limiting to prevent scraping)
-  app.get('/api/directory/public/:id', publicItemLimiter, async (req, res) => {
-    try {
-      const profile = await storage.getDirectoryProfileById(req.params.id);
-      if (!profile || !profile.isPublic) {
-        return res.status(404).json({ message: "Profile not found" });
-      }
-      let displayName: string | null = null;
-      let userIsVerified = false;
-      if (profile.displayNameType === 'nickname' && profile.nickname) {
-        displayName = profile.nickname;
-      } else if (profile.displayNameType === 'first') {
-        // Priority: Directory profile firstName (override) > user firstName
-        if (profile.firstName) {
-          displayName = profile.firstName;
-        } else if (profile.userId) {
-          const user = await storage.getUser(profile.userId);
-          displayName = user?.firstName || null;
-        }
-        // Get verification status
-        if (profile.userId) {
-          const user = await storage.getUser(profile.userId);
-          userIsVerified = user?.isVerified || false;
-        }
+  app.get('/api/directory/public/:id', publicItemLimiter, asyncHandler(async (req, res) => {
+    const profile = await withDatabaseErrorHandling(
+      () => storage.getDirectoryProfileById(req.params.id),
+      'getDirectoryProfileById'
+    );
+    if (!profile || !profile.isPublic) {
+      return res.status(404).json({ message: "Profile not found" });
+    }
+    let displayName: string | null = null;
+    let userIsVerified = false;
+    if (profile.displayNameType === 'nickname' && profile.nickname) {
+      displayName = profile.nickname;
+    } else if (profile.displayNameType === 'first') {
+      // Priority: Directory profile firstName (override) > user firstName
+      if (profile.firstName) {
+        displayName = profile.firstName;
       } else if (profile.userId) {
-        const user = await storage.getUser(profile.userId);
+        const user = await withDatabaseErrorHandling(
+          () => storage.getUser(profile.userId),
+          'getUserForPublicDirectoryProfile'
+        );
+        displayName = user?.firstName || null;
+      }
+      // Get verification status
+      if (profile.userId) {
+        const user = await withDatabaseErrorHandling(
+          () => storage.getUser(profile.userId),
+          'getUserVerificationForPublicDirectoryProfile'
+        );
         userIsVerified = user?.isVerified || false;
       }
-      if (!displayName && profile.nickname) displayName = profile.nickname;
-      res.json({ ...profile, displayName, userIsVerified });
-    } catch (error) {
-      console.error("Error fetching public Directory profile:", error);
-      res.status(500).json({ message: "Failed to fetch profile" });
+    } else if (profile.userId) {
+      const user = await withDatabaseErrorHandling(
+        () => storage.getUser(profile.userId),
+        'getUserVerificationForPublicDirectoryProfileFallback'
+      );
+      userIsVerified = user?.isVerified || false;
     }
-  });
+    if (!displayName && profile.nickname) displayName = profile.nickname;
+    res.json({ ...profile, displayName, userIsVerified });
+  }));
 
-  app.get('/api/directory/public', publicListingLimiter, async (req, res) => {
-    try {
-      // Add delay for suspicious requests
-      const isSuspicious = (req as any).isSuspicious || false;
-      const userAgent = req.headers['user-agent'];
-      const accept = req.headers['accept'];
-      const acceptLang = req.headers['accept-language'];
-      const likelyBot = isLikelyBot(userAgent, accept, acceptLang);
-      
-      if (isSuspicious || likelyBot) {
-        await addAntiScrapingDelay(true, 200, 800);
-      } else {
-        await addAntiScrapingDelay(false, 50, 200);
-      }
+  app.get('/api/directory/public', publicListingLimiter, asyncHandler(async (req, res) => {
+    // Add delay for suspicious requests
+    const isSuspicious = (req as any).isSuspicious || false;
+    const userAgent = req.headers['user-agent'];
+    const accept = req.headers['accept'];
+    const acceptLang = req.headers['accept-language'];
+    const likelyBot = isLikelyBot(userAgent, accept, acceptLang);
+    
+    if (isSuspicious || likelyBot) {
+      await addAntiScrapingDelay(true, 200, 800);
+    } else {
+      await addAntiScrapingDelay(false, 50, 200);
+    }
 
-      const profiles = await storage.listPublicDirectoryProfiles();
-      const withNames = await Promise.all(profiles.map(async (p) => {
-        let name: string | null = null;
-        let userIsVerified = false;
-        if (p.displayNameType === 'nickname' && p.nickname) {
-          name = p.nickname;
-        } else if (p.displayNameType === 'first') {
-          // Priority: Directory profile firstName (override) > user firstName
-          if (p.firstName) {
-            name = p.firstName;
-          } else if (p.userId) {
-            const u = await storage.getUser(p.userId);
-            name = u?.firstName || null;
-          }
-          // Get verification status
-          if (p.userId) {
-            const u = await storage.getUser(p.userId);
-            userIsVerified = u?.isVerified || false;
-          }
+    const profiles = await withDatabaseErrorHandling(
+      () => storage.listPublicDirectoryProfiles(),
+      'listPublicDirectoryProfiles'
+    );
+    const withNames = await Promise.all(profiles.map(async (p) => {
+      let name: string | null = null;
+      let userIsVerified = false;
+      if (p.displayNameType === 'nickname' && p.nickname) {
+        name = p.nickname;
+      } else if (p.displayNameType === 'first') {
+        // Priority: Directory profile firstName (override) > user firstName
+        if (p.firstName) {
+          name = p.firstName;
         } else if (p.userId) {
-          const u = await storage.getUser(p.userId);
+          const u = await withDatabaseErrorHandling(
+            () => storage.getUser(p.userId),
+            'getUserForPublicDirectoryList'
+          );
+          name = u?.firstName || null;
+        }
+        // Get verification status
+        if (p.userId) {
+          const u = await withDatabaseErrorHandling(
+            () => storage.getUser(p.userId),
+            'getUserVerificationForPublicDirectoryList'
+          );
           userIsVerified = u?.isVerified || false;
         }
-        // Fallback to nickname if no name found
-        if (!name && p.nickname) name = p.nickname;
-        // Ensure we always return displayName (even if null)
-        return { ...p, displayName: name || null, userIsVerified };
-      }));
-      
-      // Rotate display order to make scraping harder
-      const rotated = rotateDisplayOrder(withNames);
-      
-      res.json(rotated);
-    } catch (error) {
-      console.error("Error listing public Directory profiles:", error);
-      res.status(500).json({ message: "Failed to fetch profiles" });
-    }
-  });
+      } else if (p.userId) {
+        const u = await withDatabaseErrorHandling(
+          () => storage.getUser(p.userId),
+          'getUserVerificationForPublicDirectoryListFallback'
+        );
+        userIsVerified = u?.isVerified || false;
+      }
+      // Fallback to nickname if no name found
+      if (!name && p.nickname) name = p.nickname;
+      // Ensure we always return displayName (even if null)
+      return { ...p, displayName: name || null, userIsVerified };
+    }));
+    
+    // Rotate display order to make scraping harder
+    const rotated = rotateDisplayOrder(withNames);
+    
+    res.json(rotated);
+  }));
 
   // Authenticated list (shows additional non-public fields like signalUrl)
-  app.get('/api/directory/list', isAuthenticated, async (_req, res) => {
-    try {
-      const profiles = await storage.listAllDirectoryProfiles();
-      const withNames = await Promise.all(profiles.map(async (p) => {
-        let name: string | null = null;
-        let userIsVerified = false;
-        if (p.displayNameType === 'nickname' && p.nickname) {
-          name = p.nickname;
-        } else if (p.displayNameType === 'first') {
-          // Priority: Directory profile firstName (override) > user firstName
-          if (p.firstName) {
-            name = p.firstName;
-          } else if (p.userId) {
-            const u = await storage.getUser(p.userId);
-            name = u?.firstName || null;
-          }
-          // Get verification status
-          if (p.userId) {
-            const u = await storage.getUser(p.userId);
-            userIsVerified = u?.isVerified || false;
-          }
+  app.get('/api/directory/list', isAuthenticated, asyncHandler(async (_req, res) => {
+    const profiles = await withDatabaseErrorHandling(
+      () => storage.listAllDirectoryProfiles(),
+      'listAllDirectoryProfiles'
+    );
+    const withNames = await Promise.all(profiles.map(async (p) => {
+      let name: string | null = null;
+      let userIsVerified = false;
+      if (p.displayNameType === 'nickname' && p.nickname) {
+        name = p.nickname;
+      } else if (p.displayNameType === 'first') {
+        // Priority: Directory profile firstName (override) > user firstName
+        if (p.firstName) {
+          name = p.firstName;
         } else if (p.userId) {
-          const u = await storage.getUser(p.userId);
+          const u = await withDatabaseErrorHandling(
+            () => storage.getUser(p.userId),
+            'getUserForDirectoryList'
+          );
+          name = u?.firstName || null;
+        }
+        // Get verification status
+        if (p.userId) {
+          const u = await withDatabaseErrorHandling(
+            () => storage.getUser(p.userId),
+            'getUserVerificationForDirectoryList'
+          );
           userIsVerified = u?.isVerified || false;
         }
-        // Fallback to nickname if no name found
-        if (!name && p.nickname) name = p.nickname;
-        // Ensure we always return displayName (even if null)
-        return { ...p, displayName: name || null, userIsVerified };
-      }));
-      res.json(withNames);
-    } catch (error) {
-      console.error("Error listing Directory profiles (auth):", error);
-      res.status(500).json({ message: "Failed to fetch profiles" });
-    }
-  });
+      } else if (p.userId) {
+        const u = await withDatabaseErrorHandling(
+          () => storage.getUser(p.userId),
+          'getUserVerificationForDirectoryListFallback'
+        );
+        userIsVerified = u?.isVerified || false;
+      }
+      // Fallback to nickname if no name found
+      if (!name && p.nickname) name = p.nickname;
+      // Ensure we always return displayName (even if null)
+      return { ...p, displayName: name || null, userIsVerified };
+    }));
+    res.json(withNames);
+  }));
 
   // Admin routes for Directory
-  app.get('/api/directory/admin/profiles', isAuthenticated, isAdmin, async (req, res) => {
-    try {
-      // Reuse public list for now; could add full list later
-      const profiles = await storage.listPublicDirectoryProfiles();
-      res.json(profiles);
-    } catch (error) {
-      console.error("Error fetching Directory profiles:", error);
-      res.status(500).json({ message: "Failed to fetch profiles" });
-    }
-  });
+  app.get('/api/directory/admin/profiles', isAuthenticated, isAdmin, asyncHandler(async (_req, res) => {
+    // Reuse public list for now; could add full list later
+    const profiles = await withDatabaseErrorHandling(
+      () => storage.listPublicDirectoryProfiles(),
+      'listPublicDirectoryProfiles'
+    );
+    res.json(profiles);
+  }));
 
   // Admin creates an unclaimed profile
-  app.post('/api/directory/admin/profiles', isAuthenticated, isAdmin, async (req: any, res) => {
-    try {
-      const adminId = getUserId(req);
-      const validated = insertDirectoryProfileSchema.parse({
-        ...req.body,
-        userId: req.body.userId || null,
-        isClaimed: !!req.body.userId,
-      });
-      const profile = await storage.createDirectoryProfile(validated);
-      await logAdminAction(adminId, 'create_directory_profile', 'directory_profile', profile.id, { isClaimed: profile.isClaimed });
-      res.json(profile);
-    } catch (error: any) {
-      console.error("Error creating Directory profile (admin):", error);
-      res.status(400).json({ message: error.message || "Failed to create profile" });
-    }
-  });
+  app.post('/api/directory/admin/profiles', isAuthenticated, isAdmin, asyncHandler(async (req: any, res) => {
+    const adminId = getUserId(req);
+    const validated = validateWithZod(insertDirectoryProfileSchema, {
+      ...req.body,
+      userId: req.body.userId || null,
+      isClaimed: !!req.body.userId,
+    }, 'Invalid profile data');
+    const profile = await withDatabaseErrorHandling(
+      () => storage.createDirectoryProfile(validated),
+      'createDirectoryProfile'
+    );
+    await logAdminAction(adminId, 'create_directory_profile', 'directory_profile', profile.id, { isClaimed: profile.isClaimed });
+    res.json(profile);
+  }));
 
   // Removed admin seed endpoint; use scripts/seedDirectory.ts instead
 
   // Admin assigns an unclaimed profile to a user
-  app.put('/api/directory/admin/profiles/:id/assign', isAuthenticated, isAdmin, async (req: any, res) => {
-    try {
-      const adminId = getUserId(req);
-      const { userId } = req.body;
-      if (!userId) return res.status(400).json({ message: 'userId is required' });
-      const updated = await storage.updateDirectoryProfile(req.params.id, { userId, isClaimed: true } as any);
-      await logAdminAction(adminId, 'assign_directory_profile', 'directory_profile', updated.id, { userId });
-      res.json(updated);
-    } catch (error: any) {
-      console.error("Error assigning Directory profile:", error);
-      res.status(400).json({ message: error.message || "Failed to assign profile" });
-    }
-  });
+  app.put('/api/directory/admin/profiles/:id/assign', isAuthenticated, isAdmin, asyncHandler(async (req: any, res) => {
+    const adminId = getUserId(req);
+    const { userId } = req.body;
+    if (!userId) return res.status(400).json({ message: 'userId is required' });
+    const updated = await withDatabaseErrorHandling(
+      () => storage.updateDirectoryProfile(req.params.id, { userId, isClaimed: true } as any),
+      'assignDirectoryProfile'
+    );
+    await logAdminAction(adminId, 'assign_directory_profile', 'directory_profile', updated.id, { userId });
+    res.json(updated);
+  }));
 
   // Admin update Directory profile (for editing unclaimed profiles)
-  app.put('/api/directory/admin/profiles/:id', isAuthenticated, isAdmin, async (req: any, res) => {
-    try {
-      const adminId = getUserId(req);
-      const validated = insertDirectoryProfileSchema.partial().parse(req.body);
-      const updated = await storage.updateDirectoryProfile(req.params.id, validated);
-      await logAdminAction(adminId, 'update_directory_profile', 'directory_profile', updated.id);
-      res.json(updated);
-    } catch (error: any) {
-      console.error("Error updating Directory profile:", error);
-      res.status(400).json({ message: error.message || "Failed to update profile" });
-    }
-  });
+  app.put('/api/directory/admin/profiles/:id', isAuthenticated, isAdmin, asyncHandler(async (req: any, res) => {
+    const adminId = getUserId(req);
+    const validated = validateWithZod(insertDirectoryProfileSchema.partial() as any, req.body, 'Invalid profile update');
+    const updated = await withDatabaseErrorHandling(
+      () => storage.updateDirectoryProfile(req.params.id, validated),
+      'updateDirectoryProfile'
+    );
+    await logAdminAction(adminId, 'update_directory_profile', 'directory_profile', updated.id);
+    res.json(updated);
+  }));
 
   // ========================================
   // CHAT GROUPS APP ROUTES
   // ========================================
 
   // Public routes - anyone can view active groups
-  app.get('/api/chatgroups', async (_req, res) => {
-    try {
-      const groups = await storage.getActiveChatGroups();
-      res.json(groups);
-    } catch (error) {
-      console.error("Error fetching chat groups:", error);
-      res.status(500).json({ message: "Failed to fetch chat groups" });
-    }
-  });
+  app.get('/api/chatgroups', asyncHandler(async (_req, res) => {
+    const groups = await withDatabaseErrorHandling(
+      () => storage.getActiveChatGroups(),
+      'getActiveChatGroups'
+    );
+    res.json(groups);
+  }));
 
   // Admin routes
-  app.get('/api/chatgroups/admin', isAuthenticated, isAdmin, async (_req, res) => {
-    try {
-      const groups = await storage.getAllChatGroups();
-      res.json(groups);
-    } catch (error) {
-      console.error("Error fetching all chat groups:", error);
-      res.status(500).json({ message: "Failed to fetch chat groups" });
-    }
-  });
+  app.get('/api/chatgroups/admin', isAuthenticated, isAdmin, asyncHandler(async (_req, res) => {
+    const groups = await withDatabaseErrorHandling(
+      () => storage.getAllChatGroups(),
+      'getAllChatGroups'
+    );
+    res.json(groups);
+  }));
 
-  app.post('/api/chatgroups/admin', isAuthenticated, isAdmin, async (req: any, res) => {
-    try {
-      const adminId = getUserId(req);
-      const validated = insertChatGroupSchema.parse(req.body);
-      const group = await storage.createChatGroup(validated);
-      await logAdminAction(adminId, 'create_chat_group', 'chat_group', group.id);
-      res.json(group);
-    } catch (error: any) {
-      console.error("Error creating chat group:", error);
-      res.status(400).json({ message: error.message || "Failed to create chat group" });
-    }
-  });
+  app.post('/api/chatgroups/admin', isAuthenticated, isAdmin, validateCsrfToken, asyncHandler(async (req: any, res) => {
+    const adminId = getUserId(req);
+    const validated = validateWithZod(insertChatGroupSchema, req.body, 'Invalid chat group data');
+    const group = await withDatabaseErrorHandling(
+      () => storage.createChatGroup(validated),
+      'createChatGroup'
+    );
+    await logAdminAction(adminId, 'create_chat_group', 'chat_group', group.id);
+    res.json(group);
+  }));
 
-  app.put('/api/chatgroups/admin/:id', isAuthenticated, isAdmin, async (req: any, res) => {
-    try {
-      const adminId = getUserId(req);
-      const validated = insertChatGroupSchema.partial().parse(req.body);
-      const group = await storage.updateChatGroup(req.params.id, validated);
-      await logAdminAction(adminId, 'update_chat_group', 'chat_group', group.id);
-      res.json(group);
-    } catch (error: any) {
-      console.error("Error updating chat group:", error);
-      res.status(400).json({ message: error.message || "Failed to update chat group" });
-    }
-  });
+  app.put('/api/chatgroups/admin/:id', isAuthenticated, isAdmin, validateCsrfToken, asyncHandler(async (req: any, res) => {
+    const adminId = getUserId(req);
+    const validated = validateWithZod(insertChatGroupSchema.partial() as any, req.body, 'Invalid chat group update');
+    const group = await withDatabaseErrorHandling(
+      () => storage.updateChatGroup(req.params.id, validated),
+      'updateChatGroup'
+    );
+    await logAdminAction(adminId, 'update_chat_group', 'chat_group', group.id);
+    res.json(group);
+  }));
 
-  app.delete('/api/chatgroups/admin/:id', isAuthenticated, isAdmin, async (req: any, res) => {
-    try {
-      const adminId = getUserId(req);
-      await storage.deleteChatGroup(req.params.id);
-      await logAdminAction(adminId, 'delete_chat_group', 'chat_group', req.params.id);
-      res.json({ message: "Chat group deleted" });
-    } catch (error: any) {
-      console.error("Error deleting chat group:", error);
-      res.status(400).json({ message: error.message || "Failed to delete chat group" });
-    }
-  });
+  app.delete('/api/chatgroups/admin/:id', isAuthenticated, isAdmin, validateCsrfToken, asyncHandler(async (req: any, res) => {
+    const adminId = getUserId(req);
+    await withDatabaseErrorHandling(
+      () => storage.deleteChatGroup(req.params.id),
+      'deleteChatGroup'
+    );
+    await logAdminAction(adminId, 'delete_chat_group', 'chat_group', req.params.id);
+    res.json({ message: "Chat group deleted" });
+  }));
 
   // ChatGroups Announcement routes
-  app.get('/api/chatgroups/announcements', isAuthenticated, async (req, res) => {
-    try {
-      const announcements = await storage.getActiveChatgroupsAnnouncements();
-      res.json(announcements);
-    } catch (error) {
-      console.error("Error fetching ChatGroups announcements:", error);
-      res.status(500).json({ message: "Failed to fetch announcements" });
-    }
-  });
+  app.get('/api/chatgroups/announcements', isAuthenticated, asyncHandler(async (_req, res) => {
+    const announcements = await withDatabaseErrorHandling(
+      () => storage.getActiveChatgroupsAnnouncements(),
+      'getActiveChatgroupsAnnouncements'
+    );
+    res.json(announcements);
+  }));
 
-  app.get('/api/chatgroups/admin/announcements', isAuthenticated, isAdmin, async (req, res) => {
-    try {
-      const announcements = await storage.getAllChatgroupsAnnouncements();
-      res.json(announcements);
-    } catch (error) {
-      console.error("Error fetching ChatGroups announcements:", error);
-      res.status(500).json({ message: "Failed to fetch announcements" });
-    }
-  });
+  app.get('/api/chatgroups/admin/announcements', isAuthenticated, isAdmin, asyncHandler(async (_req, res) => {
+    const announcements = await withDatabaseErrorHandling(
+      () => storage.getAllChatgroupsAnnouncements(),
+      'getAllChatgroupsAnnouncements'
+    );
+    res.json(announcements);
+  }));
 
-  app.post('/api/chatgroups/admin/announcements', isAuthenticated, isAdmin, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const validatedData = insertChatgroupsAnnouncementSchema.parse(req.body);
+  app.post('/api/chatgroups/admin/announcements', isAuthenticated, isAdmin, validateCsrfToken, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const validatedData = validateWithZod(insertChatgroupsAnnouncementSchema, req.body, 'Invalid announcement data');
 
-      const announcement = await storage.createChatgroupsAnnouncement(validatedData);
-      
-      await logAdminAction(
-        userId,
-        "create_chatgroups_announcement",
-        "announcement",
-        announcement.id,
-        { title: announcement.title, type: announcement.type }
-      );
+    const announcement = await withDatabaseErrorHandling(
+      () => storage.createChatgroupsAnnouncement(validatedData),
+      'createChatgroupsAnnouncement'
+    );
+    
+    await logAdminAction(
+      userId,
+      "create_chatgroups_announcement",
+      "announcement",
+      announcement.id,
+      { title: announcement.title, type: announcement.type }
+    );
 
-      res.json(announcement);
-    } catch (error: any) {
-      console.error("Error creating ChatGroups announcement:", error);
-      res.status(400).json({ message: error.message || "Failed to create announcement" });
-    }
-  });
+    res.json(announcement);
+  }));
 
-  app.put('/api/chatgroups/admin/announcements/:id', isAuthenticated, isAdmin, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const announcement = await storage.updateChatgroupsAnnouncement(req.params.id, req.body);
-      
-      await logAdminAction(
-        userId,
-        "update_chatgroups_announcement",
-        "announcement",
-        announcement.id,
-        { title: announcement.title }
-      );
+  app.put('/api/chatgroups/admin/announcements/:id', isAuthenticated, isAdmin, validateCsrfToken, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const announcement = await withDatabaseErrorHandling(
+      () => storage.updateChatgroupsAnnouncement(req.params.id, req.body),
+      'updateChatgroupsAnnouncement'
+    );
+    
+    await logAdminAction(
+      userId,
+      "update_chatgroups_announcement",
+      "announcement",
+      announcement.id,
+      { title: announcement.title }
+    );
 
-      res.json(announcement);
-    } catch (error: any) {
-      console.error("Error updating ChatGroups announcement:", error);
-      res.status(400).json({ message: error.message || "Failed to update announcement" });
-    }
-  });
+    res.json(announcement);
+  }));
 
-  app.delete('/api/chatgroups/admin/announcements/:id', isAuthenticated, isAdmin, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const announcement = await storage.deactivateChatgroupsAnnouncement(req.params.id);
-      
-      await logAdminAction(
-        userId,
-        "deactivate_chatgroups_announcement",
-        "announcement",
-        announcement.id,
-        { title: announcement.title }
-      );
+  app.delete('/api/chatgroups/admin/announcements/:id', isAuthenticated, isAdmin, validateCsrfToken, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const announcement = await withDatabaseErrorHandling(
+      () => storage.deactivateChatgroupsAnnouncement(req.params.id),
+      'deactivateChatgroupsAnnouncement'
+    );
+    
+    await logAdminAction(
+      userId,
+      "deactivate_chatgroups_announcement",
+      "announcement",
+      announcement.id,
+      { title: announcement.title }
+    );
 
-      res.json(announcement);
-    } catch (error: any) {
-      console.error("Error deleting ChatGroups announcement:", error);
-      res.status(400).json({ message: error.message || "Failed to delete announcement" });
-    }
-  });
+    res.json(announcement);
+  }));
 
   // SupportMatch Profile routes
-  app.get('/api/supportmatch/profile', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const profile = await storage.getSupportMatchProfile(userId);
-      res.json(profile || null);
-    } catch (error) {
-      console.error("Error fetching SupportMatch profile:", error);
-      res.status(500).json({ message: "Failed to fetch profile" });
-    }
-  });
+  app.get('/api/supportmatch/profile', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const profile = await withDatabaseErrorHandling(
+      () => storage.getSupportMatchProfile(userId),
+      'getSupportMatchProfile'
+    );
+    res.json(profile || null);
+  }));
 
-  app.post('/api/supportmatch/profile', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const validatedData = insertSupportMatchProfileSchema.parse({
-        ...req.body,
-        userId,
-      });
+  app.post('/api/supportmatch/profile', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const validatedData = validateWithZod(insertSupportMatchProfileSchema, {
+      ...req.body,
+      userId,
+    }, 'Invalid profile data');
 
-      const profile = await storage.createSupportMatchProfile(validatedData);
-      res.json(profile);
-    } catch (error: any) {
-      console.error("Error creating SupportMatch profile:", error);
-      res.status(400).json({ message: error.message || "Failed to create profile" });
-    }
-  });
+    const profile = await withDatabaseErrorHandling(
+      () => storage.createSupportMatchProfile(validatedData),
+      'createSupportMatchProfile'
+    );
+    res.json(profile);
+  }));
 
-  app.put('/api/supportmatch/profile', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const profile = await storage.updateSupportMatchProfile(userId, req.body);
-      res.json(profile);
-    } catch (error: any) {
-      console.error("Error updating SupportMatch profile:", error);
-      res.status(400).json({ message: error.message || "Failed to update profile" });
-    }
-  });
+  app.put('/api/supportmatch/profile', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const profile = await withDatabaseErrorHandling(
+      () => storage.updateSupportMatchProfile(userId, req.body),
+      'updateSupportMatchProfile'
+    );
+    res.json(profile);
+  }));
 
-  app.delete('/api/supportmatch/profile', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const { reason } = req.body;
-      await storage.deleteSupportMatchProfile(userId, reason);
-      res.json({ message: "SupportMatch profile deleted successfully" });
-    } catch (error: any) {
-      console.error("Error deleting SupportMatch profile:", error);
-      res.status(400).json({ message: error.message || "Failed to delete profile" });
-    }
-  });
+  app.delete('/api/supportmatch/profile', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const { reason } = req.body;
+    await withDatabaseErrorHandling(
+      () => storage.deleteSupportMatchProfile(userId, reason),
+      'deleteSupportMatchProfile'
+    );
+    res.json({ message: "SupportMatch profile deleted successfully" });
+  }));
 
   // SupportMatch Partnership routes
   app.get('/api/supportmatch/partnership/active', isAuthenticated, async (req: any, res) => {
@@ -990,97 +965,83 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // SupportMatch Messaging routes
-  app.get('/api/supportmatch/messages/:partnershipId', isAuthenticated, async (req, res) => {
-    try {
-      const messages = await storage.getMessagesByPartnership(req.params.partnershipId);
-      res.json(messages);
-    } catch (error) {
-      console.error("Error fetching messages:", error);
-      res.status(500).json({ message: "Failed to fetch messages" });
-    }
-  });
+  app.get('/api/supportmatch/messages/:partnershipId', isAuthenticated, asyncHandler(async (req, res) => {
+    const messages = await withDatabaseErrorHandling(
+      () => storage.getMessagesByPartnership(req.params.partnershipId),
+      'getMessagesByPartnership'
+    );
+    res.json(messages);
+  }));
 
-  app.post('/api/supportmatch/messages', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const validatedData = insertMessageSchema.parse({
-        ...req.body,
-        senderId: userId,
-      });
+  app.post('/api/supportmatch/messages', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const validatedData = validateWithZod(insertMessageSchema, {
+      ...req.body,
+      senderId: userId,
+    }, 'Invalid message data');
 
-      const message = await storage.createMessage(validatedData);
-      res.json(message);
-    } catch (error: any) {
-      console.error("Error sending message:", error);
-      res.status(400).json({ message: error.message || "Failed to send message" });
-    }
-  });
+    const message = await withDatabaseErrorHandling(
+      () => storage.createMessage(validatedData),
+      'createMessage'
+    );
+    res.json(message);
+  }));
 
   // SupportMatch Exclusion routes
-  app.get('/api/supportmatch/exclusions', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const exclusions = await storage.getExclusionsByUser(userId);
-      res.json(exclusions);
-    } catch (error) {
-      console.error("Error fetching exclusions:", error);
-      res.status(500).json({ message: "Failed to fetch exclusions" });
-    }
-  });
+  app.get('/api/supportmatch/exclusions', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const exclusions = await withDatabaseErrorHandling(
+      () => storage.getExclusionsByUser(userId),
+      'getExclusionsByUser'
+    );
+    res.json(exclusions);
+  }));
 
-  app.post('/api/supportmatch/exclusions', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const validatedData = insertExclusionSchema.parse({
-        ...req.body,
-        userId,
-      });
+  app.post('/api/supportmatch/exclusions', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const validatedData = validateWithZod(insertExclusionSchema, {
+      ...req.body,
+      userId,
+    }, 'Invalid exclusion data');
 
-      const exclusion = await storage.createExclusion(validatedData);
-      res.json(exclusion);
-    } catch (error: any) {
-      console.error("Error creating exclusion:", error);
-      res.status(400).json({ message: error.message || "Failed to create exclusion" });
-    }
-  });
+    const exclusion = await withDatabaseErrorHandling(
+      () => storage.createExclusion(validatedData),
+      'createExclusion'
+    );
+    res.json(exclusion);
+  }));
 
-  app.delete('/api/supportmatch/exclusions/:id', isAuthenticated, async (req: any, res) => {
-    try {
-      await storage.deleteExclusion(req.params.id);
-      res.json({ message: "Exclusion removed successfully" });
-    } catch (error) {
-      console.error("Error removing exclusion:", error);
-      res.status(500).json({ message: "Failed to remove exclusion" });
-    }
-  });
+  app.delete('/api/supportmatch/exclusions/:id', isAuthenticated, asyncHandler(async (req: any, res) => {
+    await withDatabaseErrorHandling(
+      () => storage.deleteExclusion(req.params.id),
+      'deleteExclusion'
+    );
+    res.json({ message: "Exclusion removed successfully" });
+  }));
 
   // SupportMatch Report routes
-  app.post('/api/supportmatch/reports', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const validatedData = insertReportSchema.parse({
-        ...req.body,
-        reporterId: userId,
-      });
+  app.post('/api/supportmatch/reports', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const validatedData = validateWithZod(insertReportSchema, {
+      ...req.body,
+      reporterId: userId,
+    }, 'Invalid report data');
 
-      const report = await storage.createReport(validatedData);
-      res.json(report);
-    } catch (error: any) {
-      console.error("Error creating report:", error);
-      res.status(400).json({ message: error.message || "Failed to create report" });
-    }
-  });
+    const report = await withDatabaseErrorHandling(
+      () => storage.createReport(validatedData),
+      'createReport'
+    );
+    res.json(report);
+  }));
 
   // SupportMatch Announcement routes (public)
-  app.get('/api/supportmatch/announcements', isAuthenticated, async (req, res) => {
-    try {
-      const announcements = await storage.getActiveSupportmatchAnnouncements();
-      res.json(announcements);
-    } catch (error) {
-      console.error("Error fetching SupportMatch announcements:", error);
-      res.status(500).json({ message: "Failed to fetch announcements" });
-    }
-  });
+  app.get('/api/supportmatch/announcements', isAuthenticated, asyncHandler(async (_req, res) => {
+    const announcements = await withDatabaseErrorHandling(
+      () => storage.getActiveSupportmatchAnnouncements(),
+      'getActiveSupportmatchAnnouncements'
+    );
+    res.json(announcements);
+  }));
 
   // SupportMatch Admin routes
   app.get('/api/supportmatch/admin/stats', isAuthenticated, isAdmin, async (req, res) => {
@@ -1103,172 +1064,143 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/supportmatch/admin/partnerships', isAuthenticated, isAdmin, async (req, res) => {
-    try {
-      const partnerships = await storage.getAllPartnerships();
-      res.json(partnerships);
-    } catch (error) {
-      console.error("Error fetching partnerships:", error);
-      res.status(500).json({ message: "Failed to fetch partnerships" });
+  app.get('/api/supportmatch/admin/partnerships', isAuthenticated, isAdmin, asyncHandler(async (_req, res) => {
+    const partnerships = await withDatabaseErrorHandling(
+      () => storage.getAllPartnerships(),
+      'getAllPartnerships'
+    );
+    res.json(partnerships);
+  }));
+
+  app.put('/api/supportmatch/admin/partnerships/:id/status', isAuthenticated, isAdmin, validateCsrfToken, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const { status } = req.body;
+    if (!status) {
+      return res.status(400).json({ message: "Status is required" });
     }
-  });
+    const partnership = await withDatabaseErrorHandling(
+      () => storage.updatePartnershipStatus(req.params.id, status),
+      'updatePartnershipStatus'
+    );
+    await logAdminAction(
+      userId,
+      "update_partnership_status",
+      "partnership",
+      partnership.id,
+      { status }
+    );
+    res.json(partnership);
+  }));
 
-  app.put('/api/supportmatch/admin/partnerships/:id/status', isAuthenticated, isAdmin, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const { status } = req.body;
-      
-      if (!status) {
-        return res.status(400).json({ message: "Status is required" });
-      }
+  app.post('/api/supportmatch/admin/partnerships/run-matching', isAuthenticated, isAdmin, validateCsrfToken, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const partnerships = await withDatabaseErrorHandling(
+      () => storage.createAlgorithmicMatches(),
+      'createAlgorithmicMatches'
+    );
+    await logAdminAction(
+      userId,
+      "run_algorithmic_matching",
+      "partnership",
+      undefined,
+      { matchesCreated: partnerships.length }
+    );
+    res.json({
+      message: `Successfully created ${partnerships.length} partnership(s)`,
+      partnerships,
+    });
+  }));
 
-      const partnership = await storage.updatePartnershipStatus(req.params.id, status);
-      
-      await logAdminAction(
-        userId,
-        "update_partnership_status",
-        "partnership",
-        partnership.id,
-        { status }
-      );
+  app.get('/api/supportmatch/admin/reports', isAuthenticated, isAdmin, asyncHandler(async (_req, res) => {
+    const reports = await withDatabaseErrorHandling(
+      () => storage.getAllReports(),
+      'getAllReports'
+    );
+    res.json(reports);
+  }));
 
-      res.json(partnership);
-    } catch (error: any) {
-      console.error("Error updating partnership status:", error);
-      res.status(400).json({ message: error.message || "Failed to update partnership status" });
+  app.put('/api/supportmatch/admin/reports/:id/status', isAuthenticated, isAdmin, validateCsrfToken, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const { status, resolution } = req.body;
+    if (!status) {
+      return res.status(400).json({ message: "Status is required" });
     }
-  });
+    const report = await withDatabaseErrorHandling(
+      () => storage.updateReportStatus(req.params.id, status, resolution),
+      'updateReportStatus'
+    );
+    await logAdminAction(
+      userId,
+      "update_report_status",
+      "report",
+      report.id,
+      { status, resolution }
+    );
+    res.json(report);
+  }));
 
-  app.post('/api/supportmatch/admin/partnerships/run-matching', isAuthenticated, isAdmin, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      
-      const partnerships = await storage.createAlgorithmicMatches();
-      
-      await logAdminAction(
-        userId,
-        "run_algorithmic_matching",
-        "partnership",
-        undefined,
-        { matchesCreated: partnerships.length }
-      );
+  app.get('/api/supportmatch/admin/announcements', isAuthenticated, isAdmin, asyncHandler(async (_req, res) => {
+    const announcements = await withDatabaseErrorHandling(
+      () => storage.getAllSupportmatchAnnouncements(),
+      'getAllSupportmatchAnnouncements'
+    );
+    res.json(announcements);
+  }));
 
-      res.json({
-        message: `Successfully created ${partnerships.length} partnership(s)`,
-        partnerships,
-      });
-    } catch (error: any) {
-      console.error("Error running matching algorithm:", error);
-      res.status(400).json({ message: error.message || "Failed to run matching algorithm" });
-    }
-  });
+  app.post('/api/supportmatch/admin/announcements', isAuthenticated, isAdmin, validateCsrfToken, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const validatedData = validateWithZod(insertSupportmatchAnnouncementSchema, req.body, 'Invalid announcement data');
 
-  app.get('/api/supportmatch/admin/reports', isAuthenticated, isAdmin, async (req, res) => {
-    try {
-      const reports = await storage.getAllReports();
-      res.json(reports);
-    } catch (error) {
-      console.error("Error fetching reports:", error);
-      res.status(500).json({ message: "Failed to fetch reports" });
-    }
-  });
+    const announcement = await withDatabaseErrorHandling(
+      () => storage.createSupportmatchAnnouncement(validatedData),
+      'createSupportmatchAnnouncement'
+    );
+    
+    await logAdminAction(
+      userId,
+      "create_supportmatch_announcement",
+      "announcement",
+      announcement.id,
+      { title: announcement.title, type: announcement.type }
+    );
 
-  app.put('/api/supportmatch/admin/reports/:id/status', isAuthenticated, isAdmin, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const { status, resolution } = req.body;
-      
-      if (!status) {
-        return res.status(400).json({ message: "Status is required" });
-      }
+    res.json(announcement);
+  }));
 
-      const report = await storage.updateReportStatus(req.params.id, status, resolution);
-      
-      await logAdminAction(
-        userId,
-        "update_report_status",
-        "report",
-        report.id,
-        { status, resolution }
-      );
+  app.put('/api/supportmatch/admin/announcements/:id', isAuthenticated, isAdmin, validateCsrfToken, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const announcement = await withDatabaseErrorHandling(
+      () => storage.updateSupportmatchAnnouncement(req.params.id, req.body),
+      'updateSupportmatchAnnouncement'
+    );
+    
+    await logAdminAction(
+      userId,
+      "update_supportmatch_announcement",
+      "announcement",
+      announcement.id,
+      { title: announcement.title }
+    );
 
-      res.json(report);
-    } catch (error: any) {
-      console.error("Error updating report status:", error);
-      res.status(400).json({ message: error.message || "Failed to update report status" });
-    }
-  });
+    res.json(announcement);
+  }));
 
-  app.get('/api/supportmatch/admin/announcements', isAuthenticated, isAdmin, async (req, res) => {
-    try {
-      const announcements = await storage.getAllSupportmatchAnnouncements();
-      res.json(announcements);
-    } catch (error) {
-      console.error("Error fetching SupportMatch announcements:", error);
-      res.status(500).json({ message: "Failed to fetch announcements" });
-    }
-  });
+  app.delete('/api/supportmatch/admin/announcements/:id', isAuthenticated, isAdmin, validateCsrfToken, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const announcement = await withDatabaseErrorHandling(
+      () => storage.deactivateSupportmatchAnnouncement(req.params.id),
+      'deactivateSupportmatchAnnouncement'
+    );
+    
+    await logAdminAction(
+      userId,
+      "deactivate_announcement",
+      "announcement",
+      announcement.id
+    );
 
-  app.post('/api/supportmatch/admin/announcements', isAuthenticated, isAdmin, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const validatedData = insertSupportmatchAnnouncementSchema.parse(req.body);
-
-      const announcement = await storage.createSupportmatchAnnouncement(validatedData);
-      
-      await logAdminAction(
-        userId,
-        "create_supportmatch_announcement",
-        "announcement",
-        announcement.id,
-        { title: announcement.title, type: announcement.type }
-      );
-
-      res.json(announcement);
-    } catch (error: any) {
-      console.error("Error creating SupportMatch announcement:", error);
-      res.status(400).json({ message: error.message || "Failed to create announcement" });
-    }
-  });
-
-  app.put('/api/supportmatch/admin/announcements/:id', isAuthenticated, isAdmin, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const announcement = await storage.updateSupportmatchAnnouncement(req.params.id, req.body);
-      
-      await logAdminAction(
-        userId,
-        "update_supportmatch_announcement",
-        "announcement",
-        announcement.id,
-        { title: announcement.title }
-      );
-
-      res.json(announcement);
-    } catch (error: any) {
-      console.error("Error updating SupportMatch announcement:", error);
-      res.status(400).json({ message: error.message || "Failed to update announcement" });
-    }
-  });
-
-  app.delete('/api/supportmatch/admin/announcements/:id', isAuthenticated, isAdmin, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const announcement = await storage.deactivateSupportmatchAnnouncement(req.params.id);
-      
-      await logAdminAction(
-        userId,
-        "deactivate_announcement",
-        "announcement",
-        announcement.id
-      );
-
-      res.json(announcement);
-    } catch (error: any) {
-      console.error("Error deactivating announcement:", error);
-      res.status(400).json({ message: error.message || "Failed to deactivate announcement" });
-    }
-  });
+    res.json(announcement);
+  }));
 
   // ========================================
   // SLEEPSTORIES APP ROUTES
@@ -1475,316 +1407,353 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ========================================
 
   // Profile routes
-  app.get('/api/lighthouse/profile', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const profile = await storage.getLighthouseProfileByUserId(userId);
-      res.json(profile || null);
-    } catch (error) {
-      console.error("Error fetching LightHouse profile:", error);
-      res.status(500).json({ message: "Failed to fetch profile" });
-    }
-  });
+  app.get('/api/lighthouse/profile', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const profile = await withDatabaseErrorHandling(
+      () => storage.getLighthouseProfileByUserId(userId),
+      'getLighthouseProfileByUserId'
+    );
+    res.json(profile || null);
+  }));
 
-  app.post('/api/lighthouse/profile', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      
-      // Check if profile already exists
-      const existingProfile = await storage.getLighthouseProfileByUserId(userId);
-      if (existingProfile) {
-        return res.status(400).json({ message: "Profile already exists" });
-      }
-      
-      // Validate and create profile
-      const validatedData = insertLighthouseProfileSchema.parse({
-        ...req.body,
-        userId,
-      });
-      const profile = await storage.createLighthouseProfile(validatedData);
-      
-      res.json(profile);
-    } catch (error: any) {
-      console.error("Error creating LightHouse profile:", error);
-      res.status(400).json({ message: error.message || "Failed to create profile" });
+  app.post('/api/lighthouse/profile', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    
+    // Check if profile already exists
+    const existingProfile = await withDatabaseErrorHandling(
+      () => storage.getLighthouseProfileByUserId(userId),
+      'getLighthouseProfileByUserId'
+    );
+    if (existingProfile) {
+      return res.status(400).json({ message: "Profile already exists" });
     }
-  });
+    
+    // Validate and create profile
+    const validatedData = validateWithZod(insertLighthouseProfileSchema, {
+      ...req.body,
+      userId,
+    }, 'Invalid profile data');
+    const profile = await withDatabaseErrorHandling(
+      () => storage.createLighthouseProfile(validatedData),
+      'createLighthouseProfile'
+    );
+    
+    res.json(profile);
+  }));
 
-  app.put('/api/lighthouse/profile', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const profile = await storage.getLighthouseProfileByUserId(userId);
-      
-      if (!profile) {
-        return res.status(404).json({ message: "Profile not found" });
-      }
-      
-      // Validate partial update (exclude userId from being updated)
-      const { userId: _, ...updateData } = req.body;
-      const validatedData = insertLighthouseProfileSchema.partial().parse(updateData);
-      const updated = await storage.updateLighthouseProfile(profile.id, validatedData);
-      
-      res.json(updated);
-    } catch (error: any) {
-      console.error("Error updating LightHouse profile:", error);
-      res.status(400).json({ message: error.message || "Failed to update profile" });
+  app.put('/api/lighthouse/profile', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const profile = await withDatabaseErrorHandling(
+      () => storage.getLighthouseProfileByUserId(userId),
+      'getLighthouseProfileByUserId'
+    );
+    
+    if (!profile) {
+      return res.status(404).json({ message: "Profile not found" });
     }
-  });
+    
+    // Validate partial update (exclude userId from being updated)
+    const { userId: _, ...updateData } = req.body;
+    const validatedData = validateWithZod(insertLighthouseProfileSchema.partial() as any, updateData, 'Invalid profile update');
+    const updated = await withDatabaseErrorHandling(
+      () => storage.updateLighthouseProfile(profile.id, validatedData),
+      'updateLighthouseProfile'
+    );
+    
+    res.json(updated);
+  }));
 
-  app.delete('/api/lighthouse/profile', isAuthenticated, async (req: any, res) => {
-    try {
-      console.log("DELETE /api/lighthouse/profile - Route hit");
-      const userId = getUserId(req);
-      console.log("User ID:", userId);
-      const { reason } = req.body;
-      console.log("Reason:", reason);
-      await storage.deleteLighthouseProfile(userId, reason);
-      console.log("Profile deleted successfully");
-      res.json({ message: "LightHouse profile deleted successfully" });
-    } catch (error: any) {
-      console.error("Error deleting LightHouse profile:", error);
-      res.status(400).json({ message: error.message || "Failed to delete profile" });
-    }
-  });
+  app.delete('/api/lighthouse/profile', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const { reason } = req.body;
+    await withDatabaseErrorHandling(
+      () => storage.deleteLighthouseProfile(userId, reason),
+      'deleteLighthouseProfile'
+    );
+    res.json({ message: "LightHouse profile deleted successfully" });
+  }));
 
   // Property browsing routes (for seekers)
-  app.get('/api/lighthouse/properties', isAuthenticated, async (req, res) => {
-    try {
-      const properties = await storage.getAllActiveProperties();
-      res.json(properties);
-    } catch (error) {
-      console.error("Error fetching properties:", error);
-      res.status(500).json({ message: "Failed to fetch properties" });
-    }
-  });
+  app.get('/api/lighthouse/properties', isAuthenticated, asyncHandler(async (_req, res) => {
+    const properties = await withDatabaseErrorHandling(
+      () => storage.getAllActiveProperties(),
+      'getAllActiveProperties'
+    );
+    res.json(properties);
+  }));
 
-  app.get('/api/lighthouse/properties/:id', isAuthenticated, async (req, res) => {
-    try {
-      const property = await storage.getLighthousePropertyById(req.params.id);
-      
-      if (!property) {
-        return res.status(404).json({ message: "Property not found" });
-      }
-      
-      res.json(property);
-    } catch (error) {
-      console.error("Error fetching property:", error);
-      res.status(500).json({ message: "Failed to fetch property" });
+  app.get('/api/lighthouse/properties/:id', isAuthenticated, asyncHandler(async (req, res) => {
+    const property = await withDatabaseErrorHandling(
+      () => storage.getLighthousePropertyById(req.params.id),
+      'getLighthousePropertyById'
+    );
+    
+    if (!property) {
+      return res.status(404).json({ message: "Property not found" });
     }
-  });
+    
+    res.json(property);
+  }));
 
   // Property management routes (for hosts)
-  app.get('/api/lighthouse/my-properties', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const profile = await storage.getLighthouseProfileByUserId(userId);
-      
-      if (!profile) {
-        return res.json([]);
-      }
-      
-      const properties = await storage.getPropertiesByHost(profile.id);
-      res.json(properties);
-    } catch (error) {
-      console.error("Error fetching my properties:", error);
-      res.status(500).json({ message: "Failed to fetch properties" });
+  app.get('/api/lighthouse/my-properties', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const profile = await withDatabaseErrorHandling(
+      () => storage.getLighthouseProfileByUserId(userId),
+      'getLighthouseProfileByUserId'
+    );
+    
+    if (!profile) {
+      return res.json([]);
     }
-  });
+    
+    const properties = await withDatabaseErrorHandling(
+      () => storage.getPropertiesByHost(profile.id),
+      'getPropertiesByHost'
+    );
+    res.json(properties);
+  }));
 
-  app.post('/api/lighthouse/properties', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const profile = await storage.getLighthouseProfileByUserId(userId);
-      
-      if (!profile) {
-        return res.status(404).json({ message: "Profile not found. Please create a profile first." });
-      }
-      
-      if (profile.profileType !== 'host') {
-        return res.status(403).json({ message: "Only hosts can create properties" });
-      }
-      
-      // Validate and create property
-      const validatedData = insertLighthousePropertySchema.parse({
-        ...req.body,
-        hostId: profile.id,
-      });
-      const property = await storage.createLighthouseProperty(validatedData);
-      
-      res.json(property);
-    } catch (error: any) {
-      console.error("Error creating property:", error);
-      res.status(400).json({ message: error.message || "Failed to create property" });
+  app.post('/api/lighthouse/properties', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const profile = await withDatabaseErrorHandling(
+      () => storage.getLighthouseProfileByUserId(userId),
+      'getLighthouseProfileByUserId'
+    );
+    
+    if (!profile) {
+      return res.status(404).json({ message: "Profile not found. Please create a profile first." });
     }
-  });
+    
+    if (profile.profileType !== 'host') {
+      return res.status(403).json({ message: "Only hosts can create properties" });
+    }
+    
+    // Validate and create property
+    const validatedData = validateWithZod(insertLighthousePropertySchema, {
+      ...req.body,
+      hostId: profile.id,
+    }, 'Invalid property data');
+    const property = await withDatabaseErrorHandling(
+      () => storage.createLighthouseProperty(validatedData),
+      'createLighthouseProperty'
+    );
+    
+    res.json(property);
+  }));
 
-  app.put('/api/lighthouse/properties/:id', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const profile = await storage.getLighthouseProfileByUserId(userId);
-      const property = await storage.getLighthousePropertyById(req.params.id);
-      
-      if (!property) {
-        return res.status(404).json({ message: "Property not found" });
-      }
-      
-      if (!profile || property.hostId !== profile.id) {
-        return res.status(403).json({ message: "You can only edit your own properties" });
-      }
-      
-      // Validate partial update (exclude hostId from being updated)
-      const { hostId: _, ...updateData } = req.body;
-      const validatedData = insertLighthousePropertySchema.partial().parse(updateData);
-      const updated = await storage.updateLighthouseProperty(req.params.id, validatedData);
-      
-      res.json(updated);
-    } catch (error: any) {
-      console.error("Error updating property:", error);
-      res.status(400).json({ message: error.message || "Failed to update property" });
+  app.put('/api/lighthouse/properties/:id', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const profile = await withDatabaseErrorHandling(
+      () => storage.getLighthouseProfileByUserId(userId),
+      'getLighthouseProfileByUserId'
+    );
+    const property = await withDatabaseErrorHandling(
+      () => storage.getLighthousePropertyById(req.params.id),
+      'getLighthousePropertyById'
+    );
+    
+    if (!property) {
+      return res.status(404).json({ message: "Property not found" });
     }
-  });
+    
+    if (!profile || property.hostId !== profile.id) {
+      return res.status(403).json({ message: "You can only edit your own properties" });
+    }
+    
+    // Validate partial update (exclude hostId from being updated)
+    const { hostId: _, ...updateData } = req.body;
+    const validatedData = validateWithZod(insertLighthousePropertySchema.partial() as any, updateData, 'Invalid property update');
+    const updated = await withDatabaseErrorHandling(
+      () => storage.updateLighthouseProperty(req.params.id, validatedData),
+      'updateLighthouseProperty'
+    );
+    
+    res.json(updated);
+  }));
 
   // Match routes
-  app.get('/api/lighthouse/matches', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const profile = await storage.getLighthouseProfileByUserId(userId);
-      
-      if (!profile) {
-        return res.json([]);
-      }
-      
-      const matches = await storage.getMatchesByProfile(profile.id);
-      res.json(matches);
-    } catch (error) {
-      console.error("Error fetching matches:", error);
-      res.status(500).json({ message: "Failed to fetch matches" });
+  app.get('/api/lighthouse/matches', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const profile = await withDatabaseErrorHandling(
+      () => storage.getLighthouseProfileByUserId(userId),
+      'getLighthouseProfileByUserId'
+    );
+    
+    if (!profile) {
+      return res.json([]);
     }
-  });
+    
+    const matches = await withDatabaseErrorHandling(
+      () => storage.getMatchesByProfile(profile.id),
+      'getMatchesByProfile'
+    );
+    res.json(matches);
+  }));
 
-  app.post('/api/lighthouse/matches', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const profile = await storage.getLighthouseProfileByUserId(userId);
-      
-      if (!profile) {
-        return res.status(404).json({ message: "Profile not found. Please create a profile first." });
-      }
-      
-      if (profile.profileType !== 'seeker') {
-        return res.status(403).json({ message: "Only seekers can request matches" });
-      }
-      
-      const { propertyId, message } = req.body;
-      
-      if (!propertyId) {
-        return res.status(400).json({ message: "Property ID is required" });
-      }
-      
-      // Validate property exists
-      const property = await storage.getLighthousePropertyById(propertyId);
-      if (!property) {
-        return res.status(404).json({ message: "Property not found" });
-      }
-      
-      // Create match request (note: no hostId field, it's determined via property)
-      const validatedData = insertLighthouseMatchSchema.parse({
-        seekerId: profile.id,
-        propertyId,
-        seekerMessage: message || null,
-        status: 'pending',
-      });
-      const match = await storage.createLighthouseMatch(validatedData);
-      
-      res.json(match);
-    } catch (error: any) {
-      console.error("Error creating match:", error);
-      res.status(400).json({ message: error.message || "Failed to create match" });
+  app.post('/api/lighthouse/matches', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const profile = await withDatabaseErrorHandling(
+      () => storage.getLighthouseProfileByUserId(userId),
+      'getLighthouseProfileByUserId'
+    );
+    
+    if (!profile) {
+      return res.status(404).json({ message: "Profile not found. Please create a profile first." });
     }
-  });
+    
+    if (profile.profileType !== 'seeker') {
+      return res.status(403).json({ message: "Only seekers can request matches" });
+    }
+    
+    const { propertyId, message } = req.body;
+    
+    if (!propertyId) {
+      return res.status(400).json({ message: "Property ID is required" });
+    }
+    
+    // Validate property exists
+    const property = await withDatabaseErrorHandling(
+      () => storage.getLighthousePropertyById(propertyId),
+      'getLighthousePropertyById'
+    );
+    if (!property) {
+      return res.status(404).json({ message: "Property not found" });
+    }
+    
+    // Create match request (note: no hostId field, it's determined via property)
+    const validatedData = validateWithZod(insertLighthouseMatchSchema, {
+      seekerId: profile.id,
+      propertyId,
+      seekerMessage: message || null,
+      status: 'pending',
+    }, 'Invalid match data');
+    const match = await withDatabaseErrorHandling(
+      () => storage.createLighthouseMatch(validatedData),
+      'createLighthouseMatch'
+    );
+    
+    res.json(match);
+  }));
 
-  app.put('/api/lighthouse/matches/:id', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const profile = await storage.getLighthouseProfileByUserId(userId);
-      const match = await storage.getLighthouseMatchById(req.params.id);
-      
-      if (!match) {
-        return res.status(404).json({ message: "Match not found" });
-      }
-      
-      if (!profile) {
-        return res.status(403).json({ message: "Profile not found" });
-      }
-      
-      // Get property to determine host
-      const property = await storage.getLighthousePropertyById(match.propertyId);
-      if (!property) {
-        return res.status(404).json({ message: "Property not found" });
-      }
-      
-      // Check authorization
-      const isHost = property.hostId === profile.id;
-      const isSeeker = match.seekerId === profile.id;
-      
-      if (!isHost && !isSeeker) {
-        return res.status(403).json({ message: "You can only update your own matches" });
-      }
-      
-      const { status, hostResponse } = req.body;
-      
-      // Only hosts can accept/reject matches
-      if (status && status !== 'cancelled' && !isHost) {
-        return res.status(403).json({ message: "Only the host can accept or reject matches" });
-      }
-      
-      // Build update data
-      const updateData: any = {};
-      if (status) updateData.status = status;
-      if (hostResponse && isHost) updateData.hostResponse = hostResponse;
-      
-      const validatedData = insertLighthouseMatchSchema.partial().parse(updateData);
-      const updated = await storage.updateLighthouseMatch(req.params.id, validatedData);
-      
-      res.json(updated);
-    } catch (error: any) {
-      console.error("Error updating match:", error);
-      res.status(400).json({ message: error.message || "Failed to update match" });
+  app.put('/api/lighthouse/matches/:id', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const profile = await withDatabaseErrorHandling(
+      () => storage.getLighthouseProfileByUserId(userId),
+      'getLighthouseProfileByUserId'
+    );
+    const match = await withDatabaseErrorHandling(
+      () => storage.getLighthouseMatchById(req.params.id),
+      'getLighthouseMatchById'
+    );
+    
+    if (!match) {
+      return res.status(404).json({ message: "Match not found" });
     }
-  });
+    
+    if (!profile) {
+      return res.status(403).json({ message: "Profile not found" });
+    }
+    
+    // Get property to determine host
+    const property = await withDatabaseErrorHandling(
+      () => storage.getLighthousePropertyById(match.propertyId),
+      'getLighthousePropertyById'
+    );
+    if (!property) {
+      return res.status(404).json({ message: "Property not found" });
+    }
+    
+    // Check authorization
+    const isHost = property.hostId === profile.id;
+    const isSeeker = match.seekerId === profile.id;
+    
+    if (!isHost && !isSeeker) {
+      return res.status(403).json({ message: "You can only update your own matches" });
+    }
+    
+    const { status, hostResponse } = req.body;
+    
+    // Only hosts can accept/reject matches
+    if (status && status !== 'cancelled' && !isHost) {
+      return res.status(403).json({ message: "Only the host can accept or reject matches" });
+    }
+    
+    // Build update data
+    const updateData: any = {};
+    if (status) updateData.status = status;
+    if (hostResponse && isHost) updateData.hostResponse = hostResponse;
+    
+    const validatedData = validateWithZod(insertLighthouseMatchSchema.partial() as any, updateData, 'Invalid match update');
+    const updated = await withDatabaseErrorHandling(
+      () => storage.updateLighthouseMatch(req.params.id, validatedData),
+      'updateLighthouseMatch'
+    );
+    
+    res.json(updated);
+  }));
 
   // Admin routes
-  app.get('/api/lighthouse/admin/stats', isAuthenticated, isAdmin, async (req, res) => {
-    try {
-      const stats = await storage.getLighthouseStats();
-      res.json(stats);
-    } catch (error) {
-      console.error("Error fetching LightHouse stats:", error);
-      res.status(500).json({ message: "Failed to fetch stats" });
-    }
-  });
+  app.get('/api/lighthouse/admin/stats', isAuthenticated, isAdmin, asyncHandler(async (_req, res) => {
+    const stats = await withDatabaseErrorHandling(
+      () => storage.getLighthouseStats(),
+      'getLighthouseStats'
+    );
+    res.json(stats);
+  }));
 
-  app.get('/api/lighthouse/admin/profiles', isAuthenticated, isAdmin, async (req, res) => {
-    try {
-      const profiles = await storage.getAllLighthouseProfiles();
-      res.json(profiles);
-    } catch (error) {
-      console.error("Error fetching all profiles:", error);
-      res.status(500).json({ message: "Failed to fetch profiles" });
-    }
-  });
+  app.get('/api/lighthouse/admin/profiles', isAuthenticated, isAdmin, asyncHandler(async (_req, res) => {
+    const profiles = await withDatabaseErrorHandling(
+      () => storage.getAllLighthouseProfiles(),
+      'getAllLighthouseProfiles'
+    );
+    res.json(profiles);
+  }));
 
-  app.get('/api/lighthouse/admin/profiles/:id', isAuthenticated, isAdmin, async (req, res) => {
-    try {
-      const profile = await storage.getLighthouseProfileById(req.params.id);
-      if (!profile) {
-        return res.status(404).json({ message: "Profile not found" });
-      }
-      
-      // Enrich with user information
-      const user = profile.userId ? await storage.getUser(profile.userId) : null;
-      const profileWithUser = {
-        ...profile,
+  app.get('/api/lighthouse/admin/profiles/:id', isAuthenticated, isAdmin, asyncHandler(async (req, res) => {
+    const profile = await withDatabaseErrorHandling(
+      () => storage.getLighthouseProfileById(req.params.id),
+      'getLighthouseProfileById'
+    );
+    if (!profile) {
+      return res.status(404).json({ message: "Profile not found" });
+    }
+    
+    // Enrich with user information
+    const user = profile.userId ? await withDatabaseErrorHandling(
+      () => storage.getUser(profile.userId!),
+      'getUserForLighthouseAdminProfile'
+    ) : null;
+    const profileWithUser = {
+      ...profile,
+      user: user ? {
+        id: user.id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        isVerified: user.isVerified,
+      } : null,
+    };
+    
+    res.json(profileWithUser);
+  }));
+
+  app.get('/api/lighthouse/admin/seekers', isAuthenticated, isAdmin, asyncHandler(async (_req, res) => {
+    // Get all seekers (both active and inactive) for admin view
+    const allProfiles = await withDatabaseErrorHandling(
+      () => storage.getAllLighthouseProfiles(),
+      'getAllLighthouseProfiles'
+    );
+    const seekers = allProfiles.filter(p => p.profileType === 'seeker');
+    
+    // Enrich with user information
+    const seekersWithUsers = await Promise.all(seekers.map(async (seeker) => {
+      const user = seeker.userId ? await withDatabaseErrorHandling(
+        () => storage.getUser(seeker.userId!),
+        'getUserForLighthouseAdminSeekers'
+      ) : null;
+      return {
+        ...seeker,
         user: user ? {
           id: user.id,
           firstName: user.firstName,
@@ -1793,232 +1762,184 @@ export async function registerRoutes(app: Express): Promise<Server> {
           isVerified: user.isVerified,
         } : null,
       };
-      
-      res.json(profileWithUser);
-    } catch (error) {
-      console.error("Error fetching profile:", error);
-      res.status(500).json({ message: "Failed to fetch profile" });
-    }
-  });
+    }));
+    res.json(seekersWithUsers);
+  }));
 
-  app.get('/api/lighthouse/admin/seekers', isAuthenticated, isAdmin, async (req, res) => {
-    try {
-      // Get all seekers (both active and inactive) for admin view
-      const allProfiles = await storage.getAllLighthouseProfiles();
-      console.log(`[LightHouse Admin] Total profiles: ${allProfiles.length}`);
-      const seekers = allProfiles.filter(p => p.profileType === 'seeker');
-      console.log(`[LightHouse Admin] Found ${seekers.length} seekers`);
-      
-      // Enrich with user information
-      const seekersWithUsers = await Promise.all(seekers.map(async (seeker) => {
-        const user = seeker.userId ? await storage.getUser(seeker.userId) : null;
-        return {
-          ...seeker,
-          user: user ? {
-            id: user.id,
-            firstName: user.firstName,
-            lastName: user.lastName,
-            email: user.email,
-            isVerified: user.isVerified,
-          } : null,
-        };
-      }));
-      console.log(`[LightHouse Admin] Returning ${seekersWithUsers.length} seekers with user data`);
-      res.json(seekersWithUsers);
-    } catch (error) {
-      console.error("Error fetching seekers:", error);
-      res.status(500).json({ message: "Failed to fetch seekers" });
-    }
-  });
+  app.get('/api/lighthouse/admin/hosts', isAuthenticated, isAdmin, asyncHandler(async (_req, res) => {
+    // Get all hosts (both active and inactive) for admin view
+    const allProfiles = await withDatabaseErrorHandling(
+      () => storage.getAllLighthouseProfiles(),
+      'getAllLighthouseProfiles'
+    );
+    const hosts = allProfiles.filter(p => p.profileType === 'host');
+    
+    // Enrich with user information
+    const hostsWithUsers = await Promise.all(hosts.map(async (host) => {
+      const user = host.userId ? await withDatabaseErrorHandling(
+        () => storage.getUser(host.userId!),
+        'getUserForLighthouseAdminHosts'
+      ) : null;
+      return {
+        ...host,
+        user: user ? {
+          id: user.id,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          email: user.email,
+          isVerified: user.isVerified,
+        } : null,
+      };
+    }));
+    res.json(hostsWithUsers);
+  }));
 
-  app.get('/api/lighthouse/admin/hosts', isAuthenticated, isAdmin, async (req, res) => {
-    try {
-      // Get all hosts (both active and inactive) for admin view
-      const allProfiles = await storage.getAllLighthouseProfiles();
-      console.log(`[LightHouse Admin] Total profiles: ${allProfiles.length}`);
-      const hosts = allProfiles.filter(p => p.profileType === 'host');
-      console.log(`[LightHouse Admin] Found ${hosts.length} hosts`);
-      
-      // Enrich with user information
-      const hostsWithUsers = await Promise.all(hosts.map(async (host) => {
-        const user = host.userId ? await storage.getUser(host.userId) : null;
-        return {
-          ...host,
-          user: user ? {
-            id: user.id,
-            firstName: user.firstName,
-            lastName: user.lastName,
-            email: user.email,
-            isVerified: user.isVerified,
-          } : null,
-        };
-      }));
-      console.log(`[LightHouse Admin] Returning ${hostsWithUsers.length} hosts with user data`);
-      res.json(hostsWithUsers);
-    } catch (error) {
-      console.error("Error fetching hosts:", error);
-      res.status(500).json({ message: "Failed to fetch hosts" });
-    }
-  });
+  app.get('/api/lighthouse/admin/properties', isAuthenticated, isAdmin, asyncHandler(async (_req, res) => {
+    const properties = await withDatabaseErrorHandling(
+      () => storage.getAllProperties(),
+      'getAllProperties'
+    );
+    res.json(properties);
+  }));
 
-  app.get('/api/lighthouse/admin/properties', isAuthenticated, isAdmin, async (req, res) => {
-    try {
-      const properties = await storage.getAllProperties();
-      res.json(properties);
-    } catch (error) {
-      console.error("Error fetching all properties:", error);
-      res.status(500).json({ message: "Failed to fetch properties" });
+  app.put('/api/lighthouse/admin/properties/:id', isAuthenticated, isAdmin, validateCsrfToken, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const property = await withDatabaseErrorHandling(
+      () => storage.getLighthousePropertyById(req.params.id),
+      'getLighthousePropertyById'
+    );
+    
+    if (!property) {
+      return res.status(404).json({ message: "Property not found" });
     }
-  });
+    
+    // Validate partial update
+    const validatedData = validateWithZod(insertLighthousePropertySchema.partial() as any, req.body, 'Invalid property update');
+    const updated = await withDatabaseErrorHandling(
+      () => storage.updateLighthouseProperty(req.params.id, validatedData),
+      'updateLighthouseProperty'
+    );
+    
+    await logAdminAction(
+      userId,
+      "update_lighthouse_property",
+      "lighthouse_property",
+      updated.id,
+      { title: updated.title }
+    );
+    
+    res.json(updated);
+  }));
 
-  app.put('/api/lighthouse/admin/properties/:id', isAuthenticated, isAdmin, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const property = await storage.getLighthousePropertyById(req.params.id);
-      
-      if (!property) {
-        return res.status(404).json({ message: "Property not found" });
-      }
-      
-      // Validate partial update
-      const validatedData = insertLighthousePropertySchema.partial().parse(req.body);
-      const updated = await storage.updateLighthouseProperty(req.params.id, validatedData);
-      
-      await logAdminAction(
-        userId,
-        "update_lighthouse_property",
-        "lighthouse_property",
-        updated.id,
-        { title: updated.title }
-      );
-      
-      res.json(updated);
-    } catch (error: any) {
-      console.error("Error updating property:", error);
-      res.status(400).json({ message: error.message || "Failed to update property" });
-    }
-  });
+  app.get('/api/lighthouse/admin/matches', isAuthenticated, isAdmin, asyncHandler(async (_req, res) => {
+    const matches = await withDatabaseErrorHandling(
+      () => storage.getAllLighthouseMatches(),
+      'getAllLighthouseMatches'
+    );
+    res.json(matches);
+  }));
 
-  app.get('/api/lighthouse/admin/matches', isAuthenticated, isAdmin, async (req, res) => {
-    try {
-      const matches = await storage.getAllLighthouseMatches();
-      res.json(matches);
-    } catch (error) {
-      console.error("Error fetching all matches:", error);
-      res.status(500).json({ message: "Failed to fetch matches" });
+  app.put('/api/lighthouse/admin/matches/:id', isAuthenticated, isAdmin, validateCsrfToken, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const match = await withDatabaseErrorHandling(
+      () => storage.getLighthouseMatchById(req.params.id),
+      'getLighthouseMatchById'
+    );
+    
+    if (!match) {
+      return res.status(404).json({ message: "Match not found" });
     }
-  });
-
-  app.put('/api/lighthouse/admin/matches/:id', isAuthenticated, isAdmin, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const match = await storage.getLighthouseMatchById(req.params.id);
-      
-      if (!match) {
-        return res.status(404).json({ message: "Match not found" });
-      }
-      
-      // Validate partial update
-      const validatedData = insertLighthouseMatchSchema.partial().parse(req.body);
-      const updated = await storage.updateLighthouseMatch(req.params.id, validatedData);
-      
-      await logAdminAction(
-        userId,
-        "update_lighthouse_match",
-        "lighthouse_match",
-        updated.id,
-        { status: updated.status }
-      );
-      
-      res.json(updated);
-    } catch (error: any) {
-      console.error("Error updating match:", error);
-      res.status(400).json({ message: error.message || "Failed to update match" });
-    }
-  });
+    
+    // Validate partial update
+    const validatedData = validateWithZod(insertLighthouseMatchSchema.partial() as any, req.body, 'Invalid match update');
+    const updated = await withDatabaseErrorHandling(
+      () => storage.updateLighthouseMatch(req.params.id, validatedData),
+      'updateLighthouseMatch'
+    );
+    
+    await logAdminAction(
+      userId,
+      "update_lighthouse_match",
+      "lighthouse_match",
+      updated.id,
+      { status: updated.status }
+    );
+    
+    res.json(updated);
+  }));
 
   // LightHouse Announcement routes (public)
-  app.get('/api/lighthouse/announcements', isAuthenticated, async (req, res) => {
-    try {
-      const announcements = await storage.getActiveLighthouseAnnouncements();
-      res.json(announcements);
-    } catch (error) {
-      console.error("Error fetching LightHouse announcements:", error);
-      res.status(500).json({ message: "Failed to fetch announcements" });
-    }
-  });
+  app.get('/api/lighthouse/announcements', isAuthenticated, asyncHandler(async (_req, res) => {
+    const announcements = await withDatabaseErrorHandling(
+      () => storage.getActiveLighthouseAnnouncements(),
+      'getActiveLighthouseAnnouncements'
+    );
+    res.json(announcements);
+  }));
 
   // LightHouse Admin announcement routes
-  app.get('/api/lighthouse/admin/announcements', isAuthenticated, isAdmin, async (req, res) => {
-    try {
-      const announcements = await storage.getAllLighthouseAnnouncements();
-      res.json(announcements);
-    } catch (error) {
-      console.error("Error fetching LightHouse announcements:", error);
-      res.status(500).json({ message: "Failed to fetch announcements" });
-    }
-  });
+  app.get('/api/lighthouse/admin/announcements', isAuthenticated, isAdmin, asyncHandler(async (_req, res) => {
+    const announcements = await withDatabaseErrorHandling(
+      () => storage.getAllLighthouseAnnouncements(),
+      'getAllLighthouseAnnouncements'
+    );
+    res.json(announcements);
+  }));
 
-  app.post('/api/lighthouse/admin/announcements', isAuthenticated, isAdmin, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const validatedData = insertLighthouseAnnouncementSchema.parse(req.body);
+  app.post('/api/lighthouse/admin/announcements', isAuthenticated, isAdmin, validateCsrfToken, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const validatedData = validateWithZod(insertLighthouseAnnouncementSchema, req.body, 'Invalid announcement data');
 
-      const announcement = await storage.createLighthouseAnnouncement(validatedData);
-      
-      await logAdminAction(
-        userId,
-        "create_lighthouse_announcement",
-        "lighthouse_announcement",
-        announcement.id,
-        { title: announcement.title, type: announcement.type }
-      );
+    const announcement = await withDatabaseErrorHandling(
+      () => storage.createLighthouseAnnouncement(validatedData),
+      'createLighthouseAnnouncement'
+    );
+    
+    await logAdminAction(
+      userId,
+      "create_lighthouse_announcement",
+      "lighthouse_announcement",
+      announcement.id,
+      { title: announcement.title, type: announcement.type }
+    );
 
-      res.json(announcement);
-    } catch (error: any) {
-      console.error("Error creating LightHouse announcement:", error);
-      res.status(400).json({ message: error.message || "Failed to create announcement" });
-    }
-  });
+    res.json(announcement);
+  }));
 
-  app.put('/api/lighthouse/admin/announcements/:id', isAuthenticated, isAdmin, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const announcement = await storage.updateLighthouseAnnouncement(req.params.id, req.body);
-      
-      await logAdminAction(
-        userId,
-        "update_lighthouse_announcement",
-        "lighthouse_announcement",
-        announcement.id,
-        { title: announcement.title }
-      );
+  app.put('/api/lighthouse/admin/announcements/:id', isAuthenticated, isAdmin, validateCsrfToken, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const announcement = await withDatabaseErrorHandling(
+      () => storage.updateLighthouseAnnouncement(req.params.id, req.body),
+      'updateLighthouseAnnouncement'
+    );
+    
+    await logAdminAction(
+      userId,
+      "update_lighthouse_announcement",
+      "lighthouse_announcement",
+      announcement.id,
+      { title: announcement.title }
+    );
 
-      res.json(announcement);
-    } catch (error: any) {
-      console.error("Error updating LightHouse announcement:", error);
-      res.status(400).json({ message: error.message || "Failed to update announcement" });
-    }
-  });
+    res.json(announcement);
+  }));
 
-  app.delete('/api/lighthouse/admin/announcements/:id', isAuthenticated, isAdmin, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const announcement = await storage.deactivateLighthouseAnnouncement(req.params.id);
-      
-      await logAdminAction(
-        userId,
-        "deactivate_lighthouse_announcement",
-        "lighthouse_announcement",
-        announcement.id
-      );
+  app.delete('/api/lighthouse/admin/announcements/:id', isAuthenticated, isAdmin, validateCsrfToken, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const announcement = await withDatabaseErrorHandling(
+      () => storage.deactivateLighthouseAnnouncement(req.params.id),
+      'deactivateLighthouseAnnouncement'
+    );
+    
+    await logAdminAction(
+      userId,
+      "deactivate_lighthouse_announcement",
+      "lighthouse_announcement",
+      announcement.id
+    );
 
-      res.json(announcement);
-    } catch (error: any) {
-      console.error("Error deactivating LightHouse announcement:", error);
-      res.status(400).json({ message: error.message || "Failed to deactivate announcement" });
-    }
-  });
+    res.json(announcement);
+  }));
 
   // SocketRelay Routes
 
@@ -2495,87 +2416,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Directory Announcement routes
-  app.get('/api/directory/announcements', isAuthenticated, async (req, res) => {
-    try {
-      const announcements = await storage.getActiveDirectoryAnnouncements();
-      res.json(announcements);
-    } catch (error) {
-      console.error("Error fetching Directory announcements:", error);
-      res.status(500).json({ message: "Failed to fetch announcements" });
-    }
-  });
+  app.get('/api/directory/announcements', isAuthenticated, asyncHandler(async (_req, res) => {
+    const announcements = await withDatabaseErrorHandling(
+      () => storage.getActiveDirectoryAnnouncements(),
+      'getActiveDirectoryAnnouncements'
+    );
+    res.json(announcements);
+  }));
 
-  app.get('/api/directory/admin/announcements', isAuthenticated, isAdmin, async (req, res) => {
-    try {
-      const announcements = await storage.getAllDirectoryAnnouncements();
-      res.json(announcements);
-    } catch (error) {
-      console.error("Error fetching Directory announcements:", error);
-      res.status(500).json({ message: "Failed to fetch announcements" });
-    }
-  });
+  app.get('/api/directory/admin/announcements', isAuthenticated, isAdmin, asyncHandler(async (_req, res) => {
+    const announcements = await withDatabaseErrorHandling(
+      () => storage.getAllDirectoryAnnouncements(),
+      'getAllDirectoryAnnouncements'
+    );
+    res.json(announcements);
+  }));
 
-  app.post('/api/directory/admin/announcements', isAuthenticated, isAdmin, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const validatedData = insertDirectoryAnnouncementSchema.parse(req.body);
+  app.post('/api/directory/admin/announcements', isAuthenticated, isAdmin, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const validatedData = validateWithZod(insertDirectoryAnnouncementSchema, req.body, 'Invalid announcement data');
 
-      const announcement = await storage.createDirectoryAnnouncement(validatedData);
-      
-      await logAdminAction(
-        userId,
-        "create_directory_announcement",
-        "announcement",
-        announcement.id,
-        { title: announcement.title, type: announcement.type }
-      );
+    const announcement = await withDatabaseErrorHandling(
+      () => storage.createDirectoryAnnouncement(validatedData),
+      'createDirectoryAnnouncement'
+    );
+    
+    await logAdminAction(
+      userId,
+      "create_directory_announcement",
+      "announcement",
+      announcement.id,
+      { title: announcement.title, type: announcement.type }
+    );
 
-      res.json(announcement);
-    } catch (error: any) {
-      console.error("Error creating Directory announcement:", error);
-      res.status(400).json({ message: error.message || "Failed to create announcement" });
-    }
-  });
+    res.json(announcement);
+  }));
 
-  app.put('/api/directory/admin/announcements/:id', isAuthenticated, isAdmin, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const announcement = await storage.updateDirectoryAnnouncement(req.params.id, req.body);
-      
-      await logAdminAction(
-        userId,
-        "update_directory_announcement",
-        "announcement",
-        announcement.id,
-        { title: announcement.title }
-      );
+  app.put('/api/directory/admin/announcements/:id', isAuthenticated, isAdmin, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const announcement = await withDatabaseErrorHandling(
+      () => storage.updateDirectoryAnnouncement(req.params.id, req.body),
+      'updateDirectoryAnnouncement'
+    );
+    
+    await logAdminAction(
+      userId,
+      "update_directory_announcement",
+      "announcement",
+      announcement.id,
+      { title: announcement.title }
+    );
 
-      res.json(announcement);
-    } catch (error: any) {
-      console.error("Error updating Directory announcement:", error);
-      res.status(400).json({ message: error.message || "Failed to update announcement" });
-    }
-  });
+    res.json(announcement);
+  }));
 
-  app.delete('/api/directory/admin/announcements/:id', isAuthenticated, isAdmin, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const announcement = await storage.deactivateDirectoryAnnouncement(req.params.id);
-      
-      await logAdminAction(
-        userId,
-        "deactivate_directory_announcement",
-        "announcement",
-        announcement.id,
-        { title: announcement.title }
-      );
+  app.delete('/api/directory/admin/announcements/:id', isAuthenticated, isAdmin, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const announcement = await withDatabaseErrorHandling(
+      () => storage.deactivateDirectoryAnnouncement(req.params.id),
+      'deactivateDirectoryAnnouncement'
+    );
+    
+    await logAdminAction(
+      userId,
+      "deactivate_directory_announcement",
+      "announcement",
+      announcement.id,
+      { title: announcement.title }
+    );
 
-      res.json(announcement);
-    } catch (error: any) {
-      console.error("Error deleting Directory announcement:", error);
-      res.status(400).json({ message: error.message || "Failed to delete announcement" });
-    }
-  });
+    res.json(announcement);
+  }));
 
   // ========================================
   // TRUSTTRANSPORT ROUTES
