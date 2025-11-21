@@ -1,13 +1,32 @@
 import { Shield, Heart, Lock, Copy, Check, Coins } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useExternalLink } from "@/hooks/useExternalLink";
 import { LoginForm } from "@/components/login-form";
+import { useAuth } from "@/hooks/useAuth";
+import { useLocation } from "wouter";
 
 export default function Landing() {
   const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
   const { openExternal, ExternalLinkDialog } = useExternalLink();
+  const { user, isAuthenticated, isLoading, _clerk } = useAuth();
+  const [, setLocation] = useLocation();
+
+  // Redirect authenticated users away from landing page
+  useEffect(() => {
+    // If Clerk says user is signed in, redirect appropriately
+    // This handles the case where user just signed in and is redirected to /
+    if (_clerk.isSignedIn) {
+      // If DB user is loaded and needs invite code, redirect to invite-required
+      if (user && !user.inviteCodeUsed && !user.isAdmin) {
+        setLocation("/invite-required");
+        return;
+      }
+      // Otherwise, redirect to home (home page will show loading state if DB user is still loading)
+      setLocation("/");
+    }
+  }, [_clerk.isSignedIn, user, setLocation]);
 
   const bitcoinAddress = "bc1qqurdsmdwfg9uekvvwf29r3r7ufu3l2tenncdtd";
   const moneroAddress = "49V9nUSEjTPbqGzAEtvepMSHz5FvknBR3gYQFe8mhme5AF2VHoEoVBdcViZM1kFzMWUcpsS8w5oJeLd57pQRPUdjNhpawYr";
@@ -22,6 +41,11 @@ export default function Landing() {
       console.error("Failed to copy address:", error);
     }
   };
+
+  // Don't render landing page if user is authenticated (redirect is in progress)
+  if (_clerk.isSignedIn) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-primary/10">
