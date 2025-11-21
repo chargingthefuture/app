@@ -63,10 +63,34 @@ async function seedWeeklyPerformanceMetrics() {
   console.log(`  - New (payments only in current month): ${newUsers.length}`);
 
   // Get admin user for recordedBy field
-  const adminUser = allUsers.find(u => u.isAdmin);
+  let adminUser = allUsers.find(u => u.isAdmin);
+  
   if (!adminUser) {
-    console.log("No admin user found. Cannot create payments (need recordedBy).");
-    process.exit(1);
+    console.log("\n⚠️  No admin user found. Creating a temporary admin user for seeding...");
+    
+    // Create a temporary admin user for seeding purposes
+    try {
+      const [newAdmin] = await db
+        .insert(users)
+        .values({
+          email: "seed-admin@example.com",
+          firstName: "Seed",
+          lastName: "Admin",
+          inviteCodeUsed: "SEED-ADMIN",
+          isAdmin: true,
+        })
+        .returning();
+      
+      adminUser = newAdmin;
+      console.log(`✓ Created temporary admin user: ${adminUser.email}`);
+      console.log("  (You can delete this user later if needed)");
+    } catch (error: any) {
+      console.error("\n❌ Failed to create admin user:", error.message);
+      console.log("\n💡 Alternative: Run 'npm run make-admin' to make an existing user an admin.");
+      process.exit(1);
+    }
+  } else {
+    console.log(`✓ Using admin user: ${adminUser.email}`);
   }
 
   // Create payments for retained users (both months)
@@ -207,6 +231,27 @@ async function seedWeeklyPerformanceMetrics() {
 }
 
 seedWeeklyPerformanceMetrics().catch((error) => {
-  console.error("Error seeding payment data:", error);
+  console.error("\n❌ Error seeding payment data:");
+  
+  // Check for network/DNS errors
+  if (error?.code === 'EAI_AGAIN' || error?.message?.includes('getaddrinfo')) {
+    console.error("\n🌐 Network/DNS Error: Cannot resolve database hostname");
+    console.error("   This is usually a temporary network issue.");
+    console.error("\n💡 Try:");
+    console.error("   1. Check your internet connection");
+    console.error("   2. Verify the DATABASE_URL is correct");
+    console.error("   3. Wait a few minutes and try again");
+    console.error("   4. Check if Neon database is accessible");
+  } else if (error?.code === 'ECONNREFUSED' || error?.message?.includes('ECONNREFUSED')) {
+    console.error("\n🔌 Connection Refused: Cannot connect to database");
+    console.error("   The database server may be down or unreachable.");
+    console.error("\n💡 Try:");
+    console.error("   1. Verify the DATABASE_URL is correct");
+    console.error("   2. Check if Neon database is running");
+    console.error("   3. Verify network/firewall settings");
+  } else {
+    console.error(error);
+  }
+  
   process.exit(1);
 });

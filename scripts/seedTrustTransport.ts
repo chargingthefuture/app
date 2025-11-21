@@ -1,5 +1,5 @@
 import { db } from "../server/db";
-import { users, trusttransportProfiles, trusttransportRides } from "../shared/schema";
+import { users, trusttransportProfiles, trusttransportRideRequests } from "../shared/schema";
 import { eq } from "drizzle-orm";
 
 async function seedTrustTransport() {
@@ -114,7 +114,7 @@ async function seedTrustTransport() {
     }
   }
 
-  // Create sample rides
+  // Create sample ride requests (riders create requests that drivers can claim)
   const futureDate1 = new Date();
   futureDate1.setDate(futureDate1.getDate() + 3);
   const futureDate2 = new Date();
@@ -122,9 +122,9 @@ async function seedTrustTransport() {
   const futureDate3 = new Date();
   futureDate3.setDate(futureDate3.getDate() + 7);
 
-  const ridesData = [
+  const rideRequestsData = [
     {
-      driverId: profileIds[userIds["driver1@example.com"]],
+      riderId: userIds["driver1@example.com"], // Using first user as rider
       pickupLocation: "123 Main St, San Francisco, CA",
       dropoffLocation: "456 Market St, Oakland, CA",
       pickupCity: "San Francisco",
@@ -132,16 +132,17 @@ async function seedTrustTransport() {
       dropoffCity: "Oakland",
       dropoffState: "California",
       departureDateTime: futureDate1,
-      pricePerSeat: "15.00",
-      isFree: false,
-      availableSeats: 3,
-      maxSeats: 4,
-      description: "Regular commute route, comfortable ride",
-      notes: "Pet friendly, non-smoking",
-      status: "active",
+      requestedSeats: 2,
+      requestedCarType: "sedan" as const,
+      requiresHeat: false,
+      requiresAC: true,
+      requiresWheelchairAccess: false,
+      requiresChildSeat: false,
+      riderMessage: "Need a ride for a doctor's appointment. Pet friendly preferred.",
+      status: "open" as const,
     },
     {
-      driverId: profileIds[userIds["driver2@example.com"]],
+      riderId: userIds["driver2@example.com"], // Using second user as rider
       pickupLocation: "789 Sunset Blvd, Los Angeles, CA",
       dropoffLocation: "321 Hollywood Blvd, Los Angeles, CA",
       pickupCity: "Los Angeles",
@@ -149,16 +150,17 @@ async function seedTrustTransport() {
       dropoffCity: "Los Angeles",
       dropoffState: "California",
       departureDateTime: futureDate2,
-      pricePerSeat: "0.00",
-      isFree: true,
-      availableSeats: 2,
-      maxSeats: 2,
-      description: "Free ride to help the community",
-      notes: "Comfortable and safe",
-      status: "active",
+      requestedSeats: 1,
+      requestedCarType: null,
+      requiresHeat: false,
+      requiresAC: true,
+      requiresWheelchairAccess: false,
+      requiresChildSeat: false,
+      riderMessage: "Looking for a comfortable ride to help the community",
+      status: "open" as const,
     },
     {
-      driverId: profileIds[userIds["driver3@example.com"]],
+      riderId: userIds["driver3@example.com"], // Using third user as rider
       pickupLocation: "555 Beach Dr, San Diego, CA",
       dropoffLocation: "777 Harbor Way, San Diego, CA",
       pickupCity: "San Diego",
@@ -166,24 +168,25 @@ async function seedTrustTransport() {
       dropoffCity: "San Diego",
       dropoffState: "California",
       departureDateTime: futureDate3,
-      pricePerSeat: "10.00",
-      isFree: false,
-      availableSeats: 1,
-      maxSeats: 3,
-      description: "Quick trip downtown",
-      notes: "Air conditioning, music available",
-      status: "active",
+      requestedSeats: 3,
+      requestedCarType: "suv" as const,
+      requiresHeat: false,
+      requiresAC: true,
+      requiresWheelchairAccess: false,
+      requiresChildSeat: true,
+      riderMessage: "Need a larger vehicle with child seat for family trip",
+      status: "open" as const,
     },
   ];
 
-  for (const rideData of ridesData) {
+  for (const rideRequestData of rideRequestsData) {
     try {
       await db
-        .insert(trusttransportRides)
-        .values(rideData);
-      console.log(`Created ride from ${rideData.pickupCity} to ${rideData.dropoffCity}`);
+        .insert(trusttransportRideRequests)
+        .values(rideRequestData);
+      console.log(`Created ride request from ${rideRequestData.pickupCity} to ${rideRequestData.dropoffCity}`);
     } catch (error: any) {
-      console.error(`Error creating ride:`, error.message);
+      console.error(`Error creating ride request:`, error.message);
     }
   }
 

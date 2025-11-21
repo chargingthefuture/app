@@ -20,13 +20,14 @@ export default function Landing() {
     if (_clerk.isSignedIn) {
       // If DB user is loaded and needs invite code, redirect to invite-required
       if (user && !user.inviteCodeUsed && !user.isAdmin) {
-        setLocation("/invite-required");
+        window.location.href = "/invite-required";
         return;
       }
-      // Otherwise, redirect to home (home page will show loading state if DB user is still loading)
-      setLocation("/");
+      // Otherwise, redirect to home dashboard
+      // Use window.location.href to force full page reload and ensure routing re-evaluates
+      window.location.href = "/";
     }
-  }, [_clerk.isSignedIn, user, setLocation]);
+  }, [_clerk.isSignedIn, user]);
 
   const bitcoinAddress = "bc1qqurdsmdwfg9uekvvwf29r3r7ufu3l2tenncdtd";
   const moneroAddress = "49V9nUSEjTPbqGzAEtvepMSHz5FvknBR3gYQFe8mhme5AF2VHoEoVBdcViZM1kFzMWUcpsS8w5oJeLd57pQRPUdjNhpawYr";
