@@ -108,61 +108,6 @@ import { GentlePulseBottomNav } from "@/components/gentlepulse/bottom-nav";
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { _clerk, user, isLoading } = useAuth();
   const needsInviteCode = user && !user.inviteCodeUsed && !user.isAdmin;
-  const [clerkLoadTimeout, setClerkLoadTimeout] = React.useState(false);
-
-  // Timeout fallback: if Clerk doesn't load within 5 seconds, show error
-  React.useEffect(() => {
-    if (!_clerk.clerkLoaded) {
-      const timer = setTimeout(() => {
-        setClerkLoadTimeout(true);
-      }, 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [_clerk.clerkLoaded]);
-
-  // If Clerk takes too long to load, show error message
-  if (clerkLoadTimeout && !_clerk.clerkLoaded) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <div className="text-center space-y-4 max-w-md">
-          <h1 className="text-2xl font-bold">Loading Error</h1>
-          <p className="text-muted-foreground">
-            Authentication service is taking longer than expected to load.
-          </p>
-          {_clerk.clerkError && (
-            <p className="text-sm text-destructive font-mono bg-destructive/10 p-2 rounded">
-              {_clerk.clerkError}
-            </p>
-          )}
-          <p className="text-sm text-muted-foreground">
-            Please refresh the page or check your internet connection.
-          </p>
-          <div className="flex gap-2 justify-center">
-            <Button onClick={() => window.location.reload()} data-testid="button-refresh">
-              Refresh Page
-            </Button>
-            {typeof window !== 'undefined' && (
-              <Button 
-                variant="outline" 
-                onClick={() => {
-                  console.error('Clerk loading debug info:', {
-                    clerkLoaded: _clerk.clerkLoaded,
-                    clerkError: _clerk.clerkError,
-                    hasKey: !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY,
-                    scripts: Array.from(document.querySelectorAll('script')).map(s => s.src).filter(Boolean),
-                  });
-                  window.open('https://status.clerk.com', '_blank');
-                }}
-                data-testid="button-check-status"
-              >
-                Check Clerk Status
-              </Button>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   // If Clerk is still loading, show loading indicator
   if (!_clerk.clerkLoaded) {
@@ -193,61 +138,6 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 function RootRoute() {
   const { _clerk, user, isLoading } = useAuth();
   const needsInviteCode = user && !user.inviteCodeUsed && !user.isAdmin;
-  const [clerkLoadTimeout, setClerkLoadTimeout] = React.useState(false);
-
-  // Timeout fallback: if Clerk doesn't load within 5 seconds, show error
-  React.useEffect(() => {
-    if (!_clerk.clerkLoaded) {
-      const timer = setTimeout(() => {
-        setClerkLoadTimeout(true);
-      }, 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [_clerk.clerkLoaded]);
-
-  // If Clerk takes too long to load, show error message
-  if (clerkLoadTimeout && !_clerk.clerkLoaded) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <div className="text-center space-y-4 max-w-md">
-          <h1 className="text-2xl font-bold">Loading Error</h1>
-          <p className="text-muted-foreground">
-            Authentication service is taking longer than expected to load.
-          </p>
-          {_clerk.clerkError && (
-            <p className="text-sm text-destructive font-mono bg-destructive/10 p-2 rounded">
-              {_clerk.clerkError}
-            </p>
-          )}
-          <p className="text-sm text-muted-foreground">
-            Please refresh the page or check your internet connection.
-          </p>
-          <div className="flex gap-2 justify-center">
-            <Button onClick={() => window.location.reload()} data-testid="button-refresh">
-              Refresh Page
-            </Button>
-            {typeof window !== 'undefined' && (
-              <Button 
-                variant="outline" 
-                onClick={() => {
-                  console.error('Clerk loading debug info:', {
-                    clerkLoaded: _clerk.clerkLoaded,
-                    clerkError: _clerk.clerkError,
-                    hasKey: !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY,
-                    scripts: Array.from(document.querySelectorAll('script')).map(s => s.src).filter(Boolean),
-                  });
-                  window.open('https://status.clerk.com', '_blank');
-                }}
-                data-testid="button-check-status"
-              >
-                Check Clerk Status
-              </Button>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   // If Clerk is still loading, show loading indicator
   if (!_clerk.clerkLoaded) {

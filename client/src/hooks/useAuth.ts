@@ -11,34 +11,50 @@ import { useEffect, useState } from "react";
 export function useAuth() {
   const [clerkError, setClerkError] = useState<string | null>(null);
   
-  // read Clerk hook values directly (no try/catch)
+  // Read Clerk hook values - hooks must be called unconditionally
+  // If ClerkProvider isn't mounted or fails, these will throw or return undefined
   const clerkUserHook = useClerkUser();
   const clerkAuthHook = useClerkAuth();
 
   // clerkUserHook shape: { isLoaded, isSignedIn, user }
-  const clerkLoaded = Boolean((clerkUserHook as any).isLoaded);
-  const isSignedIn = Boolean((clerkUserHook as any).isSignedIn || (clerkAuthHook as any).isSignedIn);
-  const clerkUser = (clerkUserHook as any).user ?? null;
+  // Use optional chaining to safely access properties
+  const clerkLoaded = Boolean((clerkUserHook as any)?.isLoaded);
+  const isSignedIn = Boolean((clerkUserHook as any)?.isSignedIn || (clerkAuthHook as any)?.isSignedIn);
+  const clerkUser = (clerkUserHook as any)?.user ?? null;
 
-  // Detect Clerk loading errors
+  // Detect Clerk loading errors and check configuration
   useEffect(() => {
-    if (!clerkLoaded) {
-      // Check if Clerk scripts are loaded
-      const clerkScriptLoaded = document.querySelector('script[src*="clerk"]') !== null;
-      const clerkKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
-      
-      if (!clerkKey) {
-        setClerkError("Missing Clerk publishable key");
-      } else if (!clerkScriptLoaded && typeof window !== 'undefined') {
-        // Wait a bit longer before reporting script loading issues
+    const clerkKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+    
+    // Check for missing or invalid key first
+    if (!clerkKey || clerkKey === 'undefined' || clerkKey.trim() === '') {
+      setClerkError("Missing or invalid Clerk publishable key. Please set VITE_CLERK_PUBLISHABLE_KEY environment variable.");
+      return;
+    }
+
+    // Check if Clerk scripts are loaded
+    if (typeof window !== 'undefined') {
+      const checkScripts = () => {
+        const scripts = Array.from(document.querySelectorAll('script')).filter(
+          s => s.src && (s.src.includes('clerk') || s.src.includes('clerk.dev') || s.src.includes('clerk.com'))
+        );
+        return scripts.length > 0;
+      };
+
+      // Initial check
+      if (!checkScripts()) {
+        // Wait a bit for scripts to load
         const timer = setTimeout(() => {
-          if (!clerkLoaded) {
-            setClerkError("Clerk scripts failed to load. Check network connection and CORS settings.");
+          if (!checkScripts() && !clerkLoaded) {
+            setClerkError("Clerk scripts failed to load. This may indicate a network issue, CORS problem, or invalid publishable key.");
           }
-        }, 3000);
+        }, 2000);
         return () => clearTimeout(timer);
       }
-    } else {
+    }
+
+    // If Clerk is loaded, clear any errors
+    if (clerkLoaded) {
       setClerkError(null);
     }
   }, [clerkLoaded]);
