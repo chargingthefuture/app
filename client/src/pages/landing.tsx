@@ -14,20 +14,19 @@ export default function Landing() {
   const [, setLocation] = useLocation();
 
   // Redirect authenticated users away from landing page
+  // Note: RootRoute in App.tsx handles most of this, but this is a safety net
   useEffect(() => {
     // If Clerk says user is signed in, redirect appropriately
-    // This handles the case where user just signed in and is redirected to /
     if (_clerk.isSignedIn) {
       // If DB user is loaded and needs invite code, redirect to invite-required
       if (user && !user.inviteCodeUsed && !user.isAdmin) {
-        window.location.href = "/invite-required";
+        setLocation("/invite-required");
         return;
       }
-      // Otherwise, redirect to home dashboard
-      // Use window.location.href to force full page reload and ensure routing re-evaluates
-      window.location.href = "/";
+      // Otherwise, redirect to home dashboard (RootRoute will handle showing Home)
+      setLocation("/");
     }
-  }, [_clerk.isSignedIn, user]);
+  }, [_clerk.isSignedIn, user, setLocation]);
 
   const bitcoinAddress = "bc1qqurdsmdwfg9uekvvwf29r3r7ufu3l2tenncdtd";
   const moneroAddress = "49V9nUSEjTPbqGzAEtvepMSHz5FvknBR3gYQFe8mhme5AF2VHoEoVBdcViZM1kFzMWUcpsS8w5oJeLd57pQRPUdjNhpawYr";

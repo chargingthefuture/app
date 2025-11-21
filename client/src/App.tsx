@@ -1,4 +1,5 @@
-import { Switch, Route } from "wouter";
+import React from "react";
+import { Switch, Route, Redirect } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -102,17 +103,61 @@ import GentlePulseAdmin from "@/pages/gentlepulse/admin";
 import GentlePulseAdminAnnouncements from "@/pages/gentlepulse/admin-announcements";
 import { GentlePulseBottomNav } from "@/components/gentlepulse/bottom-nav";
 
-function Router() {
-  const { user, isAuthenticated, isLoading, _clerk } = useAuth();
-
-  // Check if user needs to provide invite code
+// Protected route wrapper that redirects unauthenticated users
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { _clerk, user, isLoading } = useAuth();
   const needsInviteCode = user && !user.inviteCodeUsed && !user.isAdmin;
 
-  // Show landing page only when Clerk says user is NOT signed in.
-  // If Clerk says user IS signed in, don't show landing (even if DB user is still loading).
-  // This prevents showing landing page immediately after sign-in redirect.
-  const shouldShowLanding = !_clerk.isSignedIn;
+  // If Clerk is still loading, show nothing (prevents flash)
+  if (!_clerk.clerkLoaded) {
+    return null;
+  }
 
+  // If not signed in, redirect to landing
+  if (!_clerk.isSignedIn) {
+    return <Redirect to="/" />;
+  }
+
+  // If needs invite code, redirect to invite-required
+  if (needsInviteCode) {
+    return <Redirect to="/invite-required" />;
+  }
+
+  return <>{children}</>;
+}
+
+// Landing/root route handler
+function RootRoute() {
+  const { _clerk, user, isLoading } = useAuth();
+  const needsInviteCode = user && !user.inviteCodeUsed && !user.isAdmin;
+
+  // If Clerk is still loading, show nothing (prevents flash)
+  if (!_clerk.clerkLoaded) {
+    return null;
+  }
+
+  // If signed in, wait for DB user to load before redirecting
+  if (_clerk.isSignedIn) {
+    // Still loading DB user, show nothing
+    if (isLoading) {
+      return null;
+    }
+    
+    // If needs invite code, redirect to invite-required
+    if (needsInviteCode) {
+      return <Redirect to="/invite-required" />;
+    }
+    
+    // Signed in with invite code - show home dashboard
+    // Don't redirect to avoid infinite loop, just render Home
+    return <Home />;
+  }
+
+  // Show landing page for unauthenticated users
+  return <Landing />;
+}
+
+function Router() {
   return (
     <Switch>
       {/* Publicly viewable Directory profiles */}
@@ -121,130 +166,455 @@ function Router() {
       {/* Publicly viewable SocketRelay requests */}
       <Route path="/apps/socketrelay/public" component={PublicSocketRelayList} />
       <Route path="/apps/socketrelay/public/:id" component={PublicSocketRelayRequest} />
-      {/* Show landing page only for unauthenticated users */}
-      {shouldShowLanding ? (
-        <Route path="/" component={Landing} />
-      ) : needsInviteCode ? (
-        <Route path="/" component={InviteRequired} />
-      ) : (
-        <>
-          <Route path="/" component={Home} />
-          <Route path="/services" component={Services} />
-          <Route path="/payments" component={UserPayments} />
-          <Route path="/admin" component={AdminDashboard} />
-          <Route path="/admin/users" component={AdminUsers} />
-          <Route path="/admin/invites" component={AdminInvites} />
-          <Route path="/admin/payments" component={AdminPayments} />
-          <Route path="/admin/pricing" component={AdminPricingTiers} />
-          <Route path="/admin/activity" component={AdminActivity} />
-          <Route path="/admin/weekly-performance" component={AdminWeeklyPerformance} />
-          <Route path="/apps/supportmatch" component={SupportMatchDashboard} />
-          <Route path="/apps/supportmatch/profile" component={SupportMatchProfile} />
-          <Route path="/apps/supportmatch/partnership" component={SupportMatchPartnership} />
-          <Route path="/apps/supportmatch/announcements" component={SupportMatchAnnouncements} />
-          <Route path="/apps/supportmatch/history" component={SupportMatchHistory} />
-          <Route path="/apps/supportmatch/safety" component={SupportMatchSafety} />
-          <Route path="/apps/supportmatch/admin" component={SupportMatchAdmin} />
-          <Route path="/apps/supportmatch/admin/announcements" component={SupportMatchAdminAnnouncements} />
-          <Route path="/apps/supportmatch/admin/users" component={SupportMatchAdminUsers} />
-          <Route path="/apps/supportmatch/admin/partnerships" component={SupportMatchAdminPartnerships} />
-          <Route path="/apps/supportmatch/admin/reports" component={SupportMatchAdminReports} />
-          <Route path="/apps/sleepstories" component={SleepStoriesLibrary} />
-          <Route path="/apps/sleepstories/admin" component={SleepStoriesAdmin} />
-          <Route path="/apps/sleepstories/admin/announcements" component={SleepStoriesAdminAnnouncements} />
-          <Route path="/apps/sleepstories/:id" component={SleepStoryPlayer} />
-          <Route path="/apps/lighthouse" component={LighthouseDashboard} />
-          <Route path="/apps/lighthouse/profile" component={LighthouseProfile} />
-          <Route path="/apps/lighthouse/browse" component={LighthouseBrowse} />
-          <Route path="/apps/lighthouse/my-properties" component={LighthouseMyProperties} />
-          <Route path="/apps/lighthouse/property/new" component={LighthousePropertyForm} />
-          <Route path="/apps/lighthouse/property/edit/:id" component={LighthousePropertyForm} />
-          <Route path="/apps/lighthouse/property/:id" component={LighthousePropertyDetail} />
-          <Route path="/apps/lighthouse/matches" component={LighthouseMatches} />
-          <Route path="/apps/lighthouse/admin" component={LighthouseAdmin} />
-          <Route path="/apps/lighthouse/admin/profile/:id" component={LighthouseAdminProfileView} />
-          <Route path="/apps/lighthouse/admin/announcements" component={LighthouseAdminAnnouncements} />
-          <Route path="/apps/socketrelay" component={SocketRelayDashboard} />
-          <Route path="/apps/socketrelay/profile" component={SocketRelayProfile} />
-          <Route path="/apps/socketrelay/announcements" component={SocketRelayAnnouncements} />
-          <Route path="/apps/socketrelay/chat/:id" component={SocketRelayChat} />
-          <Route path="/apps/socketrelay/admin" component={SocketRelayAdmin} />
-          <Route path="/apps/socketrelay/admin/announcements" component={SocketRelayAdminAnnouncements} />
-          {/* Directory routes */}
-          <Route path="/apps/directory" component={DirectoryDashboard} />
-          <Route path="/apps/directory/profile" component={DirectoryProfile} />
-          <Route path="/apps/directory/announcements" component={DirectoryAnnouncements} />
-          <Route path="/apps/directory/admin" component={DirectoryAdmin} />
-          <Route path="/apps/directory/admin/announcements" component={DirectoryAdminAnnouncements} />
-          {/* Chat Groups routes */}
-          <Route path="/apps/chatgroups" component={ChatGroups} />
-          <Route path="/apps/chatgroups/announcements" component={ChatGroupsAnnouncements} />
-          <Route path="/apps/chatgroups/admin" component={ChatGroupsAdmin} />
-          <Route path="/apps/chatgroups/admin/announcements" component={ChatGroupsAdminAnnouncements} />
-          {/* LightHouse routes - announcements */}
-          <Route path="/apps/lighthouse/announcements" component={LighthouseAnnouncements} />
-          {/* SleepStories routes - announcements */}
-          <Route path="/apps/sleepstories/announcements" component={SleepStoriesAnnouncements} />
-          {/* TrustTransport routes */}
-          <Route path="/apps/trusttransport" component={TrustTransportDashboard} />
-          <Route path="/apps/trusttransport/profile" component={TrustTransportProfile} />
-          <Route path="/apps/trusttransport/browse" component={TrustTransportBrowse} />
-          <Route path="/apps/trusttransport/request/new" component={TrustTransportRequestNew} />
-          <Route path="/apps/trusttransport/request/:id" component={TrustTransportRequestDetail} />
-          <Route path="/apps/trusttransport/my-requests" component={TrustTransportMyRequests} />
-          <Route path="/apps/trusttransport/my-claimed" component={TrustTransportMyClaimed} />
-          <Route path="/apps/trusttransport/announcements" component={TrustTransportAnnouncements} />
-          <Route path="/apps/trusttransport/admin" component={TrustTransportAdmin} />
-          <Route path="/apps/trusttransport/admin/announcements" component={TrustTransportAdminAnnouncements} />
-          {/* MechanicMatch routes */}
-          <Route path="/apps/mechanicmatch" component={MechanicMatchDashboard} />
-          <Route path="/apps/mechanicmatch/profile" component={MechanicMatchProfile} />
-          <Route path="/apps/mechanicmatch/vehicles" component={MechanicMatchVehicles} />
-          <Route path="/apps/mechanicmatch/request-new" component={MechanicMatchRequestNew} />
-          <Route path="/apps/mechanicmatch/admin" component={MechanicMatchAdmin} />
-          <Route path="/apps/mechanicmatch/admin/announcements" component={MechanicMatchAdminAnnouncements} />
-          {/* LostMail routes */}
-          <Route path="/apps/lostmail" component={LostMailDashboard} />
-          <Route path="/apps/lostmail/report" component={LostMailReport} />
-          <Route path="/apps/lostmail/incident/:id" component={LostMailIncidentDetail} />
-          <Route path="/apps/lostmail/admin" component={LostMailAdmin} />
-          <Route path="/apps/lostmail/admin/announcements" component={LostMailAdminAnnouncements} />
-          {/* Research routes */}
-          <Route path="/apps/research" component={ResearchTimeline} />
-          <Route path="/apps/research/item/:id" component={ResearchItemView} />
-          <Route path="/apps/research/new" component={NewResearchItem} />
-                <Route path="/apps/research/admin" component={ResearchAdmin} />
-                <Route path="/apps/research/admin/announcements" component={ResearchAdminAnnouncements} />
-                <Route path="/apps/research/admin/reports" component={ResearchAdminReports} />
-                {/* GentlePulse Routes */}
-                <Route path="/apps/gentlepulse" component={() => (
-                  <>
-                    <GentlePulseLibrary />
-                    <GentlePulseBottomNav />
-                  </>
-                )} />
-                <Route path="/apps/gentlepulse/favorites" component={() => (
-                  <>
-                    <GentlePulseFavorites />
-                    <GentlePulseBottomNav />
-                  </>
-                )} />
-                <Route path="/apps/gentlepulse/support" component={() => (
-                  <>
-                    <GentlePulseSupport />
-                    <GentlePulseBottomNav />
-                  </>
-                )} />
-                <Route path="/apps/gentlepulse/settings" component={() => (
-                  <>
-                    <GentlePulseSettings />
-                    <GentlePulseBottomNav />
-                  </>
-                )} />
-                <Route path="/apps/gentlepulse/admin" component={GentlePulseAdmin} />
-                <Route path="/apps/gentlepulse/admin/announcements" component={GentlePulseAdminAnnouncements} />
-        </>
-      )}
+      
+      {/* Root route - handles landing vs redirect */}
+      <Route path="/">
+        <RootRoute />
+      </Route>
+      
+      {/* Invite required route */}
+      <Route path="/invite-required" component={InviteRequired} />
+      
+      {/* Protected routes - always rendered, but wrapped with auth checks */}
+      <Route path="/services">
+        <ProtectedRoute>
+          <Services />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/payments">
+        <ProtectedRoute>
+          <UserPayments />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin">
+        <ProtectedRoute>
+          <AdminDashboard />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/users">
+        <ProtectedRoute>
+          <AdminUsers />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/invites">
+        <ProtectedRoute>
+          <AdminInvites />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/payments">
+        <ProtectedRoute>
+          <AdminPayments />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/pricing">
+        <ProtectedRoute>
+          <AdminPricingTiers />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/activity">
+        <ProtectedRoute>
+          <AdminActivity />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/weekly-performance">
+        <ProtectedRoute>
+          <AdminWeeklyPerformance />
+        </ProtectedRoute>
+      </Route>
+      {/* Mini-app routes - all protected */}
+      <Route path="/apps/supportmatch">
+        <ProtectedRoute>
+          <SupportMatchDashboard />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/supportmatch/profile">
+        <ProtectedRoute>
+          <SupportMatchProfile />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/supportmatch/partnership">
+        <ProtectedRoute>
+          <SupportMatchPartnership />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/supportmatch/announcements">
+        <ProtectedRoute>
+          <SupportMatchAnnouncements />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/supportmatch/history">
+        <ProtectedRoute>
+          <SupportMatchHistory />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/supportmatch/safety">
+        <ProtectedRoute>
+          <SupportMatchSafety />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/supportmatch/admin">
+        <ProtectedRoute>
+          <SupportMatchAdmin />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/supportmatch/admin/announcements">
+        <ProtectedRoute>
+          <SupportMatchAdminAnnouncements />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/supportmatch/admin/users">
+        <ProtectedRoute>
+          <SupportMatchAdminUsers />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/supportmatch/admin/partnerships">
+        <ProtectedRoute>
+          <SupportMatchAdminPartnerships />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/supportmatch/admin/reports">
+        <ProtectedRoute>
+          <SupportMatchAdminReports />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/sleepstories">
+        <ProtectedRoute>
+          <SleepStoriesLibrary />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/sleepstories/admin">
+        <ProtectedRoute>
+          <SleepStoriesAdmin />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/sleepstories/admin/announcements">
+        <ProtectedRoute>
+          <SleepStoriesAdminAnnouncements />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/sleepstories/:id">
+        <ProtectedRoute>
+          <SleepStoryPlayer />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/sleepstories/announcements">
+        <ProtectedRoute>
+          <SleepStoriesAnnouncements />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/lighthouse">
+        <ProtectedRoute>
+          <LighthouseDashboard />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/lighthouse/profile">
+        <ProtectedRoute>
+          <LighthouseProfile />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/lighthouse/browse">
+        <ProtectedRoute>
+          <LighthouseBrowse />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/lighthouse/my-properties">
+        <ProtectedRoute>
+          <LighthouseMyProperties />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/lighthouse/property/new">
+        <ProtectedRoute>
+          <LighthousePropertyForm />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/lighthouse/property/edit/:id">
+        <ProtectedRoute>
+          <LighthousePropertyForm />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/lighthouse/property/:id">
+        <ProtectedRoute>
+          <LighthousePropertyDetail />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/lighthouse/matches">
+        <ProtectedRoute>
+          <LighthouseMatches />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/lighthouse/admin">
+        <ProtectedRoute>
+          <LighthouseAdmin />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/lighthouse/admin/profile/:id">
+        <ProtectedRoute>
+          <LighthouseAdminProfileView />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/lighthouse/admin/announcements">
+        <ProtectedRoute>
+          <LighthouseAdminAnnouncements />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/lighthouse/announcements">
+        <ProtectedRoute>
+          <LighthouseAnnouncements />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/socketrelay">
+        <ProtectedRoute>
+          <SocketRelayDashboard />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/socketrelay/profile">
+        <ProtectedRoute>
+          <SocketRelayProfile />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/socketrelay/announcements">
+        <ProtectedRoute>
+          <SocketRelayAnnouncements />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/socketrelay/chat/:id">
+        <ProtectedRoute>
+          <SocketRelayChat />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/socketrelay/admin">
+        <ProtectedRoute>
+          <SocketRelayAdmin />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/socketrelay/admin/announcements">
+        <ProtectedRoute>
+          <SocketRelayAdminAnnouncements />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/directory">
+        <ProtectedRoute>
+          <DirectoryDashboard />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/directory/profile">
+        <ProtectedRoute>
+          <DirectoryProfile />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/directory/announcements">
+        <ProtectedRoute>
+          <DirectoryAnnouncements />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/directory/admin">
+        <ProtectedRoute>
+          <DirectoryAdmin />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/directory/admin/announcements">
+        <ProtectedRoute>
+          <DirectoryAdminAnnouncements />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/chatgroups">
+        <ProtectedRoute>
+          <ChatGroups />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/chatgroups/announcements">
+        <ProtectedRoute>
+          <ChatGroupsAnnouncements />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/chatgroups/admin">
+        <ProtectedRoute>
+          <ChatGroupsAdmin />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/chatgroups/admin/announcements">
+        <ProtectedRoute>
+          <ChatGroupsAdminAnnouncements />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/trusttransport">
+        <ProtectedRoute>
+          <TrustTransportDashboard />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/trusttransport/profile">
+        <ProtectedRoute>
+          <TrustTransportProfile />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/trusttransport/browse">
+        <ProtectedRoute>
+          <TrustTransportBrowse />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/trusttransport/request/new">
+        <ProtectedRoute>
+          <TrustTransportRequestNew />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/trusttransport/request/:id">
+        <ProtectedRoute>
+          <TrustTransportRequestDetail />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/trusttransport/my-requests">
+        <ProtectedRoute>
+          <TrustTransportMyRequests />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/trusttransport/my-claimed">
+        <ProtectedRoute>
+          <TrustTransportMyClaimed />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/trusttransport/announcements">
+        <ProtectedRoute>
+          <TrustTransportAnnouncements />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/trusttransport/admin">
+        <ProtectedRoute>
+          <TrustTransportAdmin />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/trusttransport/admin/announcements">
+        <ProtectedRoute>
+          <TrustTransportAdminAnnouncements />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/mechanicmatch">
+        <ProtectedRoute>
+          <MechanicMatchDashboard />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/mechanicmatch/profile">
+        <ProtectedRoute>
+          <MechanicMatchProfile />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/mechanicmatch/vehicles">
+        <ProtectedRoute>
+          <MechanicMatchVehicles />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/mechanicmatch/request-new">
+        <ProtectedRoute>
+          <MechanicMatchRequestNew />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/mechanicmatch/admin">
+        <ProtectedRoute>
+          <MechanicMatchAdmin />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/mechanicmatch/admin/announcements">
+        <ProtectedRoute>
+          <MechanicMatchAdminAnnouncements />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/lostmail">
+        <ProtectedRoute>
+          <LostMailDashboard />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/lostmail/report">
+        <ProtectedRoute>
+          <LostMailReport />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/lostmail/incident/:id">
+        <ProtectedRoute>
+          <LostMailIncidentDetail />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/lostmail/admin">
+        <ProtectedRoute>
+          <LostMailAdmin />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/lostmail/admin/announcements">
+        <ProtectedRoute>
+          <LostMailAdminAnnouncements />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/research">
+        <ProtectedRoute>
+          <ResearchTimeline />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/research/item/:id">
+        <ProtectedRoute>
+          <ResearchItemView />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/research/new">
+        <ProtectedRoute>
+          <NewResearchItem />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/research/admin">
+        <ProtectedRoute>
+          <ResearchAdmin />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/research/admin/announcements">
+        <ProtectedRoute>
+          <ResearchAdminAnnouncements />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/research/admin/reports">
+        <ProtectedRoute>
+          <ResearchAdminReports />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/gentlepulse">
+        <ProtectedRoute>
+          <>
+            <GentlePulseLibrary />
+            <GentlePulseBottomNav />
+          </>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/gentlepulse/favorites">
+        <ProtectedRoute>
+          <>
+            <GentlePulseFavorites />
+            <GentlePulseBottomNav />
+          </>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/gentlepulse/support">
+        <ProtectedRoute>
+          <>
+            <GentlePulseSupport />
+            <GentlePulseBottomNav />
+          </>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/gentlepulse/settings">
+        <ProtectedRoute>
+          <>
+            <GentlePulseSettings />
+            <GentlePulseBottomNav />
+          </>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/gentlepulse/admin">
+        <ProtectedRoute>
+          <GentlePulseAdmin />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/gentlepulse/admin/announcements">
+        <ProtectedRoute>
+          <GentlePulseAdminAnnouncements />
+        </ProtectedRoute>
+      </Route>
+      
       <Route component={NotFound} />
     </Switch>
   );
