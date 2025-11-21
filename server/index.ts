@@ -43,12 +43,12 @@ app.use((req, res, next) => {
   // Prevents XSS attacks by controlling what resources can be loaded
   const cspDirectives = [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.clerk.accounts.dev https://*.clerk.com", // Clerk CDN + unsafe-eval needed for Vite dev
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.clerk.accounts.dev https://*.clerk.com", // Clerk styles
-    "font-src 'self' https://fonts.gstatic.com https://*.clerk.accounts.dev https://*.clerk.com", // Clerk fonts
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.clerk.accounts.dev https://*.clerk.com https://clerk.app.chargingthefuture.com https://*.app.chargingthefuture.com", // Clerk CDN + custom domain + unsafe-eval needed for Vite dev
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.clerk.accounts.dev https://*.clerk.com https://clerk.app.chargingthefuture.com https://*.app.chargingthefuture.com", // Clerk styles
+    "font-src 'self' https://fonts.gstatic.com https://*.clerk.accounts.dev https://*.clerk.com https://clerk.app.chargingthefuture.com https://*.app.chargingthefuture.com", // Clerk fonts
     "img-src 'self' data: https:",
-    "connect-src 'self' wss: ws: https://*.clerk.accounts.dev https://*.clerk.com", // Clerk API calls
-    "frame-src 'self' https://*.clerk.accounts.dev https://*.clerk.com", // Clerk iframes for auth
+    "connect-src 'self' wss: ws: https://*.clerk.accounts.dev https://*.clerk.com https://clerk.app.chargingthefuture.com https://*.app.chargingthefuture.com", // Clerk API calls
+    "frame-src 'self' https://*.clerk.accounts.dev https://*.clerk.com https://clerk.app.chargingthefuture.com https://*.app.chargingthefuture.com", // Clerk iframes for auth
     "frame-ancestors 'none'", // Prevents clickjacking
   ].join('; ');
   res.setHeader('Content-Security-Policy', cspDirectives);
