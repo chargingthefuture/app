@@ -9,7 +9,6 @@ export default function Landing() {
   const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
   const { openExternal, ExternalLinkDialog } = useExternalLink();
 
-  // TODO: Replace with actual donation addresses
   const bitcoinAddress = "bc1qqurdsmdwfg9uekvvwf29r3r7ufu3l2tenncdtd";
   const moneroAddress = "49V9nUSEjTPbqGzAEtvepMSHz5FvknBR3gYQFe8mhme5AF2VHoEoVBdcViZM1kFzMWUcpsS8w5oJeLd57pQRPUdjNhpawYr";
   const signalGroupUrl = "https://signal.group/#CjQKILHj7074l2Kl-oYy0qGSFdydXbtu0Pf66Z_88K9IlSCtEhDDdqV_BFAW2qm2EiTGEaNs";

@@ -1,22 +1,15 @@
 import { Button } from "@/components/ui/button";
 import { Lock } from "lucide-react";
-import { useClerk } from "@clerk/clerk-react";
 
 export function LoginForm() {
-  const { redirectToSignIn, redirectToSignUp } = useClerk();
-
   const handleSignIn = () => {
-    // Redirect to Clerk's hosted Account Portal
-    redirectToSignIn({
-      redirectUrl: window.location.origin + '/',
-    });
+    // Redirect to accounts portal sign-in
+    window.location.href = 'https://accounts.app.chargingthefuture.com/sign-in';
   };
 
   const handleSignUp = () => {
-    // Redirect to Clerk's hosted Account Portal
-    redirectToSignUp({
-      redirectUrl: window.location.origin + '/invite-required',
-    });
+    // Redirect to accounts portal sign-up
+    window.location.href = 'https://accounts.app.chargingthefuture.com/sign-up';
   };
 
   return (
