@@ -110,15 +110,18 @@ app.use((req, res, next) => {
     serveStatic(app);
   }
 
-  // 404 handler - must be after all routes (including Vite)
-  // Only catch API routes that don't exist - let Vite handle frontend routes
+  // 404 handler - must be after all routes (including static file serving)
+  // Only catch API routes that don't exist - static file serving handles frontend routes
   app.use((req, res, next) => {
     // If it's an API route that wasn't handled, use notFoundHandler
     if (req.path.startsWith("/api/")) {
       return notFoundHandler(req, res, next);
     }
-    // Otherwise, let it pass through (Vite will handle it)
-    next();
+    // For non-API routes, static file serving should have already handled them
+    // If we get here, something went wrong - but don't call next() as it would hit error handler
+    // The catch-all in serveStatic should have served index.html already
+    // This is a safety net that shouldn't normally be reached
+    return;
   });
 
   // Error handler - must be last

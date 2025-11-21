@@ -120,18 +120,42 @@ export function serveStatic(app: Express) {
     );
   }
 
-  app.use(express.static(distPath));
+  // Serve static files (JS, CSS, images, etc.) with proper caching headers
+  app.use(express.static(distPath, {
+    // Don't serve index.html automatically - let the catch-all handle it for SPA routing
+    index: false,
+    // Set cache headers for static assets
+    maxAge: '1y',
+    etag: true,
+    lastModified: true,
+  }));
 
-  // fall through to index.html if the file doesn't exist
-  app.use("*", (req, res) => {
-    // Don't serve HTML for API routes - let them return JSON errors
+  // Fall through to index.html for all non-API GET requests (SPA routing)
+  // This allows client-side routing to work - all routes serve the same HTML
+  app.get("*", (req, res, next) => {
+    // Don't serve HTML for API routes - let the 404 handler deal with it
     if (req.originalUrl.startsWith("/api/")) {
-      return res.status(404).json({ message: "API endpoint not found" });
+      return next(); // Let the 404 handler deal with it
     }
+    
     const indexPath = path.resolve(distPath, "index.html");
     if (!fs.existsSync(indexPath)) {
+      console.error(`Frontend build not found at: ${indexPath}`);
       return res.status(404).json({ message: "Frontend build not found" });
     }
-    res.sendFile(indexPath);
+    
+    // Send the index.html file with proper content type and no caching
+    // (HTML should not be cached so SPA updates work correctly)
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
+    
+    res.sendFile(indexPath, (err) => {
+      if (err) {
+        console.error("Error sending index.html:", err);
+        next(err);
+      }
+    });
   });
 }

@@ -7,6 +7,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { useAuth } from "@/hooks/useAuth";
+import { Button } from "@/components/ui/button";
 import { NpsSurveyManager } from "@/components/nps-survey-manager";
 import { ErrorBoundary } from "@/components/error-boundary";
 import NotFound from "@/pages/not-found";
@@ -107,10 +108,48 @@ import { GentlePulseBottomNav } from "@/components/gentlepulse/bottom-nav";
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { _clerk, user, isLoading } = useAuth();
   const needsInviteCode = user && !user.inviteCodeUsed && !user.isAdmin;
+  const [clerkLoadTimeout, setClerkLoadTimeout] = React.useState(false);
 
-  // If Clerk is still loading, show nothing (prevents flash)
+  // Timeout fallback: if Clerk doesn't load within 5 seconds, show error
+  React.useEffect(() => {
+    if (!_clerk.clerkLoaded) {
+      const timer = setTimeout(() => {
+        setClerkLoadTimeout(true);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [_clerk.clerkLoaded]);
+
+  // If Clerk takes too long to load, show error message
+  if (clerkLoadTimeout && !_clerk.clerkLoaded) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <div className="text-center space-y-4 max-w-md">
+          <h1 className="text-2xl font-bold">Loading Error</h1>
+          <p className="text-muted-foreground">
+            Authentication service is taking longer than expected to load.
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Please refresh the page or check your internet connection.
+          </p>
+          <Button onClick={() => window.location.reload()} data-testid="button-refresh">
+            Refresh Page
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // If Clerk is still loading, show loading indicator
   if (!_clerk.clerkLoaded) {
-    return null;
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+          <p className="text-sm text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
   }
 
   // If not signed in, redirect to landing
@@ -130,17 +169,62 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 function RootRoute() {
   const { _clerk, user, isLoading } = useAuth();
   const needsInviteCode = user && !user.inviteCodeUsed && !user.isAdmin;
+  const [clerkLoadTimeout, setClerkLoadTimeout] = React.useState(false);
 
-  // If Clerk is still loading, show nothing (prevents flash)
+  // Timeout fallback: if Clerk doesn't load within 5 seconds, show error
+  React.useEffect(() => {
+    if (!_clerk.clerkLoaded) {
+      const timer = setTimeout(() => {
+        setClerkLoadTimeout(true);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [_clerk.clerkLoaded]);
+
+  // If Clerk takes too long to load, show error message
+  if (clerkLoadTimeout && !_clerk.clerkLoaded) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <div className="text-center space-y-4 max-w-md">
+          <h1 className="text-2xl font-bold">Loading Error</h1>
+          <p className="text-muted-foreground">
+            Authentication service is taking longer than expected to load.
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Please refresh the page or check your internet connection.
+          </p>
+          <Button onClick={() => window.location.reload()} data-testid="button-refresh">
+            Refresh Page
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // If Clerk is still loading, show loading indicator
   if (!_clerk.clerkLoaded) {
-    return null;
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+          <p className="text-sm text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
   }
 
   // If signed in, wait for DB user to load before redirecting
   if (_clerk.isSignedIn) {
-    // Still loading DB user, show nothing
+    // Still loading DB user, show loading indicator
     if (isLoading) {
-      return null;
+      return (
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center space-y-4">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+            <p className="text-sm text-muted-foreground">Loading...</p>
+          </div>
+        </div>
+      );
     }
     
     // If needs invite code, redirect to invite-required
