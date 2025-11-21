@@ -10,6 +10,7 @@ import { useEffect, useState } from "react";
  */
 export function useAuth() {
   const [clerkError, setClerkError] = useState<string | null>(null);
+  const [clerkLoadTimeout, setClerkLoadTimeout] = useState(false);
   
   // Read Clerk hook values - hooks must be called unconditionally
   // If ClerkProvider isn't mounted or fails, these will throw or return undefined
@@ -18,9 +19,18 @@ export function useAuth() {
 
   // clerkUserHook shape: { isLoaded, isSignedIn, user }
   // Use optional chaining to safely access properties
-  const clerkLoaded = Boolean((clerkUserHook as any)?.isLoaded);
-  const isSignedIn = Boolean((clerkUserHook as any)?.isSignedIn || (clerkAuthHook as any)?.isSignedIn);
-  const clerkUser = (clerkUserHook as any)?.user ?? null;
+  // Check both hooks for isLoaded to ensure we catch the state correctly
+  const clerkLoaded = Boolean(
+    (clerkUserHook as any)?.isLoaded ?? 
+    (clerkAuthHook as any)?.isLoaded ??
+    false
+  );
+  const isSignedIn = Boolean(
+    (clerkUserHook as any)?.isSignedIn ?? 
+    (clerkAuthHook as any)?.isSignedIn ??
+    false
+  );
+  const clerkUser = (clerkUserHook as any)?.user ?? (clerkAuthHook as any)?.user ?? null;
 
   // Detect Clerk loading errors and check configuration
   useEffect(() => {
@@ -53,20 +63,44 @@ export function useAuth() {
       }
     }
 
-    // If Clerk is loaded, clear any errors
+    // If Clerk is loaded, clear any errors and timeout
     if (clerkLoaded) {
       setClerkError(null);
+      setClerkLoadTimeout(false);
     }
   }, [clerkLoaded]);
 
-  const { data: dbUser, isLoading: dbLoading } = useQuery<DbUser | null>({
+  // Timeout for Clerk loading - if Clerk doesn't load within 10 seconds, show error
+  useEffect(() => {
+    if (!clerkLoaded && typeof window !== 'undefined') {
+      const timeout = setTimeout(() => {
+        setClerkLoadTimeout(true);
+        if (!clerkError) {
+          setClerkError("Clerk is taking longer than expected to load. Please check your network connection and try refreshing the page.");
+        }
+      }, 10000); // 10 second timeout
+      return () => clearTimeout(timeout);
+    }
+  }, [clerkLoaded, clerkError]);
+
+  const { data: dbUser, isLoading: dbLoading, error: dbError } = useQuery<DbUser | null>({
     queryKey: ["/api/auth/user"],
     retry: false,
     enabled: clerkLoaded && isSignedIn,
   });
 
-  // isLoading: only true when Clerk loaded and db fetch is in progress.
-  const isLoading = clerkLoaded ? (isSignedIn ? Boolean(dbLoading) : false) : false;
+  // Log errors for debugging
+  useEffect(() => {
+    if (dbError) {
+      console.error("Error fetching user from database:", dbError);
+    }
+  }, [dbError]);
+
+  // isLoading: true when:
+  // - Clerk is not loaded yet (and not timed out), OR
+  // - Clerk is loaded, user is signed in, and we're fetching DB user
+  // If there's an error or timeout, don't keep loading forever
+  const isLoading = (!clerkLoaded && !clerkLoadTimeout) || (clerkLoaded && isSignedIn && dbLoading);
 
   const isAuthenticated = isSignedIn && Boolean(clerkUser);
   const user = isAuthenticated && dbUser ? dbUser : null;
@@ -83,5 +117,7 @@ export function useAuth() {
       clerkUser,
       clerkError,
     },
+    // expose DB query error for debugging
+    _dbError: dbError,
   } as const;
 }

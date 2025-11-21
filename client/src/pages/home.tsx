@@ -8,13 +8,50 @@ import { Button } from "@/components/ui/button";
 import { PrivacyField } from "@/components/ui/privacy-field";
 
 export default function Home() {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, _clerk, _dbError } = useAuth();
+
+  // Debug logging
+  if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+    console.log('[Home] Auth state:', {
+      isLoading,
+      clerkLoaded: _clerk.clerkLoaded,
+      isSignedIn: _clerk.isSignedIn,
+      hasUser: !!user,
+      clerkError: _clerk.clerkError,
+      dbError: _dbError,
+    });
+  }
 
   if (isLoading) {
     return (
       <div className="p-6 md:p-8">
         <div className="text-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
           <p className="text-muted-foreground">Loading...</p>
+          {_clerk.clerkError && (
+            <p className="text-sm text-destructive mt-2">{_clerk.clerkError}</p>
+          )}
+          {_dbError && (
+            <p className="text-sm text-destructive mt-2">
+              Error loading user: {_dbError instanceof Error ? _dbError.message : String(_dbError)}
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // If not authenticated, this shouldn't happen due to routing, but handle gracefully
+  if (!user) {
+    return (
+      <div className="p-6 md:p-8">
+        <div className="text-center py-12">
+          <p className="text-muted-foreground">Unable to load user data. Please try refreshing the page.</p>
+          {_dbError && (
+            <p className="text-sm text-destructive mt-2">
+              Error: {_dbError instanceof Error ? _dbError.message : String(_dbError)}
+            </p>
+          )}
         </div>
       </div>
     );
