@@ -1,6 +1,7 @@
 import { useUser as useClerkUser, useAuth as useClerkAuth } from "@clerk/clerk-react";
 import { useQuery } from "@tanstack/react-query";
 import type { User as DbUser } from "@shared/schema";
+import { useEffect, useState } from "react";
 
 /**
  * useAuth
@@ -8,6 +9,8 @@ import type { User as DbUser } from "@shared/schema";
  * - Starts DB fetch only when Clerk is loaded and reports signed-in.
  */
 export function useAuth() {
+  const [clerkError, setClerkError] = useState<string | null>(null);
+  
   // read Clerk hook values directly (no try/catch)
   const clerkUserHook = useClerkUser();
   const clerkAuthHook = useClerkAuth();
@@ -16,6 +19,29 @@ export function useAuth() {
   const clerkLoaded = Boolean((clerkUserHook as any).isLoaded);
   const isSignedIn = Boolean((clerkUserHook as any).isSignedIn || (clerkAuthHook as any).isSignedIn);
   const clerkUser = (clerkUserHook as any).user ?? null;
+
+  // Detect Clerk loading errors
+  useEffect(() => {
+    if (!clerkLoaded) {
+      // Check if Clerk scripts are loaded
+      const clerkScriptLoaded = document.querySelector('script[src*="clerk"]') !== null;
+      const clerkKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+      
+      if (!clerkKey) {
+        setClerkError("Missing Clerk publishable key");
+      } else if (!clerkScriptLoaded && typeof window !== 'undefined') {
+        // Wait a bit longer before reporting script loading issues
+        const timer = setTimeout(() => {
+          if (!clerkLoaded) {
+            setClerkError("Clerk scripts failed to load. Check network connection and CORS settings.");
+          }
+        }, 3000);
+        return () => clearTimeout(timer);
+      }
+    } else {
+      setClerkError(null);
+    }
+  }, [clerkLoaded]);
 
   const { data: dbUser, isLoading: dbLoading } = useQuery<DbUser | null>({
     queryKey: ["/api/auth/user"],
@@ -39,6 +65,7 @@ export function useAuth() {
       clerkLoaded,
       isSignedIn,
       clerkUser,
+      clerkError,
     },
   } as const;
 }

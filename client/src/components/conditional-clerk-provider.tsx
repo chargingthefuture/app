@@ -1,5 +1,5 @@
 import { ClerkProvider } from "@clerk/clerk-react";
-import { ReactNode } from "react";
+import { ReactNode, useEffect, useState } from "react";
 
 const clerkPublishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
@@ -12,6 +12,43 @@ const getBaseUrl = () => {
 };
 
 export function ConditionalClerkProvider({ children }: { children: ReactNode }) {
+  const [scriptLoadError, setScriptLoadError] = useState<string | null>(null);
+
+  // Monitor Clerk script loading
+  useEffect(() => {
+    if (!clerkPublishableKey) return;
+
+    // Check if Clerk scripts are loading properly
+    const checkScripts = () => {
+      const scripts = Array.from(document.querySelectorAll('script[src*="clerk"]'));
+      if (scripts.length === 0) {
+        // Wait a bit for scripts to be injected
+        const timer = setTimeout(() => {
+          const scriptsAfterDelay = Array.from(document.querySelectorAll('script[src*="clerk"]'));
+          if (scriptsAfterDelay.length === 0) {
+            setScriptLoadError("Clerk scripts failed to load. This may indicate a network or CORS issue.");
+          }
+        }, 2000);
+        return () => clearTimeout(timer);
+      }
+    };
+
+    // Listen for script errors
+    const handleError = (event: ErrorEvent) => {
+      if (event.message?.includes('clerk') || event.filename?.includes('clerk')) {
+        setScriptLoadError(`Clerk script error: ${event.message}`);
+      }
+    };
+
+    window.addEventListener('error', handleError);
+    const cleanup = checkScripts();
+
+    return () => {
+      window.removeEventListener('error', handleError);
+      if (cleanup) cleanup();
+    };
+  }, [clerkPublishableKey]);
+
   // Only render ClerkProvider if key is available
   // If not available, show error message instead of crashing
   if (!clerkPublishableKey) {
@@ -23,8 +60,13 @@ export function ConditionalClerkProvider({ children }: { children: ReactNode }) 
             Missing VITE_CLERK_PUBLISHABLE_KEY environment variable.
           </p>
           <p className="text-sm text-muted-foreground">
-            Please set VITE_CLERK_PUBLISHABLE_KEY in your .env.local file.
+            Please set VITE_CLERK_PUBLISHABLE_KEY in your environment variables.
           </p>
+          {typeof window !== 'undefined' && (
+            <p className="text-xs text-muted-foreground font-mono mt-2">
+              Current env: {import.meta.env.MODE}
+            </p>
+          )}
         </div>
       </div>
     );

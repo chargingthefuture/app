@@ -129,12 +129,36 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
           <p className="text-muted-foreground">
             Authentication service is taking longer than expected to load.
           </p>
+          {_clerk.clerkError && (
+            <p className="text-sm text-destructive font-mono bg-destructive/10 p-2 rounded">
+              {_clerk.clerkError}
+            </p>
+          )}
           <p className="text-sm text-muted-foreground">
             Please refresh the page or check your internet connection.
           </p>
-          <Button onClick={() => window.location.reload()} data-testid="button-refresh">
-            Refresh Page
-          </Button>
+          <div className="flex gap-2 justify-center">
+            <Button onClick={() => window.location.reload()} data-testid="button-refresh">
+              Refresh Page
+            </Button>
+            {typeof window !== 'undefined' && (
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  console.error('Clerk loading debug info:', {
+                    clerkLoaded: _clerk.clerkLoaded,
+                    clerkError: _clerk.clerkError,
+                    hasKey: !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY,
+                    scripts: Array.from(document.querySelectorAll('script')).map(s => s.src).filter(Boolean),
+                  });
+                  window.open('https://status.clerk.com', '_blank');
+                }}
+                data-testid="button-check-status"
+              >
+                Check Clerk Status
+              </Button>
+            )}
+          </div>
         </div>
       </div>
     );
@@ -190,12 +214,36 @@ function RootRoute() {
           <p className="text-muted-foreground">
             Authentication service is taking longer than expected to load.
           </p>
+          {_clerk.clerkError && (
+            <p className="text-sm text-destructive font-mono bg-destructive/10 p-2 rounded">
+              {_clerk.clerkError}
+            </p>
+          )}
           <p className="text-sm text-muted-foreground">
             Please refresh the page or check your internet connection.
           </p>
-          <Button onClick={() => window.location.reload()} data-testid="button-refresh">
-            Refresh Page
-          </Button>
+          <div className="flex gap-2 justify-center">
+            <Button onClick={() => window.location.reload()} data-testid="button-refresh">
+              Refresh Page
+            </Button>
+            {typeof window !== 'undefined' && (
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  console.error('Clerk loading debug info:', {
+                    clerkLoaded: _clerk.clerkLoaded,
+                    clerkError: _clerk.clerkError,
+                    hasKey: !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY,
+                    scripts: Array.from(document.querySelectorAll('script')).map(s => s.src).filter(Boolean),
+                  });
+                  window.open('https://status.clerk.com', '_blank');
+                }}
+                data-testid="button-check-status"
+              >
+                Check Clerk Status
+              </Button>
+            )}
+          </div>
         </div>
       </div>
     );
