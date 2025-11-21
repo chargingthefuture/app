@@ -24,3 +24,5 @@ DATABASE_URL="postgresql://user:password@host:port/database" npx tsx scripts/see
 
 DATABASE_URL="postgresql://user:password@host:port/database" npx tsx scripts/seedSocketRelay.ts
 
+npm run test          # Run all tests
+npm run test:coverage # Run with coverage report

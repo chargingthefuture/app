@@ -961,30 +961,81 @@ async deactivateMyappAnnouncement(id: string): Promise<MyappAnnouncement> {
 
 #### **Step 12: Testing** 🧪
 
-**🚨 REQUIRED:** Create comprehensive tests for the new mini-app before merging.
+**🚨 REQUIRED:** Create comprehensive tests for the new mini-app before merging. Every new mini-app MUST include ALL of the following test types:
 
-1. **Create test files** following the structure in `test/` directory:
-   - `test/api/myapp.test.ts` - API endpoint tests
-   - `test/client/pages/myapp/*.test.tsx` - Component tests
-   - `test/e2e/myapp.spec.ts` - E2E tests (if applicable)
-   - `test/integration/myapp.test.ts` - Integration tests
-
-2. **Write tests** covering:
-   - All CRUD operations (profile create, read, update, delete)
-   - Authentication and authorization
-   - Input validation
-   - Security (SQL injection, XSS prevention)
-   - Accessibility (keyboard nav, screen reader)
-   - Error handling
-   - Cascade anonymization on deletion
-
-3. **Run tests** locally and ensure they pass:
-   ```bash
-   npm run test          # Unit/integration tests
-   npm run test:e2e      # E2E tests (if configured)
+1. **API Tests** (`test/api/myapp.test.ts`):
+   - Profile CRUD operations (GET, POST, PUT, DELETE)
+   - All feature-specific endpoints (requests, items, etc.)
+   - Announcement endpoints (user and admin)
+   - Admin endpoints (if applicable)
+   - Authentication and authorization checks
+   - Input validation tests
+   - Error handling tests
+   
+   **Example structure:**
+   ```typescript
+   describe('API - MyApp Profile', () => {
+     describe('GET /api/myapp/profile', () => { /* ... */ });
+     describe('POST /api/myapp/profile', () => { /* ... */ });
+     describe('PUT /api/myapp/profile', () => { /* ... */ });
+     describe('DELETE /api/myapp/profile', () => { /* ... */ });
+   });
    ```
 
-4. **Verify coverage** meets requirements (90%+ for critical paths)
+2. **Component Tests** (`test/client/pages/myapp/profile.test.tsx`):
+   - Profile page component (if mini-app has profiles)
+   - Create form rendering when no profile exists
+   - Edit form rendering when profile exists
+   - Delete button visibility (only when profile exists)
+   - Form submission and validation
+   - Error state handling
+   - Loading state handling
+   
+   **Required for profile-based mini-apps:** SupportMatch, LightHouse, SocketRelay, Directory, TrustTransport, MechanicMatch
+
+3. **E2E Tests** (`test/e2e/myapp.spec.ts`):
+   - Complete profile creation flow
+   - Profile update flow
+   - Profile deletion flow with confirmation
+   - Feature-specific workflows (e.g., ride requests, service requests, incident reports)
+   - Navigation between pages
+   - User interactions (buttons, forms, dialogs)
+   
+   **Required for all mini-apps** - Use Playwright following existing patterns in `test/e2e/`
+
+4. **Integration Tests** (if needed):
+   - Database operations end-to-end
+   - Cascade anonymization on profile deletion
+   - API-Frontend integration
+
+5. **Run tests** locally and ensure they pass:
+   ```bash
+   npm run test          # Unit/integration/component tests
+   npm run test:e2e      # E2E tests
+   npm run test:coverage # Generate coverage report
+   ```
+
+6. **Verify coverage** meets requirements:
+   - Critical paths: 90%+ coverage (authentication, profile CRUD, admin actions, security)
+   - Overall codebase: 70%+ coverage
+
+**Test File Structure for New Mini-App:**
+```
+test/
+├── api/
+│   └── myapp.test.ts              ← API endpoint tests (REQUIRED)
+├── client/
+│   └── pages/
+│       └── myapp/
+│           └── profile.test.tsx   ← Component tests (REQUIRED if has profiles)
+└── e2e/
+    └── myapp.spec.ts              ← E2E tests (REQUIRED)
+```
+
+**Reference existing tests:**
+- API tests: `test/api/supportmatch.test.ts`, `test/api/trusttransport.test.ts`
+- Component tests: `test/client/pages/supportmatch/profile.test.tsx`
+- E2E tests: `test/e2e/profile-crud.spec.ts`, `test/e2e/trusttransport.spec.ts`
 
 See the **Testing Requirements** section above for detailed testing guidelines and examples.
 
@@ -1898,10 +1949,24 @@ Study these for patterns:
   - [ ] Test database operations (create → retrieve → update → delete)
   - [ ] Test cascade anonymization on profile deletion
   - [ ] Test API-Frontend integration
-- [ ] **E2E tests** for critical user flows (using Playwright)
+- [ ] **API tests** created (`test/api/myapp.test.ts`) - REQUIRED
+  - [ ] Profile CRUD endpoints tested
+  - [ ] Feature-specific endpoints tested
+  - [ ] Announcement endpoints tested
+  - [ ] Admin endpoints tested (if applicable)
+  - [ ] Authentication/authorization tested
+  - [ ] Input validation tested
+- [ ] **Component tests** created (`test/client/pages/myapp/profile.test.tsx`) - REQUIRED if mini-app has profiles
+  - [ ] Create form rendering tested
+  - [ ] Edit form rendering tested
+  - [ ] Delete button visibility tested
+  - [ ] Form submission tested
+- [ ] **E2E tests** created (`test/e2e/myapp.spec.ts`) - REQUIRED
   - [ ] Test complete profile creation flow
   - [ ] Test profile update flow
   - [ ] Test profile deletion flow
+  - [ ] Test feature-specific workflows
+  - [ ] Test navigation and user interactions
 - [ ] **Performance tests** (if applicable)
   - [ ] Test API response times (< 500ms p95)
   - [ ] Test under load (50+ concurrent users)
