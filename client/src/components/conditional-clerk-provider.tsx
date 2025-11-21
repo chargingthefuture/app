@@ -47,7 +47,7 @@ export function ConditionalClerkProvider({ children }: { children: ReactNode }) 
     ? "https://accounts.app.chargingthefuture.com/sign-up"
     : "https://sure-oarfish-90.accounts.dev/sign-up";
   const unauthorizedSignInUrl = isProduction
-    ? undefined // Use default in production
+    ? "https://accounts.app.chargingthefuture.com/unauthorized-sign-in"
     : "https://sure-oarfish-90.accounts.dev/unauthorized-sign-in";
 
   return (
@@ -57,7 +57,7 @@ export function ConditionalClerkProvider({ children }: { children: ReactNode }) 
       // Use Clerk's hosted Account Portal (dev or prod based on environment)
       signInUrl={signInUrl}
       signUpUrl={signUpUrl}
-      {...(unauthorizedSignInUrl ? { unauthorizedSignInUrl } : {})}
+      unauthorizedSignInUrl={unauthorizedSignInUrl}
       // Redirect to invite-required page after sign-up (users need to enter invite code)
       afterSignUpUrl={`${baseUrl}/invite-required`}
       // Redirect to home after sign-in (if they have invite code) or invite-required (if not)

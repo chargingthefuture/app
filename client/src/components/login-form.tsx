@@ -10,17 +10,48 @@ import {
 } from "@/components/ui/dialog";
 import { Lock, ArrowRight } from "lucide-react";
 
+// Get account URLs based on environment
+const getAccountUrls = () => {
+  if (typeof window === 'undefined') {
+    // Server-side: default to staging
+    return {
+      signIn: 'https://sure-oarfish-90.accounts.dev/sign-in',
+      signUp: 'https://sure-oarfish-90.accounts.dev/sign-up',
+      unauthorized: 'https://sure-oarfish-90.accounts.dev/unauthorized-sign-in',
+    };
+  }
+
+  const baseUrl = window.location.origin;
+  const isProduction = baseUrl.includes('app.chargingthefuture.com');
+  
+  if (isProduction) {
+    return {
+      signIn: 'https://accounts.app.chargingthefuture.com/sign-in',
+      signUp: 'https://accounts.app.chargingthefuture.com/sign-up',
+      unauthorized: 'https://accounts.app.chargingthefuture.com/unauthorized-sign-in',
+    };
+  }
+  
+  // Staging (including localhost:5000)
+  return {
+    signIn: 'https://sure-oarfish-90.accounts.dev/sign-in',
+    signUp: 'https://sure-oarfish-90.accounts.dev/sign-up',
+    unauthorized: 'https://sure-oarfish-90.accounts.dev/unauthorized-sign-in',
+  };
+};
+
 export function LoginForm() {
   const [redirectUrl, setRedirectUrl] = useState<string | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const accountUrls = getAccountUrls();
 
   const handleSignIn = () => {
-    setRedirectUrl('https://accounts.app.chargingthefuture.com/sign-in');
+    setRedirectUrl(accountUrls.signIn);
     setIsDialogOpen(true);
   };
 
   const handleSignUp = () => {
-    setRedirectUrl('https://accounts.app.chargingthefuture.com/sign-up');
+    setRedirectUrl(accountUrls.signUp);
     setIsDialogOpen(true);
   };
 
