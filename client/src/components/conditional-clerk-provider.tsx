@@ -85,14 +85,41 @@ export function ConditionalClerkProvider({ children }: { children: ReactNode }) 
 
   const baseUrl = getBaseUrl();
   
-  // Only use domain prop in production with custom domain
-  // In local development, don't set domain to avoid script loading issues
+  // Detect environment
   const isProduction = baseUrl.includes('app.chargingthefuture.com');
-  const clerkDomain = isProduction && typeof window !== 'undefined' 
+  const isStaging = typeof window !== 'undefined' && 
+    (window.location.hostname.includes('railway.app') || 
+     window.location.hostname.includes('staging') ||
+     window.location.hostname.includes('up.railway.app'));
+  const isLocalDev = typeof window !== 'undefined' && 
+    (window.location.hostname === 'localhost' || 
+     window.location.hostname === '127.0.0.1');
+  
+  // Detect if using production Clerk keys (pk_live_*) vs dev/test keys (pk_test_*)
+  const isProductionKey = clerkPublishableKey?.startsWith('pk_live_');
+  
+  // Only set domain prop in production with custom domain
+  // For staging and local dev, don't set domain to avoid restrictions
+  // Production Clerk keys (pk_live_*) are domain-restricted to app.chargingthefuture.com
+  // Staging MUST use separate dev/test Clerk keys (pk_test_*) to work with Railway URLs
+  const clerkDomain = isProduction && typeof window !== 'undefined' && !isStaging
     ? window.location.hostname 
     : undefined;
+  
+  // Warn if using production keys in staging (will cause errors)
+  if (isStaging && isProductionKey && typeof window !== 'undefined') {
+    console.warn(
+      '⚠️ Clerk Configuration Warning: ' +
+      'You are using production Clerk keys (pk_live_*) in staging. ' +
+      'Production keys are domain-restricted and will not work with Railway staging URLs. ' +
+      'Please create a separate Clerk application for staging and use dev/test keys (pk_test_*).'
+    );
+  }
 
-  // Use dev URLs in development, production URLs in production
+  // Determine Clerk URLs based on environment
+  // For staging: Use dev URLs if using dev keys, or production URLs if using production keys
+  // For production: Use production URLs
+  // For local dev: Use dev URLs
   const signInUrl = isProduction 
     ? "https://accounts.app.chargingthefuture.com/sign-in"
     : "https://sure-oarfish-90.accounts.dev/sign-in";
