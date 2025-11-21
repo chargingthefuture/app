@@ -8,7 +8,17 @@ import { Button } from "@/components/ui/button";
 import { PrivacyField } from "@/components/ui/privacy-field";
 
 export default function Home() {
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="p-6 md:p-8">
+        <div className="text-center py-12">
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   const getInitials = () => {
     if (user?.firstName && user?.lastName) {

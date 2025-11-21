@@ -43,11 +43,12 @@ app.use((req, res, next) => {
   // Prevents XSS attacks by controlling what resources can be loaded
   const cspDirectives = [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval'", // unsafe-eval needed for Vite dev
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-    "font-src 'self' https://fonts.gstatic.com",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.clerk.accounts.dev https://*.clerk.com", // Clerk CDN + unsafe-eval needed for Vite dev
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.clerk.accounts.dev https://*.clerk.com", // Clerk styles
+    "font-src 'self' https://fonts.gstatic.com https://*.clerk.accounts.dev https://*.clerk.com", // Clerk fonts
     "img-src 'self' data: https:",
-    "connect-src 'self' wss: ws:", // WebSocket for HMR in development
+    "connect-src 'self' wss: ws: https://*.clerk.accounts.dev https://*.clerk.com", // Clerk API calls
+    "frame-src 'self' https://*.clerk.accounts.dev https://*.clerk.com", // Clerk iframes for auth
     "frame-ancestors 'none'", // Prevents clickjacking
   ].join('; ');
   res.setHeader('Content-Security-Policy', cspDirectives);
@@ -100,12 +101,6 @@ app.use((req, res, next) => {
 (async () => {
   const server = await registerRoutes(app);
 
-  // 404 handler - must be after all routes
-  app.use(notFoundHandler);
-
-  // Error handler - must be last
-  app.use(errorHandler);
-
   // importantly only setup vite in development and after
   // setting up all the other routes so the catch-all route
   // doesn't interfere with the other routes
@@ -114,6 +109,20 @@ app.use((req, res, next) => {
   } else {
     serveStatic(app);
   }
+
+  // 404 handler - must be after all routes (including Vite)
+  // Only catch API routes that don't exist - let Vite handle frontend routes
+  app.use((req, res, next) => {
+    // If it's an API route that wasn't handled, use notFoundHandler
+    if (req.path.startsWith("/api/")) {
+      return notFoundHandler(req, res, next);
+    }
+    // Otherwise, let it pass through (Vite will handle it)
+    next();
+  });
+
+  // Error handler - must be last
+  app.use(errorHandler);
 
   // ALWAYS serve the app on the port specified in the environment variable PORT
   // Other ports are firewalled. Default to 5000 if not specified.

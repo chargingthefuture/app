@@ -68,9 +68,9 @@ export default function AdminActivity() {
                     {logs.map((log) => (
                       <TableRow key={log.id} data-testid={`row-activity-${log.id}`}>
                         <TableCell>{getActionBadge(log.action)}</TableCell>
-                        <TableCell className="capitalize">{log.targetType}</TableCell>
+                        <TableCell className="capitalize">{log.resourceType}</TableCell>
                         <TableCell className="font-mono text-sm text-muted-foreground">
-                          {log.targetId ? log.targetId.substring(0, 8) : "-"}
+                          {log.resourceId ? log.resourceId.substring(0, 8) : "-"}
                         </TableCell>
                         <TableCell className="text-muted-foreground">
                           {new Date(log.createdAt).toLocaleString()}
@@ -94,13 +94,13 @@ export default function AdminActivity() {
                       
                       <div className="grid grid-cols-2 gap-2 text-sm">
                         <div>
-                          <span className="text-muted-foreground">Target Type</span>
-                          <p className="capitalize">{log.targetType}</p>
+                          <span className="text-muted-foreground">Resource Type</span>
+                          <p className="capitalize">{log.resourceType}</p>
                         </div>
                         <div>
-                          <span className="text-muted-foreground">Target ID</span>
+                          <span className="text-muted-foreground">Resource ID</span>
                           <p className="font-mono text-xs">
-                            {log.targetId ? log.targetId.substring(0, 8) : "-"}
+                            {log.resourceId ? log.resourceId.substring(0, 8) : "-"}
                           </p>
                         </div>
                       </div>

@@ -48,7 +48,7 @@ export default function InviteRequired() {
           <div>
             <CardTitle className="text-2xl">Invite Code Required</CardTitle>
             <p className="text-sm text-muted-foreground mt-2">
-              This platform is invite-only for your security. Please enter your invite code to continue.
+              This platform is invite-only for your safety. Please enter your invite code to continue.
             </p>
           </div>
         </CardHeader>
@@ -65,7 +65,7 @@ export default function InviteRequired() {
               data-testid="input-invite-code"
             />
             <p className="text-xs text-muted-foreground">
-              Contact your support coordinator if you don't have an invite code.
+              Contact the support coordinator if you don't have an invite code.
             </p>
           </div>
 

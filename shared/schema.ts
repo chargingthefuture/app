@@ -173,8 +173,8 @@ export const adminActionLogs = pgTable("admin_action_logs", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   adminId: varchar("admin_id").notNull().references(() => users.id),
   action: varchar("action", { length: 100 }).notNull(),
-  targetType: varchar("target_type", { length: 50 }).notNull(), // user, invite_code, payment
-  targetId: varchar("target_id"),
+  resourceType: varchar("resource_type", { length: 50 }).notNull(), // user, invite_code, payment
+  resourceId: varchar("resource_id"),
   details: jsonb("details"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });

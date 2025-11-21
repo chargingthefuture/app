@@ -3,6 +3,14 @@ import { ReactNode } from "react";
 
 const clerkPublishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
+// Get the base URL for redirects
+const getBaseUrl = () => {
+  if (typeof window !== 'undefined') {
+    return window.location.origin;
+  }
+  return process.env.VITE_APP_URL || 'https://app.chargingthefuture.com';
+};
+
 export function AppClerkProvider({ children }: { children: ReactNode }) {
   // Only render ClerkProvider if key is available
   // If not available, show error message instead of crashing
@@ -22,14 +30,32 @@ export function AppClerkProvider({ children }: { children: ReactNode }) {
     );
   }
 
+  const baseUrl = getBaseUrl();
+
+  // Use dev URLs in development, production URLs in production
+  const isProduction = baseUrl.includes('app.chargingthefuture.com');
+  const signInUrl = isProduction 
+    ? "https://accounts.app.chargingthefuture.com/sign-in"
+    : "https://sure-oarfish-90.accounts.dev/sign-in";
+  const signUpUrl = isProduction
+    ? "https://accounts.app.chargingthefuture.com/sign-up"
+    : "https://sure-oarfish-90.accounts.dev/sign-up";
+  const unauthorizedSignInUrl = isProduction
+    ? undefined // Use default in production
+    : "https://sure-oarfish-90.accounts.dev/unauthorized-sign-in";
+
   return (
     <ClerkProvider 
       publishableKey={clerkPublishableKey}
       domain={typeof window !== 'undefined' ? window.location.hostname : undefined}
-      signInUrl="/sign-in"
-      signUpUrl="/sign-up"
-      afterSignInUrl="/"
-      afterSignUpUrl="/"
+      // Use Clerk's hosted Account Portal (dev or prod based on environment)
+      signInUrl={signInUrl}
+      signUpUrl={signUpUrl}
+      {...(unauthorizedSignInUrl ? { unauthorizedSignInUrl } : {})}
+      // Redirect to invite-required page after sign-up (users need to enter invite code)
+      afterSignUpUrl={`${baseUrl}/invite-required`}
+      // Redirect to home after sign-in (if they have invite code) or invite-required (if not)
+      afterSignInUrl={`${baseUrl}/`}
       appearance={{
         elements: {
           rootBox: "mx-auto",

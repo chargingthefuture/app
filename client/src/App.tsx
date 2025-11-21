@@ -1,5 +1,4 @@
 import { Switch, Route } from "wouter";
-import { SignIn, SignUp } from "@clerk/clerk-react";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -104,42 +103,26 @@ import GentlePulseAdminAnnouncements from "@/pages/gentlepulse/admin-announcemen
 import { GentlePulseBottomNav } from "@/components/gentlepulse/bottom-nav";
 
 function Router() {
-  const { user, isAuthenticated, isLoading } = useAuth();
+  const { user, isAuthenticated, isLoading, _clerk } = useAuth();
 
   // Check if user needs to provide invite code
   const needsInviteCode = user && !user.inviteCodeUsed && !user.isAdmin;
 
+  // Show landing page only when Clerk says user is NOT signed in.
+  // If Clerk says user IS signed in, don't show landing (even if DB user is still loading).
+  // This prevents showing landing page immediately after sign-in redirect.
+  const shouldShowLanding = !_clerk.isSignedIn;
+
   return (
     <Switch>
-      {/* Clerk authentication routes */}
-      <Route path="/sign-in">
-        <div className="min-h-screen flex items-center justify-center p-4">
-          <SignIn
-            routing="path"
-            path="/sign-in"
-            signUpUrl="/sign-up"
-            afterSignInUrl="/"
-          />
-        </div>
-      </Route>
-      <Route path="/sign-up">
-        <div className="min-h-screen flex items-center justify-center p-4">
-          <SignUp
-            routing="path"
-            path="/sign-up"
-            signInUrl="/sign-in"
-            afterSignUpUrl="/"
-          />
-        </div>
-      </Route>
       {/* Publicly viewable Directory profiles */}
       <Route path="/apps/directory/public" component={PublicDirectoryList} />
       <Route path="/apps/directory/public/:id" component={PublicDirectoryProfile} />
       {/* Publicly viewable SocketRelay requests */}
       <Route path="/apps/socketrelay/public" component={PublicSocketRelayList} />
       <Route path="/apps/socketrelay/public/:id" component={PublicSocketRelayRequest} />
-      {/* Show landing page for unauthenticated users (including during loading) */}
-      {!isAuthenticated || isLoading ? (
+      {/* Show landing page only for unauthenticated users */}
+      {shouldShowLanding ? (
         <Route path="/" component={Landing} />
       ) : needsInviteCode ? (
         <Route path="/" component={InviteRequired} />

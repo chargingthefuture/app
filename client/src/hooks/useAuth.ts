@@ -1,44 +1,44 @@
-import { useUser, useAuth as useClerkAuth } from "@clerk/clerk-react";
+import { useUser as useClerkUser, useAuth as useClerkAuth } from "@clerk/clerk-react";
 import { useQuery } from "@tanstack/react-query";
-import type { User } from "@shared/schema";
+import type { User as DbUser } from "@shared/schema";
 
+/**
+ * useAuth
+ * - Returns the combined auth state from Clerk and the app DB user.
+ * - Starts DB fetch only when Clerk is loaded and reports signed-in.
+ */
 export function useAuth() {
-  // Always call hooks (rules of hooks), but handle errors gracefully
-  let clerkUser, clerkLoaded, isSignedIn;
-  
-  try {
-    const userResult = useUser();
-    const authResult = useClerkAuth();
-    clerkUser = userResult.user;
-    clerkLoaded = userResult.isLoaded;
-    isSignedIn = authResult.isSignedIn;
-  } catch (error) {
-    // If Clerk fails to load (e.g., network error), treat as not authenticated
-    // This allows the landing page to load even if Clerk has connection issues
-    clerkUser = null;
-    clerkLoaded = true; // Set to true so we don't show loading state
-    isSignedIn = false;
-  }
-  
-  // Fetch our database user for additional fields (isAdmin, inviteCodeUsed, etc.)
-  // Only fetch if Clerk says user is signed in
-  const { data: dbUser, isLoading: dbLoading } = useQuery<User | null>({
+  // read Clerk hook values directly (no try/catch)
+  const clerkUserHook = useClerkUser();
+  const clerkAuthHook = useClerkAuth();
+
+  // clerkUserHook shape: { isLoaded, isSignedIn, user }
+  const clerkLoaded = Boolean((clerkUserHook as any).isLoaded);
+  const isSignedIn = Boolean((clerkUserHook as any).isSignedIn || (clerkAuthHook as any).isSignedIn);
+  const clerkUser = (clerkUserHook as any).user ?? null;
+
+  const { data: dbUser, isLoading: dbLoading } = useQuery<DbUser | null>({
     queryKey: ["/api/auth/user"],
     retry: false,
-    enabled: isSignedIn === true && clerkLoaded === true,
+    enabled: clerkLoaded && isSignedIn,
   });
 
-  // Don't show loading state if Clerk hasn't loaded yet - just show as not authenticated
-  const isLoading = clerkLoaded === false ? false : (isSignedIn === true && dbLoading === true);
-  const isAuthenticated = isSignedIn === true && !!clerkUser;
-  
-  // Combine Clerk user data with our database user data
+  // isLoading: only true when Clerk loaded and db fetch is in progress.
+  const isLoading = clerkLoaded ? (isSignedIn ? Boolean(dbLoading) : false) : false;
+
+  const isAuthenticated = isSignedIn && Boolean(clerkUser);
   const user = isAuthenticated && dbUser ? dbUser : null;
 
   return {
     user,
     isLoading,
     isAuthenticated,
-    isAdmin: user?.isAdmin || false,
-  };
+    isAdmin: user?.isAdmin ?? false,
+    // expose Clerk internals if needed by callers
+    _clerk: {
+      clerkLoaded,
+      isSignedIn,
+      clerkUser,
+    },
+  } as const;
 }

@@ -73,6 +73,7 @@ import { fileURLToPath } from "url";
 import { asyncHandler } from "./errorHandler";
 import { validateWithZod } from "./validationErrorFormatter";
 import { withDatabaseErrorHandling } from "./databaseErrorHandler";
+import { NotFoundError, ForbiddenError, ValidationError, UnauthorizedError } from "./errors";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -87,16 +88,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const logAdminAction = async (
     adminId: string,
     action: string,
-    targetType: string,
-    targetId?: string,
+    resourceType: string,
+    resourceId?: string,
     details?: any
   ) => {
     try {
       await storage.createAdminActionLog({
         adminId,
         action,
-        targetType,
-        targetId: targetId || null,
+        resourceType,
+        resourceId: resourceId || null,
         details: details || null,
       });
     } catch (error) {
@@ -119,6 +120,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
       generateCsrfTokenForAdmin(req, res, next);
     } else {
       next();
+    }
+  });
+
+  // Clerk webhook endpoint for user events
+  // Note: This endpoint should be configured in Clerk Dashboard with webhook secret
+  // Configure the webhook URL in Clerk Dashboard: https://app.chargingthefuture.com/api/webhooks/clerk
+  // For now, it's a placeholder that can be enhanced with proper webhook verification using @clerk/backend
+  app.post('/api/webhooks/clerk', async (req: any, res) => {
+    try {
+      // TODO: Add webhook signature verification using CLERK_WEBHOOK_SECRET
+      // Install @clerk/backend and use webhook verification:
+      // import { Webhook } from '@clerk/backend';
+      // const webhook = new Webhook(process.env.CLERK_WEBHOOK_SECRET);
+      // const payload = webhook.verify(req.body, req.headers);
+      
+      const event = req.body;
+      
+      // Handle user.created event
+      if (event.type === 'user.created') {
+        const clerkUserId = event.data.id;
+        const email = event.data.email_addresses?.[0]?.email_address;
+        
+        console.log(`[Webhook] User created: ${clerkUserId} (${email})`);
+        
+        // Note: User will be synced to DB via the auth middleware on first request
+        // This webhook is mainly for logging and potential future invite code validation
+        // For now, users will be redirected to /invite-required after sign-up
+        // where they can enter their invite code
+      }
+      
+      res.json({ received: true });
+    } catch (error: any) {
+      console.error("Error processing Clerk webhook:", error);
+      res.status(500).json({ message: "Failed to process webhook" });
     }
   });
 
@@ -1944,167 +1979,123 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // SocketRelay Routes
 
   // SocketRelay Profile routes
-  app.get('/api/socketrelay/profile', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const profile = await storage.getSocketrelayProfile(userId);
-      res.json(profile || null);
-    } catch (error) {
-      console.error("Error fetching SocketRelay profile:", error);
-      res.status(500).json({ message: "Failed to fetch profile" });
-    }
-  });
+  app.get('/api/socketrelay/profile', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const profile = await withDatabaseErrorHandling(
+      () => storage.getSocketrelayProfile(userId),
+      'getSocketrelayProfile'
+    );
+    res.json(profile || null);
+  }));
 
-  app.post('/api/socketrelay/profile', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const validatedData = insertSocketrelayProfileSchema.parse({
-        ...req.body,
-        userId,
-      });
+  app.post('/api/socketrelay/profile', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const validatedData = validateWithZod(insertSocketrelayProfileSchema, {
+      ...req.body,
+      userId,
+    }, 'Invalid profile data');
 
-      const profile = await storage.createSocketrelayProfile(validatedData);
-      res.json(profile);
-    } catch (error: any) {
-      console.error("Error creating SocketRelay profile:", error);
-      res.status(400).json({ message: error.message || "Failed to create profile" });
-    }
-  });
+    const profile = await withDatabaseErrorHandling(
+      () => storage.createSocketrelayProfile(validatedData),
+      'createSocketrelayProfile'
+    );
+    res.json(profile);
+  }));
 
-  app.put('/api/socketrelay/profile', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const profile = await storage.updateSocketrelayProfile(userId, req.body);
-      res.json(profile);
-    } catch (error: any) {
-      console.error("Error updating SocketRelay profile:", error);
-      res.status(400).json({ message: error.message || "Failed to update profile" });
-    }
-  });
+  app.put('/api/socketrelay/profile', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const profile = await withDatabaseErrorHandling(
+      () => storage.updateSocketrelayProfile(userId, req.body),
+      'updateSocketrelayProfile'
+    );
+    res.json(profile);
+  }));
 
-  app.delete('/api/socketrelay/profile', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const { reason } = req.body;
-      await storage.deleteSocketrelayProfile(userId, reason);
-      res.json({ message: "SocketRelay profile deleted successfully" });
-    } catch (error: any) {
-      console.error("Error deleting SocketRelay profile:", error);
-      res.status(400).json({ message: error.message || "Failed to delete profile" });
-    }
-  });
+  app.delete('/api/socketrelay/profile', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const { reason } = req.body;
+    await withDatabaseErrorHandling(
+      () => storage.deleteSocketrelayProfile(userId, reason),
+      'deleteSocketrelayProfile'
+    );
+    res.json({ message: "SocketRelay profile deleted successfully" });
+  }));
 
   // Get all active requests
-  app.get('/api/socketrelay/requests', isAuthenticated, async (req: any, res) => {
-    try {
-      const requests = await storage.getActiveSocketrelayRequests();
-      res.json(requests);
-    } catch (error: any) {
-      console.error("Error fetching SocketRelay requests:", error);
-      res.status(500).json({ message: error.message || "Failed to fetch requests" });
-    }
-  });
+  app.get('/api/socketrelay/requests', isAuthenticated, asyncHandler(async (_req, res) => {
+    const requests = await withDatabaseErrorHandling(
+      () => storage.getActiveSocketrelayRequests(),
+      'getActiveSocketrelayRequests'
+    );
+    res.json(requests);
+  }));
 
   // Get single request by ID
-  app.get('/api/socketrelay/requests/:id', isAuthenticated, async (req: any, res) => {
-    try {
-      const request = await storage.getSocketrelayRequestById(req.params.id);
-      if (!request) {
-        return res.status(404).json({ message: "Request not found" });
-      }
-      res.json(request);
-    } catch (error: any) {
-      console.error("Error fetching SocketRelay request:", error);
-      res.status(500).json({ message: error.message || "Failed to fetch request" });
+  app.get('/api/socketrelay/requests/:id', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const request = await withDatabaseErrorHandling(
+      () => storage.getSocketrelayRequestById(req.params.id),
+      'getSocketrelayRequestById'
+    );
+    if (!request) {
+      throw new NotFoundError('Request', req.params.id);
     }
-  });
+    res.json(request);
+  }));
 
   // Get user's own requests
-  app.get('/api/socketrelay/my-requests', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const requests = await storage.getSocketrelayRequestsByUser(userId);
-      res.json(requests);
-    } catch (error: any) {
-      console.error("Error fetching user's SocketRelay requests:", error);
-      res.status(500).json({ message: error.message || "Failed to fetch requests" });
-    }
-  });
+  app.get('/api/socketrelay/my-requests', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const requests = await withDatabaseErrorHandling(
+      () => storage.getSocketrelayRequestsByUser(userId),
+      'getSocketrelayRequestsByUser'
+    );
+    res.json(requests);
+  }));
 
   // Create a new request
-  app.post('/api/socketrelay/requests', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const validated = insertSocketrelayRequestSchema.parse(req.body);
-      
-      const request = await storage.createSocketrelayRequest(userId, validated.description, validated.isPublic || false);
-      res.json(request);
-    } catch (error: any) {
-      console.error("Error creating SocketRelay request:", error);
-      res.status(400).json({ message: error.message || "Failed to create request" });
-    }
-  });
+  app.post('/api/socketrelay/requests', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const validated = validateWithZod(insertSocketrelayRequestSchema, req.body, 'Invalid request data');
+    
+    const request = await withDatabaseErrorHandling(
+      () => storage.createSocketrelayRequest(userId, validated.description, validated.isPublic || false),
+      'createSocketrelayRequest'
+    );
+    res.json(request);
+  }));
 
   // Public SocketRelay request routes (no auth required, with rate limiting)
-  app.get('/api/socketrelay/public', publicListingLimiter, async (req, res) => {
-    try {
-      // Add delay for suspicious requests
-      const isSuspicious = (req as any).isSuspicious || false;
-      const userAgent = req.headers['user-agent'];
-      const accept = req.headers['accept'];
-      const acceptLang = req.headers['accept-language'];
-      const likelyBot = isLikelyBot(userAgent, accept, acceptLang);
-      
-      if (isSuspicious || likelyBot) {
-        await addAntiScrapingDelay(true, 200, 800);
-      } else {
-        await addAntiScrapingDelay(false, 50, 200);
-      }
-
-      const requests = await storage.listPublicSocketrelayRequests();
-      
-      // Enrich requests with creator info
-      const enrichedRequests = await Promise.all(requests.map(async (request) => {
-        const creatorProfile = await storage.getSocketrelayProfile(request.userId);
-        const creator = await storage.getUser(request.userId);
-        
-        return {
-          ...request,
-          creatorProfile: creatorProfile ? {
-            city: creatorProfile.city,
-            state: creatorProfile.state,
-            country: creatorProfile.country,
-          } : null,
-          creator: creator ? {
-            firstName: creator.firstName,
-            lastName: creator.lastName,
-            isVerified: creator.isVerified,
-          } : null,
-        };
-      }));
-      
-      // Rotate display order to make scraping harder
-      const rotated = rotateDisplayOrder(enrichedRequests);
-      
-      res.json(rotated);
-    } catch (error) {
-      console.error("Error fetching public SocketRelay requests:", error);
-      res.status(500).json({ message: "Failed to fetch requests" });
+  app.get('/api/socketrelay/public', publicListingLimiter, asyncHandler(async (req, res) => {
+    // Add delay for suspicious requests
+    const isSuspicious = (req as any).isSuspicious || false;
+    const userAgent = req.headers['user-agent'];
+    const accept = req.headers['accept'];
+    const acceptLang = req.headers['accept-language'];
+    const likelyBot = isLikelyBot(userAgent, accept, acceptLang);
+    
+    if (isSuspicious || likelyBot) {
+      await addAntiScrapingDelay(true, 200, 800);
+    } else {
+      await addAntiScrapingDelay(false, 50, 200);
     }
-  });
 
-  app.get('/api/socketrelay/public/:id', publicItemLimiter, async (req, res) => {
-    try {
-      const request = await storage.getPublicSocketrelayRequestById(req.params.id);
-      if (!request) {
-        return res.status(404).json({ message: "Request not found or not public" });
-      }
+    const requests = await withDatabaseErrorHandling(
+      () => storage.listPublicSocketrelayRequests(),
+      'listPublicSocketrelayRequests'
+    );
+    
+    // Enrich requests with creator info
+    const enrichedRequests = await Promise.all(requests.map(async (request) => {
+      const creatorProfile = await withDatabaseErrorHandling(
+        () => storage.getSocketrelayProfile(request.userId),
+        'getSocketrelayProfile'
+      );
+      const creator = await withDatabaseErrorHandling(
+        () => storage.getUser(request.userId),
+        'getUser'
+      );
       
-      // Get creator profile for location info
-      const creatorProfile = await storage.getSocketrelayProfile(request.userId);
-      const creator = await storage.getUser(request.userId);
-      
-      res.json({
+      return {
         ...request,
         creatorProfile: creatorProfile ? {
           city: creatorProfile.city,
@@ -2116,304 +2107,339 @@ export async function registerRoutes(app: Express): Promise<Server> {
           lastName: creator.lastName,
           isVerified: creator.isVerified,
         } : null,
-      });
-    } catch (error) {
-      console.error("Error fetching public SocketRelay request:", error);
-      res.status(500).json({ message: "Failed to fetch request" });
+      };
+    }));
+    
+    // Rotate display order to make scraping harder
+    const rotated = rotateDisplayOrder(enrichedRequests);
+    
+    res.json(rotated);
+  }));
+
+  app.get('/api/socketrelay/public/:id', publicItemLimiter, asyncHandler(async (req, res) => {
+    const request = await withDatabaseErrorHandling(
+      () => storage.getPublicSocketrelayRequestById(req.params.id),
+      'getPublicSocketrelayRequestById'
+    );
+    if (!request) {
+      throw new NotFoundError('Request', req.params.id);
     }
-  });
+    
+    // Get creator profile for location info
+    const creatorProfile = await withDatabaseErrorHandling(
+      () => storage.getSocketrelayProfile(request.userId),
+      'getSocketrelayProfile'
+    );
+    const creator = await withDatabaseErrorHandling(
+      () => storage.getUser(request.userId),
+      'getUser'
+    );
+    
+    res.json({
+      ...request,
+      creatorProfile: creatorProfile ? {
+        city: creatorProfile.city,
+        state: creatorProfile.state,
+        country: creatorProfile.country,
+      } : null,
+      creator: creator ? {
+        firstName: creator.firstName,
+        lastName: creator.lastName,
+        isVerified: creator.isVerified,
+      } : null,
+    });
+  }));
 
   // Fulfill a request (create fulfillment)
-  app.post('/api/socketrelay/requests/:id/fulfill', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const requestId = req.params.id;
+  app.post('/api/socketrelay/requests/:id/fulfill', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const requestId = req.params.id;
 
-      // Check if request exists and is active
-      const request = await storage.getSocketrelayRequestById(requestId);
-      if (!request) {
-        return res.status(404).json({ message: "Request not found" });
-      }
-
-      if (request.status !== 'active') {
-        return res.status(400).json({ message: "Request is not active" });
-      }
-
-      // Check if already expired
-      if (new Date(request.expiresAt) < new Date()) {
-        return res.status(400).json({ message: "Request has expired" });
-      }
-
-      // Don't allow users to fulfill their own requests
-      if (request.userId === userId) {
-        return res.status(400).json({ message: "You cannot fulfill your own request" });
-      }
-
-      const fulfillment = await storage.createSocketrelayFulfillment(requestId, userId);
-      res.json(fulfillment);
-    } catch (error: any) {
-      console.error("Error fulfilling SocketRelay request:", error);
-      res.status(400).json({ message: error.message || "Failed to fulfill request" });
+    // Check if request exists and is active
+    const request = await withDatabaseErrorHandling(
+      () => storage.getSocketrelayRequestById(requestId),
+      'getSocketrelayRequestById'
+    );
+    if (!request) {
+      throw new NotFoundError('Request', requestId);
     }
-  });
+
+    if (request.status !== 'active') {
+      throw new ValidationError("Request is not active");
+    }
+
+    // Check if already expired
+    if (new Date(request.expiresAt) < new Date()) {
+      throw new ValidationError("Request has expired");
+    }
+
+    // Don't allow users to fulfill their own requests
+    if (request.userId === userId) {
+      throw new ValidationError("You cannot fulfill your own request");
+    }
+
+    const fulfillment = await withDatabaseErrorHandling(
+      () => storage.createSocketrelayFulfillment(requestId, userId),
+      'createSocketrelayFulfillment'
+    );
+    res.json(fulfillment);
+  }));
 
   // Get fulfillment by ID (with request data)
-  app.get('/api/socketrelay/fulfillments/:id', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const fulfillment = await storage.getSocketrelayFulfillmentById(req.params.id);
-      
-      if (!fulfillment) {
-        return res.status(404).json({ message: "Fulfillment not found" });
-      }
-
-      // Check if user is part of this fulfillment
-      const request = await storage.getSocketrelayRequestById(fulfillment.requestId);
-      if (!request) {
-        return res.status(404).json({ message: "Request not found" });
-      }
-
-      if (request.userId !== userId && fulfillment.fulfillerUserId !== userId) {
-        return res.status(403).json({ message: "Access denied" });
-      }
-
-      res.json({ fulfillment, request });
-    } catch (error: any) {
-      console.error("Error fetching SocketRelay fulfillment:", error);
-      res.status(500).json({ message: error.message || "Failed to fetch fulfillment" });
+  app.get('/api/socketrelay/fulfillments/:id', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const fulfillment = await withDatabaseErrorHandling(
+      () => storage.getSocketrelayFulfillmentById(req.params.id),
+      'getSocketrelayFulfillmentById'
+    );
+    
+    if (!fulfillment) {
+      throw new NotFoundError('Fulfillment', req.params.id);
     }
-  });
+
+    // Check if user is part of this fulfillment
+    const request = await withDatabaseErrorHandling(
+      () => storage.getSocketrelayRequestById(fulfillment.requestId),
+      'getSocketrelayRequestById'
+    );
+    if (!request) {
+      throw new NotFoundError('Request', fulfillment.requestId);
+    }
+
+    if (request.userId !== userId && fulfillment.fulfillerUserId !== userId) {
+      throw new ForbiddenError("Access denied");
+    }
+
+    res.json({ fulfillment, request });
+  }));
 
   // Get user's fulfillments (where they are the fulfiller)
-  app.get('/api/socketrelay/my-fulfillments', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const fulfillments = await storage.getSocketrelayFulfillmentsByUser(userId);
-      res.json(fulfillments);
-    } catch (error: any) {
-      console.error("Error fetching user's SocketRelay fulfillments:", error);
-      res.status(500).json({ message: error.message || "Failed to fetch fulfillments" });
-    }
-  });
+  app.get('/api/socketrelay/my-fulfillments', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const fulfillments = await withDatabaseErrorHandling(
+      () => storage.getSocketrelayFulfillmentsByUser(userId),
+      'getSocketrelayFulfillmentsByUser'
+    );
+    res.json(fulfillments);
+  }));
 
   // Close a fulfillment
-  app.post('/api/socketrelay/fulfillments/:id/close', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const { status } = req.body; // completed_success or completed_failure
+  app.post('/api/socketrelay/fulfillments/:id/close', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const { status } = req.body; // completed_success or completed_failure
 
-      if (!status || !['completed_success', 'completed_failure', 'cancelled'].includes(status)) {
-        return res.status(400).json({ message: "Invalid status" });
-      }
-
-      const fulfillment = await storage.getSocketrelayFulfillmentById(req.params.id);
-      if (!fulfillment) {
-        return res.status(404).json({ message: "Fulfillment not found" });
-      }
-
-      // Check if user is part of this fulfillment
-      const request = await storage.getSocketrelayRequestById(fulfillment.requestId);
-      if (!request) {
-        return res.status(404).json({ message: "Request not found" });
-      }
-
-      if (request.userId !== userId && fulfillment.fulfillerUserId !== userId) {
-        return res.status(403).json({ message: "Access denied" });
-      }
-
-      const updated = await storage.closeSocketrelayFulfillment(req.params.id, userId, status);
-      
-      // Update request status to closed
-      await storage.updateSocketrelayRequestStatus(request.id, 'closed');
-
-      res.json(updated);
-    } catch (error: any) {
-      console.error("Error closing SocketRelay fulfillment:", error);
-      res.status(400).json({ message: error.message || "Failed to close fulfillment" });
+    if (!status || !['completed_success', 'completed_failure', 'cancelled'].includes(status)) {
+      throw new ValidationError("Invalid status");
     }
-  });
+
+    const fulfillment = await withDatabaseErrorHandling(
+      () => storage.getSocketrelayFulfillmentById(req.params.id),
+      'getSocketrelayFulfillmentById'
+    );
+    if (!fulfillment) {
+      throw new NotFoundError('Fulfillment', req.params.id);
+    }
+
+    // Check if user is part of this fulfillment
+    const request = await withDatabaseErrorHandling(
+      () => storage.getSocketrelayRequestById(fulfillment.requestId),
+      'getSocketrelayRequestById'
+    );
+    if (!request) {
+      throw new NotFoundError('Request', fulfillment.requestId);
+    }
+
+    if (request.userId !== userId && fulfillment.fulfillerUserId !== userId) {
+      throw new ForbiddenError("Access denied");
+    }
+
+    const updated = await withDatabaseErrorHandling(
+      () => storage.closeSocketrelayFulfillment(req.params.id, userId, status),
+      'closeSocketrelayFulfillment'
+    );
+    
+    // Update request status to closed
+    await withDatabaseErrorHandling(
+      () => storage.updateSocketrelayRequestStatus(request.id, 'closed'),
+      'updateSocketrelayRequestStatus'
+    );
+
+    res.json(updated);
+  }));
 
   // Get messages for a fulfillment
-  app.get('/api/socketrelay/fulfillments/:id/messages', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const fulfillmentId = req.params.id;
+  app.get('/api/socketrelay/fulfillments/:id/messages', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const fulfillmentId = req.params.id;
 
-      const fulfillment = await storage.getSocketrelayFulfillmentById(fulfillmentId);
-      if (!fulfillment) {
-        return res.status(404).json({ message: "Fulfillment not found" });
-      }
-
-      // Check if user is part of this fulfillment
-      const request = await storage.getSocketrelayRequestById(fulfillment.requestId);
-      if (!request) {
-        return res.status(404).json({ message: "Request not found" });
-      }
-
-      if (request.userId !== userId && fulfillment.fulfillerUserId !== userId) {
-        return res.status(403).json({ message: "Access denied" });
-      }
-
-      const messages = await storage.getSocketrelayMessagesByFulfillment(fulfillmentId);
-      res.json(messages);
-    } catch (error: any) {
-      console.error("Error fetching SocketRelay messages:", error);
-      res.status(500).json({ message: error.message || "Failed to fetch messages" });
+    const fulfillment = await withDatabaseErrorHandling(
+      () => storage.getSocketrelayFulfillmentById(fulfillmentId),
+      'getSocketrelayFulfillmentById'
+    );
+    if (!fulfillment) {
+      throw new NotFoundError('Fulfillment', fulfillmentId);
     }
-  });
+
+    // Check if user is part of this fulfillment
+    const request = await withDatabaseErrorHandling(
+      () => storage.getSocketrelayRequestById(fulfillment.requestId),
+      'getSocketrelayRequestById'
+    );
+    if (!request) {
+      throw new NotFoundError('Request', fulfillment.requestId);
+    }
+
+    if (request.userId !== userId && fulfillment.fulfillerUserId !== userId) {
+      throw new ForbiddenError("Access denied");
+    }
+
+    const messages = await withDatabaseErrorHandling(
+      () => storage.getSocketrelayMessagesByFulfillment(fulfillmentId),
+      'getSocketrelayMessagesByFulfillment'
+    );
+    res.json(messages);
+  }));
 
   // Send a message in a fulfillment chat
-  app.post('/api/socketrelay/fulfillments/:id/messages', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const fulfillmentId = req.params.id;
-      const { content } = req.body;
+  app.post('/api/socketrelay/fulfillments/:id/messages', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const fulfillmentId = req.params.id;
+    const { content } = req.body;
 
-      if (!content || typeof content !== 'string' || content.trim().length === 0) {
-        return res.status(400).json({ message: "Message content is required" });
-      }
+    if (!content || typeof content !== 'string' || content.trim().length === 0) {
+      throw new ValidationError("Message content is required");
+    }
 
-      const fulfillment = await storage.getSocketrelayFulfillmentById(fulfillmentId);
-      if (!fulfillment) {
-        return res.status(404).json({ message: "Fulfillment not found" });
-      }
+    const fulfillment = await withDatabaseErrorHandling(
+      () => storage.getSocketrelayFulfillmentById(fulfillmentId),
+      'getSocketrelayFulfillmentById'
+    );
+    if (!fulfillment) {
+      throw new NotFoundError('Fulfillment', fulfillmentId);
+    }
 
-      // Check if user is part of this fulfillment
-      const request = await storage.getSocketrelayRequestById(fulfillment.requestId);
-      if (!request) {
-        return res.status(404).json({ message: "Request not found" });
-      }
+    // Check if user is part of this fulfillment
+    const request = await withDatabaseErrorHandling(
+      () => storage.getSocketrelayRequestById(fulfillment.requestId),
+      'getSocketrelayRequestById'
+    );
+    if (!request) {
+      throw new NotFoundError('Request', fulfillment.requestId);
+    }
 
-      if (request.userId !== userId && fulfillment.fulfillerUserId !== userId) {
-        return res.status(403).json({ message: "Access denied" });
-      }
+    if (request.userId !== userId && fulfillment.fulfillerUserId !== userId) {
+      throw new ForbiddenError("Access denied");
+    }
 
-      const message = await storage.createSocketrelayMessage({
+    const message = await withDatabaseErrorHandling(
+      () => storage.createSocketrelayMessage({
         fulfillmentId,
         senderId: userId,
         content: content.trim(),
-      });
+      }),
+      'createSocketrelayMessage'
+    );
 
-      res.json(message);
-    } catch (error: any) {
-      console.error("Error sending SocketRelay message:", error);
-      res.status(400).json({ message: error.message || "Failed to send message" });
-    }
-  });
+    res.json(message);
+  }));
 
   // SocketRelay Admin Routes
-  app.get('/api/socketrelay/admin/requests', isAuthenticated, isAdmin, async (req, res) => {
-    try {
-      const requests = await storage.getAllSocketrelayRequests();
-      res.json(requests);
-    } catch (error: any) {
-      console.error("Error fetching all SocketRelay requests:", error);
-      res.status(500).json({ message: error.message || "Failed to fetch requests" });
-    }
-  });
+  app.get('/api/socketrelay/admin/requests', isAuthenticated, isAdmin, asyncHandler(async (_req, res) => {
+    const requests = await withDatabaseErrorHandling(
+      () => storage.getAllSocketrelayRequests(),
+      'getAllSocketrelayRequests'
+    );
+    res.json(requests);
+  }));
 
-  app.get('/api/socketrelay/admin/fulfillments', isAuthenticated, isAdmin, async (req, res) => {
-    try {
-      const fulfillments = await storage.getAllSocketrelayFulfillments();
-      res.json(fulfillments);
-    } catch (error: any) {
-      console.error("Error fetching all SocketRelay fulfillments:", error);
-      res.status(500).json({ message: error.message || "Failed to fetch fulfillments" });
-    }
-  });
+  app.get('/api/socketrelay/admin/fulfillments', isAuthenticated, isAdmin, asyncHandler(async (_req, res) => {
+    const fulfillments = await withDatabaseErrorHandling(
+      () => storage.getAllSocketrelayFulfillments(),
+      'getAllSocketrelayFulfillments'
+    );
+    res.json(fulfillments);
+  }));
 
-  app.delete('/api/socketrelay/admin/requests/:id', isAuthenticated, isAdmin, async (req, res) => {
-    try {
-      await storage.deleteSocketrelayRequest(req.params.id);
-      res.json({ message: "Request deleted successfully" });
-    } catch (error: any) {
-      console.error("Error deleting SocketRelay request:", error);
-      res.status(500).json({ message: error.message || "Failed to delete request" });
-    }
-  });
+  app.delete('/api/socketrelay/admin/requests/:id', isAuthenticated, isAdmin, asyncHandler(async (req, res) => {
+    await withDatabaseErrorHandling(
+      () => storage.deleteSocketrelayRequest(req.params.id),
+      'deleteSocketrelayRequest'
+    );
+    res.json({ message: "Request deleted successfully" });
+  }));
 
   // SocketRelay Announcement routes
-  app.get('/api/socketrelay/announcements', isAuthenticated, async (req, res) => {
-    try {
-      const announcements = await storage.getActiveSocketrelayAnnouncements();
-      res.json(announcements);
-    } catch (error) {
-      console.error("Error fetching SocketRelay announcements:", error);
-      res.status(500).json({ message: "Failed to fetch announcements" });
-    }
-  });
+  app.get('/api/socketrelay/announcements', isAuthenticated, asyncHandler(async (_req, res) => {
+    const announcements = await withDatabaseErrorHandling(
+      () => storage.getActiveSocketrelayAnnouncements(),
+      'getActiveSocketrelayAnnouncements'
+    );
+    res.json(announcements);
+  }));
 
-  app.get('/api/socketrelay/admin/announcements', isAuthenticated, isAdmin, async (req, res) => {
-    try {
-      const announcements = await storage.getAllSocketrelayAnnouncements();
-      res.json(announcements);
-    } catch (error) {
-      console.error("Error fetching SocketRelay announcements:", error);
-      res.status(500).json({ message: "Failed to fetch announcements" });
-    }
-  });
+  app.get('/api/socketrelay/admin/announcements', isAuthenticated, isAdmin, asyncHandler(async (_req, res) => {
+    const announcements = await withDatabaseErrorHandling(
+      () => storage.getAllSocketrelayAnnouncements(),
+      'getAllSocketrelayAnnouncements'
+    );
+    res.json(announcements);
+  }));
 
-  app.post('/api/socketrelay/admin/announcements', isAuthenticated, isAdmin, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const validatedData = insertSocketrelayAnnouncementSchema.parse(req.body);
+  app.post('/api/socketrelay/admin/announcements', isAuthenticated, isAdmin, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const validatedData = validateWithZod(insertSocketrelayAnnouncementSchema, req.body, 'Invalid announcement data');
 
-      const announcement = await storage.createSocketrelayAnnouncement(validatedData);
-      
-      await logAdminAction(
-        userId,
-        "create_socketrelay_announcement",
-        "announcement",
-        announcement.id,
-        { title: announcement.title, type: announcement.type }
-      );
+    const announcement = await withDatabaseErrorHandling(
+      () => storage.createSocketrelayAnnouncement(validatedData),
+      'createSocketrelayAnnouncement'
+    );
+    
+    await logAdminAction(
+      userId,
+      "create_socketrelay_announcement",
+      "announcement",
+      announcement.id,
+      { title: announcement.title, type: announcement.type }
+    );
 
-      res.json(announcement);
-    } catch (error: any) {
-      console.error("Error creating SocketRelay announcement:", error);
-      res.status(400).json({ message: error.message || "Failed to create announcement" });
-    }
-  });
+    res.json(announcement);
+  }));
 
-  app.put('/api/socketrelay/admin/announcements/:id', isAuthenticated, isAdmin, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const announcement = await storage.updateSocketrelayAnnouncement(req.params.id, req.body);
-      
-      await logAdminAction(
-        userId,
-        "update_socketrelay_announcement",
-        "announcement",
-        announcement.id,
-        { title: announcement.title }
-      );
+  app.put('/api/socketrelay/admin/announcements/:id', isAuthenticated, isAdmin, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const announcement = await withDatabaseErrorHandling(
+      () => storage.updateSocketrelayAnnouncement(req.params.id, req.body),
+      'updateSocketrelayAnnouncement'
+    );
+    
+    await logAdminAction(
+      userId,
+      "update_socketrelay_announcement",
+      "announcement",
+      announcement.id,
+      { title: announcement.title }
+    );
 
-      res.json(announcement);
-    } catch (error: any) {
-      console.error("Error updating SocketRelay announcement:", error);
-      res.status(400).json({ message: error.message || "Failed to update announcement" });
-    }
-  });
+    res.json(announcement);
+  }));
 
-  app.delete('/api/socketrelay/admin/announcements/:id', isAuthenticated, isAdmin, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const announcement = await storage.deactivateSocketrelayAnnouncement(req.params.id);
-      
-      await logAdminAction(
-        userId,
-        "deactivate_socketrelay_announcement",
-        "announcement",
-        announcement.id,
-        { title: announcement.title }
-      );
+  app.delete('/api/socketrelay/admin/announcements/:id', isAuthenticated, isAdmin, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const announcement = await withDatabaseErrorHandling(
+      () => storage.deactivateSocketrelayAnnouncement(req.params.id),
+      'deactivateSocketrelayAnnouncement'
+    );
+    
+    await logAdminAction(
+      userId,
+      "deactivate_socketrelay_announcement",
+      "announcement",
+      announcement.id,
+      { title: announcement.title }
+    );
 
-      res.json(announcement);
-    } catch (error: any) {
-      console.error("Error deleting SocketRelay announcement:", error);
-      res.status(400).json({ message: error.message || "Failed to delete announcement" });
-    }
-  });
+    res.json(announcement);
+  }));
 
   // Directory Announcement routes
   app.get('/api/directory/announcements', isAuthenticated, asyncHandler(async (_req, res) => {
@@ -2493,282 +2519,255 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ========================================
 
   // TrustTransport Announcement routes (public)
-  app.get('/api/trusttransport/announcements', isAuthenticated, async (req, res) => {
-    try {
-      const announcements = await storage.getActiveTrusttransportAnnouncements();
-      res.json(announcements);
-    } catch (error) {
-      console.error("Error fetching TrustTransport announcements:", error);
-      res.status(500).json({ message: "Failed to fetch announcements" });
-    }
-  });
+  app.get('/api/trusttransport/announcements', isAuthenticated, asyncHandler(async (_req, res) => {
+    const announcements = await withDatabaseErrorHandling(
+      () => storage.getActiveTrusttransportAnnouncements(),
+      'getActiveTrusttransportAnnouncements'
+    );
+    res.json(announcements);
+  }));
 
   // TrustTransport Profile routes
-  app.get('/api/trusttransport/profile', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const profile = await storage.getTrusttransportProfile(userId);
-      res.json(profile || null);
-    } catch (error: any) {
-      console.error("Error fetching TrustTransport profile:", error);
-      res.status(500).json({ message: error.message });
-    }
-  });
+  app.get('/api/trusttransport/profile', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const profile = await withDatabaseErrorHandling(
+      () => storage.getTrusttransportProfile(userId),
+      'getTrusttransportProfile'
+    );
+    res.json(profile || null);
+  }));
 
-  app.post('/api/trusttransport/profile', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const validatedData = insertTrusttransportProfileSchema.parse({
-        ...req.body,
-        userId,
-      });
-      const profile = await storage.createTrusttransportProfile(validatedData);
-      res.json(profile);
-    } catch (error: any) {
-      console.error("Error creating TrustTransport profile:", error);
-      res.status(400).json({ message: error.message || "Failed to create profile" });
-    }
-  });
+  app.post('/api/trusttransport/profile', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const validatedData = validateWithZod(insertTrusttransportProfileSchema, {
+      ...req.body,
+      userId,
+    }, 'Invalid profile data');
+    const profile = await withDatabaseErrorHandling(
+      () => storage.createTrusttransportProfile(validatedData),
+      'createTrusttransportProfile'
+    );
+    res.json(profile);
+  }));
 
-  app.put('/api/trusttransport/profile', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const profile = await storage.updateTrusttransportProfile(userId, req.body);
-      res.json(profile);
-    } catch (error: any) {
-      console.error("Error updating TrustTransport profile:", error);
-      res.status(400).json({ message: error.message || "Failed to update profile" });
-    }
-  });
+  app.put('/api/trusttransport/profile', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const profile = await withDatabaseErrorHandling(
+      () => storage.updateTrusttransportProfile(userId, req.body),
+      'updateTrusttransportProfile'
+    );
+    res.json(profile);
+  }));
 
-  app.delete('/api/trusttransport/profile', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const { reason } = req.body;
-      await storage.deleteTrusttransportProfile(userId, reason);
-      res.json({ message: "TrustTransport profile deleted successfully" });
-    } catch (error: any) {
-      console.error("Error deleting TrustTransport profile:", error);
-      res.status(400).json({ message: error.message || "Failed to delete profile" });
-    }
-  });
+  app.delete('/api/trusttransport/profile', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const { reason } = req.body;
+    await withDatabaseErrorHandling(
+      () => storage.deleteTrusttransportProfile(userId, reason),
+      'deleteTrusttransportProfile'
+    );
+    res.json({ message: "TrustTransport profile deleted successfully" });
+  }));
 
   // TrustTransport Ride Request routes (simplified model)
   
   // Create new ride request (as a rider) - MUST come before :id routes
-  app.post('/api/trusttransport/ride-requests', isAuthenticated, async (req: any, res) => {
-    try {
-      console.log("POST /api/trusttransport/ride-requests - Request received");
-      console.log("Request body:", JSON.stringify(req.body, null, 2));
-      const userId = getUserId(req);
-      console.log("User ID:", userId);
-      if (!userId) {
-        return res.status(401).json({ message: "User ID not found in authentication token" });
-      }
-      const profile = await storage.getTrusttransportProfile(userId);
-      if (!profile || !profile.isRider) {
-        return res.status(400).json({ message: "You must be a rider to create ride requests" });
-      }
-      const validatedData = insertTrusttransportRideRequestSchema.parse(req.body);
-      console.log("Validated data:", JSON.stringify(validatedData, null, 2));
-      // Add riderId after validation since it's omitted from the schema
-      const requestData = {
-        ...validatedData,
-        riderId: userId,
-      } as InsertTrusttransportRideRequest & { riderId: string };
-      console.log("Request data with riderId:", JSON.stringify(requestData, null, 2));
-      const request = await storage.createTrusttransportRideRequest(requestData);
-      res.json(request);
-    } catch (error: any) {
-      console.error("Error creating TrustTransport ride request:", error);
-      res.status(400).json({ message: error.message || "Failed to create ride request" });
+  app.post('/api/trusttransport/ride-requests', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    if (!userId) {
+      throw new UnauthorizedError("User ID not found in authentication token");
     }
-  });
+    const profile = await withDatabaseErrorHandling(
+      () => storage.getTrusttransportProfile(userId),
+      'getTrusttransportProfile'
+    );
+    if (!profile || !profile.isRider) {
+      throw new ValidationError("You must be a rider to create ride requests");
+    }
+    const validatedData = validateWithZod(insertTrusttransportRideRequestSchema, req.body, 'Invalid ride request data');
+    // Add riderId after validation since it's omitted from the schema
+    const requestData = {
+      ...validatedData,
+      riderId: userId,
+    } as InsertTrusttransportRideRequest & { riderId: string };
+    const request = await withDatabaseErrorHandling(
+      () => storage.createTrusttransportRideRequest(requestData),
+      'createTrusttransportRideRequest'
+    );
+    res.json(request);
+  }));
   
   // Get open ride requests (for drivers to browse)
-  app.get('/api/trusttransport/ride-requests/open', isAuthenticated, async (req: any, res) => {
-    try {
-      const requests = await storage.getOpenTrusttransportRideRequests();
-      res.json(requests);
-    } catch (error: any) {
-      console.error("Error fetching open TrustTransport ride requests:", error);
-      res.status(500).json({ message: error.message || "Failed to fetch ride requests" });
-    }
-  });
+  app.get('/api/trusttransport/ride-requests/open', isAuthenticated, asyncHandler(async (_req, res) => {
+    const requests = await withDatabaseErrorHandling(
+      () => storage.getOpenTrusttransportRideRequests(),
+      'getOpenTrusttransportRideRequests'
+    );
+    res.json(requests);
+  }));
 
   // Get user's ride requests (as a rider)
-  app.get('/api/trusttransport/ride-requests/my-requests', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const requests = await storage.getTrusttransportRideRequestsByRider(userId);
-      res.json(requests);
-    } catch (error: any) {
-      console.error("Error fetching user's TrustTransport ride requests:", error);
-      res.status(500).json({ message: error.message || "Failed to fetch ride requests" });
-    }
-  });
+  app.get('/api/trusttransport/ride-requests/my-requests', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const requests = await withDatabaseErrorHandling(
+      () => storage.getTrusttransportRideRequestsByRider(userId),
+      'getTrusttransportRideRequestsByRider'
+    );
+    res.json(requests);
+  }));
 
   // Get requests claimed by driver
-  app.get('/api/trusttransport/ride-requests/my-claimed', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const profile = await storage.getTrusttransportProfile(userId);
-      if (!profile || !profile.isDriver) {
-        return res.json([]);
-      }
-      const requests = await storage.getTrusttransportRideRequestsByDriver(profile.id);
-      res.json(requests);
-    } catch (error: any) {
-      console.error("Error fetching driver's claimed requests:", error);
-      res.status(500).json({ message: error.message || "Failed to fetch claimed requests" });
+  app.get('/api/trusttransport/ride-requests/my-claimed', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const profile = await withDatabaseErrorHandling(
+      () => storage.getTrusttransportProfile(userId),
+      'getTrusttransportProfile'
+    );
+    if (!profile || !profile.isDriver) {
+      return res.json([]);
     }
-  });
+    const requests = await withDatabaseErrorHandling(
+      () => storage.getTrusttransportRideRequestsByDriver(profile.id),
+      'getTrusttransportRideRequestsByDriver'
+    );
+    res.json(requests);
+  }));
 
   // Get single ride request
-  app.get('/api/trusttransport/ride-requests/:id', isAuthenticated, async (req: any, res) => {
-    try {
-      const request = await storage.getTrusttransportRideRequestById(req.params.id);
-      if (!request) {
-        return res.status(404).json({ message: "Ride request not found" });
-      }
-      res.json(request);
-    } catch (error: any) {
-      console.error("Error fetching TrustTransport ride request:", error);
-      res.status(500).json({ message: error.message || "Failed to fetch ride request" });
+  app.get('/api/trusttransport/ride-requests/:id', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const request = await withDatabaseErrorHandling(
+      () => storage.getTrusttransportRideRequestById(req.params.id),
+      'getTrusttransportRideRequestById'
+    );
+    if (!request) {
+      throw new NotFoundError('Ride request', req.params.id);
     }
-  });
+    res.json(request);
+  }));
 
 
   // Claim a ride request (as a driver)
-  app.post('/api/trusttransport/ride-requests/:id/claim', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const { driverMessage } = req.body;
-      const request = await storage.claimTrusttransportRideRequest(req.params.id, userId, driverMessage);
-      res.json(request);
-    } catch (error: any) {
-      console.error("Error claiming TrustTransport ride request:", error);
-      res.status(400).json({ message: error.message || "Failed to claim ride request" });
-    }
-  });
+  app.post('/api/trusttransport/ride-requests/:id/claim', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const { driverMessage } = req.body;
+    const request = await withDatabaseErrorHandling(
+      () => storage.claimTrusttransportRideRequest(req.params.id, userId, driverMessage),
+      'claimTrusttransportRideRequest'
+    );
+    res.json(request);
+  }));
 
   // Update ride request (rider can update their request, driver can update claimed request)
-  app.put('/api/trusttransport/ride-requests/:id', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const request = await storage.getTrusttransportRideRequestById(req.params.id);
-      if (!request) {
-        return res.status(404).json({ message: "Ride request not found" });
-      }
-      
-      const profile = await storage.getTrusttransportProfile(userId);
-      
-      // Check authorization
-      const isRider = request.riderId === userId;
-      const isDriver = request.driverId === profile?.id && profile?.isDriver;
-      
-      if (!isRider && !isDriver) {
-        return res.status(403).json({ message: "Unauthorized to update this ride request" });
-      }
-      
-      // Riders can only update open requests
-      if (isRider && request.status !== 'open') {
-        return res.status(400).json({ message: "Cannot update a request that has been claimed" });
-      }
-      
-      const validatedData = insertTrusttransportRideRequestSchema.partial().parse(req.body);
-      const updated = await storage.updateTrusttransportRideRequest(req.params.id, validatedData);
-      res.json(updated);
-    } catch (error: any) {
-      console.error("Error updating TrustTransport ride request:", error);
-      res.status(400).json({ message: error.message || "Failed to update ride request" });
+  app.put('/api/trusttransport/ride-requests/:id', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const request = await withDatabaseErrorHandling(
+      () => storage.getTrusttransportRideRequestById(req.params.id),
+      'getTrusttransportRideRequestById'
+    );
+    if (!request) {
+      throw new NotFoundError('Ride request', req.params.id);
     }
-  });
+    
+    const profile = await withDatabaseErrorHandling(
+      () => storage.getTrusttransportProfile(userId),
+      'getTrusttransportProfile'
+    );
+    
+    // Check authorization
+    const isRider = request.riderId === userId;
+    const isDriver = request.driverId === profile?.id && profile?.isDriver;
+    
+    if (!isRider && !isDriver) {
+      throw new ForbiddenError("Unauthorized to update this ride request");
+    }
+    
+    // Riders can only update open requests
+    if (isRider && request.status !== 'open') {
+      throw new ValidationError("Cannot update a request that has been claimed");
+    }
+    
+    const validatedData = validateWithZod(insertTrusttransportRideRequestSchema.partial(), req.body, 'Invalid ride request data');
+    const updated = await withDatabaseErrorHandling(
+      () => storage.updateTrusttransportRideRequest(req.params.id, validatedData),
+      'updateTrusttransportRideRequest'
+    );
+    res.json(updated);
+  }));
 
   // Cancel ride request (rider or driver can cancel)
-  app.post('/api/trusttransport/ride-requests/:id/cancel', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const request = await storage.cancelTrusttransportRideRequest(req.params.id, userId);
-      res.json(request);
-    } catch (error: any) {
-      console.error("Error cancelling TrustTransport ride request:", error);
-      res.status(400).json({ message: error.message || "Failed to cancel ride request" });
-    }
-  });
+  app.post('/api/trusttransport/ride-requests/:id/cancel', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const request = await withDatabaseErrorHandling(
+      () => storage.cancelTrusttransportRideRequest(req.params.id, userId),
+      'cancelTrusttransportRideRequest'
+    );
+    res.json(request);
+  }));
 
   // TrustTransport Admin Announcement routes
-  app.get('/api/trusttransport/admin/announcements', isAuthenticated, isAdmin, async (req, res) => {
-    try {
-      const announcements = await storage.getAllTrusttransportAnnouncements();
-      res.json(announcements);
-    } catch (error) {
-      console.error("Error fetching TrustTransport announcements:", error);
-      res.status(500).json({ message: "Failed to fetch announcements" });
-    }
-  });
+  app.get('/api/trusttransport/admin/announcements', isAuthenticated, isAdmin, asyncHandler(async (_req, res) => {
+    const announcements = await withDatabaseErrorHandling(
+      () => storage.getAllTrusttransportAnnouncements(),
+      'getAllTrusttransportAnnouncements'
+    );
+    res.json(announcements);
+  }));
 
-  app.post('/api/trusttransport/admin/announcements', isAuthenticated, isAdmin, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const validatedData = insertTrusttransportAnnouncementSchema.parse(req.body);
+  app.post('/api/trusttransport/admin/announcements', isAuthenticated, isAdmin, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const validatedData = validateWithZod(insertTrusttransportAnnouncementSchema, req.body, 'Invalid announcement data');
 
-      const announcement = await storage.createTrusttransportAnnouncement(validatedData);
-      
-      await logAdminAction(
-        userId,
-        "create_trusttransport_announcement",
-        "announcement",
-        announcement.id,
-        { title: announcement.title, type: announcement.type }
-      );
+    const announcement = await withDatabaseErrorHandling(
+      () => storage.createTrusttransportAnnouncement(validatedData),
+      'createTrusttransportAnnouncement'
+    );
+    
+    await logAdminAction(
+      userId,
+      "create_trusttransport_announcement",
+      "announcement",
+      announcement.id,
+      { title: announcement.title, type: announcement.type }
+    );
 
-      res.json(announcement);
-    } catch (error: any) {
-      console.error("Error creating TrustTransport announcement:", error);
-      res.status(400).json({ message: error.message || "Failed to create announcement" });
-    }
-  });
+    res.json(announcement);
+  }));
 
-  app.put('/api/trusttransport/admin/announcements/:id', isAuthenticated, isAdmin, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const announcement = await storage.updateTrusttransportAnnouncement(req.params.id, req.body);
-      
-      await logAdminAction(
-        userId,
-        "update_trusttransport_announcement",
-        "announcement",
-        announcement.id,
-        { title: announcement.title }
-      );
+  app.put('/api/trusttransport/admin/announcements/:id', isAuthenticated, isAdmin, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const announcement = await withDatabaseErrorHandling(
+      () => storage.updateTrusttransportAnnouncement(req.params.id, req.body),
+      'updateTrusttransportAnnouncement'
+    );
+    
+    await logAdminAction(
+      userId,
+      "update_trusttransport_announcement",
+      "announcement",
+      announcement.id,
+      { title: announcement.title }
+    );
 
-      res.json(announcement);
-    } catch (error: any) {
-      console.error("Error updating TrustTransport announcement:", error);
-      res.status(400).json({ message: error.message || "Failed to update announcement" });
-    }
-  });
+    res.json(announcement);
+  }));
 
-  app.delete('/api/trusttransport/admin/announcements/:id', isAuthenticated, isAdmin, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const announcement = await storage.deactivateTrusttransportAnnouncement(req.params.id);
-      
-      await logAdminAction(
-        userId,
-        "deactivate_trusttransport_announcement",
-        "announcement",
-        announcement.id,
-        { title: announcement.title }
-      );
+  app.delete('/api/trusttransport/admin/announcements/:id', isAuthenticated, isAdmin, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const announcement = await withDatabaseErrorHandling(
+      () => storage.deactivateTrusttransportAnnouncement(req.params.id),
+      'deactivateTrusttransportAnnouncement'
+    );
+    
+    await logAdminAction(
+      userId,
+      "deactivate_trusttransport_announcement",
+      "announcement",
+      announcement.id,
+      { title: announcement.title }
+    );
 
-      res.json(announcement);
-    } catch (error: any) {
-      console.error("Error deleting TrustTransport announcement:", error);
-      res.status(400).json({ message: error.message || "Failed to delete announcement" });
-    }
-  });
+    res.json(announcement);
+  }));
 
   // ========================================
   // NPS (Net Promoter Score) Routes
@@ -2843,1217 +2842,1105 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ========================================
 
   // MechanicMatch Announcement routes (public)
-  app.get('/api/mechanicmatch/announcements', isAuthenticated, async (req, res) => {
-    try {
-      const announcements = await storage.getActiveMechanicmatchAnnouncements();
-      res.json(announcements);
-    } catch (error) {
-      console.error("Error fetching MechanicMatch announcements:", error);
-      res.status(500).json({ message: "Failed to fetch announcements" });
-    }
-  });
+  app.get('/api/mechanicmatch/announcements', isAuthenticated, asyncHandler(async (_req, res) => {
+    const announcements = await withDatabaseErrorHandling(
+      () => storage.getActiveMechanicmatchAnnouncements(),
+      'getActiveMechanicmatchAnnouncements'
+    );
+    res.json(announcements);
+  }));
 
   // MechanicMatch Profile routes
-  app.get('/api/mechanicmatch/profile', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const profile = await storage.getMechanicmatchProfile(userId);
-      res.json(profile);
-    } catch (error: any) {
-      console.error("Error fetching MechanicMatch profile:", error);
-      res.status(500).json({ message: error.message });
-    }
-  });
+  app.get('/api/mechanicmatch/profile', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const profile = await withDatabaseErrorHandling(
+      () => storage.getMechanicmatchProfile(userId),
+      'getMechanicmatchProfile'
+    );
+    res.json(profile);
+  }));
 
-  app.post('/api/mechanicmatch/profile', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const validatedData = insertMechanicmatchProfileSchema.parse(req.body);
-      const profile = await storage.createMechanicmatchProfile({
+  app.post('/api/mechanicmatch/profile', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const validatedData = validateWithZod(insertMechanicmatchProfileSchema, req.body, 'Invalid profile data');
+    const profile = await withDatabaseErrorHandling(
+      () => storage.createMechanicmatchProfile({
         ...validatedData,
         userId,
-      });
-      res.json(profile);
-    } catch (error: any) {
-      console.error("Error creating MechanicMatch profile:", error);
-      res.status(500).json({ message: error.message });
-    }
-  });
+      }),
+      'createMechanicmatchProfile'
+    );
+    res.json(profile);
+  }));
 
-  app.put('/api/mechanicmatch/profile', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const profile = await storage.updateMechanicmatchProfile(userId, req.body);
-      res.json(profile);
-    } catch (error: any) {
-      console.error("Error updating MechanicMatch profile:", error);
-      res.status(400).json({ message: error.message || "Failed to update profile" });
-    }
-  });
+  app.put('/api/mechanicmatch/profile', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const profile = await withDatabaseErrorHandling(
+      () => storage.updateMechanicmatchProfile(userId, req.body),
+      'updateMechanicmatchProfile'
+    );
+    res.json(profile);
+  }));
 
-  app.delete('/api/mechanicmatch/profile', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const { reason } = req.body;
-      await storage.deleteMechanicmatchProfile(userId, reason);
-      res.json({ message: "MechanicMatch profile deleted successfully" });
-    } catch (error: any) {
-      console.error("Error deleting MechanicMatch profile:", error);
-      res.status(400).json({ message: error.message || "Failed to delete profile" });
-    }
-  });
+  app.delete('/api/mechanicmatch/profile', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const { reason } = req.body;
+    await withDatabaseErrorHandling(
+      () => storage.deleteMechanicmatchProfile(userId, reason),
+      'deleteMechanicmatchProfile'
+    );
+    res.json({ message: "MechanicMatch profile deleted successfully" });
+  }));
 
   // MechanicMatch Vehicle routes
-  app.get('/api/mechanicmatch/vehicles', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const vehicles = await storage.getMechanicmatchVehiclesByOwner(userId);
-      res.json(vehicles);
-    } catch (error: any) {
-      console.error("Error fetching vehicles:", error);
-      res.status(500).json({ message: error.message || "Failed to fetch vehicles" });
-    }
-  });
+  app.get('/api/mechanicmatch/vehicles', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const vehicles = await withDatabaseErrorHandling(
+      () => storage.getMechanicmatchVehiclesByOwner(userId),
+      'getMechanicmatchVehiclesByOwner'
+    );
+    res.json(vehicles);
+  }));
 
-  app.get('/api/mechanicmatch/vehicles/:id', isAuthenticated, async (req: any, res) => {
-    try {
-      const vehicle = await storage.getMechanicmatchVehicleById(req.params.id);
-      if (!vehicle) {
-        return res.status(404).json({ message: "Vehicle not found" });
-      }
-      res.json(vehicle);
-    } catch (error: any) {
-      console.error("Error fetching vehicle:", error);
-      res.status(500).json({ message: error.message || "Failed to fetch vehicle" });
+  app.get('/api/mechanicmatch/vehicles/:id', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const vehicle = await withDatabaseErrorHandling(
+      () => storage.getMechanicmatchVehicleById(req.params.id),
+      'getMechanicmatchVehicleById'
+    );
+    if (!vehicle) {
+      throw new NotFoundError('Vehicle', req.params.id);
     }
-  });
+    res.json(vehicle);
+  }));
 
-  app.post('/api/mechanicmatch/vehicles', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const validatedData = insertMechanicmatchVehicleSchema.parse(req.body);
-      const vehicle = await storage.createMechanicmatchVehicle({
+  app.post('/api/mechanicmatch/vehicles', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const validatedData = validateWithZod(insertMechanicmatchVehicleSchema, req.body, 'Invalid vehicle data');
+    const vehicle = await withDatabaseErrorHandling(
+      () => storage.createMechanicmatchVehicle({
         ...validatedData,
         ownerId: userId,
-      });
-      res.json(vehicle);
-    } catch (error: any) {
-      console.error("Error creating vehicle:", error);
-      res.status(400).json({ message: error.message || "Failed to create vehicle" });
-    }
-  });
+      }),
+      'createMechanicmatchVehicle'
+    );
+    res.json(vehicle);
+  }));
 
-  app.put('/api/mechanicmatch/vehicles/:id', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const vehicle = await storage.getMechanicmatchVehicleById(req.params.id);
-      if (!vehicle || vehicle.ownerId !== userId) {
-        return res.status(403).json({ message: "Unauthorized" });
-      }
-      const updated = await storage.updateMechanicmatchVehicle(req.params.id, req.body);
-      res.json(updated);
-    } catch (error: any) {
-      console.error("Error updating vehicle:", error);
-      res.status(400).json({ message: error.message || "Failed to update vehicle" });
+  app.put('/api/mechanicmatch/vehicles/:id', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const vehicle = await withDatabaseErrorHandling(
+      () => storage.getMechanicmatchVehicleById(req.params.id),
+      'getMechanicmatchVehicleById'
+    );
+    if (!vehicle || vehicle.ownerId !== userId) {
+      throw new ForbiddenError("Unauthorized");
     }
-  });
+    const updated = await withDatabaseErrorHandling(
+      () => storage.updateMechanicmatchVehicle(req.params.id, req.body),
+      'updateMechanicmatchVehicle'
+    );
+    res.json(updated);
+  }));
 
-  app.delete('/api/mechanicmatch/vehicles/:id', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      await storage.deleteMechanicmatchVehicle(req.params.id, userId);
-      res.json({ message: "Vehicle deleted successfully" });
-    } catch (error: any) {
-      console.error("Error deleting vehicle:", error);
-      res.status(400).json({ message: error.message || "Failed to delete vehicle" });
-    }
-  });
+  app.delete('/api/mechanicmatch/vehicles/:id', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    await withDatabaseErrorHandling(
+      () => storage.deleteMechanicmatchVehicle(req.params.id, userId),
+      'deleteMechanicmatchVehicle'
+    );
+    res.json({ message: "Vehicle deleted successfully" });
+  }));
 
   // MechanicMatch Service Request routes
-  app.get('/api/mechanicmatch/service-requests', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const requests = await storage.getMechanicmatchServiceRequestsByOwner(userId);
-      res.json(requests);
-    } catch (error: any) {
-      console.error("Error fetching service requests:", error);
-      res.status(500).json({ message: error.message || "Failed to fetch service requests" });
-    }
-  });
+  app.get('/api/mechanicmatch/service-requests', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const requests = await withDatabaseErrorHandling(
+      () => storage.getMechanicmatchServiceRequestsByOwner(userId),
+      'getMechanicmatchServiceRequestsByOwner'
+    );
+    res.json(requests);
+  }));
 
-  app.get('/api/mechanicmatch/service-requests/open', isAuthenticated, async (req, res) => {
-    try {
-      const requests = await storage.getOpenMechanicmatchServiceRequests();
-      res.json(requests);
-    } catch (error: any) {
-      console.error("Error fetching open service requests:", error);
-      res.status(500).json({ message: error.message || "Failed to fetch service requests" });
-    }
-  });
+  app.get('/api/mechanicmatch/service-requests/open', isAuthenticated, asyncHandler(async (_req, res) => {
+    const requests = await withDatabaseErrorHandling(
+      () => storage.getOpenMechanicmatchServiceRequests(),
+      'getOpenMechanicmatchServiceRequests'
+    );
+    res.json(requests);
+  }));
 
-  app.get('/api/mechanicmatch/service-requests/:id', isAuthenticated, async (req, res) => {
-    try {
-      const request = await storage.getMechanicmatchServiceRequestById(req.params.id);
-      if (!request) {
-        return res.status(404).json({ message: "Service request not found" });
-      }
-      res.json(request);
-    } catch (error: any) {
-      console.error("Error fetching service request:", error);
-      res.status(500).json({ message: error.message || "Failed to fetch service request" });
+  app.get('/api/mechanicmatch/service-requests/:id', isAuthenticated, asyncHandler(async (req, res) => {
+    const request = await withDatabaseErrorHandling(
+      () => storage.getMechanicmatchServiceRequestById(req.params.id),
+      'getMechanicmatchServiceRequestById'
+    );
+    if (!request) {
+      throw new NotFoundError('Service request', req.params.id);
     }
-  });
+    res.json(request);
+  }));
 
-  app.post('/api/mechanicmatch/service-requests', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const profile = await storage.getMechanicmatchProfile(userId);
-      if (!profile || !profile.isCarOwner) {
-        return res.status(400).json({ message: "You must be a car owner to create service requests" });
-      }
-      const validatedData = insertMechanicmatchServiceRequestSchema.parse(req.body);
-      const request = await storage.createMechanicmatchServiceRequest({
+  app.post('/api/mechanicmatch/service-requests', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const profile = await withDatabaseErrorHandling(
+      () => storage.getMechanicmatchProfile(userId),
+      'getMechanicmatchProfile'
+    );
+    if (!profile || !profile.isCarOwner) {
+      throw new ValidationError("You must be a car owner to create service requests");
+    }
+    const validatedData = validateWithZod(insertMechanicmatchServiceRequestSchema, req.body, 'Invalid service request data');
+    const request = await withDatabaseErrorHandling(
+      () => storage.createMechanicmatchServiceRequest({
         ...validatedData,
         ownerId: userId,
-      });
-      res.json(request);
-    } catch (error: any) {
-      console.error("Error creating service request:", error);
-      res.status(400).json({ message: error.message || "Failed to create service request" });
-    }
-  });
+      }),
+      'createMechanicmatchServiceRequest'
+    );
+    res.json(request);
+  }));
 
-  app.put('/api/mechanicmatch/service-requests/:id', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const request = await storage.getMechanicmatchServiceRequestById(req.params.id);
-      if (!request || request.ownerId !== userId) {
-        return res.status(403).json({ message: "Unauthorized" });
-      }
-      const updated = await storage.updateMechanicmatchServiceRequest(req.params.id, req.body);
-      res.json(updated);
-    } catch (error: any) {
-      console.error("Error updating service request:", error);
-      res.status(400).json({ message: error.message || "Failed to update service request" });
+  app.put('/api/mechanicmatch/service-requests/:id', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const request = await withDatabaseErrorHandling(
+      () => storage.getMechanicmatchServiceRequestById(req.params.id),
+      'getMechanicmatchServiceRequestById'
+    );
+    if (!request || request.ownerId !== userId) {
+      throw new ForbiddenError("Unauthorized");
     }
-  });
+    const updated = await withDatabaseErrorHandling(
+      () => storage.updateMechanicmatchServiceRequest(req.params.id, req.body),
+      'updateMechanicmatchServiceRequest'
+    );
+    res.json(updated);
+  }));
 
   // MechanicMatch Job routes
-  app.get('/api/mechanicmatch/jobs', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const profile = await storage.getMechanicmatchProfile(userId);
-      if (!profile) {
-        return res.status(400).json({ message: "Profile not found" });
-      }
-      
-      let jobs;
-      if (profile.isCarOwner) {
-        jobs = await storage.getMechanicmatchJobsByOwner(userId);
-      } else if (profile.isMechanic) {
-        jobs = await storage.getMechanicmatchJobsByMechanic(profile.id);
-      } else {
-        return res.json([]);
-      }
-      
-      res.json(jobs);
-    } catch (error: any) {
-      console.error("Error fetching jobs:", error);
-      res.status(500).json({ message: error.message || "Failed to fetch jobs" });
+  app.get('/api/mechanicmatch/jobs', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const profile = await withDatabaseErrorHandling(
+      () => storage.getMechanicmatchProfile(userId),
+      'getMechanicmatchProfile'
+    );
+    if (!profile) {
+      throw new NotFoundError('Profile');
     }
-  });
-
-  app.get('/api/mechanicmatch/jobs/:id', isAuthenticated, async (req, res) => {
-    try {
-      const job = await storage.getMechanicmatchJobById(req.params.id);
-      if (!job) {
-        return res.status(404).json({ message: "Job not found" });
-      }
-      res.json(job);
-    } catch (error: any) {
-      console.error("Error fetching job:", error);
-      res.status(500).json({ message: error.message || "Failed to fetch job" });
+    
+    let jobs;
+    if (profile.isCarOwner) {
+      jobs = await withDatabaseErrorHandling(
+        () => storage.getMechanicmatchJobsByOwner(userId),
+        'getMechanicmatchJobsByOwner'
+      );
+    } else if (profile.isMechanic) {
+      jobs = await withDatabaseErrorHandling(
+        () => storage.getMechanicmatchJobsByMechanic(profile.id),
+        'getMechanicmatchJobsByMechanic'
+      );
+    } else {
+      return res.json([]);
     }
-  });
+    
+    res.json(jobs);
+  }));
 
-  app.post('/api/mechanicmatch/jobs', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const validatedData = insertMechanicmatchJobSchema.parse(req.body);
-      const job = await storage.createMechanicmatchJob({
+  app.get('/api/mechanicmatch/jobs/:id', isAuthenticated, asyncHandler(async (req, res) => {
+    const job = await withDatabaseErrorHandling(
+      () => storage.getMechanicmatchJobById(req.params.id),
+      'getMechanicmatchJobById'
+    );
+    if (!job) {
+      throw new NotFoundError('Job', req.params.id);
+    }
+    res.json(job);
+  }));
+
+  app.post('/api/mechanicmatch/jobs', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const validatedData = validateWithZod(insertMechanicmatchJobSchema, req.body, 'Invalid job data');
+    const job = await withDatabaseErrorHandling(
+      () => storage.createMechanicmatchJob({
         ...validatedData,
         ownerId: userId,
-      });
-      res.json(job);
-    } catch (error: any) {
-      console.error("Error creating job:", error);
-      res.status(400).json({ message: error.message || "Failed to create job" });
-    }
-  });
+      }),
+      'createMechanicmatchJob'
+    );
+    res.json(job);
+  }));
 
-  app.put('/api/mechanicmatch/jobs/:id', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const job = await storage.getMechanicmatchJobById(req.params.id);
-      if (!job) {
-        return res.status(404).json({ message: "Job not found" });
-      }
-      
-      const profile = await storage.getMechanicmatchProfile(userId);
-      if (!profile) {
-        return res.status(403).json({ message: "Profile not found" });
-      }
-      
-      // Only owner or assigned mechanic can update
-      if (job.ownerId !== userId && job.mechanicId !== profile.id) {
-        return res.status(403).json({ message: "Unauthorized" });
-      }
-      
-      const updated = await storage.updateMechanicmatchJob(req.params.id, req.body);
-      res.json(updated);
-    } catch (error: any) {
-      console.error("Error updating job:", error);
-      res.status(400).json({ message: error.message || "Failed to update job" });
+  app.put('/api/mechanicmatch/jobs/:id', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const job = await withDatabaseErrorHandling(
+      () => storage.getMechanicmatchJobById(req.params.id),
+      'getMechanicmatchJobById'
+    );
+    if (!job) {
+      throw new NotFoundError('Job', req.params.id);
     }
-  });
+    
+    const profile = await withDatabaseErrorHandling(
+      () => storage.getMechanicmatchProfile(userId),
+      'getMechanicmatchProfile'
+    );
+    if (!profile) {
+      throw new NotFoundError('Profile');
+    }
+    
+    // Only owner or assigned mechanic can update
+    if (job.ownerId !== userId && job.mechanicId !== profile.id) {
+      throw new ForbiddenError("Unauthorized");
+    }
+    
+    const updated = await withDatabaseErrorHandling(
+      () => storage.updateMechanicmatchJob(req.params.id, req.body),
+      'updateMechanicmatchJob'
+    );
+    res.json(updated);
+  }));
 
-  app.post('/api/mechanicmatch/jobs/:id/accept', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const profile = await storage.getMechanicmatchProfile(userId);
-      if (!profile || !profile.isMechanic) {
-        return res.status(400).json({ message: "You must be a mechanic to accept jobs" });
-      }
-      const job = await storage.acceptMechanicmatchJob(req.params.id, profile.id);
-      res.json(job);
-    } catch (error: any) {
-      console.error("Error accepting job:", error);
-      res.status(400).json({ message: error.message || "Failed to accept job" });
+  app.post('/api/mechanicmatch/jobs/:id/accept', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const profile = await withDatabaseErrorHandling(
+      () => storage.getMechanicmatchProfile(userId),
+      'getMechanicmatchProfile'
+    );
+    if (!profile || !profile.isMechanic) {
+      throw new ValidationError("You must be a mechanic to accept jobs");
     }
-  });
+    const job = await withDatabaseErrorHandling(
+      () => storage.acceptMechanicmatchJob(req.params.id, profile.id),
+      'acceptMechanicmatchJob'
+    );
+    res.json(job);
+  }));
 
   // MechanicMatch Availability routes
-  app.get('/api/mechanicmatch/availability', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const profile = await storage.getMechanicmatchProfile(userId);
-      if (!profile || !profile.isMechanic) {
-        return res.status(400).json({ message: "You must be a mechanic to view availability" });
-      }
-      const availability = await storage.getMechanicmatchAvailabilityByMechanic(profile.id);
-      res.json(availability);
-    } catch (error: any) {
-      console.error("Error fetching availability:", error);
-      res.status(500).json({ message: error.message || "Failed to fetch availability" });
+  app.get('/api/mechanicmatch/availability', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const profile = await withDatabaseErrorHandling(
+      () => storage.getMechanicmatchProfile(userId),
+      'getMechanicmatchProfile'
+    );
+    if (!profile || !profile.isMechanic) {
+      throw new ValidationError("You must be a mechanic to view availability");
     }
-  });
+    const availability = await withDatabaseErrorHandling(
+      () => storage.getMechanicmatchAvailabilityByMechanic(profile.id),
+      'getMechanicmatchAvailabilityByMechanic'
+    );
+    res.json(availability);
+  }));
 
-  app.post('/api/mechanicmatch/availability', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const profile = await storage.getMechanicmatchProfile(userId);
-      if (!profile || !profile.isMechanic) {
-        return res.status(400).json({ message: "You must be a mechanic to set availability" });
-      }
-      const validatedData = insertMechanicmatchAvailabilitySchema.parse(req.body);
-      const availability = await storage.createMechanicmatchAvailability({
+  app.post('/api/mechanicmatch/availability', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const profile = await withDatabaseErrorHandling(
+      () => storage.getMechanicmatchProfile(userId),
+      'getMechanicmatchProfile'
+    );
+    if (!profile || !profile.isMechanic) {
+      throw new ValidationError("You must be a mechanic to set availability");
+    }
+    const validatedData = validateWithZod(insertMechanicmatchAvailabilitySchema, req.body, 'Invalid availability data');
+    const availability = await withDatabaseErrorHandling(
+      () => storage.createMechanicmatchAvailability({
         ...validatedData,
         mechanicId: profile.id,
-      });
-      res.json(availability);
-    } catch (error: any) {
-      console.error("Error creating availability:", error);
-      res.status(400).json({ message: error.message || "Failed to create availability" });
-    }
-  });
+      }),
+      'createMechanicmatchAvailability'
+    );
+    res.json(availability);
+  }));
 
-  app.put('/api/mechanicmatch/availability/:id', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const profile = await storage.getMechanicmatchProfile(userId);
-      if (!profile || !profile.isMechanic) {
-        return res.status(400).json({ message: "You must be a mechanic to update availability" });
-      }
-      const updated = await storage.updateMechanicmatchAvailability(req.params.id, req.body);
-      res.json(updated);
-    } catch (error: any) {
-      console.error("Error updating availability:", error);
-      res.status(400).json({ message: error.message || "Failed to update availability" });
+  app.put('/api/mechanicmatch/availability/:id', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const profile = await withDatabaseErrorHandling(
+      () => storage.getMechanicmatchProfile(userId),
+      'getMechanicmatchProfile'
+    );
+    if (!profile || !profile.isMechanic) {
+      throw new ValidationError("You must be a mechanic to update availability");
     }
-  });
+    const updated = await withDatabaseErrorHandling(
+      () => storage.updateMechanicmatchAvailability(req.params.id, req.body),
+      'updateMechanicmatchAvailability'
+    );
+    res.json(updated);
+  }));
 
-  app.delete('/api/mechanicmatch/availability/:id', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const profile = await storage.getMechanicmatchProfile(userId);
-      if (!profile || !profile.isMechanic) {
-        return res.status(400).json({ message: "You must be a mechanic to delete availability" });
-      }
-      await storage.deleteMechanicmatchAvailability(req.params.id, profile.id);
-      res.json({ message: "Availability deleted successfully" });
-    } catch (error: any) {
-      console.error("Error deleting availability:", error);
-      res.status(400).json({ message: error.message || "Failed to delete availability" });
+  app.delete('/api/mechanicmatch/availability/:id', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const profile = await withDatabaseErrorHandling(
+      () => storage.getMechanicmatchProfile(userId),
+      'getMechanicmatchProfile'
+    );
+    if (!profile || !profile.isMechanic) {
+      throw new ValidationError("You must be a mechanic to delete availability");
     }
-  });
+    await withDatabaseErrorHandling(
+      () => storage.deleteMechanicmatchAvailability(req.params.id, profile.id),
+      'deleteMechanicmatchAvailability'
+    );
+    res.json({ message: "Availability deleted successfully" });
+  }));
 
   // MechanicMatch Review routes
-  app.get('/api/mechanicmatch/reviews/mechanic/:mechanicId', isAuthenticated, async (req, res) => {
-    try {
-      const reviews = await storage.getMechanicmatchReviewsByReviewee(req.params.mechanicId);
-      res.json(reviews);
-    } catch (error: any) {
-      console.error("Error fetching reviews:", error);
-      res.status(500).json({ message: error.message || "Failed to fetch reviews" });
-    }
-  });
+  app.get('/api/mechanicmatch/reviews/mechanic/:mechanicId', isAuthenticated, asyncHandler(async (req, res) => {
+    const reviews = await withDatabaseErrorHandling(
+      () => storage.getMechanicmatchReviewsByReviewee(req.params.mechanicId),
+      'getMechanicmatchReviewsByReviewee'
+    );
+    res.json(reviews);
+  }));
 
-  app.get('/api/mechanicmatch/reviews/job/:jobId', isAuthenticated, async (req, res) => {
-    try {
-      const reviews = await storage.getMechanicmatchReviewsByJob(req.params.jobId);
-      res.json(reviews);
-    } catch (error: any) {
-      console.error("Error fetching reviews:", error);
-      res.status(500).json({ message: error.message || "Failed to fetch reviews" });
-    }
-  });
+  app.get('/api/mechanicmatch/reviews/job/:jobId', isAuthenticated, asyncHandler(async (req, res) => {
+    const reviews = await withDatabaseErrorHandling(
+      () => storage.getMechanicmatchReviewsByJob(req.params.jobId),
+      'getMechanicmatchReviewsByJob'
+    );
+    res.json(reviews);
+  }));
 
-  app.post('/api/mechanicmatch/reviews', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const validatedData = insertMechanicmatchReviewSchema.parse(req.body);
-      const review = await storage.createMechanicmatchReview({
+  app.post('/api/mechanicmatch/reviews', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const validatedData = validateWithZod(insertMechanicmatchReviewSchema, req.body, 'Invalid review data');
+    const review = await withDatabaseErrorHandling(
+      () => storage.createMechanicmatchReview({
         ...validatedData,
         reviewerId: userId,
-      });
-      res.json(review);
-    } catch (error: any) {
-      console.error("Error creating review:", error);
-      res.status(400).json({ message: error.message || "Failed to create review" });
-    }
-  });
+      }),
+      'createMechanicmatchReview'
+    );
+    res.json(review);
+  }));
 
   // MechanicMatch Message routes
-  app.get('/api/mechanicmatch/messages/job/:jobId', isAuthenticated, async (req, res) => {
-    try {
-      const messages = await storage.getMechanicmatchMessagesByJob(req.params.jobId);
-      res.json(messages);
-    } catch (error: any) {
-      console.error("Error fetching messages:", error);
-      res.status(500).json({ message: error.message || "Failed to fetch messages" });
-    }
-  });
+  app.get('/api/mechanicmatch/messages/job/:jobId', isAuthenticated, asyncHandler(async (req, res) => {
+    const messages = await withDatabaseErrorHandling(
+      () => storage.getMechanicmatchMessagesByJob(req.params.jobId),
+      'getMechanicmatchMessagesByJob'
+    );
+    res.json(messages);
+  }));
 
-  app.get('/api/mechanicmatch/messages/unread', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const messages = await storage.getUnreadMechanicmatchMessages(userId);
-      res.json(messages);
-    } catch (error: any) {
-      console.error("Error fetching unread messages:", error);
-      res.status(500).json({ message: error.message || "Failed to fetch messages" });
-    }
-  });
+  app.get('/api/mechanicmatch/messages/unread', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const messages = await withDatabaseErrorHandling(
+      () => storage.getUnreadMechanicmatchMessages(userId),
+      'getUnreadMechanicmatchMessages'
+    );
+    res.json(messages);
+  }));
 
-  app.post('/api/mechanicmatch/messages', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const validatedData = insertMechanicmatchMessageSchema.parse(req.body);
-      const message = await storage.createMechanicmatchMessage({
+  app.post('/api/mechanicmatch/messages', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const validatedData = validateWithZod(insertMechanicmatchMessageSchema, req.body, 'Invalid message data');
+    const message = await withDatabaseErrorHandling(
+      () => storage.createMechanicmatchMessage({
         ...validatedData,
         senderId: userId,
-      });
-      res.json(message);
-    } catch (error: any) {
-      console.error("Error creating message:", error);
-      res.status(400).json({ message: error.message || "Failed to create message" });
-    }
-  });
+      }),
+      'createMechanicmatchMessage'
+    );
+    res.json(message);
+  }));
 
-  app.put('/api/mechanicmatch/messages/:id/read', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const message = await storage.markMechanicmatchMessageAsRead(req.params.id, userId);
-      res.json(message);
-    } catch (error: any) {
-      console.error("Error marking message as read:", error);
-      res.status(400).json({ message: error.message || "Failed to mark message as read" });
-    }
-  });
+  app.put('/api/mechanicmatch/messages/:id/read', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const message = await withDatabaseErrorHandling(
+      () => storage.markMechanicmatchMessageAsRead(req.params.id, userId),
+      'markMechanicmatchMessageAsRead'
+    );
+    res.json(message);
+  }));
 
   // MechanicMatch Search routes
-  app.get('/api/mechanicmatch/search/mechanics', isAuthenticated, async (req: any, res) => {
-    try {
-      const filters: any = {};
-      if (req.query.city) filters.city = req.query.city;
-      if (req.query.state) filters.state = req.query.state;
-      if (req.query.isMobileMechanic !== undefined) filters.isMobileMechanic = req.query.isMobileMechanic === 'true';
-      if (req.query.maxHourlyRate) filters.maxHourlyRate = parseFloat(req.query.maxHourlyRate);
-      if (req.query.minRating) filters.minRating = parseFloat(req.query.minRating);
-      if (req.query.specialties) filters.specialties = Array.isArray(req.query.specialties) ? req.query.specialties : [req.query.specialties];
-      
-      const mechanics = await storage.searchMechanicmatchMechanics(filters);
-      res.json(mechanics);
-    } catch (error: any) {
-      console.error("Error searching mechanics:", error);
-      res.status(500).json({ message: error.message || "Failed to search mechanics" });
-    }
-  });
+  app.get('/api/mechanicmatch/search/mechanics', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const filters: any = {};
+    if (req.query.city) filters.city = req.query.city;
+    if (req.query.state) filters.state = req.query.state;
+    if (req.query.isMobileMechanic !== undefined) filters.isMobileMechanic = req.query.isMobileMechanic === 'true';
+    if (req.query.maxHourlyRate) filters.maxHourlyRate = parseFloat(req.query.maxHourlyRate);
+    if (req.query.minRating) filters.minRating = parseFloat(req.query.minRating);
+    if (req.query.specialties) filters.specialties = Array.isArray(req.query.specialties) ? req.query.specialties : [req.query.specialties];
+    
+    const mechanics = await withDatabaseErrorHandling(
+      () => storage.searchMechanicmatchMechanics(filters),
+      'searchMechanicmatchMechanics'
+    );
+    res.json(mechanics);
+  }));
 
   // MechanicMatch Admin Announcement routes
-  app.get('/api/mechanicmatch/admin/announcements', isAuthenticated, isAdmin, async (req, res) => {
-    try {
-      const announcements = await storage.getAllMechanicmatchAnnouncements();
-      res.json(announcements);
-    } catch (error) {
-      console.error("Error fetching MechanicMatch announcements:", error);
-      res.status(500).json({ message: "Failed to fetch announcements" });
-    }
-  });
+  app.get('/api/mechanicmatch/admin/announcements', isAuthenticated, isAdmin, asyncHandler(async (_req, res) => {
+    const announcements = await withDatabaseErrorHandling(
+      () => storage.getAllMechanicmatchAnnouncements(),
+      'getAllMechanicmatchAnnouncements'
+    );
+    res.json(announcements);
+  }));
 
-  app.post('/api/mechanicmatch/admin/announcements', isAuthenticated, isAdmin, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const validatedData = insertMechanicmatchAnnouncementSchema.parse(req.body);
+  app.post('/api/mechanicmatch/admin/announcements', isAuthenticated, isAdmin, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const validatedData = validateWithZod(insertMechanicmatchAnnouncementSchema, req.body, 'Invalid announcement data');
 
-      const announcement = await storage.createMechanicmatchAnnouncement(validatedData);
-      
-      await logAdminAction(
-        userId,
-        "create_mechanicmatch_announcement",
-        "announcement",
-        announcement.id,
-        { title: announcement.title, type: announcement.type }
-      );
+    const announcement = await withDatabaseErrorHandling(
+      () => storage.createMechanicmatchAnnouncement(validatedData),
+      'createMechanicmatchAnnouncement'
+    );
+    
+    await logAdminAction(
+      userId,
+      "create_mechanicmatch_announcement",
+      "announcement",
+      announcement.id,
+      { title: announcement.title, type: announcement.type }
+    );
 
-      res.json(announcement);
-    } catch (error: any) {
-      console.error("Error creating MechanicMatch announcement:", error);
-      res.status(400).json({ message: error.message || "Failed to create announcement" });
-    }
-  });
+    res.json(announcement);
+  }));
 
-  app.put('/api/mechanicmatch/admin/announcements/:id', isAuthenticated, isAdmin, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const announcement = await storage.updateMechanicmatchAnnouncement(req.params.id, req.body);
-      
-      await logAdminAction(
-        userId,
-        "update_mechanicmatch_announcement",
-        "announcement",
-        announcement.id,
-        { title: announcement.title }
-      );
+  app.put('/api/mechanicmatch/admin/announcements/:id', isAuthenticated, isAdmin, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const announcement = await withDatabaseErrorHandling(
+      () => storage.updateMechanicmatchAnnouncement(req.params.id, req.body),
+      'updateMechanicmatchAnnouncement'
+    );
+    
+    await logAdminAction(
+      userId,
+      "update_mechanicmatch_announcement",
+      "announcement",
+      announcement.id,
+      { title: announcement.title }
+    );
 
-      res.json(announcement);
-    } catch (error: any) {
-      console.error("Error updating MechanicMatch announcement:", error);
-      res.status(400).json({ message: error.message || "Failed to update announcement" });
-    }
-  });
+    res.json(announcement);
+  }));
 
-  app.delete('/api/mechanicmatch/admin/announcements/:id', isAuthenticated, isAdmin, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const announcement = await storage.deactivateMechanicmatchAnnouncement(req.params.id);
-      
-      await logAdminAction(
-        userId,
-        "deactivate_mechanicmatch_announcement",
-        "announcement",
-        announcement.id,
-        { title: announcement.title }
-      );
+  app.delete('/api/mechanicmatch/admin/announcements/:id', isAuthenticated, isAdmin, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const announcement = await withDatabaseErrorHandling(
+      () => storage.deactivateMechanicmatchAnnouncement(req.params.id),
+      'deactivateMechanicmatchAnnouncement'
+    );
+    
+    await logAdminAction(
+      userId,
+      "deactivate_mechanicmatch_announcement",
+      "announcement",
+      announcement.id,
+      { title: announcement.title }
+    );
 
-      res.json(announcement);
-    } catch (error: any) {
-      console.error("Error deleting MechanicMatch announcement:", error);
-      res.status(400).json({ message: error.message || "Failed to delete announcement" });
-    }
-  });
+    res.json(announcement);
+  }));
 
   // ========================================
   // RESEARCH ROUTES
   // ========================================
 
   // Research Announcement routes (public)
-  app.get('/api/research/announcements', async (req, res) => {
-    try {
-      const announcements = await storage.getActiveResearchAnnouncements();
-      res.json(announcements);
-    } catch (error) {
-      console.error("Error fetching Research announcements:", error);
-      res.status(500).json({ message: "Failed to fetch announcements" });
-    }
-  });
+  app.get('/api/research/announcements', asyncHandler(async (_req, res) => {
+    const announcements = await withDatabaseErrorHandling(
+      () => storage.getActiveResearchAnnouncements(),
+      'getActiveResearchAnnouncements'
+    );
+    res.json(announcements);
+  }));
 
   // Research Item routes
-  app.post('/api/research/items', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const body = req.body;
-      
-      // Parse JSON arrays if strings
-      if (typeof body.tags === 'string') {
-        try {
-          body.tags = JSON.parse(body.tags);
-        } catch (e) {
-          body.tags = [];
-        }
+  app.post('/api/research/items', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const body = req.body;
+    
+    // Parse JSON arrays if strings
+    if (typeof body.tags === 'string') {
+      try {
+        body.tags = JSON.parse(body.tags);
+      } catch (e) {
+        body.tags = [];
       }
-      if (typeof body.attachments === 'string') {
-        try {
-          body.attachments = JSON.parse(body.attachments);
-        } catch (e) {
-          body.attachments = [];
-        }
-      }
-
-      const validatedData = insertResearchItemSchema.parse({ ...body, userId });
-      const item = await storage.createResearchItem(validatedData);
-      
-      console.log(`Research item created: ${item.id} by ${userId}`);
-      res.json(item);
-    } catch (error: any) {
-      console.error("Error creating research item:", error);
-      res.status(400).json({ message: error.message || "Failed to create research item" });
     }
-  });
-
-  app.get('/api/research/items', async (req, res) => {
-    try {
-      const filters: any = {};
-      if (req.query.userId) filters.userId = req.query.userId as string;
-      if (req.query.tag) filters.tag = req.query.tag as string;
-      if (req.query.status) filters.status = req.query.status as string;
-      if (req.query.isPublic !== undefined) filters.isPublic = req.query.isPublic === 'true';
-      if (req.query.search) filters.search = req.query.search as string;
-      if (req.query.sortBy) filters.sortBy = req.query.sortBy as string;
-      filters.limit = parseInt(req.query.limit as string || "50");
-      filters.offset = parseInt(req.query.offset as string || "0");
-      
-      const result = await storage.getResearchItems(filters);
-      res.json(result);
-    } catch (error: any) {
-      console.error("Error fetching research items:", error);
-      res.status(500).json({ message: error.message || "Failed to fetch research items" });
+    if (typeof body.attachments === 'string') {
+      try {
+        body.attachments = JSON.parse(body.attachments);
+      } catch (e) {
+        body.attachments = [];
+      }
     }
-  });
 
-  app.get('/api/research/items/public', publicListingLimiter, async (req, res) => {
-    try {
-      const filters: any = { isPublic: true };
-      if (req.query.tag) filters.tag = req.query.tag as string;
-      if (req.query.search) filters.search = req.query.search as string;
-      filters.limit = parseInt(req.query.limit as string || "20");
-      filters.offset = parseInt(req.query.offset as string || "0");
-      
-      const result = await storage.getResearchItems(filters);
-      res.json(result.items);
-    } catch (error: any) {
-      console.error("Error fetching public research items:", error);
-      res.status(500).json({ message: error.message || "Failed to fetch research items" });
+    const validatedData = validateWithZod(insertResearchItemSchema, { ...body, userId }, 'Invalid research item data');
+    const item = await withDatabaseErrorHandling(
+      () => storage.createResearchItem(validatedData),
+      'createResearchItem'
+    );
+    
+    console.log(`Research item created: ${item.id} by ${userId}`);
+    res.json(item);
+  }));
+
+  app.get('/api/research/items', asyncHandler(async (req, res) => {
+    const filters: any = {};
+    if (req.query.userId) filters.userId = req.query.userId as string;
+    if (req.query.tag) filters.tag = req.query.tag as string;
+    if (req.query.status) filters.status = req.query.status as string;
+    if (req.query.isPublic !== undefined) filters.isPublic = req.query.isPublic === 'true';
+    if (req.query.search) filters.search = req.query.search as string;
+    if (req.query.sortBy) filters.sortBy = req.query.sortBy as string;
+    filters.limit = parseInt(req.query.limit as string || "50");
+    filters.offset = parseInt(req.query.offset as string || "0");
+    
+    const result = await withDatabaseErrorHandling(
+      () => storage.getResearchItems(filters),
+      'getResearchItems'
+    );
+    res.json(result);
+  }));
+
+  app.get('/api/research/items/public', publicListingLimiter, asyncHandler(async (req, res) => {
+    const filters: any = { isPublic: true };
+    if (req.query.tag) filters.tag = req.query.tag as string;
+    if (req.query.search) filters.search = req.query.search as string;
+    filters.limit = parseInt(req.query.limit as string || "20");
+    filters.offset = parseInt(req.query.offset as string || "0");
+    
+    const result = await withDatabaseErrorHandling(
+      () => storage.getResearchItems(filters),
+      'getResearchItems'
+    );
+    res.json(result.items);
+  }));
+
+  app.get('/api/research/items/:id', asyncHandler(async (req, res) => {
+    const item = await withDatabaseErrorHandling(
+      () => storage.getResearchItemById(req.params.id),
+      'getResearchItemById'
+    );
+    if (!item) {
+      throw new NotFoundError('Research item', req.params.id);
     }
-  });
+    
+    // Increment view count
+    await withDatabaseErrorHandling(
+      () => storage.incrementResearchItemViewCount(req.params.id),
+      'incrementResearchItemViewCount'
+    );
+    
+    res.json(item);
+  }));
 
-  app.get('/api/research/items/:id', async (req, res) => {
-    try {
-      const item = await storage.getResearchItemById(req.params.id);
-      if (!item) {
-        return res.status(404).json({ message: "Research item not found" });
-      }
-      
-      // Increment view count
-      await storage.incrementResearchItemViewCount(req.params.id);
-      
-      res.json(item);
-    } catch (error: any) {
-      console.error("Error fetching research item:", error);
-      res.status(500).json({ message: error.message || "Failed to fetch research item" });
+  app.put('/api/research/items/:id', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const item = await withDatabaseErrorHandling(
+      () => storage.getResearchItemById(req.params.id),
+      'getResearchItemById'
+    );
+    
+    if (!item) {
+      throw new NotFoundError('Research item', req.params.id);
     }
-  });
-
-  app.put('/api/research/items/:id', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const item = await storage.getResearchItemById(req.params.id);
-      
-      if (!item) {
-        return res.status(404).json({ message: "Research item not found" });
-      }
-      
-      if (item.userId !== userId && !isAdmin(req)) {
-        return res.status(403).json({ message: "Forbidden" });
-      }
-
-      const body = req.body;
-      if (typeof body.tags === 'string') {
-        try {
-          body.tags = JSON.parse(body.tags);
-        } catch (e) {
-          body.tags = [];
-        }
-      }
-      if (typeof body.attachments === 'string') {
-        try {
-          body.attachments = JSON.parse(body.attachments);
-        } catch (e) {
-          body.attachments = [];
-        }
-      }
-
-      const updated = await storage.updateResearchItem(req.params.id, body);
-      res.json(updated);
-    } catch (error: any) {
-      console.error("Error updating research item:", error);
-      res.status(400).json({ message: error.message || "Failed to update research item" });
+    
+    if (item.userId !== userId && !isAdmin(req)) {
+      throw new ForbiddenError("Forbidden");
     }
-  });
+
+    const body = req.body;
+    if (typeof body.tags === 'string') {
+      try {
+        body.tags = JSON.parse(body.tags);
+      } catch (e) {
+        body.tags = [];
+      }
+    }
+    if (typeof body.attachments === 'string') {
+      try {
+        body.attachments = JSON.parse(body.attachments);
+      } catch (e) {
+        body.attachments = [];
+      }
+    }
+
+    const updated = await withDatabaseErrorHandling(
+      () => storage.updateResearchItem(req.params.id, body),
+      'updateResearchItem'
+    );
+    res.json(updated);
+  }));
 
   // Research Answer routes
-  app.post('/api/research/answers', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const body = req.body;
-      
-      if (typeof body.links === 'string') {
-        try {
-          body.links = JSON.parse(body.links);
-        } catch (e) {
-          body.links = [];
-        }
+  app.post('/api/research/answers', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const body = req.body;
+    
+    if (typeof body.links === 'string') {
+      try {
+        body.links = JSON.parse(body.links);
+      } catch (e) {
+        body.links = [];
       }
-      if (typeof body.attachments === 'string') {
-        try {
-          body.attachments = JSON.parse(body.attachments);
-        } catch (e) {
-          body.attachments = [];
-        }
+    }
+    if (typeof body.attachments === 'string') {
+      try {
+        body.attachments = JSON.parse(body.attachments);
+      } catch (e) {
+        body.attachments = [];
       }
-
-      const validatedData = insertResearchAnswerSchema.parse({ ...body, userId });
-      const answer = await storage.createResearchAnswer(validatedData);
-      
-      // Trigger link verification for any links provided
-      if (validatedData.links && validatedData.links.length > 0) {
-        // Queue link verification (async, non-blocking)
-        setImmediate(async () => {
-          for (const url of validatedData.links || []) {
-            try {
-              await verifyResearchLink(answer.id, url);
-            } catch (error) {
-              console.error(`Error verifying link ${url}:`, error);
-            }
-          }
-        });
-      }
-      
-      res.json(answer);
-    } catch (error: any) {
-      console.error("Error creating research answer:", error);
-      res.status(400).json({ message: error.message || "Failed to create answer" });
     }
-  });
 
-  app.get('/api/research/items/:id/answers', async (req, res) => {
-    try {
-      const sortBy = req.query.sortBy as string || "relevance";
-      const answers = await storage.getResearchAnswersByItemId(req.params.id, sortBy);
-      res.json(answers);
-    } catch (error: any) {
-      console.error("Error fetching answers:", error);
-      res.status(500).json({ message: error.message || "Failed to fetch answers" });
-    }
-  });
-
-  app.get('/api/research/answers/:id', async (req, res) => {
-    try {
-      const answer = await storage.getResearchAnswerById(req.params.id);
-      if (!answer) {
-        return res.status(404).json({ message: "Answer not found" });
-      }
-      res.json(answer);
-    } catch (error: any) {
-      console.error("Error fetching answer:", error);
-      res.status(500).json({ message: error.message || "Failed to fetch answer" });
-    }
-  });
-
-  app.put('/api/research/answers/:id', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const answer = await storage.getResearchAnswerById(req.params.id);
-      
-      if (!answer) {
-        return res.status(404).json({ message: "Answer not found" });
-      }
-      
-      if (answer.userId !== userId && !isAdmin(req)) {
-        return res.status(403).json({ message: "Forbidden" });
-      }
-
-      const body = req.body;
-      if (typeof body.links === 'string') {
-        try {
-          body.links = JSON.parse(body.links);
-        } catch (e) {
-          body.links = [];
-        }
-      }
-
-      const updated = await storage.updateResearchAnswer(req.params.id, body);
-      res.json(updated);
-    } catch (error: any) {
-      console.error("Error updating answer:", error);
-      res.status(400).json({ message: error.message || "Failed to update answer" });
-    }
-  });
-
-  // Accept answer endpoint
-  app.post('/api/research/items/:itemId/accept-answer/:answerId', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const item = await storage.getResearchItemById(req.params.itemId);
-      
-      if (!item || item.userId !== userId) {
-        return res.status(403).json({ message: "Forbidden" });
-      }
-
-      const updatedItem = await storage.acceptResearchAnswer(req.params.itemId, req.params.answerId);
-      res.json(updatedItem);
-    } catch (error: any) {
-      console.error("Error accepting answer:", error);
-      res.status(400).json({ message: error.message || "Failed to accept answer" });
-    }
-  });
-
-  // Research Comment routes
-  app.post('/api/research/comments', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const validatedData = insertResearchCommentSchema.parse({ ...req.body, userId });
-      const comment = await storage.createResearchComment(validatedData);
-      res.json(comment);
-    } catch (error: any) {
-      console.error("Error creating comment:", error);
-      res.status(400).json({ message: error.message || "Failed to create comment" });
-    }
-  });
-
-  app.get('/api/research/comments', async (req, res) => {
-    try {
-      const filters: any = {};
-      if (req.query.researchItemId) filters.researchItemId = req.query.researchItemId as string;
-      if (req.query.answerId) filters.answerId = req.query.answerId as string;
-      
-      const comments = await storage.getResearchComments(filters);
-      res.json(comments);
-    } catch (error: any) {
-      console.error("Error fetching comments:", error);
-      res.status(500).json({ message: error.message || "Failed to fetch comments" });
-    }
-  });
-
-  app.put('/api/research/comments/:id', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const comment = await storage.getResearchComments({ researchItemId: undefined, answerId: undefined }).then(cs => cs.find(c => c.id === req.params.id));
-      
-      if (!comment || comment.userId !== userId) {
-        return res.status(403).json({ message: "Forbidden" });
-      }
-
-      const updated = await storage.updateResearchComment(req.params.id, req.body);
-      res.json(updated);
-    } catch (error: any) {
-      console.error("Error updating comment:", error);
-      res.status(400).json({ message: error.message || "Failed to update comment" });
-    }
-  });
-
-  app.delete('/api/research/comments/:id', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      // Note: In production, check ownership or admin status
-      await storage.deleteResearchComment(req.params.id);
-      res.json({ message: "Comment deleted" });
-    } catch (error: any) {
-      console.error("Error deleting comment:", error);
-      res.status(400).json({ message: error.message || "Failed to delete comment" });
-    }
-  });
-
-  // Research Vote routes
-  app.post('/api/research/votes', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const validatedData = insertResearchVoteSchema.parse({ ...req.body, userId });
-      const vote = await storage.createOrUpdateResearchVote(validatedData);
-      res.json(vote);
-    } catch (error: any) {
-      console.error("Error creating vote:", error);
-      res.status(400).json({ message: error.message || "Failed to create vote" });
-    }
-  });
-
-  app.get('/api/research/votes', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const researchItemId = req.query.researchItemId as string;
-      const answerId = req.query.answerId as string;
-      
-      const vote = await storage.getResearchVote(userId, researchItemId, answerId);
-      res.json(vote || null);
-    } catch (error: any) {
-      console.error("Error fetching vote:", error);
-      res.status(500).json({ message: error.message || "Failed to fetch vote" });
-    }
-  });
-
-  app.delete('/api/research/votes', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const researchItemId = req.query.researchItemId as string;
-      const answerId = req.query.answerId as string;
-      
-      await storage.deleteResearchVote(userId, researchItemId, answerId);
-      res.json({ message: "Vote deleted" });
-    } catch (error: any) {
-      console.error("Error deleting vote:", error);
-      res.status(400).json({ message: error.message || "Failed to delete vote" });
-    }
-  });
-
-  // Research Bookmark routes
-  app.post('/api/research/bookmarks', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const validatedData = insertResearchBookmarkSchema.parse({ ...req.body, userId });
-      const bookmark = await storage.createResearchBookmark(validatedData);
-      res.json(bookmark);
-    } catch (error: any) {
-      console.error("Error creating bookmark:", error);
-      res.status(400).json({ message: error.message || "Failed to create bookmark" });
-    }
-  });
-
-  app.delete('/api/research/bookmarks/:itemId', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      await storage.deleteResearchBookmark(userId, req.params.itemId);
-      res.json({ message: "Bookmark deleted" });
-    } catch (error: any) {
-      console.error("Error deleting bookmark:", error);
-      res.status(400).json({ message: error.message || "Failed to delete bookmark" });
-    }
-  });
-
-  app.get('/api/research/bookmarks', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const bookmarks = await storage.getResearchBookmarks(userId);
-      res.json(bookmarks);
-    } catch (error: any) {
-      console.error("Error fetching bookmarks:", error);
-      res.status(500).json({ message: error.message || "Failed to fetch bookmarks" });
-    }
-  });
-
-  // Research Follow routes
-  app.post('/api/research/follows', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const validatedData = insertResearchFollowSchema.parse({ ...req.body, userId });
-      const follow = await storage.createResearchFollow(validatedData);
-      res.json(follow);
-    } catch (error: any) {
-      console.error("Error creating follow:", error);
-      res.status(400).json({ message: error.message || "Failed to create follow" });
-    }
-  });
-
-  app.delete('/api/research/follows', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const filters: any = {};
-      if (req.query.followedUserId) filters.followedUserId = req.query.followedUserId as string;
-      if (req.query.researchItemId) filters.researchItemId = req.query.researchItemId as string;
-      if (req.query.tag) filters.tag = req.query.tag as string;
-      
-      await storage.deleteResearchFollow(userId, filters);
-      res.json({ message: "Follow deleted" });
-    } catch (error: any) {
-      console.error("Error deleting follow:", error);
-      res.status(400).json({ message: error.message || "Failed to delete follow" });
-    }
-  });
-
-  app.get('/api/research/follows', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const follows = await storage.getResearchFollows(userId);
-      res.json(follows);
-    } catch (error: any) {
-      console.error("Error fetching follows:", error);
-      res.status(500).json({ message: error.message || "Failed to fetch follows" });
-    }
-  });
-
-  // Research Timeline/Feed
-  app.get('/api/research/timeline', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const limit = parseInt(req.query.limit as string || "50");
-      const offset = parseInt(req.query.offset as string || "0");
-      
-      const items = await storage.getResearchTimeline(userId, limit, offset);
-      res.json(items);
-    } catch (error: any) {
-      console.error("Error fetching timeline:", error);
-      res.status(500).json({ message: error.message || "Failed to fetch timeline" });
-    }
-  });
-
-  // Research Link Provenance routes
-  app.get('/api/research/answers/:answerId/links', async (req, res) => {
-    try {
-      const provenances = await storage.getResearchLinkProvenancesByAnswerId(req.params.answerId);
-      res.json(provenances);
-    } catch (error: any) {
-      console.error("Error fetching link provenances:", error);
-      res.status(500).json({ message: error.message || "Failed to fetch links" });
-    }
-  });
-
-  // Link verification endpoint (triggers async verification)
-  app.post('/api/research/verify-link', isAuthenticated, async (req: any, res) => {
-    try {
-      const { answerId, url } = req.body;
-      
-      if (!answerId || !url) {
-        return res.status(400).json({ message: "answerId and url are required" });
-      }
-
-      // Queue verification (non-blocking)
+    const validatedData = validateWithZod(insertResearchAnswerSchema, { ...body, userId }, 'Invalid answer data');
+    const answer = await withDatabaseErrorHandling(
+      () => storage.createResearchAnswer(validatedData),
+      'createResearchAnswer'
+    );
+    
+    // Trigger link verification for any links provided
+    if (validatedData.links && validatedData.links.length > 0) {
+      // Queue link verification (async, non-blocking)
       setImmediate(async () => {
-        try {
-          await verifyResearchLink(answerId, url);
-        } catch (error) {
-          console.error(`Error verifying link ${url}:`, error);
+        for (const url of validatedData.links || []) {
+          try {
+            await verifyResearchLink(answer.id, url);
+          } catch (error) {
+            console.error(`Error verifying link ${url}:`, error);
+          }
         }
       });
-
-      res.json({ message: "Link verification queued" });
-    } catch (error: any) {
-      console.error("Error queuing link verification:", error);
-      res.status(500).json({ message: error.message || "Failed to queue verification" });
     }
-  });
+    
+    res.json(answer);
+  }));
+
+  app.get('/api/research/items/:id/answers', asyncHandler(async (req, res) => {
+    const sortBy = req.query.sortBy as string || "relevance";
+    const answers = await withDatabaseErrorHandling(
+      () => storage.getResearchAnswersByItemId(req.params.id, sortBy),
+      'getResearchAnswersByItemId'
+    );
+    res.json(answers);
+  }));
+
+  app.get('/api/research/answers/:id', asyncHandler(async (req, res) => {
+    const answer = await withDatabaseErrorHandling(
+      () => storage.getResearchAnswerById(req.params.id),
+      'getResearchAnswerById'
+    );
+    if (!answer) {
+      throw new NotFoundError('Answer', req.params.id);
+    }
+    res.json(answer);
+  }));
+
+  app.put('/api/research/answers/:id', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const answer = await withDatabaseErrorHandling(
+      () => storage.getResearchAnswerById(req.params.id),
+      'getResearchAnswerById'
+    );
+    
+    if (!answer) {
+      throw new NotFoundError('Answer', req.params.id);
+    }
+    
+    if (answer.userId !== userId && !isAdmin(req)) {
+      throw new ForbiddenError("Forbidden");
+    }
+
+    const body = req.body;
+    if (typeof body.links === 'string') {
+      try {
+        body.links = JSON.parse(body.links);
+      } catch (e) {
+        body.links = [];
+      }
+    }
+
+    const updated = await withDatabaseErrorHandling(
+      () => storage.updateResearchAnswer(req.params.id, body),
+      'updateResearchAnswer'
+    );
+    res.json(updated);
+  }));
+
+  // Accept answer endpoint
+  app.post('/api/research/items/:itemId/accept-answer/:answerId', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const item = await withDatabaseErrorHandling(
+      () => storage.getResearchItemById(req.params.itemId),
+      'getResearchItemById'
+    );
+    
+    if (!item || item.userId !== userId) {
+      throw new ForbiddenError("Forbidden");
+    }
+
+    const updatedItem = await withDatabaseErrorHandling(
+      () => storage.acceptResearchAnswer(req.params.itemId, req.params.answerId),
+      'acceptResearchAnswer'
+    );
+    res.json(updatedItem);
+  }));
+
+  // Research Comment routes
+  app.post('/api/research/comments', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const validatedData = validateWithZod(insertResearchCommentSchema, { ...req.body, userId }, 'Invalid comment data');
+    const comment = await withDatabaseErrorHandling(
+      () => storage.createResearchComment(validatedData),
+      'createResearchComment'
+    );
+    res.json(comment);
+  }));
+
+  app.get('/api/research/comments', asyncHandler(async (req, res) => {
+    const filters: any = {};
+    if (req.query.researchItemId) filters.researchItemId = req.query.researchItemId as string;
+    if (req.query.answerId) filters.answerId = req.query.answerId as string;
+    
+    const comments = await withDatabaseErrorHandling(
+      () => storage.getResearchComments(filters),
+      'getResearchComments'
+    );
+    res.json(comments);
+  }));
+
+  app.put('/api/research/comments/:id', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const comment = await withDatabaseErrorHandling(
+      () => storage.getResearchComments({ researchItemId: undefined, answerId: undefined }).then(cs => cs.find(c => c.id === req.params.id)),
+      'getResearchComments'
+    );
+    
+    if (!comment || comment.userId !== userId) {
+      throw new ForbiddenError("Forbidden");
+    }
+
+    const updated = await withDatabaseErrorHandling(
+      () => storage.updateResearchComment(req.params.id, req.body),
+      'updateResearchComment'
+    );
+    res.json(updated);
+  }));
+
+  app.delete('/api/research/comments/:id', isAuthenticated, asyncHandler(async (req: any, res) => {
+    // Note: In production, check ownership or admin status
+    await withDatabaseErrorHandling(
+      () => storage.deleteResearchComment(req.params.id),
+      'deleteResearchComment'
+    );
+    res.json({ message: "Comment deleted" });
+  }));
+
+  // Research Vote routes
+  app.post('/api/research/votes', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const validatedData = validateWithZod(insertResearchVoteSchema, { ...req.body, userId }, 'Invalid vote data');
+    const vote = await withDatabaseErrorHandling(
+      () => storage.createOrUpdateResearchVote(validatedData),
+      'createOrUpdateResearchVote'
+    );
+    res.json(vote);
+  }));
+
+  app.get('/api/research/votes', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const researchItemId = req.query.researchItemId as string;
+    const answerId = req.query.answerId as string;
+    
+    const vote = await withDatabaseErrorHandling(
+      () => storage.getResearchVote(userId, researchItemId, answerId),
+      'getResearchVote'
+    );
+    res.json(vote || null);
+  }));
+
+  app.delete('/api/research/votes', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const researchItemId = req.query.researchItemId as string;
+    const answerId = req.query.answerId as string;
+    
+    await storage.deleteResearchVote(userId, researchItemId, answerId);
+    res.json({ message: "Vote deleted" });
+  }));
+
+  // Research Bookmark routes
+  app.post('/api/research/bookmarks', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const validatedData = validateWithZod(insertResearchBookmarkSchema, { ...req.body, userId }, 'Invalid bookmark data');
+    const bookmark = await withDatabaseErrorHandling(
+      () => storage.createResearchBookmark(validatedData),
+      'createResearchBookmark'
+    );
+    res.json(bookmark);
+  }));
+
+  app.delete('/api/research/bookmarks/:itemId', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    await withDatabaseErrorHandling(
+      () => storage.deleteResearchBookmark(userId, req.params.itemId),
+      'deleteResearchBookmark'
+    );
+    res.json({ message: "Bookmark deleted" });
+  }));
+
+  app.get('/api/research/bookmarks', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const bookmarks = await withDatabaseErrorHandling(
+      () => storage.getResearchBookmarks(userId),
+      'getResearchBookmarks'
+    );
+    res.json(bookmarks);
+  }));
+
+  // Research Follow routes
+  app.post('/api/research/follows', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const validatedData = validateWithZod(insertResearchFollowSchema, { ...req.body, userId }, 'Invalid follow data');
+    const follow = await withDatabaseErrorHandling(
+      () => storage.createResearchFollow(validatedData),
+      'createResearchFollow'
+    );
+    res.json(follow);
+  }));
+
+  app.delete('/api/research/follows', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const filters: any = {};
+    if (req.query.followedUserId) filters.followedUserId = req.query.followedUserId as string;
+    if (req.query.researchItemId) filters.researchItemId = req.query.researchItemId as string;
+    if (req.query.tag) filters.tag = req.query.tag as string;
+    
+    await withDatabaseErrorHandling(
+      () => storage.deleteResearchFollow(userId, filters),
+      'deleteResearchFollow'
+    );
+    res.json({ message: "Follow deleted" });
+  }));
+
+  app.get('/api/research/follows', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const follows = await withDatabaseErrorHandling(
+      () => storage.getResearchFollows(userId),
+      'getResearchFollows'
+    );
+    res.json(follows);
+  }));
+
+  // Research Timeline/Feed
+  app.get('/api/research/timeline', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const limit = parseInt(req.query.limit as string || "50");
+    const offset = parseInt(req.query.offset as string || "0");
+    
+    const items = await withDatabaseErrorHandling(
+      () => storage.getResearchTimeline(userId, limit, offset),
+      'getResearchTimeline'
+    );
+    res.json(items);
+  }));
+
+  // Research Link Provenance routes
+  app.get('/api/research/answers/:answerId/links', asyncHandler(async (req, res) => {
+    const provenances = await withDatabaseErrorHandling(
+      () => storage.getResearchLinkProvenancesByAnswerId(req.params.answerId),
+      'getResearchLinkProvenancesByAnswerId'
+    );
+    res.json(provenances);
+  }));
+
+  // Link verification endpoint (triggers async verification)
+  app.post('/api/research/verify-link', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const { answerId, url } = req.body;
+    
+    if (!answerId || !url) {
+      throw new ValidationError("answerId and url are required");
+    }
+
+    // Queue verification (non-blocking)
+    setImmediate(async () => {
+      try {
+        await verifyResearchLink(answerId, url);
+      } catch (error) {
+        console.error(`Error verifying link ${url}:`, error);
+      }
+    });
+
+    res.json({ message: "Link verification queued" });
+  }));
 
   // Research Board/Column/Card routes (Trello-style)
-  app.post('/api/research/boards', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const validatedData = insertResearchBoardSchema.parse({ ...req.body, userId });
-      const board = await storage.createResearchBoard(validatedData);
-      res.json(board);
-    } catch (error: any) {
-      console.error("Error creating board:", error);
-      res.status(400).json({ message: error.message || "Failed to create board" });
-    }
-  });
+  app.post('/api/research/boards', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const validatedData = validateWithZod(insertResearchBoardSchema, { ...req.body, userId }, 'Invalid board data');
+    const board = await withDatabaseErrorHandling(
+      () => storage.createResearchBoard(validatedData),
+      'createResearchBoard'
+    );
+    res.json(board);
+  }));
 
-  app.get('/api/research/items/:itemId/boards', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const boards = await storage.getResearchBoardsByItemId(req.params.itemId, userId);
-      res.json(boards);
-    } catch (error: any) {
-      console.error("Error fetching boards:", error);
-      res.status(500).json({ message: error.message || "Failed to fetch boards" });
-    }
-  });
+  app.get('/api/research/items/:itemId/boards', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const boards = await withDatabaseErrorHandling(
+      () => storage.getResearchBoardsByItemId(req.params.itemId, userId),
+      'getResearchBoardsByItemId'
+    );
+    res.json(boards);
+  }));
 
-  app.post('/api/research/columns', isAuthenticated, async (req: any, res) => {
-    try {
-      const validatedData = insertResearchColumnSchema.parse(req.body);
-      const column = await storage.createResearchColumn(validatedData);
-      res.json(column);
-    } catch (error: any) {
-      console.error("Error creating column:", error);
-      res.status(400).json({ message: error.message || "Failed to create column" });
-    }
-  });
+  app.post('/api/research/columns', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const validatedData = validateWithZod(insertResearchColumnSchema, req.body, 'Invalid column data');
+    const column = await withDatabaseErrorHandling(
+      () => storage.createResearchColumn(validatedData),
+      'createResearchColumn'
+    );
+    res.json(column);
+  }));
 
-  app.get('/api/research/boards/:boardId/columns', async (req, res) => {
-    try {
-      const columns = await storage.getResearchColumnsByBoardId(req.params.boardId);
-      res.json(columns);
-    } catch (error: any) {
-      console.error("Error fetching columns:", error);
-      res.status(500).json({ message: error.message || "Failed to fetch columns" });
-    }
-  });
+  app.get('/api/research/boards/:boardId/columns', asyncHandler(async (req, res) => {
+    const columns = await withDatabaseErrorHandling(
+      () => storage.getResearchColumnsByBoardId(req.params.boardId),
+      'getResearchColumnsByBoardId'
+    );
+    res.json(columns);
+  }));
 
-  app.post('/api/research/cards', isAuthenticated, async (req: any, res) => {
-    try {
-      const validatedData = insertResearchCardSchema.parse(req.body);
-      const card = await storage.createResearchCard(validatedData);
-      res.json(card);
-    } catch (error: any) {
-      console.error("Error creating card:", error);
-      res.status(400).json({ message: error.message || "Failed to create card" });
-    }
-  });
+  app.post('/api/research/cards', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const validatedData = validateWithZod(insertResearchCardSchema, req.body, 'Invalid card data');
+    const card = await withDatabaseErrorHandling(
+      () => storage.createResearchCard(validatedData),
+      'createResearchCard'
+    );
+    res.json(card);
+  }));
 
-  app.get('/api/research/columns/:columnId/cards', async (req, res) => {
-    try {
-      const cards = await storage.getResearchCardsByColumnId(req.params.columnId);
-      res.json(cards);
-    } catch (error: any) {
-      console.error("Error fetching cards:", error);
-      res.status(500).json({ message: error.message || "Failed to fetch cards" });
-    }
-  });
+  app.get('/api/research/columns/:columnId/cards', asyncHandler(async (req, res) => {
+    const cards = await withDatabaseErrorHandling(
+      () => storage.getResearchCardsByColumnId(req.params.columnId),
+      'getResearchCardsByColumnId'
+    );
+    res.json(cards);
+  }));
 
-  app.put('/api/research/cards/:id/move', isAuthenticated, async (req: any, res) => {
-    try {
-      const { columnId, position } = req.body;
-      const card = await storage.moveResearchCard(req.params.id, columnId, position);
-      res.json(card);
-    } catch (error: any) {
-      console.error("Error moving card:", error);
-      res.status(400).json({ message: error.message || "Failed to move card" });
-    }
-  });
+  app.put('/api/research/cards/:id/move', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const { columnId, position } = req.body;
+    const card = await withDatabaseErrorHandling(
+      () => storage.moveResearchCard(req.params.id, columnId, position),
+      'moveResearchCard'
+    );
+    res.json(card);
+  }));
 
   // Research Report routes
-  app.post('/api/research/reports', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const validatedData = insertResearchReportSchema.parse({ ...req.body, userId });
-      const report = await storage.createResearchReport(validatedData);
-      res.json(report);
-    } catch (error: any) {
-      console.error("Error creating report:", error);
-      res.status(400).json({ message: error.message || "Failed to create report" });
-    }
-  });
+  app.post('/api/research/reports', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const validatedData = validateWithZod(insertResearchReportSchema, { ...req.body, userId }, 'Invalid report data');
+    const report = await withDatabaseErrorHandling(
+      () => storage.createResearchReport(validatedData),
+      'createResearchReport'
+    );
+    res.json(report);
+  }));
 
-  app.get('/api/research/admin/reports', isAuthenticated, isAdmin, async (req, res) => {
-    try {
-      const filters: any = {};
-      if (req.query.status) filters.status = req.query.status as string;
-      filters.limit = parseInt(req.query.limit as string || "50");
-      filters.offset = parseInt(req.query.offset as string || "0");
-      
-      const result = await storage.getResearchReports(filters);
-      res.json(result);
-    } catch (error: any) {
-      console.error("Error fetching reports:", error);
-      res.status(500).json({ message: error.message || "Failed to fetch reports" });
-    }
-  });
+  app.get('/api/research/admin/reports', isAuthenticated, isAdmin, asyncHandler(async (req, res) => {
+    const filters: any = {};
+    if (req.query.status) filters.status = req.query.status as string;
+    filters.limit = parseInt(req.query.limit as string || "50");
+    filters.offset = parseInt(req.query.offset as string || "0");
+    
+    const result = await withDatabaseErrorHandling(
+      () => storage.getResearchReports(filters),
+      'getResearchReports'
+    );
+    res.json(result);
+  }));
 
-  app.put('/api/research/admin/reports/:id', isAuthenticated, isAdmin, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const updated = await storage.updateResearchReport(req.params.id, {
+  app.put('/api/research/admin/reports/:id', isAuthenticated, isAdmin, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const updated = await withDatabaseErrorHandling(
+      () => storage.updateResearchReport(req.params.id, {
         ...req.body,
         reviewedBy: userId,
         reviewedAt: new Date(),
-      });
-      res.json(updated);
-    } catch (error: any) {
-      console.error("Error updating report:", error);
-      res.status(400).json({ message: error.message || "Failed to update report" });
-    }
-  });
+      }),
+      'updateResearchReport'
+    );
+    res.json(updated);
+  }));
 
   // Research User Reputation
-  app.get('/api/research/users/:userId/reputation', async (req, res) => {
-    try {
-      const reputation = await storage.getUserReputation(req.params.userId);
-      res.json({ reputation });
-    } catch (error: any) {
-      console.error("Error fetching reputation:", error);
-      res.status(500).json({ message: error.message || "Failed to fetch reputation" });
-    }
-  });
+  app.get('/api/research/users/:userId/reputation', asyncHandler(async (req, res) => {
+    const reputation = await withDatabaseErrorHandling(
+      () => storage.getUserReputation(req.params.userId),
+      'getUserReputation'
+    );
+    res.json({ reputation });
+  }));
 
   // Research Admin Announcement routes
-  app.get('/api/research/admin/announcements', isAuthenticated, isAdmin, async (req, res) => {
-    try {
-      const announcements = await storage.getAllResearchAnnouncements();
-      res.json(announcements);
-    } catch (error) {
-      console.error("Error fetching Research announcements:", error);
-      res.status(500).json({ message: "Failed to fetch announcements" });
-    }
-  });
+  app.get('/api/research/admin/announcements', isAuthenticated, isAdmin, asyncHandler(async (_req, res) => {
+    const announcements = await withDatabaseErrorHandling(
+      () => storage.getAllResearchAnnouncements(),
+      'getAllResearchAnnouncements'
+    );
+    res.json(announcements);
+  }));
 
-  app.post('/api/research/admin/announcements', isAuthenticated, isAdmin, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const validatedData = insertResearchAnnouncementSchema.parse(req.body);
+  app.post('/api/research/admin/announcements', isAuthenticated, isAdmin, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const validatedData = validateWithZod(insertResearchAnnouncementSchema, req.body, 'Invalid announcement data');
 
-      const announcement = await storage.createResearchAnnouncement(validatedData);
-      
-      await logAdminAction(
-        userId,
-        "create_research_announcement",
-        "announcement",
-        announcement.id,
-        { title: announcement.title, type: announcement.type }
-      );
+    const announcement = await withDatabaseErrorHandling(
+      () => storage.createResearchAnnouncement(validatedData),
+      'createResearchAnnouncement'
+    );
+    
+    await logAdminAction(
+      userId,
+      "create_research_announcement",
+      "announcement",
+      announcement.id,
+      { title: announcement.title, type: announcement.type }
+    );
 
-      res.json(announcement);
-    } catch (error: any) {
-      console.error("Error creating Research announcement:", error);
-      res.status(400).json({ message: error.message || "Failed to create announcement" });
-    }
-  });
+    res.json(announcement);
+  }));
 
-  app.put('/api/research/admin/announcements/:id', isAuthenticated, isAdmin, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const announcement = await storage.updateResearchAnnouncement(req.params.id, req.body);
-      
-      await logAdminAction(
-        userId,
-        "update_research_announcement",
-        "announcement",
-        announcement.id,
-        { title: announcement.title }
-      );
+  app.put('/api/research/admin/announcements/:id', isAuthenticated, isAdmin, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const announcement = await withDatabaseErrorHandling(
+      () => storage.updateResearchAnnouncement(req.params.id, req.body),
+      'updateResearchAnnouncement'
+    );
+    
+    await logAdminAction(
+      userId,
+      "update_research_announcement",
+      "announcement",
+      announcement.id,
+      { title: announcement.title }
+    );
 
-      res.json(announcement);
-    } catch (error: any) {
-      console.error("Error updating Research announcement:", error);
-      res.status(400).json({ message: error.message || "Failed to update announcement" });
-    }
-  });
+    res.json(announcement);
+  }));
 
-  app.delete('/api/research/admin/announcements/:id', isAuthenticated, isAdmin, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const announcement = await storage.deactivateResearchAnnouncement(req.params.id);
-      
-      await logAdminAction(
-        userId,
-        "deactivate_research_announcement",
-        "announcement",
-        announcement.id,
-        { title: announcement.title }
-      );
+  app.delete('/api/research/admin/announcements/:id', isAuthenticated, isAdmin, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const announcement = await withDatabaseErrorHandling(
+      () => storage.deactivateResearchAnnouncement(req.params.id),
+      'deactivateResearchAnnouncement'
+    );
+    
+    await logAdminAction(
+      userId,
+      "deactivate_research_announcement",
+      "announcement",
+      announcement.id,
+      { title: announcement.title }
+    );
 
-      res.json(announcement);
-    } catch (error: any) {
-      console.error("Error deleting Research announcement:", error);
-      res.status(400).json({ message: error.message || "Failed to delete announcement" });
-    }
-  });
+    res.json(announcement);
+  }));
 
   // Link verification helper function (simplified - fetches link and computes fake similarity)
   async function verifyResearchLink(answerId: string, url: string): Promise<void> {
@@ -4131,337 +4018,304 @@ export async function registerRoutes(app: Express): Promise<Server> {
   };
 
   // GentlePulse Announcement routes (public)
-  app.get('/api/gentlepulse/announcements', async (req, res) => {
-    try {
-      const announcements = await storage.getActiveGentlepulseAnnouncements();
-      res.json(announcements);
-    } catch (error) {
-      console.error("Error fetching GentlePulse announcements:", error);
-      res.status(500).json({ message: "Failed to fetch announcements" });
-    }
-  });
+  app.get('/api/gentlepulse/announcements', asyncHandler(async (_req, res) => {
+    const announcements = await withDatabaseErrorHandling(
+      () => storage.getActiveGentlepulseAnnouncements(),
+      'getActiveGentlepulseAnnouncements'
+    );
+    res.json(announcements);
+  }));
 
   // GentlePulse Meditation routes (public)
-  app.get('/api/gentlepulse/meditations', publicListingLimiter, async (req, res) => {
-    try {
-      stripIPAndMetadata(req);
-      
-      const filters: any = {};
-      if (req.query.tag) filters.tag = req.query.tag as string;
-      if (req.query.sortBy) filters.sortBy = req.query.sortBy as string;
-      filters.limit = parseInt(req.query.limit as string || "50");
-      filters.offset = parseInt(req.query.offset as string || "0");
-      
-      const result = await storage.getGentlepulseMeditations(filters);
-      res.json(result);
-    } catch (error: any) {
-      console.error("Error fetching meditations:", error);
-      res.status(500).json({ message: error.message || "Failed to fetch meditations" });
-    }
-  });
+  app.get('/api/gentlepulse/meditations', publicListingLimiter, asyncHandler(async (req, res) => {
+    stripIPAndMetadata(req);
+    
+    const filters: any = {};
+    if (req.query.tag) filters.tag = req.query.tag as string;
+    if (req.query.sortBy) filters.sortBy = req.query.sortBy as string;
+    filters.limit = parseInt(req.query.limit as string || "50");
+    filters.offset = parseInt(req.query.offset as string || "0");
+    
+    const result = await withDatabaseErrorHandling(
+      () => storage.getGentlepulseMeditations(filters),
+      'getGentlepulseMeditations'
+    );
+    res.json(result);
+  }));
 
-  app.get('/api/gentlepulse/meditations/:id', async (req, res) => {
-    try {
-      stripIPAndMetadata(req);
-      const meditation = await storage.getGentlepulseMeditationById(req.params.id);
-      if (!meditation) {
-        return res.status(404).json({ message: "Meditation not found" });
-      }
-      res.json(meditation);
-    } catch (error: any) {
-      console.error("Error fetching meditation:", error);
-      res.status(500).json({ message: error.message || "Failed to fetch meditation" });
+  app.get('/api/gentlepulse/meditations/:id', asyncHandler(async (req, res) => {
+    stripIPAndMetadata(req);
+    const meditation = await withDatabaseErrorHandling(
+      () => storage.getGentlepulseMeditationById(req.params.id),
+      'getGentlepulseMeditationById'
+    );
+    if (!meditation) {
+      throw new NotFoundError('Meditation', req.params.id);
     }
-  });
+    res.json(meditation);
+  }));
 
   // Track meditation play (increment play count)
-  app.post('/api/gentlepulse/meditations/:id/play', async (req, res) => {
-    try {
-      stripIPAndMetadata(req);
-      await storage.incrementGentlepulsePlayCount(req.params.id);
-      res.json({ message: "Play count updated" });
-    } catch (error: any) {
-      console.error("Error updating play count:", error);
-      res.status(500).json({ message: error.message || "Failed to update play count" });
-    }
-  });
+  app.post('/api/gentlepulse/meditations/:id/play', asyncHandler(async (req, res) => {
+    stripIPAndMetadata(req);
+    await withDatabaseErrorHandling(
+      () => storage.incrementGentlepulsePlayCount(req.params.id),
+      'incrementGentlepulsePlayCount'
+    );
+    res.json({ message: "Play count updated" });
+  }));
 
   // GentlePulse Rating routes (public, anonymous)
-  app.post('/api/gentlepulse/ratings', publicItemLimiter, async (req, res) => {
-    try {
-      stripIPAndMetadata(req);
-      
-      const validatedData = insertGentlepulseRatingSchema.parse(req.body);
-      const rating = await storage.createOrUpdateGentlepulseRating(validatedData);
-      
-      console.log(`GentlePulse rating submitted: meditation ${validatedData.meditationId}, rating ${validatedData.rating}`);
-      
-      res.json(rating);
-    } catch (error: any) {
-      console.error("Error creating rating:", error);
-      res.status(400).json({ message: error.message || "Failed to create rating" });
-    }
-  });
+  app.post('/api/gentlepulse/ratings', publicItemLimiter, asyncHandler(async (req, res) => {
+    stripIPAndMetadata(req);
+    
+    const validatedData = validateWithZod(insertGentlepulseRatingSchema, req.body, 'Invalid rating data');
+    const rating = await withDatabaseErrorHandling(
+      () => storage.createOrUpdateGentlepulseRating(validatedData),
+      'createOrUpdateGentlepulseRating'
+    );
+    
+    console.log(`GentlePulse rating submitted: meditation ${validatedData.meditationId}, rating ${validatedData.rating}`);
+    
+    res.json(rating);
+  }));
 
-  app.get('/api/gentlepulse/meditations/:id/ratings', async (req, res) => {
-    try {
-      stripIPAndMetadata(req);
-      const ratings = await storage.getGentlepulseRatingsByMeditationId(req.params.id);
-      // Return only aggregated data, not individual ratings
-      const average = ratings.length > 0 
-        ? ratings.reduce((sum, r) => sum + r.rating, 0) / ratings.length 
-        : 0;
-      res.json({ average: Number(average.toFixed(2)), count: ratings.length });
-    } catch (error: any) {
-      console.error("Error fetching ratings:", error);
-      res.status(500).json({ message: error.message || "Failed to fetch ratings" });
-    }
-  });
+  app.get('/api/gentlepulse/meditations/:id/ratings', asyncHandler(async (req, res) => {
+    stripIPAndMetadata(req);
+    const ratings = await withDatabaseErrorHandling(
+      () => storage.getGentlepulseRatingsByMeditationId(req.params.id),
+      'getGentlepulseRatingsByMeditationId'
+    );
+    // Return only aggregated data, not individual ratings
+    const average = ratings.length > 0 
+      ? ratings.reduce((sum, r) => sum + r.rating, 0) / ratings.length 
+      : 0;
+    res.json({ average: Number(average.toFixed(2)), count: ratings.length });
+  }));
 
   // GentlePulse Mood Check routes (public, anonymous)
-  app.post('/api/gentlepulse/mood', publicItemLimiter, async (req, res) => {
-    try {
-      stripIPAndMetadata(req);
-      
-      const validatedData = insertGentlepulseMoodCheckSchema.parse({
-        ...req.body,
-        date: new Date().toISOString().split('T')[0], // Today's date
-      });
-      
-      const moodCheck = await storage.createGentlepulseMoodCheck(validatedData);
-      
-      // Check for suicide prevention trigger (3+ extremely negative moods in 7 days)
-      const recentMoods = await storage.getGentlepulseMoodChecksByClientId(validatedData.clientId, 7);
-      const extremelyNegative = recentMoods.filter(m => m.moodValue === 1).length;
-      
-      console.log(`GentlePulse mood check submitted: client ${validatedData.clientId}, mood ${validatedData.moodValue}`);
-      
-      res.json({
-        ...moodCheck,
-        showSafetyMessage: extremelyNegative >= 3,
-      });
-    } catch (error: any) {
-      console.error("Error creating mood check:", error);
-      res.status(400).json({ message: error.message || "Failed to create mood check" });
-    }
-  });
+  app.post('/api/gentlepulse/mood', publicItemLimiter, asyncHandler(async (req, res) => {
+    stripIPAndMetadata(req);
+    
+    const validatedData = validateWithZod(insertGentlepulseMoodCheckSchema, {
+      ...req.body,
+      date: new Date().toISOString().split('T')[0], // Today's date
+    }, 'Invalid mood check data');
+    
+    const moodCheck = await withDatabaseErrorHandling(
+      () => storage.createGentlepulseMoodCheck(validatedData),
+      'createGentlepulseMoodCheck'
+    );
+    
+    // Check for suicide prevention trigger (3+ extremely negative moods in 7 days)
+    const recentMoods = await withDatabaseErrorHandling(
+      () => storage.getGentlepulseMoodChecksByClientId(validatedData.clientId, 7),
+      'getGentlepulseMoodChecksByClientId'
+    );
+    const extremelyNegative = recentMoods.filter(m => m.moodValue === 1).length;
+    
+    console.log(`GentlePulse mood check submitted: client ${validatedData.clientId}, mood ${validatedData.moodValue}`);
+    
+    res.json({
+      ...moodCheck,
+      showSafetyMessage: extremelyNegative >= 3,
+    });
+  }));
 
   // Check if mood check should be shown (once every 7 days)
-  app.get('/api/gentlepulse/mood/check-eligible', async (req, res) => {
-    try {
-      const clientId = req.query.clientId as string;
-      if (!clientId) {
-        return res.json({ eligible: false });
-      }
-
-      const recentMoods = await storage.getGentlepulseMoodChecksByClientId(clientId, 7);
-      const lastMood = recentMoods[0];
-      
-      if (!lastMood) {
-        return res.json({ eligible: true });
-      }
-
-      const daysSinceLastMood = (Date.now() - new Date(lastMood.createdAt).getTime()) / (1000 * 60 * 60 * 24);
-      res.json({ eligible: daysSinceLastMood >= 7 });
-    } catch (error: any) {
-      console.error("Error checking mood eligibility:", error);
-      res.status(500).json({ message: error.message || "Failed to check eligibility" });
+  app.get('/api/gentlepulse/mood/check-eligible', asyncHandler(async (req, res) => {
+    const clientId = req.query.clientId as string;
+    if (!clientId) {
+      return res.json({ eligible: false });
     }
-  });
+
+    const recentMoods = await withDatabaseErrorHandling(
+      () => storage.getGentlepulseMoodChecksByClientId(clientId, 7),
+      'getGentlepulseMoodChecksByClientId'
+    );
+    const lastMood = recentMoods[0];
+    
+    if (!lastMood) {
+      return res.json({ eligible: true });
+    }
+
+    const daysSinceLastMood = (Date.now() - new Date(lastMood.createdAt).getTime()) / (1000 * 60 * 60 * 24);
+    res.json({ eligible: daysSinceLastMood >= 7 });
+  }));
 
   // GentlePulse Favorites routes (public, anonymous)
-  app.post('/api/gentlepulse/favorites', async (req, res) => {
-    try {
-      stripIPAndMetadata(req);
-      const validatedData = insertGentlepulseFavoriteSchema.parse(req.body);
-      const favorite = await storage.createGentlepulseFavorite(validatedData);
-      res.json(favorite);
-    } catch (error: any) {
-      console.error("Error creating favorite:", error);
-      res.status(400).json({ message: error.message || "Failed to create favorite" });
-    }
-  });
+  app.post('/api/gentlepulse/favorites', asyncHandler(async (req, res) => {
+    stripIPAndMetadata(req);
+    const validatedData = validateWithZod(insertGentlepulseFavoriteSchema, req.body, 'Invalid favorite data');
+    const favorite = await withDatabaseErrorHandling(
+      () => storage.createGentlepulseFavorite(validatedData),
+      'createGentlepulseFavorite'
+    );
+    res.json(favorite);
+  }));
 
-  app.delete('/api/gentlepulse/favorites/:meditationId', async (req, res) => {
-    try {
-      stripIPAndMetadata(req);
-      const clientId = req.query.clientId as string;
-      if (!clientId) {
-        return res.status(400).json({ message: "clientId required" });
-      }
-      await storage.deleteGentlepulseFavorite(clientId, req.params.meditationId);
-      res.json({ message: "Favorite removed" });
-    } catch (error: any) {
-      console.error("Error deleting favorite:", error);
-      res.status(400).json({ message: error.message || "Failed to delete favorite" });
+  app.delete('/api/gentlepulse/favorites/:meditationId', asyncHandler(async (req, res) => {
+    stripIPAndMetadata(req);
+    const clientId = req.query.clientId as string;
+    if (!clientId) {
+      throw new ValidationError("clientId required");
     }
-  });
+    await withDatabaseErrorHandling(
+      () => storage.deleteGentlepulseFavorite(clientId, req.params.meditationId),
+      'deleteGentlepulseFavorite'
+    );
+    res.json({ message: "Favorite removed" });
+  }));
 
-  app.get('/api/gentlepulse/favorites', async (req, res) => {
-    try {
-      stripIPAndMetadata(req);
-      const clientId = req.query.clientId as string;
-      if (!clientId) {
-        return res.json([]);
-      }
-      const favorites = await storage.getGentlepulseFavoritesByClientId(clientId);
-      res.json(favorites.map(f => f.meditationId));
-    } catch (error: any) {
-      console.error("Error fetching favorites:", error);
-      res.status(500).json({ message: error.message || "Failed to fetch favorites" });
+  app.get('/api/gentlepulse/favorites', asyncHandler(async (req, res) => {
+    stripIPAndMetadata(req);
+    const clientId = req.query.clientId as string;
+    if (!clientId) {
+      return res.json([]);
     }
-  });
+    const favorites = await withDatabaseErrorHandling(
+      () => storage.getGentlepulseFavoritesByClientId(clientId),
+      'getGentlepulseFavoritesByClientId'
+    );
+    res.json(favorites.map(f => f.meditationId));
+  }));
 
-  app.get('/api/gentlepulse/favorites/check', async (req, res) => {
-    try {
-      stripIPAndMetadata(req);
-      const clientId = req.query.clientId as string;
-      const meditationId = req.query.meditationId as string;
-      if (!clientId || !meditationId) {
-        return res.json({ isFavorite: false });
-      }
-      const isFavorite = await storage.isGentlepulseFavorite(clientId, meditationId);
-      res.json({ isFavorite });
-    } catch (error: any) {
-      console.error("Error checking favorite:", error);
-      res.status(500).json({ message: error.message || "Failed to check favorite" });
+  app.get('/api/gentlepulse/favorites/check', asyncHandler(async (req, res) => {
+    stripIPAndMetadata(req);
+    const clientId = req.query.clientId as string;
+    const meditationId = req.query.meditationId as string;
+    if (!clientId || !meditationId) {
+      return res.json({ isFavorite: false });
     }
-  });
+    const isFavorite = await withDatabaseErrorHandling(
+      () => storage.isGentlepulseFavorite(clientId, meditationId),
+      'isGentlepulseFavorite'
+    );
+    res.json({ isFavorite });
+  }));
 
   // GentlePulse Admin routes
-  app.post('/api/gentlepulse/admin/meditations', isAuthenticated, isAdmin, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const body = req.body;
-      
-      if (typeof body.tags === 'string') {
-        try {
-          body.tags = JSON.parse(body.tags);
-        } catch (e) {
-          body.tags = [];
-        }
+  app.post('/api/gentlepulse/admin/meditations', isAuthenticated, isAdmin, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const body = req.body;
+    
+    if (typeof body.tags === 'string') {
+      try {
+        body.tags = JSON.parse(body.tags);
+      } catch (e) {
+        body.tags = [];
       }
-
-      const validatedData = insertGentlepulseMeditationSchema.parse(body);
-      const meditation = await storage.createGentlepulseMeditation(validatedData);
-      
-      await logAdminAction(
-        userId,
-        "create_gentlepulse_meditation",
-        "meditation",
-        meditation.id,
-        { title: meditation.title }
-      );
-
-      res.json(meditation);
-    } catch (error: any) {
-      console.error("Error creating meditation:", error);
-      res.status(400).json({ message: error.message || "Failed to create meditation" });
     }
-  });
 
-  app.put('/api/gentlepulse/admin/meditations/:id', isAuthenticated, isAdmin, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const body = req.body;
-      
-      if (typeof body.tags === 'string') {
-        try {
-          body.tags = JSON.parse(body.tags);
-        } catch (e) {
-          body.tags = [];
-        }
+    const validatedData = validateWithZod(insertGentlepulseMeditationSchema, body, 'Invalid meditation data');
+    const meditation = await withDatabaseErrorHandling(
+      () => storage.createGentlepulseMeditation(validatedData),
+      'createGentlepulseMeditation'
+    );
+    
+    await logAdminAction(
+      userId,
+      "create_gentlepulse_meditation",
+      "meditation",
+      meditation.id,
+      { title: meditation.title }
+    );
+
+    res.json(meditation);
+  }));
+
+  app.put('/api/gentlepulse/admin/meditations/:id', isAuthenticated, isAdmin, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const body = req.body;
+    
+    if (typeof body.tags === 'string') {
+      try {
+        body.tags = JSON.parse(body.tags);
+      } catch (e) {
+        body.tags = [];
       }
-
-      const meditation = await storage.updateGentlepulseMeditation(req.params.id, body);
-      
-      await logAdminAction(
-        userId,
-        "update_gentlepulse_meditation",
-        "meditation",
-        meditation.id,
-        { title: meditation.title }
-      );
-
-      res.json(meditation);
-    } catch (error: any) {
-      console.error("Error updating meditation:", error);
-      res.status(400).json({ message: error.message || "Failed to update meditation" });
     }
-  });
+
+    const meditation = await withDatabaseErrorHandling(
+      () => storage.updateGentlepulseMeditation(req.params.id, body),
+      'updateGentlepulseMeditation'
+    );
+    
+    await logAdminAction(
+      userId,
+      "update_gentlepulse_meditation",
+      "meditation",
+      meditation.id,
+      { title: meditation.title }
+    );
+
+    res.json(meditation);
+  }));
 
   // GentlePulse Admin Announcement routes
-  app.get('/api/gentlepulse/admin/announcements', isAuthenticated, isAdmin, async (req, res) => {
-    try {
-      const announcements = await storage.getAllGentlepulseAnnouncements();
-      res.json(announcements);
-    } catch (error) {
-      console.error("Error fetching GentlePulse announcements:", error);
-      res.status(500).json({ message: "Failed to fetch announcements" });
-    }
-  });
+  app.get('/api/gentlepulse/admin/announcements', isAuthenticated, isAdmin, asyncHandler(async (_req, res) => {
+    const announcements = await withDatabaseErrorHandling(
+      () => storage.getAllGentlepulseAnnouncements(),
+      'getAllGentlepulseAnnouncements'
+    );
+    res.json(announcements);
+  }));
 
-  app.post('/api/gentlepulse/admin/announcements', isAuthenticated, isAdmin, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const validatedData = insertGentlepulseAnnouncementSchema.parse(req.body);
+  app.post('/api/gentlepulse/admin/announcements', isAuthenticated, isAdmin, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const validatedData = validateWithZod(insertGentlepulseAnnouncementSchema, req.body, 'Invalid announcement data');
 
-      const announcement = await storage.createGentlepulseAnnouncement(validatedData);
-      
-      await logAdminAction(
-        userId,
-        "create_gentlepulse_announcement",
-        "announcement",
-        announcement.id,
-        { title: announcement.title, type: announcement.type }
-      );
+    const announcement = await withDatabaseErrorHandling(
+      () => storage.createGentlepulseAnnouncement(validatedData),
+      'createGentlepulseAnnouncement'
+    );
+    
+    await logAdminAction(
+      userId,
+      "create_gentlepulse_announcement",
+      "announcement",
+      announcement.id,
+      { title: announcement.title, type: announcement.type }
+    );
 
-      res.json(announcement);
-    } catch (error: any) {
-      console.error("Error creating GentlePulse announcement:", error);
-      res.status(400).json({ message: error.message || "Failed to create announcement" });
-    }
-  });
+    res.json(announcement);
+  }));
 
-  app.put('/api/gentlepulse/admin/announcements/:id', isAuthenticated, isAdmin, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const announcement = await storage.updateGentlepulseAnnouncement(req.params.id, req.body);
-      
-      await logAdminAction(
-        userId,
-        "update_gentlepulse_announcement",
-        "announcement",
-        announcement.id,
-        { title: announcement.title }
-      );
+  app.put('/api/gentlepulse/admin/announcements/:id', isAuthenticated, isAdmin, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const announcement = await withDatabaseErrorHandling(
+      () => storage.updateGentlepulseAnnouncement(req.params.id, req.body),
+      'updateGentlepulseAnnouncement'
+    );
+    
+    await logAdminAction(
+      userId,
+      "update_gentlepulse_announcement",
+      "announcement",
+      announcement.id,
+      { title: announcement.title }
+    );
 
-      res.json(announcement);
-    } catch (error: any) {
-      console.error("Error updating GentlePulse announcement:", error);
-      res.status(400).json({ message: error.message || "Failed to update announcement" });
-    }
-  });
+    res.json(announcement);
+  }));
 
-  app.delete('/api/gentlepulse/admin/announcements/:id', isAuthenticated, isAdmin, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const announcement = await storage.deactivateGentlepulseAnnouncement(req.params.id);
-      
-      await logAdminAction(
-        userId,
-        "deactivate_gentlepulse_announcement",
-        "announcement",
-        announcement.id,
-        { title: announcement.title }
-      );
+  app.delete('/api/gentlepulse/admin/announcements/:id', isAuthenticated, isAdmin, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const announcement = await withDatabaseErrorHandling(
+      () => storage.deactivateGentlepulseAnnouncement(req.params.id),
+      'deactivateGentlepulseAnnouncement'
+    );
+    
+    await logAdminAction(
+      userId,
+      "deactivate_gentlepulse_announcement",
+      "announcement",
+      announcement.id,
+      { title: announcement.title }
+    );
 
-      res.json(announcement);
-    } catch (error: any) {
-      console.error("Error deleting GentlePulse announcement:", error);
-      res.status(400).json({ message: error.message || "Failed to delete announcement" });
-    }
-  });
+    res.json(announcement);
+  }));
 
   // ========================================
   // LOSTMAIL ROUTES
@@ -4507,164 +4361,170 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }));
 
   // LostMail Announcement routes (public)
-  app.get('/api/lostmail/announcements', async (req, res) => {
-    try {
-      const announcements = await storage.getActiveLostmailAnnouncements();
-      res.json(announcements);
-    } catch (error) {
-      console.error("Error fetching LostMail announcements:", error);
-      res.status(500).json({ message: "Failed to fetch announcements" });
-    }
-  });
+  app.get('/api/lostmail/announcements', asyncHandler(async (_req, res) => {
+    const announcements = await withDatabaseErrorHandling(
+      () => storage.getActiveLostmailAnnouncements(),
+      'getActiveLostmailAnnouncements'
+    );
+    res.json(announcements);
+  }));
 
   // LostMail Incident routes
-  app.post('/api/lostmail/incidents', async (req, res) => {
-    try {
-      // Parse photos array if present (from JSON string)
-      const body = req.body;
-      if (typeof body.photos === 'string') {
-        try {
-          body.photos = JSON.parse(body.photos);
-        } catch (e) {
-          body.photos = null;
-        }
+  app.post('/api/lostmail/incidents', asyncHandler(async (req, res) => {
+    // Parse photos array if present (from JSON string)
+    const body = req.body;
+    if (typeof body.photos === 'string') {
+      try {
+        body.photos = JSON.parse(body.photos);
+      } catch (e) {
+        body.photos = null;
       }
-      if (Array.isArray(body.photos)) {
-        body.photos = JSON.stringify(body.photos);
-      }
-
-      const validatedData = insertLostmailIncidentSchema.parse(body);
-      const incident = await storage.createLostmailIncident(validatedData);
-      
-      console.log(`LostMail incident created: ${incident.id} by ${incident.reporterEmail}`);
-      
-      res.json(incident);
-    } catch (error: any) {
-      console.error("Error creating LostMail incident:", error);
-      res.status(400).json({ message: error.message || "Failed to create incident" });
     }
-  });
-
-  app.get('/api/lostmail/incidents', async (req, res) => {
-    try {
-      const email = req.query.email as string;
-      
-      if (email) {
-        // User lookup by email
-        const incidents = await storage.getLostmailIncidentsByEmail(email);
-        res.json(incidents);
-      } else if (isAdmin(req)) {
-        // Admin list with filters
-        const filters: any = {};
-        if (req.query.incidentType) filters.incidentType = req.query.incidentType as string;
-        if (req.query.status) filters.status = req.query.status as string;
-        if (req.query.severity) filters.severity = req.query.severity as string;
-        if (req.query.dateFrom) filters.dateFrom = new Date(req.query.dateFrom as string);
-        if (req.query.dateTo) filters.dateTo = new Date(req.query.dateTo as string);
-        if (req.query.search) filters.search = req.query.search as string;
-        filters.limit = parseInt(req.query.limit as string || "50");
-        filters.offset = parseInt(req.query.offset as string || "0");
-        
-        const result = await storage.getLostmailIncidents(filters);
-        res.json(result);
-      } else {
-        res.status(401).json({ message: "Unauthorized" });
-      }
-    } catch (error: any) {
-      console.error("Error fetching LostMail incidents:", error);
-      res.status(500).json({ message: error.message || "Failed to fetch incidents" });
+    if (Array.isArray(body.photos)) {
+      body.photos = JSON.stringify(body.photos);
     }
-  });
 
-  app.get('/api/lostmail/incidents/:id', async (req, res) => {
-    try {
-      const incident = await storage.getLostmailIncidentById(req.params.id);
-      if (!incident) {
-        return res.status(404).json({ message: "Incident not found" });
-      }
+    const validatedData = validateWithZod(insertLostmailIncidentSchema, body, 'Invalid incident data');
+    const incident = await withDatabaseErrorHandling(
+      () => storage.createLostmailIncident(validatedData),
+      'createLostmailIncident'
+    );
+    
+    console.log(`LostMail incident created: ${incident.id} by ${incident.reporterEmail}`);
+    
+    res.json(incident);
+  }));
+
+  app.get('/api/lostmail/incidents', asyncHandler(async (req, res) => {
+    const email = req.query.email as string;
+    
+    if (email) {
+      // User lookup by email
+      const incidents = await withDatabaseErrorHandling(
+        () => storage.getLostmailIncidentsByEmail(email),
+        'getLostmailIncidentsByEmail'
+      );
+      res.json(incidents);
+    } else if (isAdmin(req)) {
+      // Admin list with filters
+      const filters: any = {};
+      if (req.query.incidentType) filters.incidentType = req.query.incidentType as string;
+      if (req.query.status) filters.status = req.query.status as string;
+      if (req.query.severity) filters.severity = req.query.severity as string;
+      if (req.query.dateFrom) filters.dateFrom = new Date(req.query.dateFrom as string);
+      if (req.query.dateTo) filters.dateTo = new Date(req.query.dateTo as string);
+      if (req.query.search) filters.search = req.query.search as string;
+      filters.limit = parseInt(req.query.limit as string || "50");
+      filters.offset = parseInt(req.query.offset as string || "0");
       
-      // Only admins or the reporter can view details
-      const email = req.query.email as string;
-      if (!isAdmin(req) && incident.reporterEmail !== email) {
-        return res.status(403).json({ message: "Forbidden" });
-      }
-      
-      res.json(incident);
-    } catch (error: any) {
-      console.error("Error fetching LostMail incident:", error);
-      res.status(500).json({ message: error.message || "Failed to fetch incident" });
+      const result = await withDatabaseErrorHandling(
+        () => storage.getLostmailIncidents(filters),
+        'getLostmailIncidents'
+      );
+      res.json(result);
+    } else {
+      throw new UnauthorizedError("Unauthorized");
     }
-  });
+  }));
 
-  app.put('/api/lostmail/incidents/:id', isAuthenticated, isAdmin, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const incidentId = req.params.id;
-      const updateData = req.body;
-      
-      // Get old incident to track status changes
-      const oldIncident = await storage.getLostmailIncidentById(incidentId);
-      if (!oldIncident) {
-        return res.status(404).json({ message: "Incident not found" });
-      }
-      
-      // Get admin user info
-      const adminUser = await storage.getUser(userId);
-      const adminName = adminUser ? `${adminUser.firstName} ${adminUser.lastName}` : "Admin";
-      
-      // Track status change in audit trail
-      if (updateData.status && updateData.status !== oldIncident.status) {
-        await storage.createLostmailAuditTrailEntry({
+  app.get('/api/lostmail/incidents/:id', asyncHandler(async (req, res) => {
+    const incident = await withDatabaseErrorHandling(
+      () => storage.getLostmailIncidentById(req.params.id),
+      'getLostmailIncidentById'
+    );
+    if (!incident) {
+      throw new NotFoundError('Incident', req.params.id);
+    }
+    
+    // Only admins or the reporter can view details
+    const email = req.query.email as string;
+    if (!isAdmin(req) && incident.reporterEmail !== email) {
+      throw new ForbiddenError("Forbidden");
+    }
+    
+    res.json(incident);
+  }));
+
+  app.put('/api/lostmail/incidents/:id', isAuthenticated, isAdmin, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const incidentId = req.params.id;
+    const updateData = req.body;
+    
+    // Get old incident to track status changes
+    const oldIncident = await withDatabaseErrorHandling(
+      () => storage.getLostmailIncidentById(incidentId),
+      'getLostmailIncidentById'
+    );
+    if (!oldIncident) {
+      throw new NotFoundError('Incident', incidentId);
+    }
+    
+    // Get admin user info
+    const adminUser = await withDatabaseErrorHandling(
+      () => storage.getUser(userId),
+      'getUser'
+    );
+    const adminName = adminUser ? `${adminUser.firstName} ${adminUser.lastName}` : "Admin";
+    
+    // Track status change in audit trail
+    if (updateData.status && updateData.status !== oldIncident.status) {
+      await withDatabaseErrorHandling(
+        () => storage.createLostmailAuditTrailEntry({
           incidentId,
           adminName,
           action: "status_change",
           note: `Status changed from ${oldIncident.status} to ${updateData.status}${updateData.note ? `: ${updateData.note}` : ""}`,
-        });
-      }
-      
-      // Track assignment change
-      if (updateData.assignedTo !== undefined && updateData.assignedTo !== oldIncident.assignedTo) {
-        await storage.createLostmailAuditTrailEntry({
+        }),
+        'createLostmailAuditTrailEntry'
+      );
+    }
+    
+    // Track assignment change
+    if (updateData.assignedTo !== undefined && updateData.assignedTo !== oldIncident.assignedTo) {
+      await withDatabaseErrorHandling(
+        () => storage.createLostmailAuditTrailEntry({
           incidentId,
           adminName,
           action: "assigned",
           note: `Assigned to ${updateData.assignedTo || "unassigned"}`,
-        });
-      }
-      
-      // Track note addition
-      if (updateData.note && updateData.note !== "") {
-        await storage.createLostmailAuditTrailEntry({
+        }),
+        'createLostmailAuditTrailEntry'
+      );
+    }
+    
+    // Track note addition
+    if (updateData.note && updateData.note !== "") {
+      await withDatabaseErrorHandling(
+        () => storage.createLostmailAuditTrailEntry({
           incidentId,
           adminName,
           action: "note_added",
           note: updateData.note,
-        });
-      }
-      
-      // Remove note from update data (it's only for audit trail)
-      const { note, ...updateDataWithoutNote } = updateData;
-      
-      const updated = await storage.updateLostmailIncident(incidentId, updateDataWithoutNote);
-      
-      console.log(`LostMail incident ${incidentId} updated by admin ${adminName}`);
-      
-      res.json(updated);
-    } catch (error: any) {
-      console.error("Error updating LostMail incident:", error);
-      res.status(400).json({ message: error.message || "Failed to update incident" });
+        }),
+        'createLostmailAuditTrailEntry'
+      );
     }
-  });
+    
+    // Remove note from update data (it's only for audit trail)
+    const { note, ...updateDataWithoutNote } = updateData;
+    
+    const updated = await withDatabaseErrorHandling(
+      () => storage.updateLostmailIncident(incidentId, updateDataWithoutNote),
+      'updateLostmailIncident'
+    );
+    
+    console.log(`LostMail incident ${incidentId} updated by admin ${adminName}`);
+    
+    res.json(updated);
+  }));
 
-  app.get('/api/lostmail/incidents/:id/audit-trail', isAuthenticated, isAdmin, async (req, res) => {
-    try {
-      const auditTrail = await storage.getLostmailAuditTrailByIncident(req.params.id);
-      res.json(auditTrail);
-    } catch (error: any) {
-      console.error("Error fetching audit trail:", error);
-      res.status(500).json({ message: error.message || "Failed to fetch audit trail" });
-    }
-  });
+  app.get('/api/lostmail/incidents/:id/audit-trail', isAuthenticated, isAdmin, asyncHandler(async (req, res) => {
+    const auditTrail = await withDatabaseErrorHandling(
+      () => storage.getLostmailAuditTrailByIncident(req.params.id),
+      'getLostmailAuditTrailByIncident'
+    );
+    res.json(auditTrail);
+  }));
 
   // File upload endpoint
   app.post('/api/lostmail/upload', async (req, res) => {
@@ -4758,77 +4618,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // LostMail Admin Announcement routes
-  app.get('/api/lostmail/admin/announcements', isAuthenticated, isAdmin, async (req, res) => {
-    try {
-      const announcements = await storage.getAllLostmailAnnouncements();
-      res.json(announcements);
-    } catch (error) {
-      console.error("Error fetching LostMail announcements:", error);
-      res.status(500).json({ message: "Failed to fetch announcements" });
-    }
-  });
+  app.get('/api/lostmail/admin/announcements', isAuthenticated, isAdmin, asyncHandler(async (_req, res) => {
+    const announcements = await withDatabaseErrorHandling(
+      () => storage.getAllLostmailAnnouncements(),
+      'getAllLostmailAnnouncements'
+    );
+    res.json(announcements);
+  }));
 
-  app.post('/api/lostmail/admin/announcements', isAuthenticated, isAdmin, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const validatedData = insertLostmailAnnouncementSchema.parse(req.body);
+  app.post('/api/lostmail/admin/announcements', isAuthenticated, isAdmin, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const validatedData = validateWithZod(insertLostmailAnnouncementSchema, req.body, 'Invalid announcement data');
 
-      const announcement = await storage.createLostmailAnnouncement(validatedData);
-      
-      await logAdminAction(
-        userId,
-        "create_lostmail_announcement",
-        "announcement",
-        announcement.id,
-        { title: announcement.title, type: announcement.type }
-      );
+    const announcement = await withDatabaseErrorHandling(
+      () => storage.createLostmailAnnouncement(validatedData),
+      'createLostmailAnnouncement'
+    );
+    
+    await logAdminAction(
+      userId,
+      "create_lostmail_announcement",
+      "announcement",
+      announcement.id,
+      { title: announcement.title, type: announcement.type }
+    );
 
-      res.json(announcement);
-    } catch (error: any) {
-      console.error("Error creating LostMail announcement:", error);
-      res.status(400).json({ message: error.message || "Failed to create announcement" });
-    }
-  });
+    res.json(announcement);
+  }));
 
-  app.put('/api/lostmail/admin/announcements/:id', isAuthenticated, isAdmin, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const announcement = await storage.updateLostmailAnnouncement(req.params.id, req.body);
-      
-      await logAdminAction(
-        userId,
-        "update_lostmail_announcement",
-        "announcement",
-        announcement.id,
-        { title: announcement.title }
-      );
+  app.put('/api/lostmail/admin/announcements/:id', isAuthenticated, isAdmin, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const announcement = await withDatabaseErrorHandling(
+      () => storage.updateLostmailAnnouncement(req.params.id, req.body),
+      'updateLostmailAnnouncement'
+    );
+    
+    await logAdminAction(
+      userId,
+      "update_lostmail_announcement",
+      "announcement",
+      announcement.id,
+      { title: announcement.title }
+    );
 
-      res.json(announcement);
-    } catch (error: any) {
-      console.error("Error updating LostMail announcement:", error);
-      res.status(400).json({ message: error.message || "Failed to update announcement" });
-    }
-  });
+    res.json(announcement);
+  }));
 
-  app.delete('/api/lostmail/admin/announcements/:id', isAuthenticated, isAdmin, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const announcement = await storage.deactivateLostmailAnnouncement(req.params.id);
-      
-      await logAdminAction(
-        userId,
-        "deactivate_lostmail_announcement",
-        "announcement",
-        announcement.id,
-        { title: announcement.title }
-      );
+  app.delete('/api/lostmail/admin/announcements/:id', isAuthenticated, isAdmin, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const announcement = await withDatabaseErrorHandling(
+      () => storage.deactivateLostmailAnnouncement(req.params.id),
+      'deactivateLostmailAnnouncement'
+    );
+    
+    await logAdminAction(
+      userId,
+      "deactivate_lostmail_announcement",
+      "announcement",
+      announcement.id,
+      { title: announcement.title }
+    );
 
-      res.json(announcement);
-    } catch (error: any) {
-      console.error("Error deleting LostMail announcement:", error);
-      res.status(400).json({ message: error.message || "Failed to delete announcement" });
-    }
-  });
+    res.json(announcement);
+  }));
 
   const httpServer = createServer(app);
   return httpServer;
