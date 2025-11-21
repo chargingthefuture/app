@@ -114,7 +114,7 @@ export function ConditionalClerkProvider({ children }: { children: ReactNode }) 
         signUpUrl={signUpUrl}
         unauthorizedSignInUrl={unauthorizedSignInUrl}
         // Redirect to invite-required page after sign-up (users need to enter invite code)
-        afterSignUpUrl={`${baseUrl}/invite-required`}
+        fallbackRedirectUrl={`${baseUrl}/invite-required`}
         // Redirect to home after sign-in (if they have invite code) or invite-required (if not)
         afterSignInUrl={`${baseUrl}/`}
         appearance={{

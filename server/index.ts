@@ -44,6 +44,7 @@ app.use((req, res, next) => {
   const cspDirectives = [
     "default-src 'self'",
     "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.clerk.accounts.dev https://*.clerk.com https://clerk.app.chargingthefuture.com https://*.app.chargingthefuture.com", // Clerk CDN + custom domain + unsafe-eval needed for Vite dev
+    "worker-src 'self' blob:", // Allow blob: URLs for Clerk workers
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.clerk.accounts.dev https://*.clerk.com https://clerk.app.chargingthefuture.com https://*.app.chargingthefuture.com", // Clerk styles
     "font-src 'self' https://fonts.gstatic.com https://*.clerk.accounts.dev https://*.clerk.com https://clerk.app.chargingthefuture.com https://*.app.chargingthefuture.com", // Clerk fonts
     "img-src 'self' data: https:",
