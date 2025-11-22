@@ -13,7 +13,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import type { TrusttransportProfile } from "@shared/schema";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useLocation } from "wouter";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Car, ExternalLink, Check as CheckIcon } from "lucide-react";
 import { DeleteProfileDialog } from "@/components/delete-profile-dialog";
 import { useExternalLink } from "@/hooks/useExternalLink";
@@ -34,6 +34,7 @@ export default function TrustTransportProfile() {
   const [countryOpen, setCountryOpen] = useState(false);
   const [stateOpen, setStateOpen] = useState(false);
   const { openExternal, ExternalLinkDialog } = useExternalLink();
+  const hasInitializedRef = useRef(false);
 
   const { data: profile, isLoading } = useQuery<TrusttransportProfile | null>({
     queryKey: ["/api/trusttransport/profile"],
@@ -61,7 +62,8 @@ export default function TrustTransportProfile() {
   });
 
   useEffect(() => {
-    if (profile) {
+    if (profile && !hasInitializedRef.current) {
+      hasInitializedRef.current = true;
       form.reset({
         displayName: profile.displayName || "",
         isDriver: profile.isDriver ?? false,
@@ -79,18 +81,21 @@ export default function TrustTransportProfile() {
         signalUrl: profile.signalUrl || "",
         isActive: profile.isActive,
       });
+    } else if (!profile) {
+      // Reset flag when profile is deleted/doesn't exist
+      hasInitializedRef.current = false;
     }
-  }, [profile, form]);
+  }, [profile]); // Only initialize once when profile first loads
 
   const createMutation = useMutation({
     mutationFn: (data: ProfileFormData) =>
       apiRequest("POST", "/api/trusttransport/profile", data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/trusttransport/profile"] });
       toast({
         title: "Profile Created",
         description: "Your TrustTransport profile has been created successfully.",
       });
+      // Navigate immediately, query will refetch on the dashboard
       setLocation("/apps/trusttransport");
     },
     onError: (error: any) => {
@@ -105,12 +110,16 @@ export default function TrustTransportProfile() {
   const updateMutation = useMutation({
     mutationFn: (data: ProfileFormData) =>
       apiRequest("PUT", "/api/trusttransport/profile", data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/trusttransport/profile"] });
+    onSuccess: async () => {
+      // Update form values directly instead of invalidating to prevent re-render loop
       toast({
         title: "Profile Updated",
         description: "Your TrustTransport profile has been updated successfully.",
       });
+      // Invalidate after a delay to allow UI to update first
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ["/api/trusttransport/profile"] });
+      }, 500);
     },
     onError: (error: any) => {
       toast({
