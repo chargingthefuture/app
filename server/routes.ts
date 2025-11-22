@@ -2,7 +2,6 @@ import express, { type Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated, isAdmin, getUserId } from "./auth";
-import { clerkClient } from "@clerk/clerk-sdk-node";
 import { validateCsrfToken, generateCsrfTokenForAdmin } from "./csrf";
 import { publicListingLimiter, publicItemLimiter } from "./rateLimiter";
 import { fingerprintRequests, getSuspiciousPatterns, getSuspiciousPatternsForIP, clearSuspiciousPatterns } from "./antiScraping";
@@ -160,101 +159,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
       const userId = getUserId(req);
-      if (!userId) {
-        console.error("[/api/auth/user] No userId found in request", { auth: req.auth });
-        return res.status(401).json({ message: "Unauthorized: Invalid user ID" });
-      }
-      
-      console.log("[/api/auth/user] Fetching user", { userId });
-      let user = await storage.getUser(userId);
-      
-      // If user not found, try to sync from Clerk (this shouldn't happen, but handle gracefully)
-      if (!user) {
-        console.warn("[/api/auth/user] User not found in database, attempting to sync from Clerk", { userId });
-        try {
-          // Get user from Clerk and sync to DB
-          const clerkUser = await clerkClient.users.getUser(userId);
-          const mappedUser = {
-            sub: clerkUser.id,
-            email: clerkUser.primaryEmailAddress?.emailAddress || clerkUser.emailAddresses?.[0]?.emailAddress || "",
-            first_name: clerkUser.firstName || "",
-            last_name: clerkUser.lastName || "",
-            profile_image_url: clerkUser.imageUrl || null,
-          };
-          
-          if (!mappedUser.sub || !mappedUser.email) {
-            console.error("[/api/auth/user] Invalid Clerk user data", { clerkUser });
-            return res.status(500).json({ message: "Invalid user data from authentication provider" });
-          }
-          
-          // Check if user exists by email (in case they were created with different ID)
-          const existingUserByEmail = await storage.getUserByEmail(mappedUser.email);
-          if (existingUserByEmail) {
-            console.log("[/api/auth/user] Found user by email, updating ID to match Clerk", { 
-              oldId: existingUserByEmail.id, 
-              newId: mappedUser.sub,
-              email: mappedUser.email 
-            });
-            // Update the user's ID to match Clerk ID
-            // Note: This is a special case - normally we'd preserve the ID, but if Clerk ID doesn't match, we need to update it
-            await storage.upsertUser({
-              id: mappedUser.sub, // Use Clerk ID
-              email: mappedUser.email,
-              firstName: existingUserByEmail.firstName || mappedUser.first_name,
-              lastName: existingUserByEmail.lastName || mappedUser.last_name,
-              profileImageUrl: mappedUser.profile_image_url || existingUserByEmail.profileImageUrl,
-              pricingTier: existingUserByEmail.pricingTier,
-              isAdmin: existingUserByEmail.isAdmin, // Preserve admin status
-              subscriptionStatus: existingUserByEmail.subscriptionStatus,
-              inviteCodeUsed: existingUserByEmail.isAdmin ? true : existingUserByEmail.inviteCodeUsed, // Auto-set for admins
-            });
-            user = await storage.getUser(mappedUser.sub);
-          } else {
-            // Create new user
-            console.log("[/api/auth/user] Creating new user from Clerk data", { userId, email: mappedUser.email });
-            const currentTier = await storage.getCurrentPricingTier();
-            const pricingTier = currentTier?.amount || '1.00';
-            
-            await storage.upsertUser({
-              id: mappedUser.sub,
-              email: mappedUser.email,
-              firstName: mappedUser.first_name,
-              lastName: mappedUser.last_name,
-              profileImageUrl: mappedUser.profile_image_url,
-              pricingTier,
-            });
-            user = await storage.getUser(mappedUser.sub);
-          }
-          
-          if (!user) {
-            console.error("[/api/auth/user] Failed to create/find user after sync attempt", { userId });
-            return res.status(500).json({ message: "Failed to sync user from authentication provider" });
-          }
-        } catch (syncError) {
-          console.error("[/api/auth/user] Error syncing user from Clerk:", syncError);
-          return res.status(500).json({ message: "Failed to sync user: " + (syncError instanceof Error ? syncError.message : String(syncError)) });
-        }
-      }
-      
-      // Ensure admins always have inviteCodeUsed set to true (safety check)
-      if (user.isAdmin && !user.inviteCodeUsed) {
-        console.log("[/api/auth/user] Auto-setting inviteCodeUsed for admin", { userId });
-        user = await storage.upsertUser({
-          id: user.id,
-          email: user.email,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          profileImageUrl: user.profileImageUrl,
-          pricingTier: user.pricingTier,
-          isAdmin: user.isAdmin,
-          subscriptionStatus: user.subscriptionStatus,
-          inviteCodeUsed: true, // Auto-set for admins
-        });
-      }
-      
+      const user = await storage.getUser(userId);
       res.json(user);
     } catch (error) {
-      console.error("[/api/auth/user] Error fetching user:", error);
+      console.error("Error fetching user:", error);
       res.status(500).json({ message: "Failed to fetch user" });
     }
   });

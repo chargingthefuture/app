@@ -162,6 +162,7 @@ export default function WeeklyPerformanceReview() {
       });
 
       // Capture the screenshot with simplified options to avoid CSS parsing issues
+      // We'll convert CSS variables to computed values in the onclone callback
       const canvas = await html2canvas(dashboardRef.current, {
         backgroundColor: '#ffffff',
         scale: 1.5,
@@ -171,33 +172,94 @@ export default function WeeklyPerformanceReview() {
         foreignObjectRendering: false,
         removeContainer: false,
         imageTimeout: 30000,
-        // Disable CSS parsing for unsupported features
         cssImageTimeout: 0, // Don't wait for CSS images
-        onclone: (clonedDoc) => {
-          // Remove any style tags that might contain color() functions
-          const styleSheets = Array.from(clonedDoc.styleSheets);
-          styleSheets.forEach((sheet) => {
+        windowWidth: window.innerWidth,
+        windowHeight: window.innerHeight,
+        onclone: (clonedDoc, clonedElement) => {
+          // Convert CSS variables and modern CSS features to static computed values
+          // by applying computed styles as inline styles to avoid CSS parsing issues
+          const originalRoot = dashboardRef.current;
+          if (!originalRoot) return;
+
+          // Helper to recursively get all elements in document order
+          const getAllElements = (root: Element): Element[] => {
+            const elements: Element[] = [root];
+            const children = Array.from(root.children);
+            children.forEach(child => {
+              elements.push(...getAllElements(child));
+            });
+            return elements;
+          };
+
+          const originalElements = getAllElements(originalRoot);
+          const clonedElements = getAllElements(clonedElement as Element);
+
+          // Process each element pair to convert CSS variables to computed values
+          // Use the minimum length to avoid index out of bounds
+          const minLength = Math.min(originalElements.length, clonedElements.length);
+          for (let index = 0; index < minLength; index++) {
+            const originalEl = originalElements[index];
+            const clonedEl = clonedElements[index] as HTMLElement;
+            if (!originalEl || !clonedEl) continue;
+
             try {
-              // Try to access rules - this might fail for external stylesheets
-              const rules = sheet.cssRules || sheet.rules;
-              if (rules) {
-                // Rules are read-only, so we can't modify them
-                // But we can add an override stylesheet
+              const computedStyle = window.getComputedStyle(originalEl);
+
+              // Convert color-related properties (these often use CSS variables)
+              // Using getPropertyValue ensures we get the computed value, not the CSS variable
+              const colorProperties = [
+                'color',
+                'backgroundColor',
+                'borderColor',
+                'borderTopColor',
+                'borderRightColor',
+                'borderBottomColor',
+                'borderLeftColor',
+                'outlineColor',
+              ];
+
+              colorProperties.forEach(prop => {
+                try {
+                  const value = computedStyle.getPropertyValue(prop);
+                  // Only apply if value exists and is not transparent
+                  if (value && value.trim() && 
+                      value !== 'rgba(0, 0, 0, 0)' && 
+                      value !== 'transparent') {
+                    clonedEl.style.setProperty(prop, value, 'important');
+                  }
+                } catch (e) {
+                  // Ignore errors for individual properties
+                }
+              });
+
+              // Convert background color separately (skip images/gradients)
+              try {
+                const bgColor = computedStyle.backgroundColor;
+                if (bgColor && bgColor !== 'rgba(0, 0, 0, 0)' && bgColor !== 'transparent') {
+                  clonedEl.style.setProperty('backgroundColor', bgColor, 'important');
+                }
+              } catch (e) {
+                // Ignore background color errors
+              }
+
+              // Convert border styles
+              try {
+                const borderWidth = computedStyle.borderWidth;
+                const borderStyle = computedStyle.borderStyle;
+                if (borderWidth && borderWidth !== '0px') {
+                  clonedEl.style.borderWidth = borderWidth;
+                  if (borderStyle && borderStyle !== 'none') {
+                    clonedEl.style.borderStyle = borderStyle;
+                  }
+                }
+              } catch (e) {
+                // Ignore border errors
               }
             } catch (e) {
-              // Cross-origin stylesheets can't be accessed
+              // If we can't get computed styles for this element, skip it
+              console.warn('Failed to process element for screenshot:', e);
             }
-          });
-          
-          // Add override stylesheet with standard colors
-          const overrideStyle = clonedDoc.createElement('style');
-          overrideStyle.textContent = `
-            /* Override any problematic CSS color() functions */
-            body, * {
-              /* Use computed colors instead of color() functions */
-            }
-          `;
-          clonedDoc.head.appendChild(overrideStyle);
+          }
         },
       });
 

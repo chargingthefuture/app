@@ -45,15 +45,28 @@ export default function ResearchItemView() {
   });
 
   const voteMutation = useMutation({
-    mutationFn: async (value: 1 | -1) => {
+    mutationFn: async ({ value, answerId }: { value: 1 | -1; answerId?: string }) => {
       return apiRequest("POST", "/api/research/votes", {
-        researchItemId: itemId,
+        researchItemId: answerId ? undefined : itemId,
+        answerId: answerId,
         value,
       });
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: [`/api/research/items/${itemId}`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/research/votes?researchItemId=${itemId}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/research/items/${itemId}/answers`] });
+      if (variables.answerId) {
+        queryClient.invalidateQueries({ queryKey: [`/api/research/votes?answerId=${variables.answerId}`] });
+      } else {
+        queryClient.invalidateQueries({ queryKey: [`/api/research/votes?researchItemId=${itemId}`] });
+      }
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to submit vote",
+        variant: "destructive",
+      });
     },
   });
 
@@ -205,7 +218,7 @@ export default function ResearchItemView() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => voteMutation.mutate(1)}
+                            onClick={() => voteMutation.mutate({ value: 1, answerId: answer.id })}
                             data-testid={`button-upvote-${answer.id}`}
                           >
                             <ArrowUp className="w-5 h-5" />
@@ -214,7 +227,7 @@ export default function ResearchItemView() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => voteMutation.mutate(-1)}
+                            onClick={() => voteMutation.mutate({ value: -1, answerId: answer.id })}
                             data-testid={`button-downvote-${answer.id}`}
                           >
                             <ArrowDown className="w-5 h-5" />

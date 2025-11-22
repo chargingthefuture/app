@@ -59,3 +59,14 @@ To merge changes from the **staging** branch into the **main** branch, you'll ty
    ```bash
    git push origin main
    ```
+
+# Add admin user
+# Basic usage (updates existing user or creates new one with just ID)
+tsx scripts/addAdminUser.ts user_2abc123def
+
+# With email (required when creating new user)
+tsx scripts/addAdminUser.ts user_2abc123def admin@example.com
+
+# With full details
+tsx scripts/addAdminUser.ts user_2abc123def admin@example.com "Admin" "User"
+
