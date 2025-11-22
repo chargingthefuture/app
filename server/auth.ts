@@ -53,31 +53,8 @@ async function upsertUser(clerkUser: any) {
   // Check if user already exists
   const existingUser = await storage.getUser(mappedUser.sub);
   
-  // If user exists and is deleted, restore their account (allow re-registration)
-  if (existingUser && isUserDeleted(existingUser)) {
-    console.log(`[auth] Restoring deleted user account: ${mappedUser.sub}`);
-    // Get current pricing tier for restored account
-    const currentTier = await storage.getCurrentPricingTier();
-    const pricingTier = currentTier?.amount || '1.00';
-    
-    // Restore the account with fresh data from Clerk (fresh start)
-    await storage.upsertUser({
-      id: mappedUser.sub,
-      email: mappedUser.email,
-      firstName: mappedUser.first_name,
-      lastName: mappedUser.last_name,
-      profileImageUrl: mappedUser.profile_image_url,
-      pricingTier, // Use current pricing tier (fresh start)
-      isAdmin: false, // Reset admin status (fresh start)
-      isVerified: false, // Reset verification (fresh start)
-      subscriptionStatus: 'active', // Reset subscription status (fresh start)
-      inviteCodeUsed: null, // Reset invite code (they'll need to use a new one)
-    });
-    return; // Account restored, exit early
-  }
-  
   if (existingUser) {
-    // For existing active users, only update profile information, preserve pricing tier
+    // For existing users, only update profile information, preserve pricing tier
     // Note: Admin users should have inviteCodeUsed set via the addAdminUser script
     // We preserve the existing inviteCodeUsed value here
     
@@ -118,23 +95,29 @@ export async function setupAuth(app: Express) {
     // After Clerk verifies auth, we sync user to our DB
     if (req.auth?.userId) {
       try {
-        // Get full user details from Clerk
-        const clerkUser = await clerkClient.users.getUser(req.auth.userId);
-        
-        // Upsert user in our database (this will restore deleted accounts automatically)
-        await upsertUser(clerkUser);
-        
-        // After upsert, check if user is still deleted (shouldn't happen after restore, but safety check)
-        const user = await storage.getUser(req.auth.userId);
-        if (user && isUserDeleted(user)) {
-          // User is still deleted after upsert - this shouldn't happen, but block access
+        // Check if user is deleted before syncing
+        const existingUser = await storage.getUser(req.auth.userId);
+        if (existingUser && isUserDeleted(existingUser)) {
+          // User account has been deleted - block authentication
           return res.status(403).json({ 
             message: "This account has been deleted. Please contact support if you believe this is an error." 
           });
         }
+        
+        // Get full user details from Clerk
+        const clerkUser = await clerkClient.users.getUser(req.auth.userId);
+        
+        // Upsert user in our database
+        await upsertUser(clerkUser);
       } catch (error: any) {
         console.error("Error syncing Clerk user to database:", error);
-        // Don't block the request for sync failures - let the route handlers deal with it
+        // If it's a deleted user error, block the request
+        if (error.message?.includes("deleted")) {
+          return res.status(403).json({ 
+            message: error.message || "This account has been deleted. Please contact support if you believe this is an error." 
+          });
+        }
+        // Don't block the request for other sync failures
       }
     }
     next();
