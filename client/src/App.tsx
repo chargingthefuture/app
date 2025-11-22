@@ -15,6 +15,7 @@ import Landing from "@/pages/landing";
 import Home from "@/pages/home";
 import Services from "@/pages/services";
 import UserPayments from "@/pages/user-payments";
+import DeleteAccount from "@/pages/account/delete";
 import InviteRequired from "@/pages/invite-required";
 import AdminDashboard from "@/pages/admin/dashboard";
 import AdminUsers from "@/pages/admin/users";
@@ -206,6 +207,11 @@ function Router() {
       <Route path="/payments">
         <ProtectedRoute>
           <UserPayments />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/account/delete">
+        <ProtectedRoute>
+          <DeleteAccount />
         </ProtectedRoute>
       </Route>
       <Route path="/admin">

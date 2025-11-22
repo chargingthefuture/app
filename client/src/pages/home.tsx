@@ -190,6 +190,23 @@ export default function Home() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Account Management */}
+      <Card className="border-destructive/20">
+        <CardHeader>
+          <CardTitle className="text-lg">Account Management</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground mb-4">
+            Permanently delete your entire account from all mini-apps. This action cannot be undone.
+          </p>
+          <Link href="/account/delete">
+            <Button variant="destructive" className="w-full" data-testid="button-delete-account">
+              Delete My Account
+            </Button>
+          </Link>
+        </CardContent>
+      </Card>
     </div>
   );
 }

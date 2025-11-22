@@ -14,7 +14,7 @@ import type { GentlepulseMeditation } from "@shared/schema";
 export default function GentlePulseLibrary() {
   const clientId = useClientId();
   const [sortBy, setSortBy] = useState("newest");
-  const [tagFilter, setTagFilter] = useState<string>("");
+  const [tagFilter, setTagFilter] = useState<string>("all");
   const [showMoodDialog, setShowMoodDialog] = useState(false);
   const [showSafetyMessage, setShowSafetyMessage] = useState(false);
   const [page, setPage] = useState(0);
@@ -38,8 +38,11 @@ export default function GentlePulseLibrary() {
     }
   }, [moodEligible]);
 
+  // Convert "all" to empty string for API call
+  const tagFilterForApi = tagFilter === "all" ? "" : tagFilter;
+
   const { data, isLoading } = useQuery<{ meditations: GentlepulseMeditation[]; total: number }>({
-    queryKey: [`/api/gentlepulse/meditations?sortBy=${sortBy}&tag=${tagFilter}&limit=${limit}&offset=${page * limit}`],
+    queryKey: [`/api/gentlepulse/meditations?sortBy=${sortBy}&tag=${tagFilterForApi}&limit=${limit}&offset=${page * limit}`],
   });
 
   const meditations = data?.meditations || [];
@@ -107,7 +110,7 @@ export default function GentlePulseLibrary() {
             <SelectValue placeholder="All Tags" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All Tags</SelectItem>
+            <SelectItem value="all">All Tags</SelectItem>
             {Array.from(allTags).map((tag) => (
               <SelectItem key={tag} value={tag}>
                 {tag}

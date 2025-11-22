@@ -249,6 +249,32 @@ class DatabaseStorage implements IStorage {
 }
 ```
 
+**🚨 CRITICAL - Account Deletion Integration:**
+
+When adding a new mini-app, you MUST ensure it's included in the complete account deletion process. The `deleteUserAccount()` method in `DatabaseStorage` class automatically calls all profile deletion methods. To add your new mini-app:
+
+1. **Add your profile deletion method to the account deletion process** in `server/storage.ts`:
+   - Find the `deleteUserAccount()` method (around line 5278+)
+   - Add your mini-app's deletion method to the `profileDeletions` array:
+   ```typescript
+   const profileDeletions = [
+     { name: "SupportMatch", deleteFn: () => this.deleteSupportMatchProfile(userId, reason).catch(...) },
+     { name: "LightHouse", deleteFn: () => this.deleteLighthouseProfile(userId, reason).catch(...) },
+     // ... existing apps ...
+     { name: "MyApp", deleteFn: () => this.deleteMyAppProfile(userId, reason).catch(err => console.warn(`Failed to delete MyApp profile: ${err.message}`)) },
+   ];
+   ```
+
+2. **Verify anonymization coverage:**
+   - Ensure all tables that reference `users.id` are handled
+   - Check if your mini-app has any additional user-related data that needs anonymization
+   - If your mini-app has user-related data beyond the profile (e.g., research items, ratings, etc.), add anonymization in `deleteUserAccount()` method
+
+3. **Test complete account deletion:**
+   - Test that your mini-app profile is deleted when `deleteUserAccount()` is called
+   - Test that all related data is properly anonymized
+   - Verify the deletion is logged correctly
+
 #### **Step 3: API Routes (`server/routes.ts`)**
 
 1. Import schemas at top:
@@ -1812,6 +1838,93 @@ When adding a new feature, ensure:
 
 ---
 
+## 🗑️ Account Deletion System
+
+The platform supports two levels of deletion:
+
+### **1. Mini-App Profile Deletion (Individual)**
+
+Users can delete their profile from a specific mini-app without affecting other mini-apps. This is handled at the mini-app level.
+
+**Implementation:**
+- Each mini-app has a `delete{AppName}Profile(userId, reason?)` method in `server/storage.ts`
+- Profile deletion anonymizes related data (messages, requests, partnerships, etc.)
+- Deletion is logged via `logProfileDeletion()` for audit purposes
+- Frontend uses `DeleteProfileDialog` component for confirmation
+
+**Example:** User deletes SupportMatch profile but keeps LightHouse profile active.
+
+### **2. Complete Account Deletion (All Mini-Apps)**
+
+Users can delete their entire account, which removes them from ALL mini-apps and anonymizes all platform data.
+
+**Implementation Location:**
+- **Storage Method:** `deleteUserAccount(userId, reason?)` in `server/storage.ts`
+- **API Endpoint:** `DELETE /api/account/delete` in `server/routes.ts`
+- **UI Page:** `client/src/pages/account/delete.tsx`
+- **Script:** `scripts/deleteUserAccount.ts` (for manual admin deletion)
+
+**Process:**
+1. Deletes all mini-app profiles (calls each `delete{AppName}Profile()` method)
+2. Anonymizes platform-wide user data:
+   - NPS survey responses
+   - Payment records (both as user and recorder)
+   - Invite codes created by user
+   - Admin action logs (if user was admin)
+   - Research items and contributions
+3. Anonymizes the user record itself (email → null, name → "Deleted User")
+4. Logs the complete account deletion
+
+**🚨 REQUIRED When Adding New Mini-App:**
+
+When you add a new mini-app, you MUST:
+
+1. **Add to `deleteUserAccount()` method** in `server/storage.ts`:
+   ```typescript
+   const profileDeletions = [
+     // ... existing apps ...
+     { 
+       name: "MyApp", 
+       deleteFn: () => this.deleteMyAppProfile(userId, reason)
+         .catch(err => console.warn(`Failed to delete MyApp profile: ${err.message}`)) 
+     },
+   ];
+   ```
+
+2. **Verify all user-related data is handled:**
+   - Check if your mini-app has tables that reference `users.id` directly
+   - If yes, ensure they're either:
+     - Handled by your profile deletion method (preferred)
+     - Added to the anonymization section in `deleteUserAccount()` if they're platform-wide
+
+3. **Test complete account deletion:**
+   - Create a test user with profiles in multiple mini-apps including your new one
+   - Run `deleteUserAccount()` via script or API
+   - Verify your mini-app profile is deleted
+   - Verify all related data is anonymized
+   - Check deletion logs
+
+**Manual Deletion Script:**
+
+For admin use when users can't find the UI button:
+```bash
+tsx scripts/deleteUserAccount.ts <user-id> [reason]
+```
+
+**UI Access:**
+- Users can access account deletion at `/account/delete`
+- Button available on home page (`/pages/home.tsx`)
+- Two-step confirmation dialog prevents accidental deletion
+
+**Data Privacy Compliance:**
+- All deletions follow anonymization patterns (not hard deletion)
+- User IDs replaced with `deleted_user_[random_string]`
+- Personal information (email, name) set to null or "Deleted User"
+- Audit logs maintained for compliance
+- Related data preserved but anonymized for data integrity
+
+---
+
 ## 🚨 Common Mistakes to Avoid
 
 1. **Don't modify these files:**
@@ -1908,6 +2021,8 @@ Study these for patterns:
 - [ ] **Delete Profile button uses `DeleteProfileDialog` component** - REQUIRED
 - [ ] **Delete profile method anonymizes related data** (replaces user IDs with `deleted_user_[random_string]`)
 - [ ] **Delete profile method logs deletion** using `logProfileDeletion()`
+- [ ] **Mini-app added to `deleteUserAccount()` method** - REQUIRED (add to profileDeletions array in `server/storage.ts`)
+- [ ] **Complete account deletion tested** - Verify mini-app profile is deleted when entire account is deleted
 - [ ] **Public endpoints implement anti-scraping protection** (rate limiting, fingerprinting, data obfuscation)
 - [ ] Frontend pages created following design guidelines
 - [ ] **AnnouncementBanner component added to dashboard** - REQUIRED (displays active announcements)

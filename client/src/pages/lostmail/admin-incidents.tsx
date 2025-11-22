@@ -12,18 +12,18 @@ import type { LostmailIncident } from "@shared/schema";
 
 export default function LostMailAdminIncidents() {
   const [filters, setFilters] = useState({
-    incidentType: "",
-    status: "",
-    severity: "",
+    incidentType: "all",
+    status: "all",
+    severity: "all",
     search: "",
     limit: 50,
     offset: 0,
   });
 
   const queryParams = new URLSearchParams();
-  if (filters.incidentType) queryParams.append("incidentType", filters.incidentType);
-  if (filters.status) queryParams.append("status", filters.status);
-  if (filters.severity) queryParams.append("severity", filters.severity);
+  if (filters.incidentType && filters.incidentType !== "all") queryParams.append("incidentType", filters.incidentType);
+  if (filters.status && filters.status !== "all") queryParams.append("status", filters.status);
+  if (filters.severity && filters.severity !== "all") queryParams.append("severity", filters.severity);
   if (filters.search) queryParams.append("search", filters.search);
   queryParams.append("limit", filters.limit.toString());
   queryParams.append("offset", filters.offset.toString());
@@ -74,7 +74,7 @@ export default function LostMailAdminIncidents() {
               <SelectValue placeholder="All Types" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Types</SelectItem>
+              <SelectItem value="all">All Types</SelectItem>
               <SelectItem value="lost">Lost</SelectItem>
               <SelectItem value="damaged">Damaged</SelectItem>
               <SelectItem value="tampered">Tampered</SelectItem>
@@ -89,7 +89,7 @@ export default function LostMailAdminIncidents() {
               <SelectValue placeholder="All Statuses" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Statuses</SelectItem>
+              <SelectItem value="all">All Statuses</SelectItem>
               <SelectItem value="submitted">Submitted</SelectItem>
               <SelectItem value="under_review">Under Review</SelectItem>
               <SelectItem value="in_progress">In Progress</SelectItem>
@@ -105,7 +105,7 @@ export default function LostMailAdminIncidents() {
               <SelectValue placeholder="All Severities" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Severities</SelectItem>
+              <SelectItem value="all">All Severities</SelectItem>
               <SelectItem value="low">Low</SelectItem>
               <SelectItem value="medium">Medium</SelectItem>
               <SelectItem value="high">High</SelectItem>

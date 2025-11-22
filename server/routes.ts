@@ -167,6 +167,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Account deletion - delete entire user account from all mini-apps
+  app.delete('/api/account/delete', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const { reason } = req.body;
+
+    try {
+      await storage.deleteUserAccount(userId, reason);
+      res.json({ message: "Account deleted successfully" });
+    } catch (error: any) {
+      console.error("Error deleting user account:", error);
+      res.status(400).json({ message: error.message || "Failed to delete account" });
+    }
+  }));
+
   // Invite code redemption
   app.post('/api/redeem-invite', isAuthenticated, async (req: any, res) => {
     try {

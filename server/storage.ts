@@ -680,6 +680,9 @@ export interface IStorage {
   deleteTrusttransportProfile(userId: string, reason?: string): Promise<void>;
   logProfileDeletion(userId: string, appName: string, reason?: string): Promise<ProfileDeletionLog>;
   
+  // Complete account deletion - deletes user from all mini-apps and anonymizes all data
+  deleteUserAccount(userId: string, reason?: string): Promise<void>;
+  
   // NPS (Net Promoter Score) operations
   createNpsResponse(response: InsertNpsResponse): Promise<NpsResponse>;
   getUserLastNpsResponse(userId: string): Promise<NpsResponse | undefined>;
@@ -5271,6 +5274,168 @@ export class DatabaseStorage implements IStorage {
       console.error("Error in deleteTrusttransportProfile:", error);
       // Re-throw with more context
       throw new Error(`Failed to delete TrustTransport profile: ${error.message || "Unknown error"}`);
+    }
+  }
+
+  /**
+   * Deletes a user's entire account from all mini-apps and anonymizes all related data.
+   * This is different from deleting individual profiles - this deletes the entire account.
+   * 
+   * Process:
+   * 1. Delete all mini-app profiles (which already handle anonymization of related data)
+   * 2. Anonymize other user-related data (NPS responses, payments, invite codes, admin actions)
+   * 3. Anonymize the user record itself (set email to null, name to "Deleted User", etc.)
+   * 
+   * Note: Profile deletion logs are kept for audit purposes but the userId is preserved
+   * as it represents the original user before deletion.
+   */
+  async deleteUserAccount(userId: string, reason?: string): Promise<void> {
+    try {
+      console.log(`[deleteUserAccount] Starting complete account deletion for userId: ${userId}`);
+
+      // Verify user exists
+      const user = await this.getUser(userId);
+      if (!user) {
+        throw new Error("User not found");
+      }
+
+      // Generate anonymized user ID for data anonymization
+      const anonymizedUserId = this.generateAnonymizedUserId();
+
+      // Step 1: Delete all mini-app profiles (these methods already handle anonymization)
+      // We'll catch errors and continue - some profiles may not exist
+      const profileDeletions = [
+        { name: "SupportMatch", deleteFn: () => this.deleteSupportMatchProfile(userId, reason).catch(err => console.warn(`Failed to delete SupportMatch profile: ${err.message}`)) },
+        { name: "LightHouse", deleteFn: () => this.deleteLighthouseProfile(userId, reason).catch(err => console.warn(`Failed to delete LightHouse profile: ${err.message}`)) },
+        { name: "SocketRelay", deleteFn: () => this.deleteSocketrelayProfile(userId, reason).catch(err => console.warn(`Failed to delete SocketRelay profile: ${err.message}`)) },
+        { name: "Directory", deleteFn: () => this.deleteDirectoryProfileWithCascade(userId, reason).catch(err => console.warn(`Failed to delete Directory profile: ${err.message}`)) },
+        { name: "TrustTransport", deleteFn: () => this.deleteTrusttransportProfile(userId, reason).catch(err => console.warn(`Failed to delete TrustTransport profile: ${err.message}`)) },
+        { name: "MechanicMatch", deleteFn: () => this.deleteMechanicmatchProfile(userId, reason).catch(err => console.warn(`Failed to delete MechanicMatch profile: ${err.message}`)) },
+      ];
+
+      for (const { name, deleteFn } of profileDeletions) {
+        try {
+          await deleteFn();
+          console.log(`[deleteUserAccount] Successfully deleted ${name} profile`);
+        } catch (error: any) {
+          // Continue even if one profile deletion fails
+          console.warn(`[deleteUserAccount] Warning: Failed to delete ${name} profile: ${error.message}`);
+        }
+      }
+
+      // Step 2: Create anonymized user if needed (for foreign key constraints)
+      try {
+        await db
+          .insert(users)
+          .values({
+            id: anonymizedUserId,
+            email: null,
+            firstName: "Deleted",
+            lastName: "User",
+            isAdmin: false,
+            isVerified: false,
+          });
+      } catch (error: any) {
+        // If user already exists (from previous deletion), that's fine
+        if (!error.message?.includes("duplicate key") && !error.message?.includes("unique constraint")) {
+          throw error;
+        }
+      }
+
+      // Step 3: Anonymize NPS responses
+      try {
+        await db
+          .update(npsResponses)
+          .set({ userId: anonymizedUserId })
+          .where(eq(npsResponses.userId, userId));
+        console.log(`[deleteUserAccount] Anonymized NPS responses`);
+      } catch (error: any) {
+        console.warn(`[deleteUserAccount] Warning: Failed to anonymize NPS responses: ${error.message}`);
+      }
+
+      // Step 4: Anonymize payments (both userId and recordedBy)
+      try {
+        await db
+          .update(payments)
+          .set({ userId: anonymizedUserId })
+          .where(eq(payments.userId, userId));
+        await db
+          .update(payments)
+          .set({ recordedBy: anonymizedUserId })
+          .where(eq(payments.recordedBy, userId));
+        console.log(`[deleteUserAccount] Anonymized payments`);
+      } catch (error: any) {
+        console.warn(`[deleteUserAccount] Warning: Failed to anonymize payments: ${error.message}`);
+      }
+
+      // Step 5: Anonymize invite codes (createdBy)
+      try {
+        await db
+          .update(inviteCodes)
+          .set({ createdBy: anonymizedUserId })
+          .where(eq(inviteCodes.createdBy, userId));
+        console.log(`[deleteUserAccount] Anonymized invite codes`);
+      } catch (error: any) {
+        console.warn(`[deleteUserAccount] Warning: Failed to anonymize invite codes: ${error.message}`);
+      }
+
+      // Step 6: Anonymize admin action logs (adminId)
+      try {
+        await db
+          .update(adminActionLogs)
+          .set({ adminId: anonymizedUserId })
+          .where(eq(adminActionLogs.adminId, userId));
+        console.log(`[deleteUserAccount] Anonymized admin action logs`);
+      } catch (error: any) {
+        console.warn(`[deleteUserAccount] Warning: Failed to anonymize admin action logs: ${error.message}`);
+      }
+
+      // Step 6b: Anonymize research items (userId)
+      try {
+        await db
+          .update(researchItems)
+          .set({ userId: anonymizedUserId })
+          .where(eq(researchItems.userId, userId));
+        console.log(`[deleteUserAccount] Anonymized research items`);
+      } catch (error: any) {
+        console.warn(`[deleteUserAccount] Warning: Failed to anonymize research items: ${error.message}`);
+      }
+
+      // Step 7: Anonymize the user record itself
+      // We keep the user record but anonymize all personal information
+      try {
+        await db
+          .update(users)
+          .set({
+            email: null,
+            firstName: "Deleted",
+            lastName: "User",
+            profileImageUrl: null,
+            isAdmin: false,
+            isVerified: false,
+            inviteCodeUsed: null,
+            updatedAt: new Date(),
+          })
+          .where(eq(users.id, userId));
+        console.log(`[deleteUserAccount] Anonymized user record`);
+      } catch (error: any) {
+        console.error(`[deleteUserAccount] Error: Failed to anonymize user record: ${error.message}`);
+        throw error;
+      }
+
+      // Step 8: Log the account deletion (using a special app name)
+      try {
+        await this.logProfileDeletion(userId, "complete_account", reason || "User requested complete account deletion");
+        console.log(`[deleteUserAccount] Logged account deletion`);
+      } catch (error) {
+        console.warn(`[deleteUserAccount] Warning: Failed to log account deletion: ${error}`);
+        // Continue even if logging fails
+      }
+
+      console.log(`[deleteUserAccount] Successfully completed account deletion for userId: ${userId}`);
+    } catch (error: any) {
+      console.error(`[deleteUserAccount] Error: Failed to delete user account: ${error.message}`);
+      throw new Error(`Failed to delete user account: ${error.message || "Unknown error"}`);
     }
   }
 
