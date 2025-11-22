@@ -92,6 +92,8 @@ export function AppClerkProvider({ children }: { children: ReactNode }) {
       fallbackRedirectUrl={`${baseUrl}/invite-required`}
       // Redirect to home after sign-in (if they have invite code) or invite-required (if not)
       afterSignInUrl={`${baseUrl}/`}
+      // Redirect to sign-in page after sign-out
+      afterSignOutUrl={signInUrl}
       appearance={{
         elements: {
           rootBox: "mx-auto",

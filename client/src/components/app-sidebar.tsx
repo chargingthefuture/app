@@ -20,6 +20,7 @@ import {
   HeartPulse
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
+import { useClerk } from "@clerk/clerk-react";
 import {
   Sidebar,
   SidebarContent,
@@ -234,8 +235,40 @@ export function AppSidebar() {
   const { isAdmin } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const { openExternal, ExternalLinkDialog } = useExternalLink();
+  const clerk = useClerk();
 
   const townsquareUrl = "https://chargingthefuture.discourse.group";
+
+  // Get the correct sign-in URL based on environment
+  const getSignInUrl = () => {
+    const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
+    const isProduction = hostname.includes('app.chargingthefuture.com');
+    const isStaging = hostname.includes('the-comic.com') || hostname.includes('staging');
+    
+    if (isProduction) {
+      return 'https://accounts.app.chargingthefuture.com/sign-in';
+    } else if (isStaging) {
+      const stagingCustomDomain = import.meta.env.VITE_CLERK_STAGING_DOMAIN;
+      if (stagingCustomDomain) {
+        return `https://${stagingCustomDomain}/sign-in`;
+      }
+      return `${window.location.origin}/sign-in`;
+    } else {
+      return 'https://sure-oarfish-90.accounts.dev/sign-in';
+    }
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await clerk.signOut({
+        redirectUrl: getSignInUrl(),
+      });
+    } catch (error) {
+      console.error('Error signing out:', error);
+      // Fallback to redirect if signOut fails
+      window.location.href = getSignInUrl();
+    }
+  };
 
   return (
     <Sidebar>
@@ -319,7 +352,7 @@ export function AppSidebar() {
         <Button
           variant="outline"
           className="w-full justify-start"
-          onClick={() => window.location.href = '/api/logout'}
+          onClick={handleSignOut}
           data-testid="button-logout"
         >
           <LogOut className="w-4 h-4 mr-2" />
