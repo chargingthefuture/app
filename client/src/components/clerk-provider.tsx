@@ -31,18 +31,39 @@ export function AppClerkProvider({ children }: { children: ReactNode }) {
   }
 
   const baseUrl = getBaseUrl();
+  const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
 
-  // Use dev URLs in development, production URLs in production
-  const isProduction = baseUrl.includes('app.chargingthefuture.com');
-  const signInUrl = isProduction 
-    ? "https://accounts.app.chargingthefuture.com/sign-in"
-    : "https://sure-oarfish-90.accounts.dev/sign-in";
-  const signUpUrl = isProduction
-    ? "https://accounts.app.chargingthefuture.com/sign-up"
-    : "https://sure-oarfish-90.accounts.dev/sign-up";
-  const unauthorizedSignInUrl = isProduction
-    ? "https://accounts.app.chargingthefuture.com/unauthorized-sign-in"
-    : "https://sure-oarfish-90.accounts.dev/unauthorized-sign-in";
+  // Determine environment based on domain
+  const isProduction = hostname.includes('app.chargingthefuture.com');
+  const isStaging = hostname.includes('the-comic.com') || hostname.includes('staging');
+  const isDevelopment = !isProduction && !isStaging;
+
+  // Use appropriate URLs based on environment
+  // For staging, use the staging Clerk instance (you'll need to configure this in Clerk)
+  // For production, use custom domain
+  // For development, use Clerk dev instance
+  let signInUrl: string;
+  let signUpUrl: string;
+  let unauthorizedSignInUrl: string;
+
+  if (isProduction) {
+    signInUrl = "https://accounts.app.chargingthefuture.com/sign-in";
+    signUpUrl = "https://accounts.app.chargingthefuture.com/sign-up";
+    unauthorizedSignInUrl = "https://accounts.app.chargingthefuture.com/unauthorized-sign-in";
+  } else if (isStaging) {
+    // For staging, use Clerk's default URLs (or configure custom domain in Clerk)
+    // You'll need to set up a custom domain in Clerk for staging, or use the default dev URLs
+    // If you set up a custom domain in Clerk for staging, use those URLs here
+    const stagingDomain = import.meta.env.VITE_CLERK_SIGN_IN_URL || "https://sure-oarfish-90.accounts.dev";
+    signInUrl = `${stagingDomain}/sign-in`;
+    signUpUrl = `${stagingDomain}/sign-up`;
+    unauthorizedSignInUrl = `${stagingDomain}/unauthorized-sign-in`;
+  } else {
+    // Development
+    signInUrl = "https://sure-oarfish-90.accounts.dev/sign-in";
+    signUpUrl = "https://sure-oarfish-90.accounts.dev/sign-up";
+    unauthorizedSignInUrl = "https://sure-oarfish-90.accounts.dev/unauthorized-sign-in";
+  }
 
   return (
     <ClerkProvider 
