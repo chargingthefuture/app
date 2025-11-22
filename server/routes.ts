@@ -141,9 +141,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (event.type === 'user.created') {
         const clerkUserId = event.data.id;
         const email = event.data.email_addresses?.[0]?.email_address;
-        
-        console.log(`[Webhook] User created: ${clerkUserId} (${email})`);
-        
+                
         // Note: User will be synced to DB via the auth middleware on first request
         // This webhook is mainly for logging and potential future invite code validation
         // For now, users will be redirected to /invite-required after sign-up

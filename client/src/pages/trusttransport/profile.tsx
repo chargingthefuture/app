@@ -44,7 +44,7 @@ export default function TrustTransportProfile() {
     defaultValues: {
       displayName: "",
       isDriver: false,
-      isRider: true,
+      isRider: false,
       city: "",
       state: "",
       country: "",
