@@ -15,7 +15,7 @@ export default function MatchesPage() {
 
   const updateMatchMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => 
-      apiRequest(`/api/lighthouse/matches/${id}`, "PUT", { status }),
+      apiRequest("PUT", `/api/lighthouse/matches/${id}`, { status }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/lighthouse/matches"] });
       toast({

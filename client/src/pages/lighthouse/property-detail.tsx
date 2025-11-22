@@ -28,7 +28,7 @@ export default function PropertyDetailPage() {
   });
 
   const requestMatchMutation = useMutation({
-    mutationFn: async () => apiRequest("/api/lighthouse/matches", "POST", {
+    mutationFn: async () => apiRequest("POST", "/api/lighthouse/matches", {
       propertyId: id,
       message,
     }),

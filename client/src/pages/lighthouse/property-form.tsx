@@ -89,7 +89,7 @@ export default function PropertyFormPage() {
   }, [property, form]);
 
   const createMutation = useMutation({
-    mutationFn: async (data: any) => apiRequest("/api/lighthouse/properties", "POST", {
+    mutationFn: async (data: any) => apiRequest("POST", "/api/lighthouse/properties", {
       ...data,
       photos,
       amenities,
@@ -112,7 +112,7 @@ export default function PropertyFormPage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: async (data: any) => apiRequest(`/api/lighthouse/properties/${id}`, "PUT", {
+    mutationFn: async (data: any) => apiRequest("PUT", `/api/lighthouse/properties/${id}`, {
       ...data,
       photos,
       amenities,
