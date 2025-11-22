@@ -16,7 +16,7 @@ export default function DirectoryDashboard() {
   const { toast } = useToast();
   const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
   
-  const publicDirectoryUrl = "https://app.chargingthefuture.com/apps/directory/public";
+  const publicDirectoryUrl = `${window.location.origin}/apps/directory/public`;
   
   const copyUrl = async (url: string) => {
     try {

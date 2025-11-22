@@ -32,7 +32,7 @@ export default function DirectoryProfilePage() {
     queryKey: ["/api/directory/profile"],
   });
   
-  const publicDirectoryUrl = "https://app.chargingthefuture.com/apps/directory/public";
+  const publicDirectoryUrl = `${window.location.origin}/apps/directory/public`;
   
   const copyUrl = async (url: string) => {
     try {

@@ -33,7 +33,7 @@ export default function PublicSocketRelayRequest() {
   const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
   const { id } = useParams<{ id: string }>();
   
-  const publicSocketRelayUrl = "https://app.chargingthefuture.com/apps/socketrelay/public";
+  const publicSocketRelayUrl = `${window.location.origin}/apps/socketrelay/public`;
   
   const copyUrl = async (url: string) => {
     try {

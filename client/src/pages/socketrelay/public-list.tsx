@@ -33,7 +33,7 @@ export default function PublicSocketRelayList() {
   const { toast } = useToast();
   const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
   
-  const publicSocketRelayUrl = "https://app.chargingthefuture.com/apps/socketrelay/public";
+  const publicSocketRelayUrl = `${window.location.origin}/apps/socketrelay/public`;
   
   const copyUrl = async (url: string) => {
     try {
