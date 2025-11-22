@@ -1600,6 +1600,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(404).json({ message: "Property not found" });
     }
     
+    // Check if match already exists to prevent duplicates
+    const existingMatches = await withDatabaseErrorHandling(
+      () => storage.getMatchesBySeeker(profile.id),
+      'getMatchesBySeeker'
+    );
+    const existingMatch = existingMatches.find(m => m.propertyId === propertyId);
+    if (existingMatch && existingMatch.status !== 'cancelled') {
+      return res.status(409).json({ 
+        message: "You have already requested a match for this property",
+        matchId: existingMatch.id 
+      });
+    }
+
     // Create match request (note: no hostId field, it's determined via property)
     const validatedData = validateWithZod(insertLighthouseMatchSchema, {
       seekerId: profile.id,
@@ -1611,6 +1624,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       () => storage.createLighthouseMatch(validatedData),
       'createLighthouseMatch'
     );
+    
+    if (!match) {
+      return res.status(500).json({ message: "Failed to create match request" });
+    }
     
     res.json(match);
   }));
