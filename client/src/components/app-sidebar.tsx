@@ -17,7 +17,8 @@ import {
   Wrench,
   Mail,
   Search,
-  HeartPulse
+  HeartPulse,
+  Video
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useClerk } from "@clerk/clerk-react";
@@ -146,6 +147,12 @@ const adminMenuItems = [
     url: "/apps/gentlepulse/admin",
     icon: HeartPulse,
     testId: "link-gentlepulse-admin",
+  },
+  {
+    title: "Video to GIF",
+    url: "/admin/video-to-gif",
+    icon: Video,
+    testId: "link-video-to-gif",
   },
 ];
 

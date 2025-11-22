@@ -1,6 +1,7 @@
 import { db } from "../server/db";
-import { users } from "../shared/schema";
+import { users, inviteCodes } from "../shared/schema";
 import { eq } from "drizzle-orm";
+import { randomBytes } from "crypto";
 
 /**
  * Script to add or update a user as admin
@@ -44,15 +45,16 @@ async function addAdminUser() {
       .where(eq(users.id, clerkUserId))
       .limit(1);
 
+    let targetUser;
+    
     if (existingUser.length > 0) {
-      // Update existing user
+      // Update existing user to admin first (so we can use their ID for invite code creation)
       console.log(`User with ID ${clerkUserId} already exists. Updating to admin...`);
       
       const [updatedUser] = await db
         .update(users)
         .set({
           isAdmin: true,
-          inviteCodeUsed: "ADMIN-SETUP", // Set invite code so they bypass invite requirement
           ...(email && { email }),
           ...(firstName && { firstName }),
           ...(lastName && { lastName }),
@@ -60,15 +62,10 @@ async function addAdminUser() {
         })
         .where(eq(users.id, clerkUserId))
         .returning();
-
-      console.log("\n✅ User updated successfully!");
-      console.log(`   ID: ${updatedUser.id}`);
-      console.log(`   Email: ${updatedUser.email || 'N/A'}`);
-      console.log(`   Name: ${updatedUser.firstName || ''} ${updatedUser.lastName || ''}`.trim() || 'N/A');
-      console.log(`   Is Admin: ${updatedUser.isAdmin}`);
-      console.log(`   Invite Code Used: ${updatedUser.inviteCodeUsed || 'N/A'}`);
+      
+      targetUser = updatedUser;
     } else {
-      // Create new user
+      // Create new user first (so we can use their ID for invite code creation)
       console.log(`Creating new admin user...`);
       
       if (!email) {
@@ -90,18 +87,79 @@ async function addAdminUser() {
           firstName: firstName || null,
           lastName: lastName || null,
           isAdmin: true,
-          inviteCodeUsed: "ADMIN-SETUP", // Set invite code so they bypass invite requirement
           pricingTier,
         })
         .returning();
-
-      console.log("\n✅ User created successfully!");
-      console.log(`   ID: ${newUser.id}`);
-      console.log(`   Email: ${newUser.email}`);
-      console.log(`   Name: ${newUser.firstName || ''} ${newUser.lastName || ''}`.trim() || 'N/A');
-      console.log(`   Is Admin: ${newUser.isAdmin}`);
-      console.log(`   Invite Code Used: ${newUser.inviteCodeUsed}`);
+      
+      targetUser = newUser;
     }
+
+    // Generate a valid 12-character invite code (6 bytes = 12 hex characters)
+    const adminInviteCode = randomBytes(6).toString('hex').toUpperCase();
+    
+    // Check if invite code already exists (unlikely but possible)
+    const existingInvite = await db
+      .select()
+      .from(inviteCodes)
+      .where(eq(inviteCodes.code, adminInviteCode))
+      .limit(1);
+    
+    if (existingInvite.length > 0) {
+      console.log(`⚠️  Invite code ${adminInviteCode} already exists. Using it...`);
+      // Update user with existing invite code
+      await db
+        .update(users)
+        .set({
+          inviteCodeUsed: adminInviteCode,
+          updatedAt: new Date(),
+        })
+        .where(eq(users.id, clerkUserId));
+      
+      // Increment usage count
+      await db
+        .update(inviteCodes)
+        .set({
+          currentUses: existingInvite[0].currentUses + 1,
+          updatedAt: new Date(),
+        })
+        .where(eq(inviteCodes.id, existingInvite[0].id));
+    } else {
+      // Create a new invite code for the admin user
+      console.log(`Creating admin invite code: ${adminInviteCode}`);
+      
+      await db
+        .insert(inviteCodes)
+        .values({
+          code: adminInviteCode,
+          maxUses: 1,
+          currentUses: 1,
+          createdBy: clerkUserId,
+          isActive: true,
+        });
+      
+      // Update user with the invite code
+      await db
+        .update(users)
+        .set({
+          inviteCodeUsed: adminInviteCode,
+          updatedAt: new Date(),
+        })
+        .where(eq(users.id, clerkUserId));
+    }
+
+    // Fetch the final user state
+    const [finalUser] = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, clerkUserId))
+      .limit(1);
+
+    console.log("\n✅ User updated successfully!");
+    console.log(`   ID: ${finalUser.id}`);
+    console.log(`   Email: ${finalUser.email || 'N/A'}`);
+    console.log(`   Name: ${finalUser.firstName || ''} ${finalUser.lastName || ''}`.trim() || 'N/A');
+    console.log(`   Is Admin: ${finalUser.isAdmin}`);
+    console.log(`   Invite Code Used: ${finalUser.inviteCodeUsed || 'N/A'}`);
 
     console.log("\n🎉 Admin user setup complete!");
     console.log("   The user can now log in and will have admin access.");

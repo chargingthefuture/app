@@ -24,6 +24,7 @@ import AdminPayments from "@/pages/admin/payments";
 import AdminActivity from "@/pages/admin/activity";
 import AdminPricingTiers from "@/pages/admin/pricing-tiers";
 import AdminWeeklyPerformance from "@/pages/admin/weekly-performance";
+import VideoToGifConverter from "@/pages/admin/video-to-gif";
 import SupportMatchDashboard from "@/pages/supportmatch/dashboard";
 import SupportMatchProfile from "@/pages/supportmatch/profile";
 import SupportMatchPartnership from "@/pages/supportmatch/partnership";
@@ -247,6 +248,11 @@ function Router() {
       <Route path="/admin/weekly-performance">
         <ProtectedRoute>
           <AdminWeeklyPerformance />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/video-to-gif">
+        <ProtectedRoute>
+          <VideoToGifConverter />
         </ProtectedRoute>
       </Route>
       {/* Mini-app routes - all protected */}
