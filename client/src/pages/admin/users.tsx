@@ -19,12 +19,38 @@ import type { User } from "@shared/schema";
 
 export default function AdminUsers() {
   const { toast } = useToast();
-  const { data: users, isLoading } = useQuery<User[]>({
+  const { data: users, isLoading, error } = useQuery<User[]>({
     queryKey: ["/api/admin/users"],
   });
 
+  // Debug logging
+  if (users !== undefined) {
+    console.log(`[Admin Users] Received ${users.length} users from API`);
+    if (users.length > 0) {
+      console.log(`[Admin Users] Sample user data:`, users.slice(0, 3).map(u => ({ 
+        id: u.id, 
+        idType: typeof u.id, 
+        email: u.email,
+        firstName: u.firstName 
+      })));
+    }
+  }
+
   // Filter out deleted users (identified by ID starting with "deleted_user_")
-  const activeUsers = users?.filter((user) => !user.id.startsWith("deleted_user_")) || [];
+  // Also handle cases where ID might be null, undefined, or not a string
+  const activeUsers = users?.filter((user) => {
+    if (!user || !user.id) {
+      console.warn(`[Admin Users] Found user with missing ID:`, user);
+      return false;
+    }
+    try {
+      const id = String(user.id); // Ensure it's a string
+      return !id.startsWith("deleted_user_");
+    } catch (e) {
+      console.error(`[Admin Users] Error processing user ID:`, user.id, e);
+      return false;
+    }
+  }) || [];
 
   const verifyMutation = useMutation({
     mutationFn: async ({ id, isVerified }: { id: string; isVerified: boolean }) => {
@@ -75,9 +101,21 @@ export default function AdminUsers() {
             <div className="text-center py-8 text-muted-foreground">
               Loading users...
             </div>
+          ) : error ? (
+            <div className="text-center py-8">
+              <p className="text-destructive mb-2">Error loading users</p>
+              <p className="text-sm text-muted-foreground">
+                {error instanceof Error ? error.message : "Unknown error"}
+              </p>
+            </div>
           ) : !activeUsers || activeUsers.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              No users found
+              <p>No users found</p>
+              {users && users.length > 0 && (
+                <p className="text-xs mt-2">
+                  ({users.length} user{users.length !== 1 ? 's' : ''} filtered out)
+                </p>
+              )}
             </div>
           ) : (
             <>

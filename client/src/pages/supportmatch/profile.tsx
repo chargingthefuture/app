@@ -138,10 +138,23 @@ export default function SupportMatchProfile() {
   });
 
   const onSubmit = (data: ProfileFormData) => {
+    // Convert empty strings to null for optional fields
+    const cleanedData = {
+      ...data,
+      nickname: data.nickname?.trim() || null,
+      gender: data.gender || null,
+      genderPreference: data.genderPreference || null,
+      city: data.city?.trim() || null,
+      state: data.state?.trim() || null,
+      country: data.country || null,
+      timezone: data.timezone || null,
+      timezonePreference: data.timezonePreference || "same_timezone",
+    };
+    
     if (profile) {
-      updateMutation.mutate(data);
+      updateMutation.mutate(cleanedData);
     } else {
-      createMutation.mutate(data);
+      createMutation.mutate(cleanedData);
     }
   };
 

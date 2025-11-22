@@ -339,6 +339,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/admin/users', isAuthenticated, isAdmin, async (req, res) => {
     try {
       const users = await storage.getAllUsers();
+      console.log(`[Admin Users API] Fetched ${users.length} users from database`);
+      if (users.length > 0) {
+        console.log(`[Admin Users API] Sample user IDs:`, users.slice(0, 3).map(u => ({ id: u.id, idType: typeof u.id, email: u.email })));
+      }
       res.json(users);
     } catch (error) {
       console.error("Error fetching users:", error);

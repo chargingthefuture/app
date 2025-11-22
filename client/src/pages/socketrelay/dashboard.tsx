@@ -556,6 +556,8 @@ export default function SocketRelayDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      <ExternalLinkDialog />
     </div>
   );
 }
