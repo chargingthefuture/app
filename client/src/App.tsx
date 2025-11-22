@@ -673,7 +673,7 @@ function Router() {
 
 function AppContent() {
   const { user, isAuthenticated, isLoading } = useAuth();
-  const needsInviteCode = user && !user.inviteCodeUsed && !user.isAdmin;
+  const needsApproval = user && !user.isApproved && !user.isAdmin;
 
   // Sidebar width customization for better content display
   const style = {
