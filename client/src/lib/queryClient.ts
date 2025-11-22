@@ -102,7 +102,39 @@ export const getQueryFn: <T>(options: {
     }
 
     await throwIfResNotOk(res);
-    return await res.json();
+    
+    // Check if response has content before parsing JSON
+    const contentType = res.headers.get("content-type");
+    const contentLength = res.headers.get("content-length");
+    
+    // If content-length is 0, return null
+    if (contentLength === "0") {
+      return null as T;
+    }
+    
+    // Read response as text first to check if it's empty
+    const text = await res.text();
+    
+    // If response is empty, return null
+    if (!text || text.trim() === '') {
+      return null as T;
+    }
+    
+    // Try to parse JSON
+    try {
+      return JSON.parse(text) as T;
+    } catch (error) {
+      // If JSON parsing fails, log and throw with helpful message
+      console.error("Failed to parse JSON response:", error, { 
+        url: queryKey.join("/"),
+        status: res.status,
+        statusText: res.statusText,
+        contentType,
+        contentLength,
+        responsePreview: text.substring(0, 200)
+      });
+      throw new Error(`Failed to parse JSON response: ${error instanceof Error ? error.message : String(error)}. Response was: ${text.substring(0, 100)}`);
+    }
   };
 
 export const queryClient = new QueryClient({

@@ -159,11 +159,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
       const userId = getUserId(req);
+      
+      // Validate userId before querying database
+      if (!userId || userId.trim() === '') {
+        console.error("Error fetching user: userId is empty", { 
+          auth: req.auth,
+          userId,
+          headers: req.headers 
+        });
+        return res.status(401).json({ message: "Unauthorized: Invalid user ID" });
+      }
+      
       const user = await storage.getUser(userId);
+      
+      // If user not found, return null (not an error - user might not exist in DB yet)
+      if (!user) {
+        console.warn("User not found in database", { userId });
+        return res.json(null);
+      }
+      
       res.json(user);
     } catch (error) {
       console.error("Error fetching user:", error);
-      res.status(500).json({ message: "Failed to fetch user" });
+      // Ensure we always return valid JSON
+      res.status(500).json({ message: "Failed to fetch user", error: error instanceof Error ? error.message : String(error) });
     }
   });
 
