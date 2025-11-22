@@ -56,16 +56,28 @@ export default function NewResearchItem() {
 
   const createMutation = useMutation({
     mutationFn: async (data: ItemFormData) => {
-      return apiRequest("POST", "/api/research/items", {
+      const response = await apiRequest("POST", "/api/research/items", {
         ...data,
         tags: tags.length > 0 ? tags : null,
       });
+      return await response.json();
     },
-    onSuccess: (item) => {
+    onSuccess: async (item) => {
+      // Set the item in cache immediately so it's available when we navigate
+      queryClient.setQueryData([`/api/research/items/${item.id}`], item);
+      
+      // Invalidate timeline queries so they refetch when user navigates back
+      queryClient.invalidateQueries({ 
+        queryKey: ["/api/research/items"],
+        refetchType: "active", // Only refetch active queries
+      });
+      
       toast({
         title: "Question Posted",
         description: "Your research question has been posted successfully",
       });
+      
+      // Navigate immediately - the item is now in cache
       setLocation(`/apps/research/item/${item.id}`);
     },
     onError: (error: any) => {
