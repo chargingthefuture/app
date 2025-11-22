@@ -129,7 +129,7 @@ export default function PricingTiers() {
         <CardHeader>
           <CardTitle>Current Subscription Price</CardTitle>
           <CardDescription>
-            New users joining the platform will be assigned this price. Existing users keep their original price (grandfathered).
+            New users joining the platform will be assigned this price. Existing users keep their original price (your forever pricing).
           </CardDescription>
         </CardHeader>
         <CardContent>

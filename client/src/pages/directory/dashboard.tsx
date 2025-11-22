@@ -1,16 +1,40 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "wouter";
-import { ExternalLink, Bell } from "lucide-react";
+import { ExternalLink, Bell, Copy, Check } from "lucide-react";
 import type { DirectoryProfile } from "@shared/schema";
 import { AnnouncementBanner } from "@/components/announcement-banner";
 import { VerifiedBadge } from "@/components/verified-badge";
 import { useExternalLink } from "@/hooks/useExternalLink";
+import { useToast } from "@/hooks/use-toast";
 
 export default function DirectoryDashboard() {
   const { openExternal, ExternalLinkDialog } = useExternalLink();
+  const { toast } = useToast();
+  const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
+  
+  const publicDirectoryUrl = "https://app.chargingthefuture.com/apps/directory/public";
+  
+  const copyUrl = async (url: string) => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiedUrl(url);
+      toast({
+        title: "Copied!",
+        description: "Public Directory link copied to clipboard",
+      });
+      setTimeout(() => setCopiedUrl(null), 2000);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to copy link",
+        variant: "destructive",
+      });
+    }
+  };
 
   const { data: profile, isLoading: profileLoading } = useQuery<DirectoryProfile | null>({
     queryKey: ["/api/directory/profile"],
@@ -38,6 +62,37 @@ export default function DirectoryDashboard() {
         <div>
           <h1 className="text-2xl sm:text-3xl md:text-4xl font-semibold mb-2">Welcome to Directory</h1>
           <p className="text-muted-foreground text-sm sm:text-base">Connect and exchange skills with other survivors</p>
+          <div className="mt-4 space-y-2">
+            <label className="text-sm font-medium">Public Directory</label>
+            <div className="flex items-center gap-2">
+              <code className="flex-1 font-mono text-xs sm:text-sm bg-muted px-2 py-1.5 rounded break-all">
+                {publicDirectoryUrl}
+              </code>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => copyUrl(publicDirectoryUrl)}
+                className="flex-shrink-0"
+                data-testid="button-copy-public-directory"
+                aria-label="Copy public Directory link"
+              >
+                {copiedUrl === publicDirectoryUrl ? (
+                  <Check className="w-4 h-4 text-primary" />
+                ) : (
+                  <Copy className="w-4 h-4" />
+                )}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => openExternal(publicDirectoryUrl)}
+                className="flex-shrink-0"
+                data-testid="button-open-public-directory"
+              >
+                <ExternalLink className="w-4 h-4 mr-2" /> Open
+              </Button>
+            </div>
+          </div>
         </div>
 
         <AnnouncementBanner 
@@ -68,10 +123,41 @@ export default function DirectoryDashboard() {
 
   // Profile exists - show directory listing
   return (
-    <div className="p-4 sm:p-6 md:p-8 space-y-6 sm:space-y-8">
+      <div className="p-4 sm:p-6 md:p-8 space-y-6 sm:space-y-8">
       <div>
         <h1 className="text-2xl sm:text-3xl md:text-4xl font-semibold mb-2">Directory</h1>
         <p className="text-muted-foreground text-sm sm:text-base">Connect and exchange skills with other survivors</p>
+        <div className="mt-4 space-y-2">
+          <label className="text-sm font-medium">Public Directory</label>
+          <div className="flex items-center gap-2">
+            <code className="flex-1 font-mono text-xs sm:text-sm bg-muted px-2 py-1.5 rounded break-all">
+              {publicDirectoryUrl}
+            </code>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => copyUrl(publicDirectoryUrl)}
+              className="flex-shrink-0"
+              data-testid="button-copy-public-directory"
+              aria-label="Copy public Directory link"
+            >
+              {copiedUrl === publicDirectoryUrl ? (
+                <Check className="w-4 h-4 text-primary" />
+              ) : (
+                <Copy className="w-4 h-4" />
+              )}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => openExternal(publicDirectoryUrl)}
+              className="flex-shrink-0"
+              data-testid="button-open-public-directory"
+            >
+              <ExternalLink className="w-4 h-4 mr-2" /> Open
+            </Button>
+          </div>
+        </div>
       </div>
 
       <AnnouncementBanner 

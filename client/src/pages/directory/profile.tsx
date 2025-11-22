@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { DirectoryProfile } from "@shared/schema";
-import { ExternalLink, Check, X } from "lucide-react";
+import { ExternalLink, Check, X, Copy } from "lucide-react";
 import { COUNTRIES } from "@/lib/countries";
 import { US_STATES } from "@/lib/usStates";
 import { ALL_SKILLS } from "@/lib/skills";
@@ -27,9 +27,30 @@ import { AnnouncementBanner } from "@/components/announcement-banner";
 export default function DirectoryProfilePage() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
+  const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
   const { data: profile, isLoading } = useQuery<DirectoryProfile | null>({
     queryKey: ["/api/directory/profile"],
   });
+  
+  const publicDirectoryUrl = "https://app.chargingthefuture.com/apps/directory/public";
+  
+  const copyUrl = async (url: string) => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiedUrl(url);
+      toast({
+        title: "Copied!",
+        description: "Public Directory link copied to clipboard",
+      });
+      setTimeout(() => setCopiedUrl(null), 2000);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to copy link",
+        variant: "destructive",
+      });
+    }
+  };
 
   const [description, setDescription] = useState("");
   const [skills, setSkills] = useState<string[]>([]);
@@ -180,6 +201,37 @@ export default function DirectoryProfilePage() {
       <div>
         <h1 className="text-2xl sm:text-3xl md:text-4xl font-semibold mb-2">Directory Profile</h1>
         <p className="text-muted-foreground text-sm sm:text-base">Connect and exchange skills with other survivors</p>
+        <div className="mt-4 space-y-2">
+          <label className="text-sm font-medium">Public Directory</label>
+          <div className="flex items-center gap-2">
+            <code className="flex-1 font-mono text-xs sm:text-sm bg-muted px-2 py-1.5 rounded break-all">
+              {publicDirectoryUrl}
+            </code>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => copyUrl(publicDirectoryUrl)}
+              className="flex-shrink-0"
+              data-testid="button-copy-public-directory"
+              aria-label="Copy public Directory link"
+            >
+              {copiedUrl === publicDirectoryUrl ? (
+                <Check className="w-4 h-4 text-primary" />
+              ) : (
+                <Copy className="w-4 h-4" />
+              )}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => openExternal(publicDirectoryUrl)}
+              className="flex-shrink-0"
+              data-testid="button-open-public-directory"
+            >
+              <ExternalLink className="w-4 h-4 mr-2" /> Open
+            </Button>
+          </div>
+        </div>
       </div>
 
       <AnnouncementBanner 

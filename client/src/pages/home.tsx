@@ -182,7 +182,7 @@ export default function Home() {
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground mb-4">
-              Your grandfathered rate: ${user?.pricingTier}/month
+              Your forever rate: ${user?.pricingTier}/month
             </p>
             <Badge variant="secondary" className="w-full justify-center">
               Pricing Locked

@@ -24,12 +24,14 @@ DATABASE_URL="postgresql://user:password@host:port/database" npx tsx scripts/see
 
 DATABASE_URL="postgresql://user:password@host:port/database" npx tsx scripts/seedSocketRelay.ts
 
+# Run Tests
+
 npm run test          # Run all tests
 npm run test:coverage # Run with coverage report
 
 To merge changes from the **staging** branch into the **main** branch, you'll typically follow these steps in your Git workflow:
 
-## Steps to Merge Staging into Main
+# Steps to Merge Staging into Main
 
 1. **Check out the main branch:**
    ```bash

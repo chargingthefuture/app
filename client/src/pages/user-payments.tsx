@@ -137,7 +137,7 @@ export default function UserPayments() {
               ${user?.pricingTier}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Per month (grandparented)
+              Per month (your forever pricing)
             </p>
           </CardContent>
         </Card>
