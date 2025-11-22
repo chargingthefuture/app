@@ -90,7 +90,13 @@ export async function setupAuth(app: Express) {
   // No manual session management needed - Clerk handles it via cookies/JWT
   
   // Middleware to sync Clerk user with our database on every authenticated request
+  // Skip this middleware for the /api/auth/user endpoint to avoid blocking it
   app.use(async (req: any, res, next) => {
+    // Skip middleware for /api/auth/user endpoint - let the route handler deal with it
+    if (req.path === '/api/auth/user') {
+      return next();
+    }
+    
     // Clerk middleware runs first (via requireAuth/withAuth)
     // After Clerk verifies auth, we sync user to our DB
     if (req.auth?.userId) {
@@ -117,7 +123,8 @@ export async function setupAuth(app: Express) {
             message: error.message || "This account has been deleted. Please contact support if you believe this is an error." 
           });
         }
-        // Don't block the request for other sync failures
+        // For other sync failures, log but don't block - let the route handlers deal with it
+        // This prevents empty responses that cause JSON parsing errors
       }
     }
     next();
