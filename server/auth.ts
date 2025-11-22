@@ -31,6 +31,17 @@ function mapClerkUser(clerkUser: any) {
   };
 }
 
+/**
+ * Check if a user account has been deleted
+ * Deleted users have: email === null, firstName === "Deleted", lastName === "User"
+ */
+function isUserDeleted(user: any): boolean {
+  return user && 
+    user.email === null && 
+    user.firstName === "Deleted" && 
+    user.lastName === "User";
+}
+
 async function upsertUser(clerkUser: any) {
   // Map Clerk user to our schema format
   const mappedUser = mapClerkUser(clerkUser);
@@ -42,8 +53,31 @@ async function upsertUser(clerkUser: any) {
   // Check if user already exists
   const existingUser = await storage.getUser(mappedUser.sub);
   
+  // If user exists and is deleted, restore their account (allow re-registration)
+  if (existingUser && isUserDeleted(existingUser)) {
+    console.log(`[auth] Restoring deleted user account: ${mappedUser.sub}`);
+    // Get current pricing tier for restored account
+    const currentTier = await storage.getCurrentPricingTier();
+    const pricingTier = currentTier?.amount || '1.00';
+    
+    // Restore the account with fresh data from Clerk (fresh start)
+    await storage.upsertUser({
+      id: mappedUser.sub,
+      email: mappedUser.email,
+      firstName: mappedUser.first_name,
+      lastName: mappedUser.last_name,
+      profileImageUrl: mappedUser.profile_image_url,
+      pricingTier, // Use current pricing tier (fresh start)
+      isAdmin: false, // Reset admin status (fresh start)
+      isVerified: false, // Reset verification (fresh start)
+      subscriptionStatus: 'active', // Reset subscription status (fresh start)
+      inviteCodeUsed: null, // Reset invite code (they'll need to use a new one)
+    });
+    return; // Account restored, exit early
+  }
+  
   if (existingUser) {
-    // For existing users, only update profile information, preserve pricing tier
+    // For existing active users, only update profile information, preserve pricing tier
     // Note: Admin users should have inviteCodeUsed set via the addAdminUser script
     // We preserve the existing inviteCodeUsed value here
     
@@ -87,11 +121,20 @@ export async function setupAuth(app: Express) {
         // Get full user details from Clerk
         const clerkUser = await clerkClient.users.getUser(req.auth.userId);
         
-        // Upsert user in our database
+        // Upsert user in our database (this will restore deleted accounts automatically)
         await upsertUser(clerkUser);
-      } catch (error) {
+        
+        // After upsert, check if user is still deleted (shouldn't happen after restore, but safety check)
+        const user = await storage.getUser(req.auth.userId);
+        if (user && isUserDeleted(user)) {
+          // User is still deleted after upsert - this shouldn't happen, but block access
+          return res.status(403).json({ 
+            message: "This account has been deleted. Please contact support if you believe this is an error." 
+          });
+        }
+      } catch (error: any) {
         console.error("Error syncing Clerk user to database:", error);
-        // Don't block the request if sync fails
+        // Don't block the request for sync failures - let the route handlers deal with it
       }
     }
     next();

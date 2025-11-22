@@ -48,16 +48,34 @@ async function addAdminUser() {
     let targetUser;
     
     if (existingUser.length > 0) {
-      // Update existing user to admin first (so we can use their ID for invite code creation)
-      console.log(`User with ID ${clerkUserId} already exists. Updating to admin...`);
+      const user = existingUser[0];
       
+      // Check if user is deleted (email is null, firstName is "Deleted", lastName is "User")
+      const isDeleted = user.email === null && user.firstName === "Deleted" && user.lastName === "User";
+      
+      if (isDeleted) {
+        console.log(`⚠️  User account appears to be deleted. Restoring account...`);
+        console.log(`   This will restore the user's account and set them as admin.`);
+        
+        // Email is required to restore a deleted account
+        if (!email) {
+          console.error("\n❌ Error: Email is required to restore a deleted user account.");
+          console.error("   Please provide email as second argument.");
+          process.exit(1);
+        }
+      } else {
+        console.log(`User with ID ${clerkUserId} already exists. Updating to admin...`);
+      }
+      
+      // Update existing user to admin (restore if deleted)
       const [updatedUser] = await db
         .update(users)
         .set({
           isAdmin: true,
-          ...(email && { email }),
-          ...(firstName && { firstName }),
-          ...(lastName && { lastName }),
+          email: email || user.email, // Restore email if provided, otherwise keep existing
+          firstName: firstName || (isDeleted ? null : user.firstName), // Restore firstName if provided, or null if deleted
+          lastName: lastName || (isDeleted ? null : user.lastName), // Restore lastName if provided, or null if deleted
+          isVerified: isDeleted ? false : user.isVerified, // Reset verification if deleted
           updatedAt: new Date(),
         })
         .where(eq(users.id, clerkUserId))

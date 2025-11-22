@@ -160,6 +160,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = getUserId(req);
       const user = await storage.getUser(userId);
+      
+      // Check if user is deleted
+      if (user && user.email === null && user.firstName === "Deleted" && user.lastName === "User") {
+        return res.status(403).json({ 
+          message: "This account has been deleted. Please contact support if you believe this is an error." 
+        });
+      }
+      
       res.json(user);
     } catch (error) {
       console.error("Error fetching user:", error);
