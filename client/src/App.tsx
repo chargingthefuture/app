@@ -8,6 +8,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { NpsSurveyManager } from "@/components/nps-survey-manager";
 import { ErrorBoundary } from "@/components/error-boundary";
 import NotFound from "@/pages/not-found";
@@ -16,10 +17,8 @@ import Home from "@/pages/home";
 import Services from "@/pages/services";
 import UserPayments from "@/pages/user-payments";
 import DeleteAccount from "@/pages/account/delete";
-import InviteRequired from "@/pages/invite-required";
 import AdminDashboard from "@/pages/admin/dashboard";
 import AdminUsers from "@/pages/admin/users";
-import AdminInvites from "@/pages/admin/invites";
 import AdminPayments from "@/pages/admin/payments";
 import AdminActivity from "@/pages/admin/activity";
 import AdminPricingTiers from "@/pages/admin/pricing-tiers";
@@ -109,7 +108,7 @@ import { GentlePulseBottomNav } from "@/components/gentlepulse/bottom-nav";
 // Protected route wrapper that redirects unauthenticated users
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { _clerk, user, isLoading } = useAuth();
-  const needsInviteCode = user && !user.inviteCodeUsed && !user.isAdmin;
+  const needsApproval = user && !user.isApproved && !user.isAdmin;
 
   // If Clerk is still loading, show loading indicator
   if (!_clerk.clerkLoaded) {
@@ -128,9 +127,22 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return <Redirect to="/" />;
   }
 
-  // If needs invite code, redirect to invite-required
-  if (needsInviteCode) {
-    return <Redirect to="/invite-required" />;
+  // If needs approval, show waiting message
+  if (needsApproval) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle>Access Pending</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground">
+              Your account is pending approval. An administrator will review your request shortly.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   return <>{children}</>;
@@ -139,7 +151,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 // Landing/root route handler
 function RootRoute() {
   const { _clerk, user, isLoading } = useAuth();
-  const needsInviteCode = user && !user.inviteCodeUsed && !user.isAdmin;
+  const needsApproval = user && !user.isApproved && !user.isAdmin;
 
   // If Clerk is still loading, show loading indicator
   if (!_clerk.clerkLoaded) {
@@ -167,12 +179,25 @@ function RootRoute() {
       );
     }
     
-    // If needs invite code, redirect to invite-required
-    if (needsInviteCode) {
-      return <Redirect to="/invite-required" />;
+    // If needs approval, show waiting message
+    if (needsApproval) {
+      return (
+        <div className="min-h-screen flex items-center justify-center p-4">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <CardTitle>Access Pending</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">
+                Your account is pending approval. An administrator will review your request shortly.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      );
     }
     
-    // Signed in with invite code - show home dashboard
+    // Signed in and approved - show home dashboard
     // Don't redirect to avoid infinite loop, just render Home
     return <Home />;
   }
@@ -195,9 +220,6 @@ function Router() {
       <Route path="/">
         <RootRoute />
       </Route>
-      
-      {/* Invite required route */}
-      <Route path="/invite-required" component={InviteRequired} />
       
       {/* Protected routes - always rendered, but wrapped with auth checks */}
       <Route path="/services">
@@ -223,11 +245,6 @@ function Router() {
       <Route path="/admin/users">
         <ProtectedRoute>
           <AdminUsers />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/admin/invites">
-        <ProtectedRoute>
-          <AdminInvites />
         </ProtectedRoute>
       </Route>
       <Route path="/admin/payments">
@@ -666,7 +683,7 @@ function AppContent() {
 
   return (
     <>
-      {!isLoading && isAuthenticated && !needsInviteCode ? (
+      {!isLoading && isAuthenticated && !needsApproval ? (
         <SidebarProvider style={style as React.CSSProperties}>
           <div className="flex h-screen w-full">
             <AppSidebar />

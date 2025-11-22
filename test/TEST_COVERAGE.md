@@ -83,7 +83,6 @@ This document lists all tests created for the application.
 - ✅ `test/client/pages/landing.test.tsx` - Landing/login page
 - ✅ `test/client/pages/services.test.tsx` - Services listing page
 - ✅ `test/client/pages/user-payments.test.tsx` - User payments page
-- ✅ `test/client/pages/invite-required.test.tsx` - Invite code redemption page
 
 ## E2E Tests
 

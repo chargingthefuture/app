@@ -53,12 +53,6 @@ const adminMenuItems = [
     testId: "link-admin-users",
   },
   {
-    title: "Invite Codes",
-    url: "/admin/invites",
-    icon: Ticket,
-    testId: "link-admin-invites",
-  },
-  {
     title: "Payments",
     url: "/admin/payments",
     icon: DollarSign,

@@ -88,7 +88,6 @@ export default function DeleteAccountPage() {
             <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground ml-4">
               <li>NPS survey responses</li>
               <li>Payment records</li>
-              <li>Invite codes you created</li>
               <li>Admin action logs (if applicable)</li>
               <li>Research items and contributions</li>
             </ul>

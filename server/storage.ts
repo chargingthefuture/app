@@ -208,7 +208,6 @@ export interface IStorage {
   // Stats
   getAdminStats(): Promise<{
     totalUsers: number;
-    activeInvites: number;
     collectedMonthlyRevenue: string;
     outstandingRevenue: string;
   }>;
@@ -906,15 +905,8 @@ export class DatabaseStorage implements IStorage {
       return sum + parseFloat(payment.amount);
     }, 0);
 
-    const activeInvites = allInvites.filter(invite => {
-      const isNotExpired = !invite.expiresAt || new Date(invite.expiresAt) > new Date();
-      const hasUsesRemaining = invite.currentUses < invite.maxUses;
-      return isNotExpired && hasUsesRemaining;
-    }).length;
-
     return {
       totalUsers: allUsers.length,
-      activeInvites,
       collectedMonthlyRevenue: collectedMonthlyRevenue.toFixed(2),
       outstandingRevenue: outstandingRevenue.toFixed(2),
     };

@@ -1,6 +1,6 @@
 # Comprehensive Testing Plan
 
-This document outlines a comprehensive testing strategy for the secure invite-only platform serving survivors of human trafficking. Given the critical nature of this application, testing must be thorough, covering all aspects of functionality, security, usability, and reliability.
+This document outlines a comprehensive testing strategy for the secure platform serving survivors of human trafficking. Given the critical nature of this application, testing must be thorough, covering all aspects of functionality, security, usability, and reliability.
 
 ---
 
@@ -39,31 +39,30 @@ This document outlines a comprehensive testing strategy for the secure invite-on
   - ✅ Token refresh mechanism works (if token expired)
   - ✅ Session stored in PostgreSQL
 
-**TC-AUTH-002: Invite Code Redemption**
-- **Description**: Authenticated user without invite must redeem invite code
-- **Preconditions**: Authenticated user with `inviteCodeUsed = false`
+**TC-AUTH-002: User Approval**
+- **Description**: Authenticated user without approval must wait for admin approval
+- **Preconditions**: Authenticated user with `isApproved = false`
 - **Steps**:
   1. Attempt to access `/home` or any mini-app
-  2. Verify redirect to `/invite-required`
-  3. Enter valid invite code
-  4. Submit redemption
-- **Expected**: Invite code marked as used, user can access features
+  2. Verify "Access Pending" message is shown
+  3. Admin approves user via `/admin/users`
+  4. User refreshes or navigates
+- **Expected**: User can access features after approval
 - **Acceptance Criteria**:
-  - ✅ Invalid invite codes rejected with clear error message
-  - ✅ Already-used invite codes rejected
-  - ✅ Valid invite codes update user record
-  - ✅ User redirected to home after successful redemption
-  - ✅ Admin action logged if applicable
+  - ✅ Unapproved users see "Access Pending" message
+  - ✅ Approved users can access all features
+  - ✅ Admin can approve/revoke access via UI
+  - ✅ Admin action logged when approval status changes
 
 **TC-AUTH-003: Authorization Levels**
 - **Description**: Verify access control for different user roles
 - **Test Matrix**:
-  | Role | Landing | Invite Required | Home | Mini-Apps | Admin |
-  |------|---------|----------------|------|-----------|-------|
-  | Unauthenticated | ✅ | ❌ | ❌ | ❌ | ❌ |
-  | Authenticated (no invite) | ✅ | ✅ | ❌ | ❌ | ❌ |
-  | Authenticated (with invite) | ✅ | ❌ | ✅ | ✅ | ❌ |
-  | Admin | ✅ | ❌ | ✅ | ✅ | ✅ |
+  | Role | Landing | Home | Mini-Apps | Admin |
+  |------|---------|------|-----------|-------|
+  | Unauthenticated | ✅ | ❌ | ❌ | ❌ |
+  | Authenticated (not approved) | ✅ | ❌ | ❌ | ❌ |
+  | Authenticated (approved) | ✅ | ✅ | ✅ | ❌ |
+  | Admin | ✅ | ✅ | ✅ | ✅ |
 - **Acceptance Criteria**:
   - ✅ Unauthorized access returns 401/403 with clear error
   - ✅ Frontend routing prevents access to unauthorized pages

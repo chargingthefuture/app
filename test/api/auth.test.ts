@@ -69,29 +69,4 @@ describe('API - User Endpoints', () => {
   });
 });
 
-describe('API - Invite Code Redemption', () => {
-  let testUserId: string;
-
-  beforeEach(() => {
-    testUserId = generateTestUserId();
-  });
-
-  it('should accept valid invite codes', async () => {
-    const req = createMockRequest(testUserId);
-    req.body = { code: 'VALID-CODE' };
-    const res = createMockResponse();
-
-    // Test invite code validation
-    expect(req.body.code).toBe('VALID-CODE');
-  });
-
-  it('should reject invalid invite codes', async () => {
-    const req = createMockRequest(testUserId);
-    req.body = { code: 'INVALID-CODE' };
-    const res = createMockResponse();
-
-    // Should return error
-    expect(req.body.code).toBe('INVALID-CODE');
-  });
-});
 

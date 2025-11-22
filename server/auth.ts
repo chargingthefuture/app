@@ -55,8 +55,7 @@ async function upsertUser(clerkUser: any) {
   
   if (existingUser) {
     // For existing users, only update profile information, preserve pricing tier
-    // Note: Admin users should have inviteCodeUsed set via the addAdminUser script
-    // We preserve the existing inviteCodeUsed value here
+    // Preserve approval status and admin status
     
     await storage.upsertUser({
       id: mappedUser.sub,
@@ -66,8 +65,8 @@ async function upsertUser(clerkUser: any) {
       profileImageUrl: mappedUser.profile_image_url,
       pricingTier: existingUser.pricingTier, // Preserve existing pricing tier (grandfathered)
       isAdmin: existingUser.isAdmin, // Preserve admin status
+      isApproved: existingUser.isApproved, // Preserve approval status
       subscriptionStatus: existingUser.subscriptionStatus, // Preserve subscription status
-      inviteCodeUsed: existingUser.inviteCodeUsed, // Preserve existing invite code
     });
   } else {
     // For new users, get current pricing tier

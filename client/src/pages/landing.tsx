@@ -18,11 +18,8 @@ export default function Landing() {
   useEffect(() => {
     // If Clerk says user is signed in, redirect appropriately
     if (_clerk.isSignedIn) {
-      // If DB user is loaded and needs invite code, redirect to invite-required
-      if (user && !user.inviteCodeUsed && !user.isAdmin) {
-        setLocation("/invite-required");
-        return;
-      }
+      // If DB user is loaded and needs approval, they'll see pending message
+      // No redirect needed - RootRoute handles it
       // Otherwise, redirect to home dashboard (RootRoute will handle showing Home)
       setLocation("/");
     }
@@ -71,9 +68,9 @@ export default function Landing() {
                     <Shield className="w-5 h-5 lg:w-6 lg:h-6 text-primary" />
                   </div>
                   <div>
-                    <h3 className="font-semibold mb-1 text-sm sm:text-base">Invite-Only Access</h3>
+                    <h3 className="font-semibold mb-1 text-sm sm:text-base">Approved Access Only</h3>
                     <p className="text-xs sm:text-sm text-muted-foreground">
-                      Your safety is our priority. Access is granted only through invite codes.
+                      Your safety is our priority. Access is granted through manual approval by administrators.
                     </p>
                   </div>
                 </div>
@@ -123,7 +120,7 @@ export default function Landing() {
 
                     <div className="pt-3 lg:pt-4 border-t">
                       <p className="text-xs text-center text-muted-foreground leading-relaxed">
-                        Need an invite code?{" "}
+                        Need access?{" "}
                         <button
                           onClick={() => openExternal(signalGroupUrl)}
                           className="text-primary hover:underline bg-transparent border-0 p-0 cursor-pointer"

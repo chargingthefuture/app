@@ -90,9 +90,9 @@ export function AppClerkProvider({ children }: { children: ReactNode }) {
       signInUrl={signInUrl}
       signUpUrl={signUpUrl}
       unauthorizedSignInUrl={unauthorizedSignInUrl}
-      // Redirect to invite-required page after sign-up (users need to enter invite code)
-      fallbackRedirectUrl={`${baseUrl}/invite-required`}
-      // Redirect to home after sign-in (if they have invite code) or invite-required (if not)
+      // Redirect to home after sign-up (users need admin approval)
+      fallbackRedirectUrl={`${baseUrl}/`}
+      // Redirect to home after sign-in (if approved) or show pending message (if not)
       afterSignInUrl={`${baseUrl}/`}
       // Redirect to sign-in page after sign-out
       afterSignOutUrl={signInUrl}

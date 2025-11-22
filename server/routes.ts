@@ -335,38 +335,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Admin routes - Invite codes
-  app.get('/api/admin/invites', isAuthenticated, isAdmin, asyncHandler(async (_req, res) => {
-    const invites = await withDatabaseErrorHandling(
-      () => storage.getAllInviteCodes(),
-      'getAllInviteCodes'
-    );
-    res.json(invites);
-  }));
-
-  app.post('/api/admin/invites', isAuthenticated, isAdmin, validateCsrfToken, asyncHandler(async (req: any, res) => {
-    const userId = getUserId(req);
-    const validatedData = validateWithZod(insertInviteCodeSchema, {
-      ...req.body,
-      createdBy: userId,
-    }, 'Invalid invite code data');
-
-    const invite = await withDatabaseErrorHandling(
-      () => storage.createInviteCode(validatedData),
-      'createInviteCode'
-    );
-    
-    await logAdminAction(
-      userId,
-      "generate_invite_code",
-      "invite_code",
-      invite.id,
-      { maxUses: invite.maxUses, expiresAt: invite.expiresAt }
-    );
-
-    res.json(invite);
-  }));
-
   // Admin routes - Payments
   app.get('/api/admin/payments', isAuthenticated, isAdmin, asyncHandler(async (_req, res) => {
     const payments = await withDatabaseErrorHandling(

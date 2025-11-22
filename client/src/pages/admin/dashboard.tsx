@@ -1,10 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, Ticket, DollarSign } from "lucide-react";
+import { Users, DollarSign } from "lucide-react";
 
 interface AdminStats {
   totalUsers: number;
-  activeInvites: number;
   collectedMonthlyRevenue: string;
   outstandingRevenue: string;
 }
@@ -20,12 +19,6 @@ export default function AdminDashboard() {
       value: stats?.totalUsers || 0,
       icon: Users,
       color: "bg-primary/10 text-primary",
-    },
-    {
-      title: "Active Invites",
-      value: stats?.activeInvites || 0,
-      icon: Ticket,
-      color: "bg-chart-2/10 text-chart-2",
     },
     {
       title: "Collected Monthly Revenue",
