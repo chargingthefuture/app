@@ -41,6 +41,16 @@ type HostWithUser = LighthouseProfile & {
 export default function LighthouseAdminPage() {
   const { openExternal, ExternalLinkDialog } = useExternalLink();
   
+  const formatPropertyType = (type: string) => {
+    const labels: Record<string, string> = {
+      room: "Private Room",
+      apartment: "Full Apartment",
+      community: "Community Housing",
+      rv_camper: "RV/Camper",
+    };
+    return labels[type] || type;
+  };
+  
   const { data: stats, isLoading } = useQuery<any>({
     queryKey: ["/api/lighthouse/admin/stats"],
   });
@@ -478,7 +488,7 @@ export default function LighthouseAdminPage() {
                               </button>
                             </TableCell>
                             <TableCell>
-                              <Badge variant="outline">{property.propertyType}</Badge>
+                              <Badge variant="outline">{formatPropertyType(property.propertyType)}</Badge>
                             </TableCell>
                             <TableCell className="max-w-xs">
                               <div className="truncate" title={location}>

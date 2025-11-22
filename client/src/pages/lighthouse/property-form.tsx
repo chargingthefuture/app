@@ -270,6 +270,7 @@ export default function PropertyFormPage() {
                         <SelectItem value="room">Private Room</SelectItem>
                         <SelectItem value="apartment">Full Apartment</SelectItem>
                         <SelectItem value="community">Community Housing</SelectItem>
+                        <SelectItem value="rv_camper">RV/Camper</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />

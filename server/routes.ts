@@ -737,6 +737,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(updated);
   }));
 
+  // Admin delete Directory profile (for deleting unclaimed profiles)
+  app.delete('/api/directory/admin/profiles/:id', isAuthenticated, isAdmin, asyncHandler(async (req: any, res) => {
+    const adminId = getUserId(req);
+    const profileId = req.params.id;
+    
+    // Get profile first to check if it's unclaimed
+    const profile = await withDatabaseErrorHandling(
+      () => storage.getDirectoryProfileById(profileId),
+      'getDirectoryProfileById'
+    );
+    
+    if (!profile) {
+      return res.status(404).json({ message: 'Profile not found' });
+    }
+    
+    // Only allow deletion of unclaimed profiles via admin endpoint
+    if (profile.isClaimed) {
+      return res.status(400).json({ message: 'Cannot delete claimed profiles. Use profile deletion instead.' });
+    }
+    
+    await withDatabaseErrorHandling(
+      () => storage.deleteDirectoryProfile(profileId),
+      'deleteDirectoryProfile'
+    );
+    
+    await logAdminAction(adminId, 'delete_directory_profile', 'directory_profile', profileId, { 
+      wasUnclaimed: true,
+      description: profile.description 
+    });
+    
+    res.json({ message: 'Profile deleted successfully' });
+  }));
+
   // ========================================
   // CHAT GROUPS APP ROUTES
   // ========================================

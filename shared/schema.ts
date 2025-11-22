@@ -495,7 +495,7 @@ export const lighthouseProperties = pgTable("lighthouse_properties", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   hostId: varchar("host_id").notNull().references(() => lighthouseProfiles.id),
   
-  propertyType: varchar("property_type", { length: 50 }).notNull(), // 'room', 'apartment', 'house', 'community'
+  propertyType: varchar("property_type", { length: 50 }).notNull(), // 'room', 'apartment', 'house', 'community', 'rv_camper'
   title: varchar("title", { length: 200 }).notNull(),
   description: text("description").notNull(),
   

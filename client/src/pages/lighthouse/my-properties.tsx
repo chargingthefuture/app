@@ -16,8 +16,19 @@ export default function MyPropertiesPage() {
       room: "bg-blue-500/10 text-blue-700 dark:text-blue-400",
       apartment: "bg-purple-500/10 text-purple-700 dark:text-purple-400",
       community: "bg-green-500/10 text-green-700 dark:text-green-400",
+      rv_camper: "bg-orange-500/10 text-orange-700 dark:text-orange-400",
     };
     return colors[type] || "bg-gray-500/10 text-gray-700 dark:text-gray-400";
+  };
+
+  const formatPropertyType = (type: string) => {
+    const labels: Record<string, string> = {
+      room: "Private Room",
+      apartment: "Full Apartment",
+      community: "Community Housing",
+      rv_camper: "RV/Camper",
+    };
+    return labels[type] || type;
   };
 
   if (isLoading) {
@@ -86,7 +97,7 @@ export default function MyPropertiesPage() {
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
                   <Badge className={getPropertyTypeColor(property.propertyType)}>
-                    {property.propertyType}
+                    {formatPropertyType(property.propertyType)}
                   </Badge>
                   {property.monthlyRent && (
                     <div className="flex items-center gap-1 text-sm font-medium text-primary">
