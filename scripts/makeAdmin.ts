@@ -9,12 +9,12 @@ import { eq } from "drizzle-orm";
  *   tsx scripts/makeAdmin.ts
  * 
  * This script will:
- * 1. Find the user with email farah@hey.com
+ * 1. Find the user with email jelly-jab-unloved@duck.com
  * 2. Set them as admin
  * 3. Approve them for app access
  */
 
-const ADMIN_EMAIL = "farah@hey.com";
+const ADMIN_EMAIL = "jelly-jab-unloved@duck.com";
 
 async function makeAdmin() {
   console.log(`\nMaking ${ADMIN_EMAIL} an admin...\n`);
