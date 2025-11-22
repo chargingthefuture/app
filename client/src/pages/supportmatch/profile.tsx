@@ -21,13 +21,13 @@ import { Check as CheckIcon } from "lucide-react";
 import { DeleteProfileDialog } from "@/components/delete-profile-dialog";
 
 const profileFormSchema = insertSupportMatchProfileSchema.omit({ userId: true }).extend({
-  nickname: z.string().optional(),
-  gender: z.string().optional(),
-  genderPreference: z.string().optional(),
-  city: z.string().optional(),
-  state: z.string().optional(),
-  country: z.string().optional(),
-  timezone: z.string().optional(),
+  nickname: z.preprocess((val) => (val === "" ? null : val), z.string().nullish()),
+  gender: z.preprocess((val) => (val === "" ? null : val), z.string().nullish()),
+  genderPreference: z.preprocess((val) => (val === "" ? null : val), z.string().nullish()),
+  city: z.preprocess((val) => (val === "" ? null : val), z.string().nullish()),
+  state: z.preprocess((val) => (val === "" ? null : val), z.string().nullish()),
+  country: z.preprocess((val) => (val === "" ? null : val), z.string().nullish()),
+  timezone: z.preprocess((val) => (val === "" ? null : val), z.string().nullish()),
   timezonePreference: z.string().optional(),
 });
 

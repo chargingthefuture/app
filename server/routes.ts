@@ -2,7 +2,7 @@ import express, { type Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated, isAdmin, getUserId } from "./auth";
-import { validateCsrfToken } from "./csrf";
+import { validateCsrfToken, generateCsrfTokenForAdmin } from "./csrf";
 import { publicListingLimiter, publicItemLimiter } from "./rateLimiter";
 import { fingerprintRequests, getSuspiciousPatterns, getSuspiciousPatternsForIP, clearSuspiciousPatterns } from "./antiScraping";
 import { rotateDisplayOrder, addAntiScrapingDelay, isLikelyBot } from "./dataObfuscation";
