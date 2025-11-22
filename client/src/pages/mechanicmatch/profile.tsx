@@ -475,7 +475,19 @@ export default function MechanicMatchProfile() {
                             <Input
                               type="number"
                               {...field}
-                              onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : null)}
+                              min="0"
+                              value={field.value ?? ""}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                if (value === "") {
+                                  field.onChange(null);
+                                } else {
+                                  const numValue = parseInt(value);
+                                  if (!isNaN(numValue) && numValue >= 0) {
+                                    field.onChange(numValue);
+                                  }
+                                }
+                              }}
                               placeholder="Years"
                               data-testid="input-experience"
                             />

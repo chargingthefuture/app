@@ -2864,12 +2864,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/mechanicmatch/profile', isAuthenticated, asyncHandler(async (req: any, res) => {
     const userId = getUserId(req);
-    const validatedData = validateWithZod(insertMechanicmatchProfileSchema, req.body, 'Invalid profile data');
+    const validatedData = validateWithZod(insertMechanicmatchProfileSchema, {
+      ...req.body,
+      userId,
+    }, 'Invalid profile data');
     const profile = await withDatabaseErrorHandling(
-      () => storage.createMechanicmatchProfile({
-        ...validatedData,
-        userId,
-      }),
+      () => storage.createMechanicmatchProfile(validatedData),
       'createMechanicmatchProfile'
     );
     res.json(profile);
