@@ -5,7 +5,7 @@ This document lists all tests created for the application.
 ## API Tests
 
 ### Authentication & Authorization
-- ✅ `test/api/auth.test.ts` - Authentication flows, invite redemption, authorization levels
+- ✅ `test/api/auth.test.ts` - Authentication flows, user approval, authorization levels
 
 ### SupportMatch
 - ✅ `test/api/supportmatch.test.ts` - Profile CRUD, partnerships, messages, exclusions, reports, announcements, admin
@@ -41,7 +41,7 @@ This document lists all tests created for the application.
 - ✅ `test/api/gentlepulse.test.ts` - Meditations, favorites, progress, announcements, admin
 
 ### Admin
-- ✅ `test/api/admin.test.ts` - Stats, users, invites, payments, anti-scraping monitoring, activity logs
+- ✅ `test/api/admin.test.ts` - Stats, users, payments, anti-scraping monitoring, activity logs
 
 ### Public Endpoints
 - ✅ `test/api/public-endpoints.test.ts` - Rate limiting, bot detection, display order rotation
@@ -104,7 +104,7 @@ This document lists all tests created for the application.
 
 1. **User Management**
    - Authentication/authorization
-   - Invite code redemption
+   - User approval system
    - User CRUD operations
 
 2. **SupportMatch Mini-App**
@@ -182,8 +182,7 @@ This document lists all tests created for the application.
 
 13. **Admin Features**
     - Stats dashboard
-    - User management
-    - Invite code management
+    - User management (approval/revocation)
     - Payment management
     - Anti-scraping monitoring
     - Activity logs
@@ -193,7 +192,7 @@ This document lists all tests created for the application.
     - Landing/login page
     - Services listing
     - User payments
-    - Invite code redemption
+    - Account management
 
 15. **Shared Components**
     - Announcement banner

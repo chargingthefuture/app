@@ -22,7 +22,7 @@ async function seedTrustTransport() {
           email: userData.email,
           firstName: userData.firstName,
           lastName: userData.lastName,
-          inviteCodeUsed: "TRUSTTRANSPORT-SEED",
+          isApproved: true,
           isAdmin: false,
         })
         .returning();

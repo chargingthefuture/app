@@ -73,7 +73,7 @@ async function seedReportsData() {
           email: data.email,
           firstName: data.firstName,
           lastName: data.lastName,
-          inviteCodeUsed: "REPORT-TEST-2025",
+          isApproved: true,
           isAdmin: false,
         })
         .returning();

@@ -58,7 +58,7 @@ describe('useAuth', () => {
       id: 'db-user-id',
       email: 'test@example.com',
       isAdmin: false,
-      inviteCodeUsed: 'TEST-CODE',
+      isApproved: true,
     };
 
     global.fetch = vi.fn(() =>
@@ -92,7 +92,7 @@ describe('useAuth', () => {
       id: 'db-user-id',
       email: 'admin@example.com',
       isAdmin: true,
-      inviteCodeUsed: 'TEST-CODE',
+      isApproved: true,
     };
 
     global.fetch = vi.fn(() =>

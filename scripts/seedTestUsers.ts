@@ -161,7 +161,7 @@ async function seedTestUsers() {
           email: data.email,
           firstName: data.firstName,
           lastName: data.lastName,
-          inviteCodeUsed: "TEST-SEED-2025",
+          isApproved: true,
           isAdmin: false,
         })
         .returning();

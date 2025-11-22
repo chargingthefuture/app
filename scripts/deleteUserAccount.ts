@@ -6,7 +6,7 @@ import { storage } from "../server/storage";
  * This script:
  * - Deletes all mini-app profiles (SupportMatch, LightHouse, SocketRelay, Directory, TrustTransport, MechanicMatch)
  * - Anonymizes all related data (messages, requests, partnerships, etc.)
- * - Anonymizes other user-related data (NPS responses, payments, invite codes, admin actions, research items)
+ * - Anonymizes other user-related data (NPS responses, payments, admin actions, research items)
  * - Anonymizes the user record itself (sets email to null, name to "Deleted User", etc.)
  * 
  * Usage:

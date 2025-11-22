@@ -25,7 +25,7 @@ async function seedSocketRelay() {
           email: userData.email,
           firstName: userData.firstName,
           lastName: userData.lastName,
-          inviteCodeUsed: "SOCKETRELAY-SEED",
+          isApproved: true,
           isAdmin: false,
         })
         .returning();

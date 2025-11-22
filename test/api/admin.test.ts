@@ -20,7 +20,7 @@ describe('API - Admin Stats', () => {
 
     it('should return admin statistics', () => {
       const req = createMockRequest(adminUserId, true);
-      // Should return totalUsers, activeInvites, revenue, etc.
+      // Should return totalUsers, revenue, etc.
       expect(req.user).toBeDefined();
     });
   });
@@ -60,36 +60,6 @@ describe('API - Admin Users', () => {
   });
 });
 
-describe('API - Admin Invites', () => {
-  let adminUserId: string;
-
-  beforeEach(() => {
-    adminUserId = generateTestUserId();
-  });
-
-  describe('GET /api/admin/invites', () => {
-    it('should require admin access', () => {
-      const req = createMockRequest(adminUserId, true);
-      expect(req.user).toBeDefined();
-    });
-  });
-
-  describe('POST /api/admin/invites', () => {
-    it('should create invite code', () => {
-      const req = createMockRequest(adminUserId, true);
-      req.body = {
-        maxUses: 10,
-        expiresAt: new Date('2025-12-31'),
-      };
-      expect(req.body.maxUses).toBe(10);
-    });
-
-    it('should log admin action', () => {
-      // Admin actions should be logged
-      expect(true).toBe(true);
-    });
-  });
-});
 
 describe('API - Admin Payments', () => {
   let adminUserId: string;

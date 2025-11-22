@@ -12,16 +12,16 @@ test.describe('Authentication Flow', () => {
     await expect(page).toHaveURL(/\/$|\/landing/);
   });
 
-  test('should show invite required page for authenticated users without invite', async ({ page }) => {
+  test('should show access pending page for authenticated users without approval', async ({ page }) => {
     // This would require setting up auth state in test
     // For now, we're testing the structure
     
-    // If authenticated but no invite, should show invite-required page
+    // If authenticated but not approved, should show access pending message
     // This test structure shows the pattern
   });
 
-  test('should allow authenticated users with invite to access features', async ({ page }) => {
-    // With valid auth and invite, should access mini-apps
+  test('should allow authenticated and approved users to access features', async ({ page }) => {
+    // With valid auth and approval, should access mini-apps
     // This test structure shows the pattern
   });
 });

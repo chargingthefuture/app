@@ -37,7 +37,7 @@ async function seedMechanicMatch() {
             email: userData.email,
             firstName: userData.firstName,
             lastName: userData.lastName,
-            inviteCodeUsed: "MECHANICMATCH-SEED",
+            isApproved: true,
             isAdmin: false,
           })
           .returning();

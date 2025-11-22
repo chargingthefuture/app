@@ -76,7 +76,7 @@ async function seedWeeklyPerformanceMetrics() {
           email: "seed-admin@example.com",
           firstName: "Seed",
           lastName: "Admin",
-          inviteCodeUsed: "SEED-ADMIN",
+          isApproved: true,
           isAdmin: true,
         })
         .returning();
