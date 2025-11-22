@@ -130,11 +130,11 @@ export function ConditionalClerkProvider({ children }: { children: ReactNode }) 
       signUpUrl = `https://${stagingCustomDomain}/sign-up`;
       unauthorizedSignInUrl = `https://${stagingCustomDomain}/unauthorized-sign-in`;
     } else {
-      // Use relative URLs - Clerk will route to the correct instance based on publishable key
-      // When using live keys with a separate Clerk project, this works correctly
-      signInUrl = "/sign-in";
-      signUpUrl = "/sign-up";
-      unauthorizedSignInUrl = "/unauthorized-sign-in";
+      // Use absolute URLs with baseUrl - Clerk will route to correct instance based on publishable key
+      // When using live keys with a separate Clerk project, Clerk automatically determines the instance
+      signInUrl = `${baseUrl}/sign-in`;
+      signUpUrl = `${baseUrl}/sign-up`;
+      unauthorizedSignInUrl = `${baseUrl}/unauthorized-sign-in`;
     }
   } else {
     // Local development - use dev instance

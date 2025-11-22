@@ -51,9 +51,7 @@ export function AppClerkProvider({ children }: { children: ReactNode }) {
     signUpUrl = "https://accounts.app.chargingthefuture.com/sign-up";
     unauthorizedSignInUrl = "https://accounts.app.chargingthefuture.com/unauthorized-sign-in";
   } else if (isStaging) {
-    // For staging, check if custom domain is configured, otherwise use environment variable
-    // If using live keys with a separate Clerk project, you can set up a custom domain
-    // or use the default Clerk URLs for that project
+    // For staging, check if custom domain is configured
     const stagingCustomDomain = import.meta.env.VITE_CLERK_STAGING_DOMAIN;
     if (stagingCustomDomain) {
       // Custom domain configured (e.g., accounts.the-comic.com)
@@ -61,12 +59,11 @@ export function AppClerkProvider({ children }: { children: ReactNode }) {
       signUpUrl = `https://${stagingCustomDomain}/sign-up`;
       unauthorizedSignInUrl = `https://${stagingCustomDomain}/unauthorized-sign-in`;
     } else {
-      // Use default Clerk URLs - Clerk will determine the correct instance based on publishable key
-      // When using live keys, Clerk automatically routes to the correct instance
-      // Don't hardcode URLs - let Clerk handle it based on the publishable key
-      signInUrl = "/sign-in";
-      signUpUrl = "/sign-up";
-      unauthorizedSignInUrl = "/unauthorized-sign-in";
+      // Use absolute URLs with baseUrl - Clerk will route to correct instance based on publishable key
+      // When using live keys with a separate Clerk project, Clerk automatically determines the instance
+      signInUrl = `${baseUrl}/sign-in`;
+      signUpUrl = `${baseUrl}/sign-up`;
+      unauthorizedSignInUrl = `${baseUrl}/unauthorized-sign-in`;
     }
   } else {
     // Development - use dev instance

@@ -44,11 +44,11 @@ const getAccountUrls = () => {
         unauthorized: `https://${stagingCustomDomain}/unauthorized-sign-in`,
       };
     }
-    // Otherwise use relative URLs - Clerk will route based on publishable key
+    // Otherwise use absolute URLs with baseUrl - Clerk will route based on publishable key
     return {
-      signIn: '/sign-in',
-      signUp: '/sign-up',
-      unauthorized: '/unauthorized-sign-in',
+      signIn: `${baseUrl}/sign-in`,
+      signUp: `${baseUrl}/sign-up`,
+      unauthorized: `${baseUrl}/unauthorized-sign-in`,
     };
   }
   
