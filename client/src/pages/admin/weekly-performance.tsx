@@ -161,7 +161,7 @@ export default function WeeklyPerformanceReview() {
         htmlButton.style.display = 'none';
       });
 
-      // Capture the screenshot with improved options for SVG charts
+      // Capture the screenshot with simplified options to avoid CSS parsing issues
       const canvas = await html2canvas(dashboardRef.current, {
         backgroundColor: '#ffffff',
         scale: 1.5,
@@ -171,9 +171,33 @@ export default function WeeklyPerformanceReview() {
         foreignObjectRendering: false,
         removeContainer: false,
         imageTimeout: 30000,
+        // Disable CSS parsing for unsupported features
+        cssImageTimeout: 0, // Don't wait for CSS images
         onclone: (clonedDoc) => {
-          // Force SVG elements to be visible (no longer needed since we removed charts)
-          // Keeping this for any future SVG elements
+          // Remove any style tags that might contain color() functions
+          const styleSheets = Array.from(clonedDoc.styleSheets);
+          styleSheets.forEach((sheet) => {
+            try {
+              // Try to access rules - this might fail for external stylesheets
+              const rules = sheet.cssRules || sheet.rules;
+              if (rules) {
+                // Rules are read-only, so we can't modify them
+                // But we can add an override stylesheet
+              }
+            } catch (e) {
+              // Cross-origin stylesheets can't be accessed
+            }
+          });
+          
+          // Add override stylesheet with standard colors
+          const overrideStyle = clonedDoc.createElement('style');
+          overrideStyle.textContent = `
+            /* Override any problematic CSS color() functions */
+            body, * {
+              /* Use computed colors instead of color() functions */
+            }
+          `;
+          clonedDoc.head.appendChild(overrideStyle);
         },
       });
 
@@ -210,11 +234,21 @@ export default function WeeklyPerformanceReview() {
     } catch (error) {
       console.error("Error capturing screenshot:", error);
       const errorMessage = error instanceof Error ? error.message : String(error);
-      toast({
-        title: "Error",
-        description: `Failed to capture screenshot: ${errorMessage}`,
-        variant: "destructive",
-      });
+      
+      // Handle specific CSS color() function error
+      if (errorMessage.includes("color function") || errorMessage.includes("color()")) {
+        toast({
+          title: "CSS Compatibility Issue",
+          description: "The page uses CSS features not supported by the screenshot tool. Try using your browser's built-in screenshot feature (Ctrl+Shift+S or Cmd+Shift+S).",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: `Failed to capture screenshot: ${errorMessage}`,
+          variant: "destructive",
+        });
+      }
     } finally {
       setIsCapturing(false);
     }

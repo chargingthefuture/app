@@ -141,7 +141,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (event.type === 'user.created') {
         const clerkUserId = event.data.id;
         const email = event.data.email_addresses?.[0]?.email_address;
-                
+        
         // Note: User will be synced to DB via the auth middleware on first request
         // This webhook is mainly for logging and potential future invite code validation
         // For now, users will be redirected to /invite-required after sign-up
@@ -2866,7 +2866,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const userId = getUserId(req);
     const validatedData = validateWithZod(insertMechanicmatchProfileSchema, {
       ...req.body,
-      userId,
+        userId,
     }, 'Invalid profile data');
     const profile = await withDatabaseErrorHandling(
       () => storage.createMechanicmatchProfile(validatedData),
