@@ -84,13 +84,15 @@ export function ConditionalClerkProvider({ children }: { children: ReactNode }) 
   }
 
   const baseUrl = getBaseUrl();
+  const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
   
   // Detect environment
-  const isProduction = baseUrl.includes('app.chargingthefuture.com');
-  const isStaging = typeof window !== 'undefined' && 
-    (window.location.hostname.includes('railway.app') || 
-     window.location.hostname.includes('staging') ||
-     window.location.hostname.includes('up.railway.app'));
+  const isProduction = hostname.includes('app.chargingthefuture.com');
+  const isStaging = hostname.includes('the-comic.com') || 
+    hostname.includes('staging') ||
+    (typeof window !== 'undefined' && 
+     (window.location.hostname.includes('railway.app') || 
+      window.location.hostname.includes('up.railway.app')));
   const isLocalDev = typeof window !== 'undefined' && 
     (window.location.hostname === 'localhost' || 
      window.location.hostname === '127.0.0.1');
@@ -98,37 +100,48 @@ export function ConditionalClerkProvider({ children }: { children: ReactNode }) 
   // Detect if using production Clerk keys (pk_live_*) vs dev/test keys (pk_test_*)
   const isProductionKey = clerkPublishableKey?.startsWith('pk_live_');
   
-  // Only set domain prop in production with custom domain
-  // For staging and local dev, don't set domain to avoid restrictions
-  // Production Clerk keys (pk_live_*) are domain-restricted to app.chargingthefuture.com
-  // Staging MUST use separate dev/test Clerk keys (pk_test_*) to work with Railway URLs
-  const clerkDomain = isProduction && typeof window !== 'undefined' && !isStaging
-    ? window.location.hostname 
+  // Set domain prop based on environment
+  // For production: use custom domain
+  // For staging with live keys: use the staging domain (the-comic.com)
+  // For local dev: don't set domain
+  const clerkDomain = typeof window !== 'undefined' 
+    ? (isProduction || (isStaging && isProductionKey))
+      ? window.location.hostname 
+      : undefined
     : undefined;
   
-  // Warn if using production keys in staging (will cause errors)
-  if (isStaging && isProductionKey && typeof window !== 'undefined') {
-    console.warn(
-      '⚠️ Clerk Configuration Warning: ' +
-      'You are using production Clerk keys (pk_live_*) in staging. ' +
-      'Production keys are domain-restricted and will not work with Railway staging URLs. ' +
-      'Please create a separate Clerk application for staging and use dev/test keys (pk_test_*).'
-    );
-  }
-
   // Determine Clerk URLs based on environment
-  // For staging: Use dev URLs if using dev keys, or production URLs if using production keys
-  // For production: Use production URLs
-  // For local dev: Use dev URLs
-  const signInUrl = isProduction 
-    ? "https://accounts.app.chargingthefuture.com/sign-in"
-    : "https://sure-oarfish-90.accounts.dev/sign-in";
-  const signUpUrl = isProduction
-    ? "https://accounts.app.chargingthefuture.com/sign-up"
-    : "https://sure-oarfish-90.accounts.dev/sign-up";
-  const unauthorizedSignInUrl = isProduction
-    ? "https://accounts.app.chargingthefuture.com/unauthorized-sign-in"
-    : "https://sure-oarfish-90.accounts.dev/unauthorized-sign-in";
+  // When using live keys with a separate Clerk project, Clerk automatically routes to the correct instance
+  // based on the publishable key, so we can use relative URLs or let Clerk handle it
+  let signInUrl: string;
+  let signUpUrl: string;
+  let unauthorizedSignInUrl: string;
+
+  if (isProduction) {
+    signInUrl = "https://accounts.app.chargingthefuture.com/sign-in";
+    signUpUrl = "https://accounts.app.chargingthefuture.com/sign-up";
+    unauthorizedSignInUrl = "https://accounts.app.chargingthefuture.com/unauthorized-sign-in";
+  } else if (isStaging) {
+    // For staging with live keys, check if custom domain is configured
+    const stagingCustomDomain = import.meta.env.VITE_CLERK_STAGING_DOMAIN;
+    if (stagingCustomDomain) {
+      // Custom domain configured (e.g., accounts.the-comic.com)
+      signInUrl = `https://${stagingCustomDomain}/sign-in`;
+      signUpUrl = `https://${stagingCustomDomain}/sign-up`;
+      unauthorizedSignInUrl = `https://${stagingCustomDomain}/unauthorized-sign-in`;
+    } else {
+      // Use relative URLs - Clerk will route to the correct instance based on publishable key
+      // When using live keys with a separate Clerk project, this works correctly
+      signInUrl = "/sign-in";
+      signUpUrl = "/sign-up";
+      unauthorizedSignInUrl = "/unauthorized-sign-in";
+    }
+  } else {
+    // Local development - use dev instance
+    signInUrl = "https://sure-oarfish-90.accounts.dev/sign-in";
+    signUpUrl = "https://sure-oarfish-90.accounts.dev/sign-up";
+    unauthorizedSignInUrl = "https://sure-oarfish-90.accounts.dev/unauthorized-sign-in";
+  }
 
   // Wrap in error boundary to catch initialization errors
   return (

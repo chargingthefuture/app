@@ -39,7 +39,7 @@ export function AppClerkProvider({ children }: { children: ReactNode }) {
   const isDevelopment = !isProduction && !isStaging;
 
   // Use appropriate URLs based on environment
-  // For staging, use the staging Clerk instance (you'll need to configure this in Clerk)
+  // For staging with live keys, use custom domain if configured, otherwise use Clerk's default
   // For production, use custom domain
   // For development, use Clerk dev instance
   let signInUrl: string;
@@ -51,24 +51,42 @@ export function AppClerkProvider({ children }: { children: ReactNode }) {
     signUpUrl = "https://accounts.app.chargingthefuture.com/sign-up";
     unauthorizedSignInUrl = "https://accounts.app.chargingthefuture.com/unauthorized-sign-in";
   } else if (isStaging) {
-    // For staging, use Clerk's default URLs (or configure custom domain in Clerk)
-    // You'll need to set up a custom domain in Clerk for staging, or use the default dev URLs
-    // If you set up a custom domain in Clerk for staging, use those URLs here
-    const stagingDomain = import.meta.env.VITE_CLERK_SIGN_IN_URL || "https://sure-oarfish-90.accounts.dev";
-    signInUrl = `${stagingDomain}/sign-in`;
-    signUpUrl = `${stagingDomain}/sign-up`;
-    unauthorizedSignInUrl = `${stagingDomain}/unauthorized-sign-in`;
+    // For staging, check if custom domain is configured, otherwise use environment variable
+    // If using live keys with a separate Clerk project, you can set up a custom domain
+    // or use the default Clerk URLs for that project
+    const stagingCustomDomain = import.meta.env.VITE_CLERK_STAGING_DOMAIN;
+    if (stagingCustomDomain) {
+      // Custom domain configured (e.g., accounts.the-comic.com)
+      signInUrl = `https://${stagingCustomDomain}/sign-in`;
+      signUpUrl = `https://${stagingCustomDomain}/sign-up`;
+      unauthorizedSignInUrl = `https://${stagingCustomDomain}/unauthorized-sign-in`;
+    } else {
+      // Use default Clerk URLs - Clerk will determine the correct instance based on publishable key
+      // When using live keys, Clerk automatically routes to the correct instance
+      // Don't hardcode URLs - let Clerk handle it based on the publishable key
+      signInUrl = "/sign-in";
+      signUpUrl = "/sign-up";
+      unauthorizedSignInUrl = "/unauthorized-sign-in";
+    }
   } else {
-    // Development
+    // Development - use dev instance
     signInUrl = "https://sure-oarfish-90.accounts.dev/sign-in";
     signUpUrl = "https://sure-oarfish-90.accounts.dev/sign-up";
     unauthorizedSignInUrl = "https://sure-oarfish-90.accounts.dev/unauthorized-sign-in";
   }
 
+  // Set domain prop - required for live keys to work with custom domains
+  // For staging with live keys, we need to set the domain so Clerk knows which project to use
+  const clerkDomain = typeof window !== 'undefined' 
+    ? (isProduction || isStaging) 
+      ? window.location.hostname 
+      : undefined
+    : undefined;
+
   return (
     <ClerkProvider 
       publishableKey={clerkPublishableKey}
-      domain={typeof window !== 'undefined' ? window.location.hostname : undefined}
+      {...(clerkDomain ? { domain: clerkDomain } : {})}
       // Use Clerk's hosted Account Portal (dev or prod based on environment)
       signInUrl={signInUrl}
       signUpUrl={signUpUrl}

@@ -22,13 +22,33 @@ const getAccountUrls = () => {
   }
 
   const baseUrl = window.location.origin;
-  const isProduction = baseUrl.includes('app.chargingthefuture.com');
+  const hostname = window.location.hostname;
+  const isProduction = hostname.includes('app.chargingthefuture.com');
+  const isStaging = hostname.includes('the-comic.com') || hostname.includes('staging');
   
   if (isProduction) {
     return {
       signIn: 'https://accounts.app.chargingthefuture.com/sign-in',
       signUp: 'https://accounts.app.chargingthefuture.com/sign-up',
       unauthorized: 'https://accounts.app.chargingthefuture.com/unauthorized-sign-in',
+    };
+  }
+  
+  if (isStaging) {
+    // For staging, check if custom domain is configured
+    const stagingCustomDomain = import.meta.env.VITE_CLERK_STAGING_DOMAIN;
+    if (stagingCustomDomain) {
+      return {
+        signIn: `https://${stagingCustomDomain}/sign-in`,
+        signUp: `https://${stagingCustomDomain}/sign-up`,
+        unauthorized: `https://${stagingCustomDomain}/unauthorized-sign-in`,
+      };
+    }
+    // Otherwise use relative URLs - Clerk will route based on publishable key
+    return {
+      signIn: '/sign-in',
+      signUp: '/sign-up',
+      unauthorized: '/unauthorized-sign-in',
     };
   }
   
