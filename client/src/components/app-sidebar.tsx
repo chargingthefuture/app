@@ -239,34 +239,32 @@ export function AppSidebar() {
 
   const townsquareUrl = "https://chargingthefuture.discourse.group";
 
-  // Get the correct sign-in URL based on environment
-  const getSignInUrl = () => {
-    const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
-    const isProduction = hostname.includes('app.chargingthefuture.com');
-    const isStaging = hostname.includes('the-comic.com') || hostname.includes('staging');
-    
-    if (isProduction) {
-      return 'https://accounts.app.chargingthefuture.com/sign-in';
-    } else if (isStaging) {
-      const stagingCustomDomain = import.meta.env.VITE_CLERK_STAGING_DOMAIN;
-      if (stagingCustomDomain) {
-        return `https://${stagingCustomDomain}/sign-in`;
-      }
-      return `${window.location.origin}/sign-in`;
-    } else {
-      return 'https://sure-oarfish-90.accounts.dev/sign-in';
-    }
-  };
-
   const handleSignOut = async () => {
     try {
-      await clerk.signOut({
-        redirectUrl: getSignInUrl(),
-      });
+      // Don't pass redirectUrl - let Clerk use the afterSignOutUrl configured in ClerkProvider
+      // This ensures it uses the correct domain (custom domain if configured, or baseUrl)
+      await clerk.signOut();
     } catch (error) {
       console.error('Error signing out:', error);
-      // Fallback to redirect if signOut fails
-      window.location.href = getSignInUrl();
+      // Fallback: redirect to sign-in page
+      const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
+      const isProduction = hostname.includes('app.chargingthefuture.com');
+      const isStaging = hostname.includes('the-comic.com') || hostname.includes('staging');
+      
+      let signInUrl: string;
+      if (isProduction) {
+        signInUrl = 'https://accounts.app.chargingthefuture.com/sign-in';
+      } else if (isStaging) {
+        const stagingCustomDomain = import.meta.env.VITE_CLERK_STAGING_DOMAIN;
+        if (stagingCustomDomain) {
+          signInUrl = `https://${stagingCustomDomain}/sign-in`;
+        } else {
+          signInUrl = `${window.location.origin}/sign-in`;
+        }
+      } else {
+        signInUrl = 'https://sure-oarfish-90.accounts.dev/sign-in';
+      }
+      window.location.href = signInUrl;
     }
   };
 

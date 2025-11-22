@@ -36,7 +36,9 @@ const getAccountUrls = () => {
   
   if (isStaging) {
     // For staging, check if custom domain is configured
-    const stagingCustomDomain = import.meta.env.VITE_CLERK_STAGING_DOMAIN;
+    // Default to accounts.the-comic.com for the-comic.com domain
+    const stagingCustomDomain = import.meta.env.VITE_CLERK_STAGING_DOMAIN || 
+      (hostname.includes('the-comic.com') ? 'accounts.the-comic.com' : null);
     if (stagingCustomDomain) {
       return {
         signIn: `https://${stagingCustomDomain}/sign-in`,

@@ -52,7 +52,9 @@ export function AppClerkProvider({ children }: { children: ReactNode }) {
     unauthorizedSignInUrl = "https://accounts.app.chargingthefuture.com/unauthorized-sign-in";
   } else if (isStaging) {
     // For staging, check if custom domain is configured
-    const stagingCustomDomain = import.meta.env.VITE_CLERK_STAGING_DOMAIN;
+    // Default to accounts.the-comic.com for the-comic.com domain
+    const stagingCustomDomain = import.meta.env.VITE_CLERK_STAGING_DOMAIN || 
+      (hostname.includes('the-comic.com') ? 'accounts.the-comic.com' : null);
     if (stagingCustomDomain) {
       // Custom domain configured (e.g., accounts.the-comic.com)
       signInUrl = `https://${stagingCustomDomain}/sign-in`;
