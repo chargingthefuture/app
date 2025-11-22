@@ -202,7 +202,8 @@ export default function DirectoryProfilePage() {
         <h1 className="text-2xl sm:text-3xl md:text-4xl font-semibold mb-2">Directory Profile</h1>
         <p className="text-muted-foreground text-sm sm:text-base">Connect and exchange skills with other survivors</p>
         <div className="mt-4 space-y-2">
-          <label className="text-sm font-medium">Public Directory</label>
+          <label className="text-sm font-medium">Public Directory Link</label>
+          <p>This link is a where your profile will appear if you choose to have a public profile. Use it to view anyone that has chosen to have a public profile.</p>
           <div className="flex items-center gap-2">
             <code className="flex-1 font-mono text-xs sm:text-sm bg-muted px-2 py-1.5 rounded break-all">
               {publicDirectoryUrl}

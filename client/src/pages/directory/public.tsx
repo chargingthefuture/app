@@ -1,12 +1,39 @@
+import { useState } from "react";
 import { useParams } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import type { DirectoryProfile } from "@shared/schema";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Copy, Check } from "lucide-react";
 import { VerifiedBadge } from "@/components/verified-badge";
+import { useToast } from "@/hooks/use-toast";
+import { useExternalLink } from "@/hooks/useExternalLink";
 
 export default function PublicDirectoryProfile() {
+  const { toast } = useToast();
+  const { openExternal, ExternalLinkDialog } = useExternalLink();
+  const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
+  
+  const publicDirectoryUrl = "https://app.chargingthefuture.com/apps/directory/public";
+  
+  const copyUrl = async (url: string) => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiedUrl(url);
+      toast({
+        title: "Copied!",
+        description: "Public Directory link copied to clipboard",
+      });
+      setTimeout(() => setCopiedUrl(null), 2000);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to copy link",
+        variant: "destructive",
+      });
+    }
+  };
   const { id } = useParams<{ id: string }>();
   const { data: profile, isLoading, error } = useQuery<DirectoryProfile | null>({
     queryKey: ["/api/directory/public", id],
@@ -44,6 +71,38 @@ export default function PublicDirectoryProfile() {
       <div>
         <h1 className="text-2xl sm:text-3xl md:text-4xl font-semibold mb-2">Directory Profile</h1>
         <p className="text-muted-foreground text-sm sm:text-base">Public profile</p>
+        <div className="mt-4 space-y-2">
+          <label className="text-sm font-medium">Public Directory Link</label>
+          <p className="text-sm text-muted-foreground">Return to the public directory to view all public profiles.</p>
+          <div className="flex items-center gap-2">
+            <code className="flex-1 font-mono text-xs sm:text-sm bg-muted px-2 py-1.5 rounded break-all">
+              {publicDirectoryUrl}
+            </code>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => copyUrl(publicDirectoryUrl)}
+              className="flex-shrink-0"
+              data-testid="button-copy-public-directory"
+              aria-label="Copy public Directory link"
+            >
+              {copiedUrl === publicDirectoryUrl ? (
+                <Check className="w-4 h-4 text-primary" />
+              ) : (
+                <Copy className="w-4 h-4" />
+              )}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => openExternal(publicDirectoryUrl)}
+              className="flex-shrink-0"
+              data-testid="button-open-public-directory"
+            >
+              <ExternalLink className="w-4 h-4 mr-2" /> Open
+            </Button>
+          </div>
+        </div>
       </div>
 
       <Card>
@@ -90,6 +149,8 @@ export default function PublicDirectoryProfile() {
           </div>
         </CardContent>
       </Card>
+
+      <ExternalLinkDialog />
     </div>
   );
 }

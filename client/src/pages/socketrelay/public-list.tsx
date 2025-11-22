@@ -1,12 +1,14 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation, Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { VerifiedBadge } from "@/components/verified-badge";
-import { MapPin, Clock, Share2, ArrowRight, Package } from "lucide-react";
+import { MapPin, Clock, Share2, ArrowRight, Package, Copy, Check, ExternalLink } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useExternalLink } from "@/hooks/useExternalLink";
+import { useToast } from "@/hooks/use-toast";
 
 type PublicRequest = {
   id: string;
@@ -28,6 +30,28 @@ type PublicRequest = {
 export default function PublicSocketRelayList() {
   const [, setLocation] = useLocation();
   const { openExternal, ExternalLinkDialog } = useExternalLink();
+  const { toast } = useToast();
+  const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
+  
+  const publicSocketRelayUrl = "https://app.chargingthefuture.com/apps/socketrelay/public";
+  
+  const copyUrl = async (url: string) => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiedUrl(url);
+      toast({
+        title: "Copied!",
+        description: "Public SocketRelay link copied to clipboard",
+      });
+      setTimeout(() => setCopiedUrl(null), 2000);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to copy link",
+        variant: "destructive",
+      });
+    }
+  };
 
   const { data: requests = [], isLoading, error } = useQuery<PublicRequest[]>({
     queryKey: ["/api/socketrelay/public"],
@@ -105,6 +129,40 @@ export default function PublicSocketRelayList() {
               <p className="text-muted-foreground mt-1">
                 {requests.length} {requests.length === 1 ? "request" : "requests"} currently active
               </p>
+            </div>
+          </div>
+          
+          {/* Public SocketRelay Link */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Public SocketRelay Link</label>
+            <p className="text-sm text-muted-foreground">Share this link to view all public SocketRelay requests.</p>
+            <div className="flex items-center gap-2">
+              <code className="flex-1 font-mono text-xs sm:text-sm bg-muted px-2 py-1.5 rounded break-all">
+                {publicSocketRelayUrl}
+              </code>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => copyUrl(publicSocketRelayUrl)}
+                className="flex-shrink-0"
+                data-testid="button-copy-public-socketrelay"
+                aria-label="Copy public SocketRelay link"
+              >
+                {copiedUrl === publicSocketRelayUrl ? (
+                  <Check className="w-4 h-4 text-primary" />
+                ) : (
+                  <Copy className="w-4 h-4" />
+                )}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => openExternal(publicSocketRelayUrl)}
+                className="flex-shrink-0"
+                data-testid="button-open-public-socketrelay"
+              >
+                <ExternalLink className="w-4 h-4 mr-2" /> Open
+              </Button>
             </div>
           </div>
 
