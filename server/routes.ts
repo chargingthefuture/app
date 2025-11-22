@@ -7,7 +7,6 @@ import { publicListingLimiter, publicItemLimiter } from "./rateLimiter";
 import { fingerprintRequests, getSuspiciousPatterns, getSuspiciousPatternsForIP, clearSuspiciousPatterns } from "./antiScraping";
 import { rotateDisplayOrder, addAntiScrapingDelay, isLikelyBot } from "./dataObfuscation";
 import { 
-  insertInviteCodeSchema, 
   insertPaymentSchema,
   insertPricingTierSchema,
   insertSupportMatchProfileSchema,
@@ -143,9 +142,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const email = event.data.email_addresses?.[0]?.email_address;
         
         // Note: User will be synced to DB via the auth middleware on first request
-        // This webhook is mainly for logging and potential future invite code validation
-        // For now, users will be redirected to /invite-required after sign-up
-        // where they can enter their invite code
+        // This webhook is mainly for logging
+        // Users need to be manually approved by an admin to access the app
       }
       
       res.json({ received: true });
@@ -188,65 +186,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(400).json({ message: error.message || "Failed to delete account" });
     }
   }));
-
-  // Invite code redemption
-  app.post('/api/redeem-invite', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const { code } = req.body;
-
-      if (!code || typeof code !== 'string') {
-        return res.status(400).json({ message: "Invite code is required" });
-      }
-
-      // Get the invite code
-      const invite = await storage.getInviteCodeByCode(code.trim().toUpperCase());
-
-      if (!invite) {
-        return res.status(404).json({ message: "Invalid invite code" });
-      }
-
-      // Check if active
-      if (!invite.isActive) {
-        return res.status(400).json({ message: "This invite code is no longer active" });
-      }
-
-      // Check if expired
-      if (invite.expiresAt && new Date(invite.expiresAt) < new Date()) {
-        return res.status(400).json({ message: "This invite code has expired" });
-      }
-
-      // Check if fully used
-      if (invite.currentUses >= invite.maxUses) {
-        return res.status(400).json({ message: "This invite code has reached its maximum uses" });
-      }
-
-      // Get current user
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
-      }
-
-      // Check if user already used an invite code
-      if (user.inviteCodeUsed) {
-        return res.status(400).json({ message: "You have already used an invite code" });
-      }
-
-      // Update user with invite code
-      await storage.upsertUser({
-        ...user,
-        inviteCodeUsed: code.trim().toUpperCase(),
-      });
-
-      // Increment invite code usage
-      await storage.incrementInviteCodeUsage(code.trim().toUpperCase());
-
-      res.json({ message: "Invite code redeemed successfully" });
-    } catch (error: any) {
-      console.error("Error redeeming invite code:", error);
-      res.status(500).json({ message: error.message || "Failed to redeem invite code" });
-    }
-  });
 
   // User routes
   app.get('/api/payments', isAuthenticated, async (req: any, res) => {
@@ -380,6 +319,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error updating user verification:", error);
       res.status(400).json({ message: error.message || "Failed to update user verification" });
+    }
+  });
+
+  app.put('/api/admin/users/:id/approve', isAuthenticated, isAdmin, validateCsrfToken, async (req: any, res) => {
+    try {
+      const adminId = getUserId(req);
+      const { isApproved } = req.body;
+      const user = await storage.updateUserApproval(req.params.id, !!isApproved);
+      await logAdminAction(adminId, 'approve_user', 'user', user.id, { isApproved: user.isApproved });
+      res.json(user);
+    } catch (error: any) {
+      console.error("Error updating user approval:", error);
+      res.status(400).json({ message: error.message || "Failed to update user approval" });
     }
   });
 

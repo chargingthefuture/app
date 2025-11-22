@@ -1,6 +1,5 @@
 import {
   users,
-  inviteCodes,
   pricingTiers,
   payments,
   adminActionLogs,
@@ -38,8 +37,6 @@ import {
   type InsertNpsResponse,
   type User,
   type UpsertUser,
-  type InviteCode,
-  type InsertInviteCode,
   type PricingTier,
   type InsertPricingTier,
   type Payment,
@@ -191,12 +188,7 @@ export interface IStorage {
   upsertUser(user: UpsertUser): Promise<User>;
   getAllUsers(): Promise<User[]>;
   updateUserVerification(userId: string, isVerified: boolean): Promise<User>;
-  
-  // Invite code operations
-  createInviteCode(inviteCode: InsertInviteCode): Promise<InviteCode>;
-  getInviteCodeByCode(code: string): Promise<InviteCode | undefined>;
-  getAllInviteCodes(): Promise<InviteCode[]>;
-  incrementInviteCodeUsage(code: string): Promise<void>;
+  updateUserApproval(userId: string, isApproved: boolean): Promise<User>;
   
   // Pricing tier operations
   getCurrentPricingTier(): Promise<PricingTier | undefined>;
@@ -754,41 +746,17 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
-  // Invite code operations
-  async createInviteCode(inviteCodeData: InsertInviteCode): Promise<InviteCode> {
-    // Generate a unique 12-character code
-    const code = randomBytes(6).toString('hex').toUpperCase();
-    
-    const [inviteCode] = await db
-      .insert(inviteCodes)
-      .values({
-        ...inviteCodeData,
-        code,
-      })
-      .returning();
-    return inviteCode;
-  }
-
-  async getInviteCodeByCode(code: string): Promise<InviteCode | undefined> {
-    const [inviteCode] = await db
-      .select()
-      .from(inviteCodes)
-      .where(eq(inviteCodes.code, code));
-    return inviteCode;
-  }
-
-  async getAllInviteCodes(): Promise<InviteCode[]> {
-    return await db.select().from(inviteCodes).orderBy(desc(inviteCodes.createdAt));
-  }
-
-  async incrementInviteCodeUsage(code: string): Promise<void> {
-    await db
-      .update(inviteCodes)
+  // User approval operations
+  async updateUserApproval(userId: string, isApproved: boolean): Promise<User> {
+    const [user] = await db
+      .update(users)
       .set({
-        currentUses: sql`${inviteCodes.currentUses} + 1`,
+        isApproved: !!isApproved,
         updatedAt: new Date(),
       })
-      .where(eq(inviteCodes.code, code));
+      .where(eq(users.id, userId))
+      .returning();
+    return user;
   }
 
   // Pricing tier operations
@@ -910,7 +878,6 @@ export class DatabaseStorage implements IStorage {
   // Stats
   async getAdminStats() {
     const allUsers = await db.select().from(users);
-    const allInvites = await db.select().from(inviteCodes).where(eq(inviteCodes.isActive, true));
     
     // Calculate outstanding revenue based on current active users
     const outstandingRevenue = allUsers.reduce((sum, user) => {
@@ -5368,16 +5335,6 @@ export class DatabaseStorage implements IStorage {
         console.warn(`[deleteUserAccount] Warning: Failed to anonymize payments: ${error.message}`);
       }
 
-      // Step 5: Anonymize invite codes (createdBy)
-      try {
-        await db
-          .update(inviteCodes)
-          .set({ createdBy: anonymizedUserId })
-          .where(eq(inviteCodes.createdBy, userId));
-        console.log(`[deleteUserAccount] Anonymized invite codes`);
-      } catch (error: any) {
-        console.warn(`[deleteUserAccount] Warning: Failed to anonymize invite codes: ${error.message}`);
-      }
 
       // Step 6: Anonymize admin action logs (adminId)
       try {
@@ -5413,7 +5370,7 @@ export class DatabaseStorage implements IStorage {
             profileImageUrl: null,
             isAdmin: false,
             isVerified: false,
-            inviteCodeUsed: null,
+            isApproved: false,
             updatedAt: new Date(),
           })
           .where(eq(users.id, userId));

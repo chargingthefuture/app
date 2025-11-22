@@ -36,9 +36,9 @@ export const users = pgTable("users", {
   profileImageUrl: varchar("profile_image_url"),
   isAdmin: boolean("is_admin").default(false).notNull(),
   isVerified: boolean("is_verified").default(false).notNull(),
+  isApproved: boolean("is_approved").default(false).notNull(), // Manual approval for app access
   pricingTier: decimal("pricing_tier", { precision: 10, scale: 2 }).notNull().default('1.00'),
   subscriptionStatus: varchar("subscription_status", { length: 20 }).notNull().default('active'), // active, overdue, inactive
-  inviteCodeUsed: varchar("invite_code_used", { length: 50 }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -46,45 +46,11 @@ export const users = pgTable("users", {
 export const usersRelations = relations(users, ({ many }) => ({
   paymentsReceived: many(payments),
   paymentsRecorded: many(payments, { relationName: "recordedBy" }),
-  inviteCodesCreated: many(inviteCodes),
   adminActions: many(adminActionLogs),
 }));
 
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
-
-// Invite codes table
-export const inviteCodes = pgTable("invite_codes", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  code: varchar("code", { length: 50 }).notNull().unique(),
-  maxUses: integer("max_uses").notNull(),
-  currentUses: integer("current_uses").notNull().default(0),
-  expiresAt: timestamp("expires_at"),
-  createdBy: varchar("created_by").notNull().references(() => users.id),
-  isActive: boolean("is_active").notNull().default(true),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
-
-export const inviteCodesRelations = relations(inviteCodes, ({ one }) => ({
-  creator: one(users, {
-    fields: [inviteCodes.createdBy],
-    references: [users.id],
-  }),
-}));
-
-export const insertInviteCodeSchema = createInsertSchema(inviteCodes).omit({
-  id: true,
-  code: true,
-  currentUses: true,
-  createdAt: true,
-  updatedAt: true,
-}).extend({
-  expiresAt: z.coerce.date().optional(),
-});
-
-export type InsertInviteCode = z.infer<typeof insertInviteCodeSchema>;
-export type InviteCode = typeof inviteCodes.$inferSelect;
 
 // Pricing tiers table - tracks historical pricing levels
 export const pricingTiers = pgTable("pricing_tiers", {

@@ -67,6 +67,21 @@ export default function AdminUsers() {
     }
   });
 
+  const approveMutation = useMutation({
+    mutationFn: async ({ id, isApproved }: { id: string; isApproved: boolean }) => {
+      const res = await apiRequest("PUT", `/api/admin/users/${id}/approve`, { isApproved });
+      return await res.json();
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      toast({ title: "Updated", description: "User approval updated" });
+    },
+    onError: (e: any) => {
+      console.error("Approval error:", e);
+      toast({ title: "Error", description: e.message || "Failed to update approval", variant: "destructive" });
+    }
+  });
+
   const getStatusBadge = (status: string) => {
     if (status === 'active') {
       return <Badge variant="default">Active</Badge>;
@@ -129,6 +144,7 @@ export default function AdminUsers() {
                       <TableHead>Pricing Tier</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Role</TableHead>
+                      <TableHead>Approved</TableHead>
                       <TableHead>Joined</TableHead>
                       <TableHead>Actions</TableHead>
                     </TableRow>
@@ -168,22 +184,43 @@ export default function AdminUsers() {
                             <span className="text-muted-foreground">User</span>
                           )}
                         </TableCell>
+                        <TableCell>
+                          {user.isApproved ? (
+                            <Badge variant="default">Approved</Badge>
+                          ) : (
+                            <Badge variant="secondary">Pending</Badge>
+                          )}
+                        </TableCell>
                         <TableCell className="text-muted-foreground">
                           {new Date(user.createdAt).toLocaleDateString()}
                         </TableCell>
                         <TableCell>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              const currentStatus = user.isVerified ?? false;
-                              verifyMutation.mutate({ id: user.id, isVerified: !currentStatus });
-                            }}
-                            disabled={verifyMutation.isPending}
-                            data-testid={`button-verify-${user.id}`}
-                          >
-                            {(user.isVerified ?? false) ? "Unverify" : "Verify"}
-                          </Button>
+                          <div className="flex gap-2">
+                            <Button
+                              variant={user.isApproved ? "outline" : "default"}
+                              size="sm"
+                              onClick={() => {
+                                const currentStatus = user.isApproved ?? false;
+                                approveMutation.mutate({ id: user.id, isApproved: !currentStatus });
+                              }}
+                              disabled={approveMutation.isPending}
+                              data-testid={`button-approve-${user.id}`}
+                            >
+                              {user.isApproved ? "Revoke" : "Approve"}
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                const currentStatus = user.isVerified ?? false;
+                                verifyMutation.mutate({ id: user.id, isVerified: !currentStatus });
+                              }}
+                              disabled={verifyMutation.isPending}
+                              data-testid={`button-verify-${user.id}`}
+                            >
+                              {(user.isVerified ?? false) ? "Unverify" : "Verify"}
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -221,6 +258,16 @@ export default function AdminUsers() {
                           <span className="text-muted-foreground text-sm">Verification</span>
                           <div className="mt-1">
                             <VerifiedBadge isVerified={user.isVerified ?? false} testId={`badge-verified-mobile-${user.id}`} />
+                          </div>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground text-sm">Approval</span>
+                          <div className="mt-1">
+                            {user.isApproved ? (
+                              <Badge variant="default">Approved</Badge>
+                            ) : (
+                              <Badge variant="secondary">Pending</Badge>
+                            )}
                           </div>
                         </div>
                         <div className="grid grid-cols-2 gap-2 text-sm">
