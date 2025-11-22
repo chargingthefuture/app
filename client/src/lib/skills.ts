@@ -51,7 +51,7 @@ export const ALL_SKILLS = [
   "Technology",
   "Tech Support",
   "Trading",
+  "Crypto",
   "Tutoring",
   "Web Development",
-  "Crypto",
 ];

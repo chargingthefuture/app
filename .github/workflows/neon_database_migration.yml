@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - master
+      - staging
     paths:
       - 'shared/schema.ts'
       - 'drizzle.config.ts'

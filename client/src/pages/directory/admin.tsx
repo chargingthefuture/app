@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { DirectoryProfile, User } from "@shared/schema";
-import { Plus, X, ExternalLink, Edit } from "lucide-react";
+import { Plus, X, ExternalLink, Edit, Trash2 } from "lucide-react";
 import { VerifiedBadge } from "@/components/verified-badge";
 import { Textarea } from "@/components/ui/textarea";
 import { COUNTRIES } from "@/lib/countries";
@@ -20,6 +20,16 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "
 import { Check } from "lucide-react";
 import { useExternalLink } from "@/hooks/useExternalLink";
 import { Link } from "wouter";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function AdminDirectoryPage() {
   const { toast } = useToast();
@@ -93,6 +103,31 @@ export default function AdminDirectoryPage() {
     },
     onError: (e: any) => toast({ title: "Error", description: e.message || "Failed to assign", variant: "destructive" })
   });
+
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [profileToDelete, setProfileToDelete] = useState<DirectoryProfile | null>(null);
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => apiRequest("DELETE", `/api/directory/admin/profiles/${id}`),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["/api/directory/admin/profiles"] });
+      setDeleteDialogOpen(false);
+      setProfileToDelete(null);
+      toast({ title: "Deleted", description: "Unclaimed profile deleted successfully" });
+    },
+    onError: (e: any) => {
+      toast({ title: "Error", description: e.message || "Failed to delete profile", variant: "destructive" });
+      setDeleteDialogOpen(false);
+      setProfileToDelete(null);
+    }
+  });
+
+  const handleDeleteClick = (profile: DirectoryProfile) => {
+    if (!profile.isClaimed) {
+      setProfileToDelete(profile);
+      setDeleteDialogOpen(true);
+    }
+  };
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDescription, setEditDescription] = useState("");
@@ -597,6 +632,16 @@ export default function AdminDirectoryPage() {
                       <Button variant="outline" size="sm" onClick={() => startEdit(p)} data-testid={`button-edit-${p.id}`}>
                         <Edit className="w-4 h-4 mr-2" /> Edit
                       </Button>
+                      {!p.isClaimed && (
+                        <Button 
+                          variant="destructive" 
+                          size="sm" 
+                          onClick={() => handleDeleteClick(p)} 
+                          data-testid={`button-delete-${p.id}`}
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" /> Delete
+                        </Button>
+                      )}
                     </div>
                   </div>
                 );
@@ -605,6 +650,54 @@ export default function AdminDirectoryPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Unclaimed Profile</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-4">
+              <p>
+                Are you sure you want to delete this unclaimed profile? This action is permanent and cannot be undone.
+              </p>
+              {profileToDelete && (
+                <div className="bg-muted p-3 rounded-md">
+                  <p className="text-sm font-medium">Profile Details:</p>
+                  <p className="text-sm text-muted-foreground">{profileToDelete.description}</p>
+                  {profileToDelete.firstName && (
+                    <p className="text-sm text-muted-foreground">Name: {profileToDelete.firstName}</p>
+                  )}
+                  {profileToDelete.skills && profileToDelete.skills.length > 0 && (
+                    <p className="text-sm text-muted-foreground">
+                      Skills: {profileToDelete.skills.join(", ")}
+                    </p>
+                  )}
+                </div>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => {
+                setDeleteDialogOpen(false);
+                setProfileToDelete(null);
+              }}
+              disabled={deleteMutation.isPending}
+              data-testid="button-cancel-delete"
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => profileToDelete && deleteMutation.mutate(profileToDelete.id)}
+              disabled={deleteMutation.isPending || !profileToDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              data-testid="button-confirm-delete"
+            >
+              {deleteMutation.isPending ? "Deleting..." : "Delete Profile"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Announcements Section */}
       <Card>
