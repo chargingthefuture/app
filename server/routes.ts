@@ -159,30 +159,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
       const userId = getUserId(req);
-      
-      // Validate userId before querying database
-      if (!userId || userId.trim() === '') {
-        console.error("Error fetching user: userId is empty", { 
-          auth: req.auth,
-          userId,
-          headers: req.headers 
-        });
+      if (!userId) {
         return res.status(401).json({ message: "Unauthorized: Invalid user ID" });
       }
       
-      const user = await storage.getUser(userId);
+      let user = await storage.getUser(userId);
       
-      // If user not found, return null (not an error - user might not exist in DB yet)
+      // If user not found, this shouldn't happen (middleware syncs users), but handle gracefully
       if (!user) {
-        console.warn("User not found in database", { userId });
-        return res.json(null);
+        console.warn("User not found in database, this should not happen", { userId });
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Ensure admins always have inviteCodeUsed set to true (safety check)
+      if (user.isAdmin && !user.inviteCodeUsed) {
+        user = await storage.upsertUser({
+          id: user.id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          profileImageUrl: user.profileImageUrl,
+          pricingTier: user.pricingTier,
+          isAdmin: user.isAdmin,
+          subscriptionStatus: user.subscriptionStatus,
+          inviteCodeUsed: true, // Auto-set for admins
+        });
       }
       
       res.json(user);
     } catch (error) {
       console.error("Error fetching user:", error);
-      // Ensure we always return valid JSON
-      res.status(500).json({ message: "Failed to fetch user", error: error instanceof Error ? error.message : String(error) });
+      res.status(500).json({ message: "Failed to fetch user" });
     }
   });
 

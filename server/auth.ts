@@ -44,6 +44,9 @@ async function upsertUser(clerkUser: any) {
   
   if (existingUser) {
     // For existing users, only update profile information, preserve pricing tier
+    // If user is admin, automatically set inviteCodeUsed to true (admins bypass invite requirement)
+    const shouldSetInviteCodeUsed = existingUser.isAdmin && !existingUser.inviteCodeUsed;
+    
     await storage.upsertUser({
       id: mappedUser.sub,
       email: mappedUser.email,
@@ -53,7 +56,7 @@ async function upsertUser(clerkUser: any) {
       pricingTier: existingUser.pricingTier, // Preserve existing pricing tier (grandfathered)
       isAdmin: existingUser.isAdmin, // Preserve admin status
       subscriptionStatus: existingUser.subscriptionStatus, // Preserve subscription status
-      inviteCodeUsed: existingUser.inviteCodeUsed, // Preserve invite code
+      inviteCodeUsed: shouldSetInviteCodeUsed ? true : existingUser.inviteCodeUsed, // Auto-set for admins
     });
   } else {
     // For new users, get current pricing tier

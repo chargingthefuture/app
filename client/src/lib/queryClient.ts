@@ -93,7 +93,8 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const res = await fetch(queryKey.join("/") as string, {
+    const url = queryKey.join("/") as string;
+    const res = await fetch(url, {
       credentials: "include",
     });
 
@@ -103,37 +104,21 @@ export const getQueryFn: <T>(options: {
 
     await throwIfResNotOk(res);
     
-    // Check if response has content before parsing JSON
-    const contentType = res.headers.get("content-type");
-    const contentLength = res.headers.get("content-length");
+    // For auth endpoints, if JSON parsing fails, treat as authentication error
+    const isAuthEndpoint = url.includes('/api/auth/user');
     
-    // If content-length is 0, return null
-    if (contentLength === "0") {
-      return null as T;
-    }
-    
-    // Read response as text first to check if it's empty
-    const text = await res.text();
-    
-    // If response is empty, return null
-    if (!text || text.trim() === '') {
-      return null as T;
-    }
-    
-    // Try to parse JSON
     try {
-      return JSON.parse(text) as T;
+      return await res.json();
     } catch (error) {
-      // If JSON parsing fails, log and throw with helpful message
-      console.error("Failed to parse JSON response:", error, { 
-        url: queryKey.join("/"),
-        status: res.status,
-        statusText: res.statusText,
-        contentType,
-        contentLength,
-        responsePreview: text.substring(0, 200)
-      });
-      throw new Error(`Failed to parse JSON response: ${error instanceof Error ? error.message : String(error)}. Response was: ${text.substring(0, 100)}`);
+      // If JSON parsing fails (e.g., "Unexpected end of JSON input"), 
+      // and this is an auth endpoint, treat as authentication failure
+      if (isAuthEndpoint && error instanceof SyntaxError) {
+        console.error("Failed to parse auth response - treating as auth failure:", error);
+        // Throw an authentication error instead of a JSON parse error
+        throw new Error("401: Authentication failed - invalid response from server");
+      }
+      // For other endpoints, re-throw the original error
+      throw error;
     }
   };
 
