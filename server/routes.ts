@@ -738,6 +738,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }));
 
   // Admin delete Directory profile (for deleting unclaimed profiles)
+  // NOTE: Unclaimed profile deletion is EXEMPT from data integrity requirements.
+  // Unclaimed profiles have no user account, so no anonymization, cascade handling, or
+  // profile deletion logging is required. This is a simple hard delete for admin cleanup.
   app.delete('/api/directory/admin/profiles/:id', isAuthenticated, isAdmin, asyncHandler(async (req: any, res) => {
     const adminId = getUserId(req);
     const profileId = req.params.id;
@@ -753,15 +756,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
     
     // Only allow deletion of unclaimed profiles via admin endpoint
+    // Claimed profiles must use the user profile deletion endpoint which handles data integrity
     if (profile.isClaimed) {
       return res.status(400).json({ message: 'Cannot delete claimed profiles. Use profile deletion instead.' });
     }
     
+    // Simple hard delete - no data integrity requirements for unclaimed profiles
+    // No anonymization, no cascade handling, no profile deletion logging needed
     await withDatabaseErrorHandling(
       () => storage.deleteDirectoryProfile(profileId),
       'deleteDirectoryProfile'
     );
     
+    // Log admin action for audit trail (not a profile deletion log)
     await logAdminAction(adminId, 'delete_directory_profile', 'directory_profile', profileId, { 
       wasUnclaimed: true,
       description: profile.description 

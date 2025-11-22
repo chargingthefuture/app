@@ -2711,6 +2711,13 @@ export class DatabaseStorage implements IStorage {
     return profile;
   }
 
+  /**
+   * Deletes a Directory profile by ID.
+   * 
+   * NOTE: This method is used for unclaimed profiles only and is EXEMPT from data integrity requirements.
+   * Unclaimed profiles have no associated user account, so no anonymization, cascade handling, or
+   * profile deletion logging is required. This is a simple hard delete.
+   */
   async deleteDirectoryProfile(id: string): Promise<void> {
     await db.delete(directoryProfiles).where(eq(directoryProfiles.id, id));
   }
