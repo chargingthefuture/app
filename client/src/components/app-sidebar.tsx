@@ -32,6 +32,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarFooter,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
@@ -237,8 +238,16 @@ export function AppSidebar() {
   const { theme, toggleTheme } = useTheme();
   const { openExternal, ExternalLinkDialog } = useExternalLink();
   const clerk = useClerk();
+  const { isMobile, setOpenMobile } = useSidebar();
 
   const townsquareUrl = "https://chargingthefuture.discourse.group";
+
+  // Close sidebar on mobile when navigation link is clicked
+  const handleNavClick = () => {
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  };
 
   const handleSignOut = async () => {
     try {
@@ -283,7 +292,7 @@ export function AppSidebar() {
                 return (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton asChild isActive={isActive} data-testid={item.testId}>
-                      <Link href={item.url}>
+                      <Link href={item.url} onClick={handleNavClick}>
                         <item.icon className="w-5 h-5" />
                         <span>{item.title}</span>
                       </Link>
@@ -307,7 +316,7 @@ export function AppSidebar() {
                   return (
                     <SidebarMenuItem key={item.title}>
                       <SidebarMenuButton asChild isActive={isActive} data-testid={item.testId}>
-                        <Link href={item.url}>
+                        <Link href={item.url} onClick={handleNavClick}>
                           <item.icon className="w-5 h-5" />
                           <span>{item.title}</span>
                         </Link>
