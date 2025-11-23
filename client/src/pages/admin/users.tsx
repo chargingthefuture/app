@@ -98,6 +98,11 @@ export default function AdminUsers() {
     return user.email?.[0]?.toUpperCase() || "U";
   };
 
+  // Calculate counts
+  const totalUsers = activeUsers.length;
+  const totalVerified = activeUsers.filter((user) => user.isVerified ?? false).length;
+  const totalApproved = activeUsers.filter((user) => user.isApproved ?? false).length;
+
   return (
     <div className="p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6">
       <div>
@@ -105,6 +110,47 @@ export default function AdminUsers() {
         <p className="text-sm sm:text-base text-muted-foreground">
           Manage platform users and their subscription status
         </p>
+      </div>
+
+      {/* User Statistics */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-medium">Total Users</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-semibold" data-testid="stat-total-users">
+              {isLoading ? "..." : totalUsers}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">Active users on platform</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-medium">Verified Users</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-semibold" data-testid="stat-verified-users">
+              {isLoading ? "..." : totalVerified}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {totalUsers > 0 ? `${Math.round((totalVerified / totalUsers) * 100)}% verified` : "0% verified"}
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-medium">Approved Users</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-semibold" data-testid="stat-approved-users">
+              {isLoading ? "..." : totalApproved}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {totalUsers > 0 ? `${Math.round((totalApproved / totalUsers) * 100)}% approved` : "0% approved"}
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
       <Card>

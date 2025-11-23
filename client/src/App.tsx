@@ -84,6 +84,8 @@ import MechanicMatchDashboard from "@/pages/mechanicmatch/dashboard";
 import MechanicMatchProfile from "@/pages/mechanicmatch/profile";
 import MechanicMatchVehicles from "@/pages/mechanicmatch/vehicles";
 import MechanicMatchRequestNew from "@/pages/mechanicmatch/request-new";
+import MechanicMatchBrowseMechanics from "@/pages/mechanicmatch/browse-mechanics";
+import MechanicMatchAvailability from "@/pages/mechanicmatch/availability";
 import MechanicMatchAdmin from "@/pages/mechanicmatch/admin";
 import MechanicMatchAdminAnnouncements from "@/pages/mechanicmatch/admin-announcements";
 import LostMailDashboard from "@/pages/lostmail/dashboard";
@@ -91,7 +93,11 @@ import LostMailReport from "@/pages/lostmail/report";
 import LostMailIncidentDetail from "@/pages/lostmail/incident-detail";
 import LostMailAdmin from "@/pages/lostmail/admin";
 import LostMailAdminAnnouncements from "@/pages/lostmail/admin-announcements";
+import LostMailAdminIncidentDetail from "@/pages/lostmail/admin-incident-detail";
+import ResearchDashboard from "@/pages/research/dashboard";
 import ResearchTimeline from "@/pages/research/timeline";
+import ResearchMyItems from "@/pages/research/my-items";
+import ResearchBookmarks from "@/pages/research/bookmarks";
 import ResearchItemView from "@/pages/research/item-view";
 import NewResearchItem from "@/pages/research/new-item";
 import ResearchAdmin from "@/pages/research/admin";
@@ -558,6 +564,16 @@ function Router() {
           <MechanicMatchRequestNew />
         </ProtectedRoute>
       </Route>
+      <Route path="/apps/mechanicmatch/browse-mechanics">
+        <ProtectedRoute>
+          <MechanicMatchBrowseMechanics />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/mechanicmatch/availability">
+        <ProtectedRoute>
+          <MechanicMatchAvailability />
+        </ProtectedRoute>
+      </Route>
       <Route path="/apps/mechanicmatch/admin">
         <ProtectedRoute>
           <MechanicMatchAdmin />
@@ -593,9 +609,29 @@ function Router() {
           <LostMailAdminAnnouncements />
         </ProtectedRoute>
       </Route>
+      <Route path="/apps/lostmail/admin/incident/:id">
+        <ProtectedRoute>
+          <LostMailAdminIncidentDetail />
+        </ProtectedRoute>
+      </Route>
       <Route path="/apps/research">
         <ProtectedRoute>
+          <ResearchDashboard />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/research/timeline">
+        <ProtectedRoute>
           <ResearchTimeline />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/research/my-items">
+        <ProtectedRoute>
+          <ResearchMyItems />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/research/bookmarks">
+        <ProtectedRoute>
+          <ResearchBookmarks />
         </ProtectedRoute>
       </Route>
       <Route path="/apps/research/item/:id">

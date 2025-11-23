@@ -52,7 +52,7 @@ export default function LostMailIncidentDetail() {
     );
   }
 
-  const photos: string[] = incident.photos ? JSON.parse(incident.photos) : [];
+  const photos: string[] = incident.photos ? (typeof incident.photos === 'string' ? JSON.parse(incident.photos) : incident.photos) : [];
 
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {

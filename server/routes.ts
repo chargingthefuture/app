@@ -66,9 +66,6 @@ import {
   insertGentlepulseFavoriteSchema,
   insertGentlepulseAnnouncementSchema,
 } from "@shared/schema";
-import * as fs from "fs/promises";
-import * as path from "path";
-import { fileURLToPath } from "url";
 import { asyncHandler } from "./errorHandler";
 import { validateWithZod } from "./validationErrorFormatter";
 import { withDatabaseErrorHandling } from "./databaseErrorHandler";
@@ -249,6 +246,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         churnRate: 0,
         clv: 0,
         retentionRate: 0,
+        verifiedUsersPercentage: 0,
+        verifiedUsersPercentageChange: 0,
       };
       
       const response = {
@@ -3690,7 +3689,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       () => storage.getResearchBookmarks(userId),
       'getResearchBookmarks'
     );
-    res.json(bookmarks);
+    
+    // Fetch full research items for each bookmark
+    const items = await Promise.all(
+      bookmarks.map(async (bookmark) => {
+        const item = await withDatabaseErrorHandling(
+          () => storage.getResearchItemById(bookmark.researchItemId),
+          'getResearchItemById'
+        );
+        return item;
+      })
+    );
+    
+    // Filter out any null items (in case a bookmarked item was deleted)
+    const validItems = items.filter((item): item is NonNullable<typeof item> => item !== undefined);
+    
+    res.json({ items: validItems, total: validItems.length });
   }));
 
   // Research Follow routes
@@ -4322,45 +4336,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // LOSTMAIL ROUTES
   // ========================================
 
-  // Create uploads directory if it doesn't exist
-  // In production (bundled), import.meta.url might not work reliably, so use process.cwd()
-  // Use defensive checks to ensure we always have a valid path
-  let uploadsDir: string;
-  let cwd: string = '/app'; // Default fallback for Railway
-  try {
-    const cwdResult = process.cwd();
-    if (cwdResult && typeof cwdResult === 'string' && cwdResult.length > 0) {
-      cwd = cwdResult;
-      } else {
-      console.warn('process.cwd() returned invalid value, using /app fallback:', cwdResult);
-      }
-    } catch (cwdError) {
-      // Last resort fallback - assume we're in /app on Railway
-      console.warn('process.cwd() failed, using /app as fallback:', cwdError);
-  }
-  
-  // Ensure cwd is always a valid string before using it
-  if (!cwd || typeof cwd !== 'string' || cwd.length === 0) {
-      cwd = '/app';
-    }
-  
-    uploadsDir = path.join(cwd, "uploads", "lostmail");
-  try {
-    await fs.mkdir(uploadsDir, { recursive: true });
-    await fs.mkdir(path.join(uploadsDir, "thumbnails"), { recursive: true });
-  } catch (err) {
-    console.error("Error creating uploads directory:", err);
-  }
-
-  // Serve uploaded files statically
-  app.use("/uploads/lostmail", express.static(uploadsDir, {
-    setHeaders: (res, filePath) => {
-      if (filePath.endsWith(".jpg") || filePath.endsWith(".jpeg") || filePath.endsWith(".png") || filePath.endsWith(".gif")) {
-        res.setHeader("Content-Type", "image/jpeg");
-      }
-    },
-  }));
-
   // LostMail Announcement routes (public)
   app.get('/api/lostmail/announcements', asyncHandler(async (_req, res) => {
     const announcements = await withDatabaseErrorHandling(
@@ -4527,43 +4502,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(auditTrail);
   }));
 
-  // File upload endpoint
-  app.post('/api/lostmail/upload', async (req, res) => {
-    try {
-      // Handle multipart/form-data upload
-      // This is a simplified version - in production, use multer or similar
-      // For now, we'll accept base64 encoded images
-      const { image, filename } = req.body;
-      
-      if (!image || !filename) {
-        return res.status(400).json({ message: "Image and filename required" });
-      }
-      
-      // Decode base64 image
-      const base64Data = image.replace(/^data:image\/\w+;base64,/, "");
-      const buffer = Buffer.from(base64Data, "base64");
-      
-      // Generate unique filename
-      const ext = path.extname(filename) || ".jpg";
-      const uniqueFilename = `${Date.now()}-${Math.random().toString(36).substring(7)}${ext}`;
-      const filePath = path.join(uploadsDir, uniqueFilename);
-      
-      // Save file
-      await fs.writeFile(filePath, buffer);
-      
-      // Create thumbnail (simplified - just copy for now, in production use sharp or similar)
-      const thumbnailPath = path.join(uploadsDir, "thumbnails", uniqueFilename);
-      await fs.writeFile(thumbnailPath, buffer);
-      
-      const fileUrl = `/uploads/lostmail/${uniqueFilename}`;
-      const thumbnailUrl = `/uploads/lostmail/thumbnails/${uniqueFilename}`;
-      
-      res.json({ fileUrl, thumbnailUrl, filename: uniqueFilename });
-    } catch (error: any) {
-      console.error("Error uploading file:", error);
-      res.status(500).json({ message: error.message || "Failed to upload file" });
-    }
-  });
 
   // Bulk export endpoint
   app.get('/api/lostmail/admin/export', isAuthenticated, isAdmin, async (req, res) => {

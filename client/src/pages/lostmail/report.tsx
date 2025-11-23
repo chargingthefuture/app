@@ -13,7 +13,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { insertLostmailIncidentSchema } from "@shared/schema";
 import { z } from "zod";
 import { useLocation } from "wouter";
-import { Save, Send, Upload, X, Image as ImageIcon } from "lucide-react";
+import { Save, Send } from "lucide-react";
 import type { LostmailIncident } from "@shared/schema";
 
 const reportFormSchema = insertLostmailIncidentSchema.omit({
@@ -28,7 +28,6 @@ const DRAFT_STORAGE_KEY = "lostmail_report_draft";
 export default function LostMailReport() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
-  const [uploadedPhotos, setUploadedPhotos] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<ReportFormData>({
@@ -56,11 +55,6 @@ export default function LostMailReport() {
       try {
         const draftData = JSON.parse(draft);
         form.reset(draftData);
-        
-        // Restore uploaded photos
-        if (draftData.photoUrls) {
-          setUploadedPhotos(draftData.photoUrls);
-        }
       } catch (e) {
         console.error("Error loading draft:", e);
       }
@@ -68,86 +62,40 @@ export default function LostMailReport() {
   }, [form]);
 
   // Save draft to localStorage on change
-  const saveDraft = () => {
-    const formData = form.getValues();
-    const draftData = {
-      ...formData,
-      photoUrls: uploadedPhotos,
-    };
-    localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draftData));
-    toast({
-      title: "Draft Saved",
-      description: "Your report has been saved locally",
-    });
-  };
-
-  const handleFileUpload = async (file: File) => {
-    if (file.size > 5 * 1024 * 1024) {
-      toast({
-        title: "File Too Large",
-        description: "Images must be smaller than 5MB",
-        variant: "destructive",
-      });
-      return;
+  const saveDraft = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
     }
-
-    if (!file.type.startsWith("image/")) {
-      toast({
-        title: "Invalid File",
-        description: "Please upload an image file",
-        variant: "destructive",
-      });
-      return;
-    }
-
+    
     try {
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const base64Image = reader.result as string;
-        
-        try {
-          const response = await apiRequest("POST", "/api/lostmail/upload", {
-            image: base64Image,
-            filename: file.name,
-          });
-          
-          setUploadedPhotos([...uploadedPhotos, response.fileUrl]);
-          toast({
-            title: "Photo Uploaded",
-            description: "Photo uploaded successfully",
-          });
-        } catch (error: any) {
-          toast({
-            title: "Upload Failed",
-            description: error.message || "Failed to upload photo",
-            variant: "destructive",
-          });
-        }
+      const formData = form.getValues();
+      const draftData = {
+        ...formData,
       };
-      reader.readAsDataURL(file);
+      localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draftData));
+      toast({
+        title: "Draft Saved",
+        description: "Your report has been saved locally",
+      });
     } catch (error: any) {
+      console.error("Error saving draft:", error);
       toast({
         title: "Error",
-        description: error.message || "Failed to process image",
+        description: "Failed to save draft",
         variant: "destructive",
       });
     }
   };
 
-  const removePhoto = (index: number) => {
-    setUploadedPhotos(uploadedPhotos.filter((_, i) => i !== index));
-  };
 
   const onSubmit = async (data: ReportFormData) => {
     setIsSubmitting(true);
     
     try {
-      // Prepare photos array
-      const photosArray = uploadedPhotos.length > 0 ? uploadedPhotos : null;
-      
       const incident = await apiRequest<LostmailIncident>("POST", "/api/lostmail/incidents", {
         ...data,
-        photos: photosArray ? JSON.stringify(photosArray) : null,
+        photos: null,
         expectedDeliveryDate: new Date(data.expectedDeliveryDate as string).toISOString(),
         noticedDate: data.noticedDate ? new Date(data.noticedDate as string).toISOString() : null,
       });
@@ -370,58 +318,6 @@ export default function LostMailReport() {
                     </FormItem>
                   )}
                 />
-              </div>
-
-              {/* Photos */}
-              <div className="space-y-4 pt-4 border-t">
-                <h3 className="font-medium">Photos (Optional)</h3>
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2">
-                    <label htmlFor="photo-upload" className="cursor-pointer">
-                      <Button type="button" variant="outline" asChild>
-                        <span>
-                          <Upload className="w-4 h-4 mr-2" />
-                          Upload Photo
-                        </span>
-                      </Button>
-                    </label>
-                    <Input
-                      id="photo-upload"
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) handleFileUpload(file);
-                      }}
-                      data-testid="input-photo-upload"
-                    />
-                  </div>
-                  
-                  {uploadedPhotos.length > 0 && (
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      {uploadedPhotos.map((photoUrl, index) => (
-                        <div key={index} className="relative">
-                          <img
-                            src={photoUrl}
-                            alt={`Uploaded photo ${index + 1}`}
-                            className="w-full h-32 object-cover rounded border"
-                          />
-                          <Button
-                            type="button"
-                            variant="destructive"
-                            size="icon"
-                            className="absolute top-1 right-1 h-6 w-6"
-                            onClick={() => removePhoto(index)}
-                            data-testid={`button-remove-photo-${index}`}
-                          >
-                            <X className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
               </div>
 
               {/* Consent */}

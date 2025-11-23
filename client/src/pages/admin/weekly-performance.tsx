@@ -45,6 +45,8 @@ interface WeeklyPerformanceData {
     nps: number;
     npsChange: number;
     npsResponses: number;
+    verifiedUsersPercentage: number;
+    verifiedUsersPercentageChange: number;
   };
 }
 

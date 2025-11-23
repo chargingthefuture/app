@@ -169,6 +169,12 @@ export default function MechanicMatchDashboard() {
                       Manage Vehicles
                     </Button>
                   </Link>
+                  <Link href="/apps/mechanicmatch/browse-mechanics">
+                    <Button variant="outline" className="w-full" data-testid="button-browse-mechanics">
+                      <Search className="w-4 h-4 mr-2" />
+                      Browse Mechanics
+                    </Button>
+                  </Link>
                   <Link href="/apps/mechanicmatch/request-new">
                     <Button className="w-full" data-testid="button-new-request">
                       <Plus className="w-4 h-4 mr-2" />
@@ -202,12 +208,6 @@ export default function MechanicMatchDashboard() {
                     <span className="text-sm text-muted-foreground">Rating</span>
                     <Badge variant="secondary">{profile.averageRating ? `${parseFloat(profile.averageRating).toFixed(1)}★` : "N/A"}</Badge>
                   </div>
-                  <Link href="/apps/mechanicmatch/browse-mechanics">
-                    <Button variant="outline" className="w-full" data-testid="button-browse-mechanics">
-                      <Search className="w-4 h-4 mr-2" />
-                      Browse Mechanics
-                    </Button>
-                  </Link>
                   <Link href="/apps/mechanicmatch/availability">
                     <Button variant="outline" className="w-full" data-testid="button-manage-availability">
                       <Calendar className="w-4 h-4 mr-2" />

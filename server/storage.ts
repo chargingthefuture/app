@@ -246,6 +246,8 @@ export interface IStorage {
       nps: number;
       npsChange: number;
       npsResponses: number;
+      verifiedUsersPercentage: number;
+      verifiedUsersPercentageChange: number;
     };
   }>;
   
@@ -974,16 +976,18 @@ export class DatabaseStorage implements IStorage {
       newUsersChange: number;
       revenueChange: number;
     };
-    metrics: {
-      weeklyGrowthRate: number;
-      mrr: number;
-      arr: number;
-      mrrGrowth: number;
-      mau: number;
-      churnRate: number;
-      clv: number;
-      retentionRate: number;
-    };
+      metrics: {
+        weeklyGrowthRate: number;
+        mrr: number;
+        arr: number;
+        mrrGrowth: number;
+        mau: number;
+        churnRate: number;
+        clv: number;
+        retentionRate: number;
+        verifiedUsersPercentage: number;
+        verifiedUsersPercentageChange: number;
+      };
   }> {
     // Calculate current week boundaries (Monday to Sunday)
     const currentWeekStart = this.getWeekStart(weekStart);
@@ -1342,6 +1346,54 @@ export class DatabaseStorage implements IStorage {
       console.error("Error calculating NPS:", error);
     }
 
+    // Calculate Verified Users Percentage
+    let verifiedUsersPercentage = 0;
+    let verifiedUsersPercentageChange = 0;
+    
+    try {
+      // Get all users created up to the end of current week (excluding deleted users)
+      const allUsersCurrentWeek = await db
+        .select()
+        .from(users)
+        .where(lte(users.createdAt, currentWeekEnd));
+      
+      // Filter out deleted users (those with IDs starting with "deleted_user_")
+      const activeUsersCurrentWeek = allUsersCurrentWeek.filter(user => {
+        if (!user || !user.id) return false;
+        const id = String(user.id);
+        return !id.startsWith("deleted_user_");
+      });
+      
+      const verifiedUsersCurrentWeek = activeUsersCurrentWeek.filter(user => user.isVerified === true).length;
+      const totalUsersCurrentWeek = activeUsersCurrentWeek.length;
+      verifiedUsersPercentage = totalUsersCurrentWeek === 0 
+        ? 0 
+        : parseFloat(((verifiedUsersCurrentWeek / totalUsersCurrentWeek) * 100).toFixed(2));
+
+      // Get all users created up to the end of previous week (excluding deleted users)
+      const allUsersPreviousWeek = await db
+        .select()
+        .from(users)
+        .where(lte(users.createdAt, previousWeekEnd));
+      
+      const activeUsersPreviousWeek = allUsersPreviousWeek.filter(user => {
+        if (!user || !user.id) return false;
+        const id = String(user.id);
+        return !id.startsWith("deleted_user_");
+      });
+      
+      const verifiedUsersPreviousWeek = activeUsersPreviousWeek.filter(user => user.isVerified === true).length;
+      const totalUsersPreviousWeek = activeUsersPreviousWeek.length;
+      const verifiedUsersPercentagePreviousWeek = totalUsersPreviousWeek === 0 
+        ? 0 
+        : parseFloat(((verifiedUsersPreviousWeek / totalUsersPreviousWeek) * 100).toFixed(2));
+
+      // Calculate week-over-week change
+      verifiedUsersPercentageChange = verifiedUsersPercentage - verifiedUsersPercentagePreviousWeek;
+    } catch (error) {
+      console.error("Error calculating verified users percentage:", error);
+    }
+
     const result = {
       currentWeek: {
         startDate: this.formatDate(currentWeekStart),
@@ -1375,6 +1427,8 @@ export class DatabaseStorage implements IStorage {
         nps: nps,
         npsChange: npsChange,
         npsResponses: npsResponsesCount,
+        verifiedUsersPercentage: verifiedUsersPercentage,
+        verifiedUsersPercentageChange: parseFloat(verifiedUsersPercentageChange.toFixed(2)),
       },
     };
     
