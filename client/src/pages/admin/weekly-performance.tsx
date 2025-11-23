@@ -128,7 +128,8 @@ export default function WeeklyPerformanceReview() {
   };
 
   const captureScreenshot = async () => {
-    if (!dashboardRef.current) {
+    const element = dashboardRef.current;
+    if (!element) {
       toast({
         title: "Error",
         description: "Dashboard element not found",
@@ -140,18 +141,22 @@ export default function WeeklyPerformanceReview() {
     setIsCapturing(true);
     
     try {
-      // Store scroll position
+      // Store scroll positions
       const scrollY = window.scrollY;
+      const elementScrollTop = element.scrollTop;
       
-      // Wait a bit for any animations or charts to fully render
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Scroll to top
+      // Ensure element is fully visible and scrolled to top
+      element.scrollTop = 0;
       window.scrollTo(0, 0);
-      await new Promise(resolve => setTimeout(resolve, 200));
+      
+      // Wait for any animations or charts to fully render
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Force a reflow to ensure all content is rendered
+      void element.offsetHeight;
 
       // Hide the week selector buttons temporarily for a cleaner screenshot
-      const buttonsToHide = Array.from(dashboardRef.current.querySelectorAll('button'))
+      const buttonsToHide = Array.from(element.querySelectorAll('button'))
         .filter(btn => btn.getAttribute('data-testid') !== 'button-capture-screenshot');
       const originalStyles: Array<{ element: HTMLElement; display: string }> = [];
       
@@ -161,11 +166,25 @@ export default function WeeklyPerformanceReview() {
         htmlButton.style.display = 'none';
       });
 
-      // Capture the screenshot with simplified options to avoid CSS parsing issues
+      // Capture the screenshot with full page support
+      // Get the full dimensions of the element (including scrollable content)
+      const fullWidth = Math.max(
+        element.scrollWidth,
+        element.offsetWidth,
+        element.clientWidth,
+        window.innerWidth
+      );
+      const fullHeight = Math.max(
+        element.scrollHeight,
+        element.offsetHeight,
+        element.clientHeight
+      );
+      
+      // Capture the screenshot with full page dimensions
       // We'll convert CSS variables to computed values in the onclone callback
-      const canvas = await html2canvas(dashboardRef.current, {
+      const canvas = await html2canvas(element, {
         backgroundColor: '#ffffff',
-        scale: 1.5,
+        scale: window.devicePixelRatio || 2, // Use device pixel ratio for better quality
         logging: false,
         useCORS: true,
         allowTaint: true,
@@ -173,8 +192,12 @@ export default function WeeklyPerformanceReview() {
         removeContainer: false,
         imageTimeout: 30000,
         cssImageTimeout: 0, // Don't wait for CSS images
-        windowWidth: window.innerWidth,
-        windowHeight: window.innerHeight,
+        width: fullWidth,
+        height: fullHeight,
+        x: 0,
+        y: 0,
+        scrollX: 0,
+        scrollY: 0,
         onclone: (clonedDoc, clonedElement) => {
           // Convert CSS variables and modern CSS features to static computed values
           // by applying computed styles as inline styles to avoid CSS parsing issues
@@ -263,7 +286,8 @@ export default function WeeklyPerformanceReview() {
         },
       });
 
-      // Restore scroll position
+      // Restore scroll positions
+      element.scrollTop = elementScrollTop;
       window.scrollTo(0, scrollY);
       
       // Restore button visibility
@@ -296,19 +320,28 @@ export default function WeeklyPerformanceReview() {
     } catch (error) {
       console.error("Error capturing screenshot:", error);
       const errorMessage = error instanceof Error ? error.message : String(error);
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
       
       // Handle specific CSS color() function error
       if (errorMessage.includes("color function") || errorMessage.includes("color()")) {
         toast({
           title: "CSS Compatibility Issue",
-          description: "The page uses CSS features not supported by the screenshot tool. Try using your browser's built-in screenshot feature (Ctrl+Shift+S or Cmd+Shift+S).",
+          description: isMobile 
+            ? "Use your browser's built-in full-page screenshot feature (usually available in the share menu)."
+            : "The page uses CSS features not supported by the screenshot tool. Try using your browser's built-in screenshot feature (Ctrl+Shift+S or Cmd+Shift+S).",
           variant: "destructive",
+          duration: 8000,
         });
       } else {
+        const suggestion = isMobile
+          ? " On mobile, try using your browser's built-in full-page screenshot feature from the share menu."
+          : " Try using your browser's built-in screenshot feature (Ctrl+Shift+S or Cmd+Shift+S) for full-page capture.";
+        
         toast({
-          title: "Error",
-          description: `Failed to capture screenshot: ${errorMessage}`,
+          title: "Screenshot Failed",
+          description: `Failed to capture screenshot: ${errorMessage}.${suggestion}`,
           variant: "destructive",
+          duration: 8000,
         });
       }
     } finally {
