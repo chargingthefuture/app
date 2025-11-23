@@ -294,7 +294,20 @@ export default function AdminUsers() {
                             <p className="mt-1">{new Date(user.createdAt).toLocaleDateString()}</p>
                           </div>
                         </div>
-                        <div>
+                        <div className="space-y-2">
+                          <Button
+                            variant={user.isApproved ? "outline" : "default"}
+                            size="sm"
+                            onClick={() => {
+                              const currentStatus = user.isApproved ?? false;
+                              approveMutation.mutate({ id: user.id, isApproved: !currentStatus });
+                            }}
+                            disabled={approveMutation.isPending}
+                            data-testid={`button-approve-mobile-${user.id}`}
+                            className="w-full"
+                          >
+                            {user.isApproved ? "Revoke" : "Approve"}
+                          </Button>
                           <Button
                             variant="outline"
                             size="sm"
