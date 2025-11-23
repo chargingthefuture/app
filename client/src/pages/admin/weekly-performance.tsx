@@ -414,7 +414,7 @@ export default function WeeklyPerformanceReview() {
             ) : (
               <>
                 <Camera className="w-4 h-4" />
-                Capture Screenshot
+                Screenshot
               </>
             )}
           </Button>

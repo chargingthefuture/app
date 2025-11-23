@@ -16,7 +16,7 @@ import { COUNTRIES } from "@/lib/countries";
 import { US_STATES } from "@/lib/usStates";
 import { ALL_SKILLS } from "@/lib/skills";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Check } from "lucide-react";
 import { useExternalLink } from "@/hooks/useExternalLink";
 import { Link } from "wouter";
@@ -270,27 +270,29 @@ export default function AdminDirectoryPage() {
                   {newSkills.length > 0 ? `${newSkills.length} selected` : "Select skills"}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0 max-h-[80vh] flex flex-col" align="start">
                 <Command shouldFilter>
                   <CommandInput placeholder="Search skills…" />
-                  <CommandEmpty>No skills found.</CommandEmpty>
-                  <CommandGroup>
-                    {ALL_SKILLS.map((s) => {
-                      const selected = newSkills.includes(s);
-                      return (
-                        <CommandItem
-                          key={s}
-                          value={s}
-                          onSelect={() => toggleSkill(s)}
-                          data-testid={`combo-admin-skills-item-${s}`}
-                          aria-selected={selected}
-                        >
-                          <Check className={`mr-2 h-4 w-4 ${selected ? "opacity-100" : "opacity-0"}`} />
-                          <span>{s}</span>
-                        </CommandItem>
-                      );
-                    })}
-                  </CommandGroup>
+                  <CommandList>
+                    <CommandEmpty>No skills found.</CommandEmpty>
+                    <CommandGroup>
+                      {ALL_SKILLS.map((s) => {
+                        const selected = newSkills.includes(s);
+                        return (
+                          <CommandItem
+                            key={s}
+                            value={s}
+                            onSelect={() => toggleSkill(s)}
+                            data-testid={`combo-admin-skills-item-${s}`}
+                            aria-selected={selected}
+                          >
+                            <Check className={`mr-2 h-4 w-4 ${selected ? "opacity-100" : "opacity-0"}`} />
+                            <span>{s}</span>
+                          </CommandItem>
+                        );
+                      })}
+                    </CommandGroup>
+                  </CommandList>
                 </Command>
               </PopoverContent>
             </Popover>
@@ -492,21 +494,23 @@ export default function AdminDirectoryPage() {
                               {editSkills.length > 0 ? `${editSkills.length} selected` : "Select skills"}
                             </Button>
                           </PopoverTrigger>
-                          <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                          <PopoverContent className="w-[--radix-popover-trigger-width] p-0 max-h-[80vh] flex flex-col" align="start">
                             <Command shouldFilter>
                               <CommandInput placeholder="Search skills…" />
-                              <CommandEmpty>No skills found.</CommandEmpty>
-                              <CommandGroup>
-                                {ALL_SKILLS.map((s) => {
-                                  const selected = editSkills.includes(s);
-                                  return (
-                                    <CommandItem key={s} value={s} onSelect={() => toggleEditSkill(s)} aria-selected={selected}>
-                                      <Check className={`mr-2 h-4 w-4 ${selected ? "opacity-100" : "opacity-0"}`} />
-                                      <span>{s}</span>
-                                    </CommandItem>
-                                  );
-                                })}
-                              </CommandGroup>
+                              <CommandList>
+                                <CommandEmpty>No skills found.</CommandEmpty>
+                                <CommandGroup>
+                                  {ALL_SKILLS.map((s) => {
+                                    const selected = editSkills.includes(s);
+                                    return (
+                                      <CommandItem key={s} value={s} onSelect={() => toggleEditSkill(s)} aria-selected={selected}>
+                                        <Check className={`mr-2 h-4 w-4 ${selected ? "opacity-100" : "opacity-0"}`} />
+                                        <span>{s}</span>
+                                      </CommandItem>
+                                    );
+                                  })}
+                                </CommandGroup>
+                              </CommandList>
                             </Command>
                           </PopoverContent>
                         </Popover>
