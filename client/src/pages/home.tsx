@@ -102,9 +102,7 @@ export default function Home() {
             <div className="flex-1 space-y-2">
               <div>
                 <h3 className="text-xl font-semibold" data-testid="text-user-name">
-                  {user?.firstName && user?.lastName 
-                    ? `${user.firstName} ${user.lastName}`
-                    : user?.email || 'User'}
+                  {user?.firstName || ''}
                 </h3>
                 <div className="text-sm text-muted-foreground">
                   <PrivacyField 
