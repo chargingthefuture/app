@@ -184,6 +184,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   }));
 
+  // Terms acceptance
+  app.post('/api/account/accept-terms', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    try {
+      const user = await storage.updateTermsAcceptance(userId);
+      res.json({ message: "Terms accepted successfully", termsAcceptedAt: user.termsAcceptedAt });
+    } catch (error: any) {
+      console.error("Error accepting terms:", error);
+      res.status(500).json({ message: error.message || "Failed to accept terms" });
+    }
+  }));
+
   // User routes
   app.get('/api/payments', isAuthenticated, async (req: any, res) => {
     try {
@@ -2954,9 +2966,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // MechanicMatch Service Request routes
   app.get('/api/mechanicmatch/service-requests', isAuthenticated, asyncHandler(async (req: any, res) => {
     const userId = getUserId(req);
+    const limit = Math.min(parseInt(req.query.limit) || 20, 100);
+    const offset = parseInt(req.query.offset) || 0;
     const requests = await withDatabaseErrorHandling(
-      () => storage.getMechanicmatchServiceRequestsByOwner(userId),
-      'getMechanicmatchServiceRequestsByOwner'
+      () => storage.getMechanicmatchServiceRequestsByOwnerPaginated(userId, limit, offset),
+      'getMechanicmatchServiceRequestsByOwnerPaginated'
     );
     res.json(requests);
   }));
@@ -3271,6 +3285,150 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(mechanics);
   }));
 
+  // MechanicMatch Admin Profile routes
+  app.get('/api/mechanicmatch/admin/profiles', isAuthenticated, isAdmin, asyncHandler(async (req: any, res) => {
+    const limitParam = Array.isArray(req.query.limit) ? req.query.limit[0] : req.query.limit;
+    const offsetParam = Array.isArray(req.query.offset) ? req.query.offset[0] : req.query.offset;
+    const searchParam = Array.isArray(req.query.search) ? req.query.search[0] : req.query.search;
+    const roleParam = Array.isArray(req.query.role) ? req.query.role[0] : req.query.role;
+    const claimedParam = Array.isArray(req.query.claimed) ? req.query.claimed[0] : req.query.claimed;
+
+    const limit = Math.min(parseInt(limitParam || '50', 10) || 50, 100);
+    const offset = parseInt(offsetParam || '0', 10) || 0;
+    const role = roleParam === 'mechanic' || roleParam === 'owner' ? roleParam : undefined;
+    const isClaimed =
+      claimedParam === 'true' ? true : claimedParam === 'false' ? false : undefined;
+
+    const profiles = await withDatabaseErrorHandling(
+      () => storage.listMechanicmatchProfiles({
+        limit,
+        offset,
+        search: searchParam || undefined,
+        role,
+        isClaimed,
+      }),
+      'listMechanicmatchProfiles'
+    );
+    res.json(profiles);
+  }));
+
+  app.post('/api/mechanicmatch/admin/profiles', isAuthenticated, isAdmin, validateCsrfToken, asyncHandler(async (req: any, res) => {
+    const adminId = getUserId(req);
+    const validated = validateWithZod(insertMechanicmatchProfileSchema, {
+      ...req.body,
+      userId: req.body.userId || null,
+      isClaimed: !!req.body.userId,
+    }, 'Invalid profile data');
+
+    if (!validated.isCarOwner && !validated.isMechanic) {
+      return res.status(400).json({ message: "Profile must be at least a car owner or mechanic" });
+    }
+
+    const profile = await withDatabaseErrorHandling(
+      () => storage.createMechanicmatchProfile(validated),
+      'createMechanicmatchProfile'
+    );
+
+    await logAdminAction(
+      adminId,
+      'create_mechanicmatch_profile',
+      'mechanicmatch_profile',
+      profile.id,
+      { isClaimed: profile.isClaimed }
+    );
+
+    res.json(profile);
+  }));
+
+  app.put('/api/mechanicmatch/admin/profiles/:id/assign', isAuthenticated, isAdmin, validateCsrfToken, asyncHandler(async (req: any, res) => {
+    const adminId = getUserId(req);
+    const { userId } = req.body;
+    if (!userId) {
+      return res.status(400).json({ message: "userId is required" });
+    }
+
+    const profile = await withDatabaseErrorHandling(
+      () => storage.getMechanicmatchProfileById(req.params.id),
+      'getMechanicmatchProfileById'
+    );
+
+    if (!profile) {
+      return res.status(404).json({ message: "Profile not found" });
+    }
+
+    if (profile.isClaimed) {
+      return res.status(400).json({ message: "Profile is already claimed" });
+    }
+
+    const updated = await withDatabaseErrorHandling(
+      () => storage.updateMechanicmatchProfileById(profile.id, { userId, isClaimed: true }),
+      'assignMechanicmatchProfile'
+    );
+
+    await logAdminAction(
+      adminId,
+      'assign_mechanicmatch_profile',
+      'mechanicmatch_profile',
+      updated.id,
+      { userId }
+    );
+
+    res.json(updated);
+  }));
+
+  app.put('/api/mechanicmatch/admin/profiles/:id', isAuthenticated, isAdmin, validateCsrfToken, asyncHandler(async (req: any, res) => {
+    const adminId = getUserId(req);
+    const validated = validateWithZod(insertMechanicmatchProfileSchema.partial() as any, req.body, 'Invalid profile update');
+
+    const updated = await withDatabaseErrorHandling(
+      () => storage.updateMechanicmatchProfileById(req.params.id, validated),
+      'updateMechanicmatchProfileById'
+    );
+
+    await logAdminAction(
+      adminId,
+      'update_mechanicmatch_profile',
+      'mechanicmatch_profile',
+      updated.id
+    );
+
+    res.json(updated);
+  }));
+
+  app.delete('/api/mechanicmatch/admin/profiles/:id', isAuthenticated, isAdmin, validateCsrfToken, asyncHandler(async (req: any, res) => {
+    const adminId = getUserId(req);
+    const profile = await withDatabaseErrorHandling(
+      () => storage.getMechanicmatchProfileById(req.params.id),
+      'getMechanicmatchProfileById'
+    );
+
+    if (!profile) {
+      return res.status(404).json({ message: "Profile not found" });
+    }
+
+    if (profile.isClaimed) {
+      return res.status(400).json({ message: "Cannot delete claimed profiles. Ask user to delete via profile settings." });
+    }
+
+    await withDatabaseErrorHandling(
+      () => storage.deleteMechanicmatchProfileById(profile.id),
+      'deleteMechanicmatchProfileById'
+    );
+
+    await logAdminAction(
+      adminId,
+      'delete_mechanicmatch_profile',
+      'mechanicmatch_profile',
+      profile.id,
+      {
+        wasUnclaimed: true,
+        displayName: profile.displayName,
+      }
+    );
+
+    res.json({ message: "Profile deleted successfully" });
+  }));
+
   // MechanicMatch Admin Announcement routes
   app.get('/api/mechanicmatch/admin/announcements', isAuthenticated, isAdmin, asyncHandler(async (_req, res) => {
     const announcements = await withDatabaseErrorHandling(
@@ -3280,7 +3438,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(announcements);
   }));
 
-  app.post('/api/mechanicmatch/admin/announcements', isAuthenticated, isAdmin, asyncHandler(async (req: any, res) => {
+  app.post('/api/mechanicmatch/admin/announcements', isAuthenticated, isAdmin, validateCsrfToken, asyncHandler(async (req: any, res) => {
     const userId = getUserId(req);
     const validatedData = validateWithZod(insertMechanicmatchAnnouncementSchema, req.body, 'Invalid announcement data');
 
@@ -3300,7 +3458,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(announcement);
   }));
 
-  app.put('/api/mechanicmatch/admin/announcements/:id', isAuthenticated, isAdmin, asyncHandler(async (req: any, res) => {
+  app.put('/api/mechanicmatch/admin/announcements/:id', isAuthenticated, isAdmin, validateCsrfToken, asyncHandler(async (req: any, res) => {
     const userId = getUserId(req);
     const announcement = await withDatabaseErrorHandling(
       () => storage.updateMechanicmatchAnnouncement(req.params.id, req.body),
@@ -3318,7 +3476,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(announcement);
   }));
 
-  app.delete('/api/mechanicmatch/admin/announcements/:id', isAuthenticated, isAdmin, asyncHandler(async (req: any, res) => {
+  app.delete('/api/mechanicmatch/admin/announcements/:id', isAuthenticated, isAdmin, validateCsrfToken, asyncHandler(async (req: any, res) => {
     const userId = getUserId(req);
     const announcement = await withDatabaseErrorHandling(
       () => storage.deactivateMechanicmatchAnnouncement(req.params.id),

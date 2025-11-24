@@ -39,6 +39,7 @@ export const users = pgTable("users", {
   isApproved: boolean("is_approved").default(false).notNull(), // Manual approval for app access
   pricingTier: decimal("pricing_tier", { precision: 10, scale: 2 }).notNull().default('1.00'),
   subscriptionStatus: varchar("subscription_status", { length: 20 }).notNull().default('active'), // active, overdue, inactive
+  termsAcceptedAt: timestamp("terms_accepted_at"), // Timestamp of last terms acceptance
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -1157,7 +1158,8 @@ export type NpsResponse = typeof npsResponses.$inferSelect;
 // MechanicMatch Profiles (users can be both car owners and mechanics)
 export const mechanicmatchProfiles = pgTable("mechanicmatch_profiles", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").notNull().unique().references(() => users.id),
+  // Optional while unclaimed; admin can create unclaimed entries
+  userId: varchar("user_id").unique().references(() => users.id),
   
   // Role flags
   isCarOwner: boolean("is_car_owner").notNull().default(false),
@@ -1187,6 +1189,9 @@ export const mechanicmatchProfiles = pgTable("mechanicmatch_profiles", {
   responseTimeHours: integer("response_time_hours"), // Average response time in hours
   totalJobsCompleted: integer("total_jobs_completed").notNull().default(0),
   averageRating: decimal("average_rating", { precision: 3, scale: 2 }), // Average rating (0-5)
+  
+  // Verification and visibility
+  isClaimed: boolean("is_claimed").notNull().default(false),
   
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),

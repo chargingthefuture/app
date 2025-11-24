@@ -87,6 +87,7 @@ import MechanicMatchRequestNew from "@/pages/mechanicmatch/request-new";
 import MechanicMatchBrowseMechanics from "@/pages/mechanicmatch/browse-mechanics";
 import MechanicMatchAvailability from "@/pages/mechanicmatch/availability";
 import MechanicMatchAdmin from "@/pages/mechanicmatch/admin";
+import MechanicMatchAdminProfiles from "@/pages/mechanicmatch/admin-profiles";
 import MechanicMatchAdminAnnouncements from "@/pages/mechanicmatch/admin-announcements";
 import LostMailDashboard from "@/pages/lostmail/dashboard";
 import LostMailReport from "@/pages/lostmail/report";
@@ -577,6 +578,11 @@ function Router() {
       <Route path="/apps/mechanicmatch/admin">
         <ProtectedRoute>
           <MechanicMatchAdmin />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/mechanicmatch/admin/profiles">
+        <ProtectedRoute>
+          <MechanicMatchAdminProfiles />
         </ProtectedRoute>
       </Route>
       <Route path="/apps/mechanicmatch/admin/announcements">

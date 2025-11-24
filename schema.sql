@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS users (
   is_approved BOOLEAN NOT NULL DEFAULT false,
   pricing_tier DECIMAL(10, 2) NOT NULL DEFAULT '1.00',
   subscription_status VARCHAR(20) NOT NULL DEFAULT 'active',
+  terms_accepted_at TIMESTAMP,
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );

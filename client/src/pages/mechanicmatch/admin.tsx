@@ -18,6 +18,27 @@ export default function MechanicMatchAdmin() {
           <CardHeader>
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Wrench className="w-5 h-5 text-primary" />
+              </div>
+              <CardTitle>Profiles</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Seed new unclaimed listings or update existing MechanicMatch profiles.
+            </p>
+            <Link href="/apps/mechanicmatch/admin/profiles">
+              <Button className="w-full" data-testid="button-manage-profiles">
+                Manage Profiles
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
                 <MessageSquare className="w-5 h-5 text-primary" />
               </div>
               <CardTitle>Announcements</CardTitle>

@@ -189,6 +189,7 @@ export interface IStorage {
   getAllUsers(): Promise<User[]>;
   updateUserVerification(userId: string, isVerified: boolean): Promise<User>;
   updateUserApproval(userId: string, isApproved: boolean): Promise<User>;
+  updateTermsAcceptance(userId: string): Promise<User>;
   
   // Pricing tier operations
   getCurrentPricingTier(): Promise<PricingTier | undefined>;
@@ -450,9 +451,19 @@ export interface IStorage {
 
   // MechanicMatch Profile operations
   getMechanicmatchProfile(userId: string): Promise<MechanicmatchProfile | undefined>;
+  getMechanicmatchProfileById(profileId: string): Promise<MechanicmatchProfile | undefined>;
+  listMechanicmatchProfiles(filters?: {
+    search?: string;
+    role?: "mechanic" | "owner";
+    isClaimed?: boolean;
+    limit?: number;
+    offset?: number;
+  }): Promise<{ items: MechanicmatchProfile[]; total: number }>;
   createMechanicmatchProfile(profile: InsertMechanicmatchProfile): Promise<MechanicmatchProfile>;
   updateMechanicmatchProfile(userId: string, profile: Partial<InsertMechanicmatchProfile>): Promise<MechanicmatchProfile>;
+  updateMechanicmatchProfileById(profileId: string, profile: Partial<InsertMechanicmatchProfile>): Promise<MechanicmatchProfile>;
   deleteMechanicmatchProfile(userId: string, reason?: string): Promise<void>;
+  deleteMechanicmatchProfileById(profileId: string): Promise<void>;
 
   // MechanicMatch Vehicle operations
   getMechanicmatchVehiclesByOwner(ownerId: string): Promise<MechanicmatchVehicle[]>;
@@ -465,6 +476,11 @@ export interface IStorage {
   createMechanicmatchServiceRequest(request: InsertMechanicmatchServiceRequest & { ownerId?: string }): Promise<MechanicmatchServiceRequest>;
   getMechanicmatchServiceRequestById(id: string): Promise<MechanicmatchServiceRequest | undefined>;
   getMechanicmatchServiceRequestsByOwner(ownerId: string): Promise<MechanicmatchServiceRequest[]>;
+  getMechanicmatchServiceRequestsByOwnerPaginated(
+    ownerId: string,
+    limit: number,
+    offset: number
+  ): Promise<{ items: MechanicmatchServiceRequest[]; total: number }>;
   getOpenMechanicmatchServiceRequests(): Promise<MechanicmatchServiceRequest[]>;
   updateMechanicmatchServiceRequest(id: string, request: Partial<InsertMechanicmatchServiceRequest>): Promise<MechanicmatchServiceRequest>;
 
@@ -753,6 +769,19 @@ export class DatabaseStorage implements IStorage {
       .update(users)
       .set({
         isApproved: !!isApproved,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userId))
+      .returning();
+    return user;
+  }
+
+  // Terms acceptance operations
+  async updateTermsAcceptance(userId: string): Promise<User> {
+    const [user] = await db
+      .update(users)
+      .set({
+        termsAcceptedAt: new Date(),
         updatedAt: new Date(),
       })
       .where(eq(users.id, userId))
@@ -3486,6 +3515,65 @@ export class DatabaseStorage implements IStorage {
     return profile;
   }
 
+  async getMechanicmatchProfileById(profileId: string): Promise<MechanicmatchProfile | undefined> {
+    const [profile] = await db
+      .select()
+      .from(mechanicmatchProfiles)
+      .where(eq(mechanicmatchProfiles.id, profileId));
+    return profile;
+  }
+
+  async listMechanicmatchProfiles(filters?: {
+    search?: string;
+    role?: "mechanic" | "owner";
+    isClaimed?: boolean;
+    limit?: number;
+    offset?: number;
+  }): Promise<{ items: MechanicmatchProfile[]; total: number }> {
+    const limit = Math.min(filters?.limit ?? 50, 100);
+    const offset = filters?.offset ?? 0;
+    const conditions: any[] = [];
+
+    if (filters?.role === "mechanic") {
+      conditions.push(eq(mechanicmatchProfiles.isMechanic, true));
+    } else if (filters?.role === "owner") {
+      conditions.push(eq(mechanicmatchProfiles.isCarOwner, true));
+    }
+
+    if (filters?.isClaimed !== undefined) {
+      conditions.push(eq(mechanicmatchProfiles.isClaimed, filters.isClaimed));
+    }
+
+    if (filters?.search) {
+      const searchTerm = `%${filters.search}%`;
+      conditions.push(
+        or(
+          sql`${mechanicmatchProfiles.displayName} ILIKE ${searchTerm}`,
+          sql`${mechanicmatchProfiles.city} ILIKE ${searchTerm}`,
+          sql`${mechanicmatchProfiles.state} ILIKE ${searchTerm}`
+        )
+      );
+    }
+
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+    const totalResult = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(mechanicmatchProfiles)
+      .where(whereClause);
+    const total = Number(totalResult[0]?.count || 0);
+
+    const items = await db
+      .select()
+      .from(mechanicmatchProfiles)
+      .where(whereClause)
+      .orderBy(desc(mechanicmatchProfiles.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    return { items, total };
+  }
+
   async createMechanicmatchProfile(profileData: InsertMechanicmatchProfile): Promise<MechanicmatchProfile> {
     const [profile] = await db
       .insert(mechanicmatchProfiles)
@@ -3499,6 +3587,15 @@ export class DatabaseStorage implements IStorage {
       .update(mechanicmatchProfiles)
       .set({ ...profileData, updatedAt: new Date() })
       .where(eq(mechanicmatchProfiles.userId, userId))
+      .returning();
+    return profile;
+  }
+
+  async updateMechanicmatchProfileById(profileId: string, profileData: Partial<InsertMechanicmatchProfile>): Promise<MechanicmatchProfile> {
+    const [profile] = await db
+      .update(mechanicmatchProfiles)
+      .set({ ...profileData, updatedAt: new Date() })
+      .where(eq(mechanicmatchProfiles.id, profileId))
       .returning();
     return profile;
   }
@@ -3524,6 +3621,10 @@ export class DatabaseStorage implements IStorage {
 
     // Log the deletion
     await this.logProfileDeletion(userId, "mechanicmatch", reason);
+  }
+
+  async deleteMechanicmatchProfileById(profileId: string): Promise<void> {
+    await db.delete(mechanicmatchProfiles).where(eq(mechanicmatchProfiles.id, profileId));
   }
 
   // MechanicMatch Vehicle operations
@@ -3607,6 +3708,29 @@ export class DatabaseStorage implements IStorage {
       .from(mechanicmatchServiceRequests)
       .where(eq(mechanicmatchServiceRequests.ownerId, ownerId))
       .orderBy(desc(mechanicmatchServiceRequests.createdAt));
+  }
+
+  async getMechanicmatchServiceRequestsByOwnerPaginated(
+    ownerId: string,
+    limit: number,
+    offset: number
+  ): Promise<{ items: MechanicmatchServiceRequest[]; total: number }> {
+    const safeLimit = Math.min(limit, 100);
+    const totalResult = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(mechanicmatchServiceRequests)
+      .where(eq(mechanicmatchServiceRequests.ownerId, ownerId));
+    const total = Number(totalResult[0]?.count || 0);
+
+    const items = await db
+      .select()
+      .from(mechanicmatchServiceRequests)
+      .where(eq(mechanicmatchServiceRequests.ownerId, ownerId))
+      .orderBy(desc(mechanicmatchServiceRequests.createdAt))
+      .limit(safeLimit)
+      .offset(offset);
+
+    return { items, total };
   }
 
   async getOpenMechanicmatchServiceRequests(): Promise<MechanicmatchServiceRequest[]> {

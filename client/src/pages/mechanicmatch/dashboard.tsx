@@ -26,11 +26,13 @@ export default function MechanicMatchDashboard() {
     enabled: !!profile?.isCarOwner,
   });
 
-  // Service requests for car owners
-  const { data: myRequests } = useQuery<MechanicmatchServiceRequest[]>({
-    queryKey: ["/api/mechanicmatch/service-requests"],
+  // Service requests for car owners (limit to latest 5 for dashboard)
+  const { data: myRequestsData } = useQuery<{ items: MechanicmatchServiceRequest[]; total: number }>({
+    queryKey: ["/api/mechanicmatch/service-requests?limit=5&offset=0"],
     enabled: !!profile?.isCarOwner,
   });
+  const myRequests = myRequestsData?.items ?? [];
+  const myRequestsTotal = myRequestsData?.total ?? 0;
 
   // Jobs for mechanics
   const { data: mechanicJobs } = useQuery<MechanicmatchJob[]>({
@@ -158,12 +160,17 @@ export default function MechanicMatchDashboard() {
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">Service Requests</span>
-                    <Badge variant="secondary">{myRequests?.length || 0}</Badge>
+                    <Badge variant="secondary">{myRequestsTotal}</Badge>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">Active Jobs</span>
                     <Badge variant="secondary">{myJobs?.filter(j => j.status !== 'completed' && j.status !== 'cancelled').length || 0}</Badge>
                   </div>
+                  <Link href="/apps/mechanicmatch/service-requests">
+                    <Button variant="outline" className="w-full" data-testid="button-view-service-requests">
+                      View Requests
+                    </Button>
+                  </Link>
                   <Link href="/apps/mechanicmatch/vehicles">
                     <Button variant="outline" className="w-full" data-testid="button-manage-vehicles">
                       Manage Vehicles
@@ -254,7 +261,7 @@ export default function MechanicMatchDashboard() {
               <CardContent>
                 {myRequests && myRequests.length > 0 ? (
                   <div className="space-y-4">
-                    {myRequests.slice(0, 5).map((request) => (
+                    {myRequests.map((request) => (
                       <div key={request.id} className="p-4 border rounded-lg">
                         <div className="flex items-center justify-between">
                           <div>
@@ -271,6 +278,11 @@ export default function MechanicMatchDashboard() {
                 ) : (
                   <p className="text-muted-foreground text-center py-4">No service requests yet</p>
                 )}
+                <Link href="/apps/mechanicmatch/service-requests">
+                  <Button variant="outline" className="mt-4 w-full" data-testid="button-manage-requests">
+                    Manage Requests
+                  </Button>
+                </Link>
               </CardContent>
             </Card>
 
