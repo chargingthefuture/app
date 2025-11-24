@@ -153,37 +153,6 @@ CREATE TABLE IF NOT EXISTS supportmatch_announcements (
 );
 
 -- ========================================
--- SLEEPSTORIES APP TABLES
--- ========================================
-
--- Sleep Stories - calming audio content for relaxation and sleep
-CREATE TABLE IF NOT EXISTS sleep_stories (
-  id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
-  title VARCHAR(200) NOT NULL,
-  description TEXT NOT NULL,
-  duration INTEGER NOT NULL,
-  wistia_media_id VARCHAR(100) NOT NULL,
-  download_url TEXT,
-  category VARCHAR(50) NOT NULL DEFAULT 'general',
-  thumbnail_url TEXT,
-  is_active BOOLEAN NOT NULL DEFAULT true,
-  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
-);
-
--- SleepStories Announcements
-CREATE TABLE IF NOT EXISTS sleep_stories_announcements (
-  id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
-  title VARCHAR(200) NOT NULL,
-  content TEXT NOT NULL,
-  type VARCHAR(50) NOT NULL DEFAULT 'info',
-  is_active BOOLEAN NOT NULL DEFAULT true,
-  expires_at TIMESTAMP,
-  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
-);
-
--- ========================================
 -- LIGHTHOUSE APP TABLES
 -- ========================================
 
