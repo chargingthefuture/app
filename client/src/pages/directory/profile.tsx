@@ -366,24 +366,24 @@ export default function DirectoryProfilePage() {
                 <Command shouldFilter>
                   <CommandInput placeholder="Search skills…" />
                   <CommandList>
-                    <CommandEmpty>No skills found.</CommandEmpty>
-                    <CommandGroup>
-                      {ALL_SKILLS.map((s) => {
-                        const selected = skills.includes(s);
-                        return (
-                          <CommandItem
-                            key={s}
-                            value={s}
-                            onSelect={() => toggleSkill(s)}
-                            data-testid={`combo-skills-item-${s}`}
-                            aria-selected={selected}
-                          >
-                            <Check className={`mr-2 h-4 w-4 ${selected ? "opacity-100" : "opacity-0"}`} />
-                            <span>{s}</span>
-                          </CommandItem>
-                        );
-                      })}
-                    </CommandGroup>
+                  <CommandEmpty>No skills found.</CommandEmpty>
+                  <CommandGroup>
+                    {ALL_SKILLS.map((s) => {
+                      const selected = skills.includes(s);
+                      return (
+                        <CommandItem
+                          key={s}
+                          value={s}
+                          onSelect={() => toggleSkill(s)}
+                          data-testid={`combo-skills-item-${s}`}
+                          aria-selected={selected}
+                        >
+                          <Check className={`mr-2 h-4 w-4 ${selected ? "opacity-100" : "opacity-0"}`} />
+                          <span>{s}</span>
+                        </CommandItem>
+                      );
+                    })}
+                  </CommandGroup>
                   </CommandList>
                 </Command>
               </PopoverContent>
