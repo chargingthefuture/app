@@ -43,7 +43,6 @@ export function NpsSurveyManager() {
         Math.random() * (RANDOM_DELAY_MAX_MS - RANDOM_DELAY_MIN_MS) + RANDOM_DELAY_MIN_MS
       );
       randomDelayRef.current = randomDelay;
-      console.log(`NPS Survey: Will show after ${randomDelay / 1000}s delay (random)`);
     }
 
     // Check if enough time has passed (5 min + random delay)
@@ -52,7 +51,6 @@ export function NpsSurveyManager() {
       const totalRequiredTime = MIN_LOGIN_TIME_MS + (randomDelayRef.current || 0);
 
       if (elapsed >= totalRequiredTime && !showDialog) {
-        console.log(`NPS Survey: Showing after ${elapsed / 1000}s (${totalRequiredTime / 1000}s required)`);
         setShowDialog(true);
         hasCheckedRef.current = true;
       }

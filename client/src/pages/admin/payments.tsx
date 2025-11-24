@@ -101,17 +101,7 @@ export default function AdminPayments() {
       }
       // For yearly payments, omit billingMonth (it will be null in database)
       
-      console.log("Payment payload:", payload);
-      console.log("Payload types:", {
-        userId: typeof payload.userId,
-        amount: typeof payload.amount,
-        paymentDate: typeof payload.paymentDate,
-        paymentMethod: typeof payload.paymentMethod,
-        billingPeriod: typeof payload.billingPeriod,
-        billingMonth: typeof payload.billingMonth,
-        billingMonthValue: payload.billingMonth,
-        notes: typeof payload.notes,
-      });
+      // Debug logging removed for production
       
       return await apiRequest("POST", "/api/admin/payments", payload);
     },

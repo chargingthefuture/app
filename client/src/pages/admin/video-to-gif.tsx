@@ -60,9 +60,7 @@ export default function VideoToGifConverter() {
     const ffmpeg = new FFmpeg();
     ffmpegRef.current = ffmpeg;
 
-    ffmpeg.on("log", ({ message }) => {
-      console.log("[FFmpeg]", message);
-    });
+    // FFmpeg logging removed for production
 
     ffmpeg.on("progress", ({ progress: p }) => {
       setProgress(p * 100);

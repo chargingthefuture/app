@@ -23,10 +23,12 @@ import { useExternalLink } from "@/hooks/useExternalLink";
 import { VerifiedBadge } from "@/components/verified-badge";
 import { DeleteProfileDialog } from "@/components/delete-profile-dialog";
 import { AnnouncementBanner } from "@/components/announcement-banner";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function DirectoryProfilePage() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
+  const { user } = useAuth();
   const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
   const { data: profile, isLoading } = useQuery<DirectoryProfile | null>({
     queryKey: ["/api/directory/profile"],
@@ -85,8 +87,23 @@ export default function DirectoryProfilePage() {
     }
   }, [profile]);
 
+  // Pre-populate firstName from auth user when creating new profile
+  useEffect(() => {
+    if (!profile && user && displayNameType === 'first' && !directoryFirstName && user.firstName) {
+      setDirectoryFirstName(user.firstName);
+    }
+  }, [profile, user, displayNameType]);
+
   const createMutation = useMutation({
     mutationFn: async () => {
+      // Validate firstName is provided when displayNameType is 'first'
+      if (displayNameType === 'first' && !directoryFirstName.trim()) {
+        throw new Error("First name is required when using first name as display name");
+      }
+      // Validate nickname is provided when displayNameType is 'nickname'
+      if (displayNameType === 'nickname' && !nickname.trim()) {
+        throw new Error("Nickname is required when using nickname as display name");
+      }
       const payload = {
         description: description.trim(),
         skills,
@@ -95,8 +112,8 @@ export default function DirectoryProfilePage() {
         city: city || null,
         state: stateVal || null,
         country: country,
-        firstName: displayNameType === 'first' ? (directoryFirstName.trim() || null) : null,
-        nickname: nickname || null,
+        firstName: displayNameType === 'first' ? directoryFirstName.trim() : null,
+        nickname: displayNameType === 'nickname' ? nickname.trim() : null,
         displayNameType,
         isPublic,
       };
@@ -115,6 +132,14 @@ export default function DirectoryProfilePage() {
 
   const updateMutation = useMutation({
     mutationFn: async () => {
+      // Validate firstName is provided when displayNameType is 'first'
+      if (displayNameType === 'first' && !directoryFirstName.trim()) {
+        throw new Error("First name is required when using first name as display name");
+      }
+      // Validate nickname is provided when displayNameType is 'nickname'
+      if (displayNameType === 'nickname' && !nickname.trim()) {
+        throw new Error("Nickname is required when using nickname as display name");
+      }
       const payload = {
         description: description.trim(),
         skills,
@@ -123,8 +148,8 @@ export default function DirectoryProfilePage() {
         city: city || null,
         state: stateVal || null,
         country: country,
-        firstName: displayNameType === 'first' ? (directoryFirstName.trim() || null) : null,
-        nickname: nickname || null,
+        firstName: displayNameType === 'first' ? directoryFirstName.trim() : null,
+        nickname: displayNameType === 'nickname' ? nickname.trim() : null,
         displayNameType,
         isPublic,
       };
@@ -328,21 +353,35 @@ export default function DirectoryProfilePage() {
             </RadioGroup>
             {displayNameType === 'first' && (
               <div className="space-y-2">
-                <Label htmlFor="directory-first-name">First Name</Label>
+                <Label htmlFor="directory-first-name">First Name <span className="text-red-600">*</span></Label>
                 <Input 
                   id="directory-first-name" 
                   value={directoryFirstName} 
                   onChange={(e) => setDirectoryFirstName(e.target.value.slice(0, 100))} 
-                  placeholder="Override your first name (optional - leave blank to use your account first name)" 
+                  placeholder="Enter your first name" 
                   data-testid="input-directory-first-name"
+                  required
                 />
-                <p className="text-xs text-muted-foreground">Leave blank to use your account first name, or enter a custom name to override it</p>
+                <p className="text-xs text-muted-foreground">First name is required for Directory profiles</p>
+                {!directoryFirstName.trim() && displayNameType === 'first' && (
+                  <p className="text-xs text-red-600" data-testid="help-first-name-required">First name is required.</p>
+                )}
               </div>
             )}
             {displayNameType === 'nickname' && (
               <div className="space-y-2">
-                <Label htmlFor="nickname">Nickname</Label>
-                <Input id="nickname" value={nickname} onChange={(e) => setNickname(e.target.value.slice(0, 100))} placeholder="e.g. Sky" />
+                <Label htmlFor="nickname">Nickname <span className="text-red-600">*</span></Label>
+                <Input 
+                  id="nickname" 
+                  value={nickname} 
+                  onChange={(e) => setNickname(e.target.value.slice(0, 100))} 
+                  placeholder="e.g. Sky" 
+                  required
+                  data-testid="input-nickname"
+                />
+                {!nickname.trim() && displayNameType === 'nickname' && (
+                  <p className="text-xs text-red-600" data-testid="help-nickname-required">Nickname is required.</p>
+                )}
               </div>
             )}
           </div>
@@ -527,12 +566,32 @@ export default function DirectoryProfilePage() {
 
           <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
             {!profile ? (
-              <Button onClick={() => createMutation.mutate()} disabled={skills.length === 0 || !country || createMutation.isPending} data-testid="button-create-directory-profile">
+              <Button 
+                onClick={() => createMutation.mutate()} 
+                disabled={
+                  skills.length === 0 || 
+                  !country || 
+                  (displayNameType === 'first' && !directoryFirstName.trim()) ||
+                  (displayNameType === 'nickname' && !nickname.trim()) ||
+                  createMutation.isPending
+                } 
+                data-testid="button-create-directory-profile"
+              >
                 {createMutation.isPending ? "Saving…" : "Create Profile"}
               </Button>
             ) : (
               <>
-                <Button onClick={() => updateMutation.mutate()} disabled={skills.length === 0 || !country || updateMutation.isPending} data-testid="button-update-directory-profile">
+                <Button 
+                  onClick={() => updateMutation.mutate()} 
+                  disabled={
+                    skills.length === 0 || 
+                    !country || 
+                    (displayNameType === 'first' && !directoryFirstName.trim()) ||
+                    (displayNameType === 'nickname' && !nickname.trim()) ||
+                    updateMutation.isPending
+                  } 
+                  data-testid="button-update-directory-profile"
+                >
                   {updateMutation.isPending ? "Saving…" : "Save Changes"}
                 </Button>
                 <Button variant="outline" onClick={() => setIsEditing(false)} disabled={updateMutation.isPending} data-testid="button-cancel-edit">

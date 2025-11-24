@@ -35,10 +35,6 @@ import SupportMatchAdminAnnouncements from "@/pages/supportmatch/admin-announcem
 import SupportMatchAdminUsers from "@/pages/supportmatch/admin-users";
 import SupportMatchAdminPartnerships from "@/pages/supportmatch/admin-partnerships";
 import SupportMatchAdminReports from "@/pages/supportmatch/admin-reports";
-import SleepStoriesLibrary from "@/pages/sleepstories/library";
-import SleepStoryPlayer from "@/pages/sleepstories/player";
-import SleepStoriesAdmin from "@/pages/sleepstories/admin";
-import SleepStoriesAdminAnnouncements from "@/pages/sleepstories/admin-announcements";
 import LighthouseDashboard from "@/pages/lighthouse/dashboard";
 import LighthouseProfile from "@/pages/lighthouse/profile";
 import LighthouseBrowse from "@/pages/lighthouse/browse";
@@ -67,7 +63,6 @@ import ChatGroupsAdmin from "@/pages/chatgroups/admin";
 import ChatGroupsAnnouncements from "@/pages/chatgroups/announcements";
 import ChatGroupsAdminAnnouncements from "@/pages/chatgroups/admin-announcements";
 import LighthouseAnnouncements from "@/pages/lighthouse/announcements";
-import SleepStoriesAnnouncements from "@/pages/sleepstories/announcements";
 import PublicSocketRelayRequest from "@/pages/socketrelay/public";
 import PublicSocketRelayList from "@/pages/socketrelay/public-list";
 import TrustTransportDashboard from "@/pages/trusttransport/dashboard";
@@ -332,31 +327,6 @@ function Router() {
       <Route path="/apps/supportmatch/admin/reports">
         <ProtectedRoute>
           <SupportMatchAdminReports />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/apps/sleepstories">
-        <ProtectedRoute>
-          <SleepStoriesLibrary />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/apps/sleepstories/admin">
-        <ProtectedRoute>
-          <SleepStoriesAdmin />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/apps/sleepstories/admin/announcements">
-        <ProtectedRoute>
-          <SleepStoriesAdminAnnouncements />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/apps/sleepstories/:id">
-        <ProtectedRoute>
-          <SleepStoryPlayer />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/apps/sleepstories/announcements">
-        <ProtectedRoute>
-          <SleepStoriesAnnouncements />
         </ProtectedRoute>
       </Route>
       <Route path="/apps/lighthouse">

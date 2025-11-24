@@ -274,22 +274,6 @@ This document outlines a comprehensive testing strategy for the secure platform 
   - ✅ Public profiles visible with correct data
   - ✅ Privacy toggle updates immediately
 
-#### SleepStories
-
-**TC-SS-001: Content Library**
-- **Description**: Users can browse and play audio content
-- **Steps**:
-  1. Navigate to library
-  2. Browse by category
-  3. Play story
-  4. Verify Wistia player loads
-- **Expected**: Content displays and plays correctly
-- **Acceptance Criteria**:
-  - ✅ Categories filter correctly
-  - ✅ Wistia embed loads
-  - ✅ Player controls work
-  - ✅ Offline download (if implemented)
-
 #### ChatGroups
 
 **TC-CG-001: Group Management**
@@ -1031,14 +1015,6 @@ This document outlines a comprehensive testing strategy for the secure platform 
   - ✅ Transactions rollback on error
   - ✅ Migrations apply cleanly
 
-**TC-INT-003: Wistia Integration (SleepStories)**
-- **Description**: Verify Wistia player embeds and plays
-- **Steps**:
-  1. Load SleepStories player page
-  2. Verify Wistia embed loads
-  3. Verify player controls work
-  4. Verify playback works
-- **Expected**: Audio content plays correctly
 - **Acceptance Criteria**:
   - ✅ Embed code correct
   - ✅ Player responsive

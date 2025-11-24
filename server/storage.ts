@@ -10,8 +10,6 @@ import {
   reports,
   announcements,
   supportmatchAnnouncements,
-  sleepStories,
-  sleepStoriesAnnouncements,
   lighthouseProfiles,
   lighthouseProperties,
   lighthouseMatches,
@@ -57,10 +55,6 @@ import {
   type InsertAnnouncement,
   type SupportmatchAnnouncement,
   type InsertSupportmatchAnnouncement,
-  type SleepStory,
-  type InsertSleepStory,
-  type SleepStoriesAnnouncement,
-  type InsertSleepStoriesAnnouncement,
   type LighthouseProfile,
   type InsertLighthouseProfile,
   type LighthouseProperty,
@@ -302,21 +296,6 @@ export interface IStorage {
     currentPartnerships: number;
     pendingReports: number;
   }>;
-
-  // SleepStories operations
-  createSleepStory(story: InsertSleepStory): Promise<SleepStory>;
-  getAllSleepStories(): Promise<SleepStory[]>;
-  getActiveSleepStories(): Promise<SleepStory[]>;
-  getSleepStoryById(id: string): Promise<SleepStory | undefined>;
-  updateSleepStory(id: string, story: Partial<InsertSleepStory>): Promise<SleepStory>;
-  deleteSleepStory(id: string): Promise<void>;
-
-  // SleepStories Announcement operations
-  createSleepStoriesAnnouncement(announcement: InsertSleepStoriesAnnouncement): Promise<SleepStoriesAnnouncement>;
-  getActiveSleepStoriesAnnouncements(): Promise<SleepStoriesAnnouncement[]>;
-  getAllSleepStoriesAnnouncements(): Promise<SleepStoriesAnnouncement[]>;
-  updateSleepStoriesAnnouncement(id: string, announcement: Partial<InsertSleepStoriesAnnouncement>): Promise<SleepStoriesAnnouncement>;
-  deactivateSleepStoriesAnnouncement(id: string): Promise<SleepStoriesAnnouncement>;
 
   // LightHouse Profile operations
   createLighthouseProfile(profile: InsertLighthouseProfile): Promise<LighthouseProfile>;
@@ -813,8 +792,6 @@ export class DatabaseStorage implements IStorage {
 
   // Payment operations
   async createPayment(paymentData: InsertPayment): Promise<Payment> {
-    console.log("Creating payment with data:", JSON.stringify(paymentData, null, 2));
-    
     // Explicitly build the values object to ensure billingMonth is included
     const values: any = {
       userId: paymentData.userId,
@@ -833,14 +810,11 @@ export class DatabaseStorage implements IStorage {
       values.billingMonth = null;
     }
     
-    console.log("Inserting with values:", JSON.stringify(values, null, 2));
-    
     const [payment] = await db
       .insert(payments)
       .values(values)
       .returning();
     
-    console.log("Created payment:", JSON.stringify(payment, null, 2));
     return payment;
   }
 
@@ -1001,23 +975,6 @@ export class DatabaseStorage implements IStorage {
 
     // Remove unused variables - dates are already correct for DB comparison
 
-    // Log week boundaries for debugging
-    console.log("Week boundaries:", {
-      inputDate: weekStart.toISOString(),
-      currentWeekStart: currentWeekStart.toISOString(),
-      currentWeekEnd: currentWeekEnd.toISOString(),
-      previousWeekStart: previousWeekStart.toISOString(),
-      previousWeekEnd: previousWeekEnd.toISOString(),
-      currentWeekStartLocal: currentWeekStart.toLocaleString(),
-      currentWeekEndLocal: currentWeekEnd.toLocaleString(),
-    });
-
-    // Debug: Get a sample of all users and payments to see date ranges
-    const allUsersSample = await db.select().from(users).limit(5);
-    const allPaymentsSample = await db.select().from(payments).limit(5);
-    console.log("Sample user dates:", allUsersSample.map(u => ({ id: u.id, createdAt: u.createdAt?.toISOString() })));
-    console.log("Sample payment dates:", allPaymentsSample.map(p => ({ id: p.id, paymentDate: p.paymentDate?.toISOString() })));
-
     // Get new users for current week
     const currentWeekNewUsers = await db
       .select()
@@ -1028,13 +985,6 @@ export class DatabaseStorage implements IStorage {
           lte(users.createdAt, currentWeekEnd)
         )
       );
-    
-    console.log(`Found ${currentWeekNewUsers.length} new users for current week (range: ${currentWeekStart.toISOString()} to ${currentWeekEnd.toISOString()})`);
-    
-    // Debug: Show sample user dates if any exist
-    if (currentWeekNewUsers.length > 0) {
-      console.log("Sample user created dates:", currentWeekNewUsers.slice(0, 3).map(u => u.createdAt?.toISOString()));
-    }
 
     // Get new users for previous week
     const previousWeekNewUsers = await db
@@ -1057,13 +1007,6 @@ export class DatabaseStorage implements IStorage {
           lte(payments.paymentDate, currentWeekEnd)
         )
       );
-    
-    console.log(`Found ${currentWeekPayments.length} payments for current week (range: ${currentWeekStart.toISOString()} to ${currentWeekEnd.toISOString()})`);
-    
-    // Debug: Show sample payment dates if any exist
-    if (currentWeekPayments.length > 0) {
-      console.log("Sample payment dates:", currentWeekPayments.slice(0, 3).map(p => ({ date: p.paymentDate, amount: p.amount })));
-    }
 
     // Get payments for previous week
     const previousWeekPayments = await db
@@ -1210,11 +1153,6 @@ export class DatabaseStorage implements IStorage {
       monthStart.setHours(0, 0, 0, 0);
       const monthEnd = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0, 23, 59, 59, 999);
       
-      console.log("Metrics calculation - month boundaries:", {
-        monthStart: monthStart.toISOString(),
-        monthEnd: monthEnd.toISOString(),
-      });
-      
       const monthlyPayments = await db
         .select()
         .from(payments)
@@ -1227,12 +1165,6 @@ export class DatabaseStorage implements IStorage {
         );
       
       mrr = monthlyPayments.reduce((sum, p) => sum + parseFloat(p.amount), 0);
-      
-      console.log("Metrics calculation:", {
-        monthlyPaymentsCount: monthlyPayments.length,
-        mrr,
-        monthlyPaymentsSample: monthlyPayments.slice(0, 3).map(p => ({ userId: p.userId, amount: p.amount, paymentDate: p.paymentDate?.toISOString() }))
-      });
       
       // Calculate ARR (Annual Recurring Revenue) - MRR * 12 + yearly payments annualized
       const yearlyPayments = await db
@@ -1431,17 +1363,6 @@ export class DatabaseStorage implements IStorage {
         verifiedUsersPercentageChange: parseFloat(verifiedUsersPercentageChange.toFixed(2)),
       },
     };
-    
-    console.log("Final metrics being returned:", {
-      weeklyGrowthRate,
-      mrr: parseFloat(mrr.toFixed(2)),
-      arr: parseFloat(arr.toFixed(2)),
-      mau,
-      clv: parseFloat(clv.toFixed(2)),
-    });
-    
-    console.log("Return object keys:", Object.keys(result));
-    console.log("Return object has metrics:", 'metrics' in result);
     
     return result;
   }
@@ -1942,117 +1863,6 @@ export class DatabaseStorage implements IStorage {
       pendingReports: pendingReportsCount.length,
     };
   }
-
-  // ========================================
-  // SLEEPSTORIES APP OPERATIONS
-  // ========================================
-
-  async createSleepStory(storyData: InsertSleepStory): Promise<SleepStory> {
-    const [story] = await db
-      .insert(sleepStories)
-      .values(storyData)
-      .returning();
-    return story;
-  }
-
-  async getAllSleepStories(): Promise<SleepStory[]> {
-    return await db
-      .select()
-      .from(sleepStories)
-      .orderBy(desc(sleepStories.createdAt));
-  }
-
-  async getActiveSleepStories(): Promise<SleepStory[]> {
-    return await db
-      .select()
-      .from(sleepStories)
-      .where(eq(sleepStories.isActive, true))
-      .orderBy(desc(sleepStories.createdAt));
-  }
-
-  async getSleepStoryById(id: string): Promise<SleepStory | undefined> {
-    const [story] = await db
-      .select()
-      .from(sleepStories)
-      .where(eq(sleepStories.id, id));
-    return story;
-  }
-
-  async updateSleepStory(id: string, storyData: Partial<InsertSleepStory>): Promise<SleepStory> {
-    const [story] = await db
-      .update(sleepStories)
-      .set({
-        ...storyData,
-        updatedAt: new Date(),
-      })
-      .where(eq(sleepStories.id, id))
-      .returning();
-    return story;
-  }
-
-  async deleteSleepStory(id: string): Promise<void> {
-    await db
-      .delete(sleepStories)
-      .where(eq(sleepStories.id, id));
-  }
-
-  // SleepStories Announcement operations
-  async createSleepStoriesAnnouncement(announcementData: InsertSleepStoriesAnnouncement): Promise<SleepStoriesAnnouncement> {
-    const [announcement] = await db
-      .insert(sleepStoriesAnnouncements)
-      .values(announcementData)
-      .returning();
-    return announcement;
-  }
-  
-  async getActiveSleepStoriesAnnouncements(): Promise<SleepStoriesAnnouncement[]> {
-    const now = new Date();
-    return await db
-      .select()
-      .from(sleepStoriesAnnouncements)
-      .where(
-        and(
-          eq(sleepStoriesAnnouncements.isActive, true),
-          or(
-            sql`${sleepStoriesAnnouncements.expiresAt} IS NULL`,
-            gte(sleepStoriesAnnouncements.expiresAt, now)
-          )
-        )
-      )
-      .orderBy(desc(sleepStoriesAnnouncements.createdAt));
-  }
-  
-  async getAllSleepStoriesAnnouncements(): Promise<SleepStoriesAnnouncement[]> {
-    return await db
-      .select()
-      .from(sleepStoriesAnnouncements)
-      .orderBy(desc(sleepStoriesAnnouncements.createdAt));
-  }
-  
-  async updateSleepStoriesAnnouncement(id: string, announcementData: Partial<InsertSleepStoriesAnnouncement>): Promise<SleepStoriesAnnouncement> {
-    const [announcement] = await db
-      .update(sleepStoriesAnnouncements)
-      .set({
-        ...announcementData,
-        updatedAt: new Date(),
-      })
-      .where(eq(sleepStoriesAnnouncements.id, id))
-      .returning();
-    return announcement;
-  }
-  
-  async deactivateSleepStoriesAnnouncement(id: string): Promise<SleepStoriesAnnouncement> {
-    const [announcement] = await db
-      .update(sleepStoriesAnnouncements)
-      .set({
-        isActive: false,
-        updatedAt: new Date(),
-      })
-      .where(eq(sleepStoriesAnnouncements.id, id))
-      .returning();
-    return announcement;
-  }
-
 
   // ========================================
   // LIGHTHOUSE APP OPERATIONS
@@ -3001,14 +2811,11 @@ export class DatabaseStorage implements IStorage {
       status: 'open', // New requests start as 'open'
     };
     
-    console.log("Creating ride request with values:", JSON.stringify(values, null, 2));
-    
     const [request] = await db
       .insert(trusttransportRideRequests)
       .values(values)
       .returning();
     
-    console.log("Created ride request:", JSON.stringify(request, null, 2));
     return request;
   }
 
@@ -3338,23 +3145,18 @@ export class DatabaseStorage implements IStorage {
   async deleteLighthouseProfile(userId: string, reason?: string): Promise<void> {
     try {
       // Get profile first
-      console.log(`[deleteLighthouseProfile] Starting deletion for userId: ${userId}`);
       const profile = await this.getLighthouseProfileByUserId(userId);
       if (!profile) {
-        console.log(`[deleteLighthouseProfile] Profile not found for userId: ${userId}`);
         throw new Error("LightHouse profile not found");
       }
-      console.log(`[deleteLighthouseProfile] Found profile with id: ${profile.id}`);
 
       // Get all properties owned by this profile
       const properties = await this.getPropertiesByHost(profile.id);
-      console.log(`[deleteLighthouseProfile] Found ${properties.length} properties to delete`);
 
       // Delete matches where this profile is the seeker
       // Note: lighthouseMatches references lighthouseProfiles.id, not userId
       // Since we can't easily anonymize profile.id references, we delete the matches
       const matches = await this.getMatchesBySeeker(profile.id);
-      console.log(`[deleteLighthouseProfile] Found ${matches.length} matches as seeker to delete`);
       for (const match of matches) {
         // Delete matches as they become invalid without the profile
         await db.delete(lighthouseMatches).where(eq(lighthouseMatches.id, match.id));
@@ -3364,27 +3166,21 @@ export class DatabaseStorage implements IStorage {
       for (const property of properties) {
         // Delete matches associated with these properties first
         const propertyMatches = await this.getMatchesByProperty(property.id);
-        console.log(`[deleteLighthouseProfile] Found ${propertyMatches.length} matches for property ${property.id} to delete`);
         for (const match of propertyMatches) {
           await db.delete(lighthouseMatches).where(eq(lighthouseMatches.id, match.id));
         }
         // Then delete the property
-        console.log(`[deleteLighthouseProfile] Deleting property ${property.id}`);
         await db.delete(lighthouseProperties).where(eq(lighthouseProperties.id, property.id));
       }
 
       // Delete the profile
-      console.log(`[deleteLighthouseProfile] Deleting profile with id: ${profile.id}, userId: ${userId}`);
-      const deleteResult = await db.delete(lighthouseProfiles).where(eq(lighthouseProfiles.userId, userId));
-      console.log(`[deleteLighthouseProfile] Delete result:`, deleteResult);
+      await db.delete(lighthouseProfiles).where(eq(lighthouseProfiles.userId, userId));
 
       // Verify deletion
       const verifyProfile = await this.getLighthouseProfileByUserId(userId);
       if (verifyProfile) {
-        console.error(`[deleteLighthouseProfile] ERROR: Profile still exists after deletion! Profile id: ${verifyProfile.id}`);
         throw new Error("Profile deletion failed - profile still exists after delete operation");
       }
-      console.log(`[deleteLighthouseProfile] Verified profile deletion successful`);
 
       // Log the deletion (don't fail if logging fails)
       try {
@@ -5311,8 +5107,6 @@ export class DatabaseStorage implements IStorage {
    */
   async deleteUserAccount(userId: string, reason?: string): Promise<void> {
     try {
-      console.log(`[deleteUserAccount] Starting complete account deletion for userId: ${userId}`);
-
       // Verify user exists
       const user = await this.getUser(userId);
       if (!user) {
@@ -5336,7 +5130,6 @@ export class DatabaseStorage implements IStorage {
       for (const { name, deleteFn } of profileDeletions) {
         try {
           await deleteFn();
-          console.log(`[deleteUserAccount] Successfully deleted ${name} profile`);
         } catch (error: any) {
           // Continue even if one profile deletion fails
           console.warn(`[deleteUserAccount] Warning: Failed to delete ${name} profile: ${error.message}`);
@@ -5368,7 +5161,6 @@ export class DatabaseStorage implements IStorage {
           .update(npsResponses)
           .set({ userId: anonymizedUserId })
           .where(eq(npsResponses.userId, userId));
-        console.log(`[deleteUserAccount] Anonymized NPS responses`);
       } catch (error: any) {
         console.warn(`[deleteUserAccount] Warning: Failed to anonymize NPS responses: ${error.message}`);
       }
@@ -5383,7 +5175,6 @@ export class DatabaseStorage implements IStorage {
           .update(payments)
           .set({ recordedBy: anonymizedUserId })
           .where(eq(payments.recordedBy, userId));
-        console.log(`[deleteUserAccount] Anonymized payments`);
       } catch (error: any) {
         console.warn(`[deleteUserAccount] Warning: Failed to anonymize payments: ${error.message}`);
       }
@@ -5395,7 +5186,6 @@ export class DatabaseStorage implements IStorage {
           .update(adminActionLogs)
           .set({ adminId: anonymizedUserId })
           .where(eq(adminActionLogs.adminId, userId));
-        console.log(`[deleteUserAccount] Anonymized admin action logs`);
       } catch (error: any) {
         console.warn(`[deleteUserAccount] Warning: Failed to anonymize admin action logs: ${error.message}`);
       }
@@ -5406,7 +5196,6 @@ export class DatabaseStorage implements IStorage {
           .update(researchItems)
           .set({ userId: anonymizedUserId })
           .where(eq(researchItems.userId, userId));
-        console.log(`[deleteUserAccount] Anonymized research items`);
       } catch (error: any) {
         console.warn(`[deleteUserAccount] Warning: Failed to anonymize research items: ${error.message}`);
       }
@@ -5427,7 +5216,6 @@ export class DatabaseStorage implements IStorage {
             updatedAt: new Date(),
           })
           .where(eq(users.id, userId));
-        console.log(`[deleteUserAccount] Anonymized user record`);
       } catch (error: any) {
         console.error(`[deleteUserAccount] Error: Failed to anonymize user record: ${error.message}`);
         throw error;
@@ -5436,13 +5224,10 @@ export class DatabaseStorage implements IStorage {
       // Step 8: Log the account deletion (using a special app name)
       try {
         await this.logProfileDeletion(userId, "complete_account", reason || "User requested complete account deletion");
-        console.log(`[deleteUserAccount] Logged account deletion`);
       } catch (error) {
         console.warn(`[deleteUserAccount] Warning: Failed to log account deletion: ${error}`);
         // Continue even if logging fails
       }
-
-      console.log(`[deleteUserAccount] Successfully completed account deletion for userId: ${userId}`);
     } catch (error: any) {
       console.error(`[deleteUserAccount] Error: Failed to delete user account: ${error.message}`);
       throw new Error(`Failed to delete user account: ${error.message || "Unknown error"}`);

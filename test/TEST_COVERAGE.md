@@ -19,9 +19,6 @@ This document lists all tests created for the application.
 ### Directory
 - ✅ `test/api/directory.test.ts` - Profile CRUD, public endpoints, admin
 
-### SleepStories
-- ✅ `test/api/sleepstories.test.ts` - Story listing, admin management, announcements
-
 ### ChatGroups
 - ✅ `test/api/chatgroups.test.ts` - Group listing, admin management
 
@@ -134,12 +131,7 @@ This document lists all tests created for the application.
    - Public listing with anti-scraping
    - Admin management
 
-6. **SleepStories Mini-App**
-   - Story listing
-   - Admin management
-   - Announcements
-
-7. **ChatGroups Mini-App**
+6. **ChatGroups Mini-App**
    - Group listing
    - Admin management
 
@@ -236,7 +228,7 @@ npm run test:e2e
 ## Test Statistics
 
 - **Total Test Files**: 38
-- **API Test Files**: 13 (auth, supportmatch, lighthouse, socketrelay, directory, sleepstories, chatgroups, trusttransport, mechanicmatch, lostmail, research, gentlepulse, admin, public-endpoints)
+- **API Test Files**: 12 (auth, supportmatch, lighthouse, socketrelay, directory, chatgroups, trusttransport, mechanicmatch, lostmail, research, gentlepulse, admin, public-endpoints)
 - **Integration Test Files**: 1
 - **Security Test Files**: 1
 - **Component Test Files**: 17 (7 profile pages, 5 core pages, 4 shared components, 4 hooks)

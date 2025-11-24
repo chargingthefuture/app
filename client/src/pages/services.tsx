@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
-import { UserCheck, Moon, Building2, ArrowRight, MessageCircle, Wrench, Mail, Search, HeartPulse} from "lucide-react";
+import { UserCheck, Building2, ArrowRight, MessageCircle, Wrench, Mail, Search, HeartPulse} from "lucide-react";
 
 const services = [
   {
@@ -24,13 +24,6 @@ const services = [
     icon: Building2,
     href: "/apps/lighthouse",
     testId: "card-service-lighthouse",
-  },
-  {
-    title: "Sleep Stories",
-    description: "Calming audio content designed to help you relax and sleep peacefully. Audio stories to help you medaite and fall asleep.",
-    icon: Moon,
-    href: "/apps/sleepstories",
-    testId: "card-service-sleepstories",
   },
   {
     title: "SocketRelay",

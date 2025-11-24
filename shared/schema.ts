@@ -387,57 +387,6 @@ export type InsertSupportmatchAnnouncement = z.infer<typeof insertSupportmatchAn
 export type SupportmatchAnnouncement = typeof supportmatchAnnouncements.$inferSelect;
 
 // ========================================
-// SLEEPSTORIES APP TABLES
-// ========================================
-
-// Sleep Stories - calming audio content for relaxation and sleep
-export const sleepStories = pgTable("sleep_stories", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  title: varchar("title", { length: 200 }).notNull(),
-  description: text("description").notNull(),
-  duration: integer("duration").notNull(), // Duration in seconds
-  wistiaMediaId: varchar("wistia_media_id", { length: 100 }).notNull(), // Wistia embed ID
-  downloadUrl: text("download_url"), // Optional direct download URL
-  category: varchar("category", { length: 50 }).notNull().default('general'), // e.g., nature, fantasy, meditation
-  thumbnailUrl: text("thumbnail_url"), // Optional image URL
-  isActive: boolean("is_active").notNull().default(true),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
-
-export const insertSleepStorySchema = createInsertSchema(sleepStories).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-export type InsertSleepStory = z.infer<typeof insertSleepStorySchema>;
-export type SleepStory = typeof sleepStories.$inferSelect;
-
-// SleepStories Announcements
-export const sleepStoriesAnnouncements = pgTable("sleep_stories_announcements", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  title: varchar("title", { length: 200 }).notNull(),
-  content: text("content").notNull(),
-  type: varchar("type", { length: 50 }).notNull().default('info'), // info, warning, maintenance, update, promotion
-  isActive: boolean("is_active").notNull().default(true),
-  expiresAt: timestamp("expires_at"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
-
-export const insertSleepStoriesAnnouncementSchema = createInsertSchema(sleepStoriesAnnouncements).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-}).extend({
-  expiresAt: z.coerce.date().optional().nullable(),
-});
-
-export type InsertSleepStoriesAnnouncement = z.infer<typeof insertSleepStoriesAnnouncementSchema>;
-export type SleepStoriesAnnouncement = typeof sleepStoriesAnnouncements.$inferSelect;
-
-// ========================================
 // LIGHTHOUSE APP TABLES
 // ========================================
 
@@ -840,6 +789,28 @@ export const insertDirectoryProfileSchema = createInsertSchema(directoryProfiles
   firstName: z.string().max(100).optional().nullable(),
   displayNameType: z.enum(['first','nickname']).optional(),
   // userId remains optional to allow unclaimed creation by admin
+}).refine((data) => {
+  // If displayNameType is 'first', firstName is required
+  if (data.displayNameType === 'first') {
+    return data.firstName && data.firstName.trim().length > 0;
+  }
+  // If displayNameType is 'nickname', nickname is required
+  if (data.displayNameType === 'nickname') {
+    return data.nickname && data.nickname.trim().length > 0;
+  }
+  return true;
+}, {
+  message: "First name is required when using first name as display name",
+  path: ["firstName"],
+}).refine((data) => {
+  // If displayNameType is 'nickname', nickname is required
+  if (data.displayNameType === 'nickname') {
+    return data.nickname && data.nickname.trim().length > 0;
+  }
+  return true;
+}, {
+  message: "Nickname is required when using nickname as display name",
+  path: ["nickname"],
 });
 
 export type InsertDirectoryProfile = z.infer<typeof insertDirectoryProfileSchema>;

@@ -2,7 +2,7 @@
 
 ## Overview
 
-This secure, invite-only platform provides essential support services for survivors of human trafficking. It operates on a subscription model, offering comprehensive user management, payment tracking, and a flexible product catalog for various support services. The platform prioritizes safety, privacy, dignity, and accessibility, aiming to empower survivors through a trauma-informed design approach. Key features include an accountability partner matching system (SupportMatch), a calming audio content platform (SleepStories), and a housing matching service (LightHouse), with an architecture designed to support numerous additional mini-applications.
+This secure, invite-only platform provides essential support services for survivors of human trafficking. It operates on a subscription model, offering comprehensive user management, payment tracking, and a flexible product catalog for various support services. The platform prioritizes safety, privacy, dignity, and accessibility, aiming to empower survivors through a trauma-informed design approach. Key features include an accountability partner matching system (SupportMatch) and a housing matching service (LightHouse), with an architecture designed to support numerous additional mini-applications.
 
 ## User Preferences
 
@@ -33,8 +33,7 @@ The platform employs a WeChat-style super app architecture, where each service o
 **Implemented Mini-Apps:**
 
 1.  **SupportMatch:** An accountability partner matching system for trauma survivors. It features algorithmic matching based on user preferences, 1:1 messaging, safety features (exclusions, reporting), and partnership history tracking.
-2.  **SleepStories:** A calming audio content platform offering bedtime stories and meditation. It integrates Wistia for audio hosting, provides an embedded player with offline download capabilities, and organizes content by categories.
-3.  **LightHouse:** An Airbnb-style housing matching platform connecting survivors with safe housing options. It includes a dashboard entry point (`/apps/lighthouse`) that conditionally displays content based on profile type (seeker vs. host), seeker/host profiles, property listings with detailed information, and a match request system. The dashboard shows welcome screens for new users, stats and quick actions for seekers (browse properties, view match requests), and host-specific tools (manage properties, view incoming requests).
+2.  **LightHouse:** An Airbnb-style housing matching platform connecting survivors with safe housing options. It includes a dashboard entry point (`/apps/lighthouse`) that conditionally displays content based on profile type (seeker vs. host), seeker/host profiles, property listings with detailed information, and a match request system. The dashboard shows welcome screens for new users, stats and quick actions for seekers (browse properties, view match requests), and host-specific tools (manage properties, view incoming requests).
 
 Each mini-app has its dedicated database tables, API routes, and frontend pages, adhering to consistent architectural patterns and leveraging shared platform features like authentication and user management.
 
@@ -43,4 +42,3 @@ Each mini-app has its dedicated database tables, API routes, and frontend pages,
 -   **Replit Auth:** Primary authentication provider (OpenID Connect).
 -   **Neon Database:** Serverless PostgreSQL hosting.
 -   **Google Fonts:** Inter and JetBrains Mono font families.
--   **Wistia:** Video platform integration for SleepStories audio hosting.
