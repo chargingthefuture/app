@@ -230,6 +230,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get('/api/payments/status', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const status = await storage.getUserPaymentStatus(userId);
+      res.json(status);
+    } catch (error: any) {
+      console.error("Error fetching payment status:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch payment status" });
+    }
+  });
+
   // Admin routes - Stats
   app.get('/api/admin/stats', isAuthenticated, isAdmin, async (req, res) => {
     try {
@@ -375,6 +386,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       'getAllPayments'
     );
     res.json(payments);
+  }));
+
+  app.get('/api/admin/payments/delinquent', isAuthenticated, isAdmin, asyncHandler(async (_req, res) => {
+    const delinquentUsers = await withDatabaseErrorHandling(
+      () => storage.getDelinquentUsers(),
+      'getDelinquentUsers'
+    );
+    res.json(delinquentUsers);
   }));
 
   app.post('/api/admin/payments', isAuthenticated, isAdmin, validateCsrfToken, asyncHandler(async (req: any, res) => {

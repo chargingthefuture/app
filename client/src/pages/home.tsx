@@ -1,4 +1,6 @@
+import { useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -6,9 +8,61 @@ import { DollarSign, Package, Calendar } from "lucide-react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { PrivacyField } from "@/components/ui/privacy-field";
+import { PaymentReminderBanner } from "@/components/payment-reminder-banner";
+import { useToast } from "@/hooks/use-toast";
+
+const PAYMENT_TOAST_KEY = "payment-reminder-toast-shown";
 
 export default function Home() {
   const { user, isLoading, _clerk, _dbError } = useAuth();
+  const { toast } = useToast();
+
+  const { data: paymentStatus } = useQuery<{
+    isDelinquent: boolean;
+    missedMonths: string[];
+    amountOwed: string;
+    nextBillingDate: string | null;
+    gracePeriodEnds: string | null;
+  }>({
+    queryKey: ["/api/payments/status"],
+    enabled: !!user,
+  });
+
+  // Show toast on first missed payment (only once per session)
+  useEffect(() => {
+    if (!paymentStatus?.isDelinquent || !user) return;
+    
+    const toastShown = sessionStorage.getItem(PAYMENT_TOAST_KEY);
+    if (toastShown) return;
+
+    const formatMonth = (monthKey: string) => {
+      try {
+        const [year, month] = monthKey.split("-");
+        const date = new Date(parseInt(year), parseInt(month) - 1);
+        return date.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+      } catch {
+        return monthKey;
+      }
+    };
+
+    const latestMonth = paymentStatus.missedMonths[0];
+    const monthDisplay = latestMonth ? formatMonth(latestMonth) : "recent month";
+
+    toast({
+      title: "Payment reminder",
+      description: `Payment not received for ${monthDisplay}. Update payment or get help.`,
+      duration: 5000,
+      action: (
+        <Link href="/payments">
+          <Button variant="outline" size="sm" className="text-xs">
+            Update payment
+          </Button>
+        </Link>
+      ),
+    });
+
+    sessionStorage.setItem(PAYMENT_TOAST_KEY, "true");
+  }, [paymentStatus, user, toast]);
 
   // Debug logging
   if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
@@ -78,6 +132,9 @@ export default function Home() {
 
   return (
     <div className="p-6 md:p-8 space-y-8">
+      {/* Payment Reminder Banner */}
+      <PaymentReminderBanner />
+
       {/* Welcome section */}
       <div>
         <h1 className="text-3xl md:text-4xl font-semibold mb-2">

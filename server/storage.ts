@@ -1,4 +1,4 @@
-import {
+DSAimport {
   users,
   pricingTiers,
   payments,
@@ -195,6 +195,19 @@ export interface IStorage {
   createPayment(payment: InsertPayment): Promise<Payment>;
   getPaymentsByUser(userId: string): Promise<Payment[]>;
   getAllPayments(): Promise<Payment[]>;
+  getUserPaymentStatus(userId: string): Promise<{
+    isDelinquent: boolean;
+    missedMonths: string[]; // Array of YYYY-MM format months
+    amountOwed: string;
+    nextBillingDate: string | null;
+    gracePeriodEnds: string | null;
+  }>;
+  getDelinquentUsers(): Promise<Array<{
+    user: User;
+    missedMonths: string[];
+    amountOwed: string;
+    lastPaymentDate: string | null;
+  }>>;
   
   // Admin action log operations
   createAdminActionLog(log: InsertAdminActionLog): Promise<AdminActionLog>;
@@ -879,6 +892,146 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(payments)
       .orderBy(desc(payments.paymentDate));
+  }
+
+  async getUserPaymentStatus(userId: string): Promise<{
+    isDelinquent: boolean;
+    missedMonths: string[]; // Array of YYYY-MM format months
+    amountOwed: string;
+    nextBillingDate: string | null;
+    gracePeriodEnds: string | null;
+  }> {
+    const user = await this.getUser(userId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    const userPayments = await this.getPaymentsByUser(userId);
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1; // 1-12
+    const currentDay = now.getDate();
+    
+    // Grace period: 5 days after month ends
+    const GRACE_PERIOD_DAYS = 5;
+    const isInGracePeriod = currentDay <= GRACE_PERIOD_DAYS;
+
+    // Calculate which months need payment
+    const missedMonths: string[] = [];
+    const monthlyRate = parseFloat(user.pricingTier);
+    
+    // Check last 3 months (including current) for missing payments
+    for (let i = 0; i < 3; i++) {
+      const checkDate = new Date(currentYear, currentMonth - 1 - i, 1);
+      const checkYear = checkDate.getFullYear();
+      const checkMonth = checkDate.getMonth() + 1;
+      const monthKey = `${checkYear}-${String(checkMonth).padStart(2, '0')}`;
+      
+      // Skip current month if we're still in grace period
+      if (i === 0 && isInGracePeriod) {
+        continue;
+      }
+      
+      // Check if there's a monthly payment for this month
+      const hasMonthlyPayment = userPayments.some(p => 
+        p.billingPeriod === 'monthly' && p.billingMonth === monthKey
+      );
+      
+      // Check if there's a yearly payment covering this month
+      const hasYearlyPayment = userPayments.some(p => {
+        if (p.billingPeriod !== 'yearly' || !p.yearlyStartMonth || !p.yearlyEndMonth) {
+          return false;
+        }
+        
+        try {
+          // Parse yearly period (YYYY-MM format)
+          const [startYear, startMonth] = p.yearlyStartMonth.split('-').map(Number);
+          const [endYear, endMonth] = p.yearlyEndMonth.split('-').map(Number);
+          
+          // Create dates for comparison (first day of each month)
+          const startDate = new Date(startYear, startMonth - 1, 1);
+          const endDate = new Date(endYear, endMonth, 0); // Last day of end month
+          const checkMonthDate = new Date(checkYear, checkMonth - 1, 1);
+          
+          // Check if the month falls within the yearly subscription period
+          return checkMonthDate >= startDate && checkMonthDate <= endDate;
+        } catch {
+          return false;
+        }
+      });
+      
+      if (!hasMonthlyPayment && !hasYearlyPayment) {
+        missedMonths.push(monthKey);
+      }
+    }
+    
+    // Calculate amount owed
+    const amountOwed = (missedMonths.length * monthlyRate).toFixed(2);
+    
+    // Determine if delinquent (has missed payments outside grace period)
+    const isDelinquent = missedMonths.length > 0;
+    
+    // Calculate next billing date (first of next month)
+    const nextBillingDate = isDelinquent 
+      ? new Date(currentYear, currentMonth, 1).toISOString()
+      : null;
+    
+    // Calculate grace period end date (5 days after current month ends)
+    const gracePeriodEnds = isInGracePeriod && missedMonths.length === 0
+      ? new Date(currentYear, currentMonth - 1, GRACE_PERIOD_DAYS + 1).toISOString()
+      : null;
+    
+    return {
+      isDelinquent,
+      missedMonths,
+      amountOwed,
+      nextBillingDate,
+      gracePeriodEnds,
+    };
+  }
+
+  async getDelinquentUsers(): Promise<Array<{
+    user: User;
+    missedMonths: string[];
+    amountOwed: string;
+    lastPaymentDate: string | null;
+  }>> {
+    const allUsers = await this.getAllUsers();
+    const delinquentUsers: Array<{
+      user: User;
+      missedMonths: string[];
+      amountOwed: string;
+      lastPaymentDate: string | null;
+    }> = [];
+    
+    for (const user of allUsers) {
+      // Skip inactive users
+      if (user.subscriptionStatus === 'inactive') {
+        continue;
+      }
+      
+      const status = await this.getUserPaymentStatus(user.id);
+      
+      if (status.isDelinquent) {
+        // Get last payment date
+        const userPayments = await this.getPaymentsByUser(user.id);
+        const lastPaymentDate = userPayments.length > 0
+          ? userPayments[0].paymentDate.toISOString()
+          : null;
+        
+        delinquentUsers.push({
+          user,
+          missedMonths: status.missedMonths,
+          amountOwed: status.amountOwed,
+          lastPaymentDate,
+        });
+      }
+    }
+    
+    // Sort by number of missed months (most delinquent first)
+    delinquentUsers.sort((a, b) => b.missedMonths.length - a.missedMonths.length);
+    
+    return delinquentUsers;
   }
 
   // Admin action log operations

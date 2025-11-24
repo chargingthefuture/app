@@ -20,6 +20,7 @@ import DeleteAccount from "@/pages/account/delete";
 import AdminDashboard from "@/pages/admin/dashboard";
 import AdminUsers from "@/pages/admin/users";
 import AdminPayments from "@/pages/admin/payments";
+import DelinquentPayments from "@/pages/admin/delinquent-payments";
 import AdminActivity from "@/pages/admin/activity";
 import AdminPricingTiers from "@/pages/admin/pricing-tiers";
 import AdminWeeklyPerformance from "@/pages/admin/weekly-performance";
@@ -261,6 +262,11 @@ function Router() {
       <Route path="/admin/payments">
         <ProtectedRoute>
           <AdminPayments />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/delinquent-payments">
+        <ProtectedRoute>
+          <DelinquentPayments />
         </ProtectedRoute>
       </Route>
       <Route path="/admin/pricing">

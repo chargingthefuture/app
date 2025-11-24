@@ -15,9 +15,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { DollarSign, Calendar, CheckCircle, Mail, CreditCard, Copy, Check, AlertCircle } from "lucide-react";
+import { DollarSign, Calendar, CheckCircle, Mail, CreditCard, Copy, Check, AlertCircle, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { PrivacyField } from "@/components/ui/privacy-field";
+import { PaymentReminderBanner } from "@/components/payment-reminder-banner";
 import type { Payment } from "@shared/schema";
 
 const PAYMENT_ACKNOWLEDGMENT_KEY = "payment-person-acknowledged";
@@ -49,6 +50,16 @@ export default function UserPayments() {
 
   const { data: payments, isLoading } = useQuery<Payment[]>({
     queryKey: ["/api/payments"],
+  });
+
+  const { data: paymentStatus } = useQuery<{
+    isDelinquent: boolean;
+    missedMonths: string[];
+    amountOwed: string;
+    nextBillingDate: string | null;
+    gracePeriodEnds: string | null;
+  }>({
+    queryKey: ["/api/payments/status"],
   });
 
   // Check localStorage on mount - validate if acknowledgment is for current month
@@ -125,6 +136,9 @@ export default function UserPayments() {
 
   return (
     <div className="p-6 md:p-8 space-y-6">
+      {/* Payment Reminder Banner */}
+      <PaymentReminderBanner />
+
       <div>
         <h1 className="text-3xl md:text-4xl font-semibold mb-2">My Payments</h1>
         <p className="text-muted-foreground">
@@ -153,22 +167,62 @@ export default function UserPayments() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className={paymentStatus?.isDelinquent ? "border-amber-200 bg-amber-50/30 dark:bg-amber-950/10 dark:border-amber-900" : ""}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2">
             <CardTitle className="text-sm font-medium">
               Status
             </CardTitle>
             <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-              <CheckCircle className="w-5 h-5 text-primary" />
+              {paymentStatus?.isDelinquent ? (
+                <Clock className="w-5 h-5 text-amber-600 dark:text-amber-500" />
+              ) : (
+                <CheckCircle className="w-5 h-5 text-primary" />
+              )}
             </div>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
               {getStatusBadge()}
             </div>
-            <p className="text-xs text-muted-foreground mt-2">
-              Subscription status
-            </p>
+            {paymentStatus?.isDelinquent ? (
+              <div className="mt-3 space-y-2">
+                <p className="text-xs text-amber-800 dark:text-amber-200">
+                  Payment not received for {paymentStatus.missedMonths.length > 0 
+                    ? new Date(paymentStatus.missedMonths[0] + "-01").toLocaleDateString("en-US", { month: "long", year: "numeric" })
+                    : "recent month"}
+                </p>
+                <p className="text-xs text-amber-700 dark:text-amber-300">
+                  Amount owed: ${paymentStatus.amountOwed}
+                </p>
+                {paymentStatus.nextBillingDate && (
+                  <p className="text-xs text-amber-700 dark:text-amber-300">
+                    Next billing: {new Date(paymentStatus.nextBillingDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                  </p>
+                )}
+                <div className="flex gap-2 mt-3">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-xs border-amber-300 bg-white text-amber-900 hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950/50 dark:text-amber-100 dark:hover:bg-amber-900/50"
+                    data-testid="button-update-payment-inline"
+                  >
+                    Update payment
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs text-amber-900 hover:bg-amber-100/50 dark:text-amber-200 dark:hover:bg-amber-900/30"
+                    data-testid="button-get-help-inline"
+                  >
+                    Get help
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground mt-2">
+                Subscription status
+              </p>
+            )}
           </CardContent>
         </Card>
 
