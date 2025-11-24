@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Switch, Route, Redirect } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -691,6 +691,15 @@ function Router() {
 function AppContent() {
   const { user, isAuthenticated, isLoading } = useAuth();
   const needsApproval = user && !user.isApproved && !user.isAdmin;
+  const needsTermsAcceptance = useTermsAcceptanceCheck();
+  const [termsDialogOpen, setTermsDialogOpen] = useState(false);
+
+  // Show terms dialog when user needs to accept terms
+  useEffect(() => {
+    if (isAuthenticated && !isLoading && needsTermsAcceptance && !needsApproval) {
+      setTermsDialogOpen(true);
+    }
+  }, [isAuthenticated, isLoading, needsTermsAcceptance, needsApproval]);
 
   // Sidebar width customization for better content display
   const style = {
@@ -722,6 +731,12 @@ function AppContent() {
       )}
       <Toaster />
       {isAuthenticated && <NpsSurveyManager />}
+      {isAuthenticated && (
+        <TermsAcceptanceDialog
+          open={termsDialogOpen}
+          onOpenChange={setTermsDialogOpen}
+        />
+      )}
     </>
   );
 }
