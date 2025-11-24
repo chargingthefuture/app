@@ -10,7 +10,17 @@ import { PrivacyField } from "@/components/ui/privacy-field";
 export default function Home() {
   const { user, isLoading, _clerk, _dbError } = useAuth();
 
-  // Debug logging removed for production
+  // Debug logging
+  if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+    console.log('[Home] Auth state:', {
+      isLoading,
+      clerkLoaded: _clerk.clerkLoaded,
+      isSignedIn: _clerk.isSignedIn,
+      hasUser: !!user,
+      clerkError: _clerk.clerkError,
+      dbError: _dbError,
+    });
+  }
 
   if (isLoading) {
     return (

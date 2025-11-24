@@ -16,6 +16,8 @@ import {
   insertReportSchema,
   insertAnnouncementSchema,
   insertSupportmatchAnnouncementSchema,
+  insertSleepStorySchema,
+  insertSleepStoriesAnnouncementSchema,
   insertLighthouseProfileSchema,
   insertLighthousePropertySchema,
   insertLighthouseMatchSchema,
@@ -223,7 +225,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         weekStart = new Date();
       }
       
+      console.log("Weekly performance request - weekStart input:", weekStartParam || "current date");
+      console.log("Parsed weekStart date:", weekStart.toISOString());
+      
       const review = await storage.getWeeklyPerformanceReview(weekStart);
+      
+      console.log("=== Weekly Performance Review Result ===");
+      console.log("Review keys:", Object.keys(review));
+      console.log("Has metrics property:", 'metrics' in review);
+      console.log("Metrics value:", review.metrics);
+      console.log("Metrics type:", typeof review.metrics);
       
       // ALWAYS ensure metrics is present
       const defaultMetrics = {
@@ -245,6 +256,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         comparison: review.comparison,
         metrics: review.metrics || defaultMetrics,
       };
+      
+      console.log("Response keys:", Object.keys(response));
+      console.log("Response has metrics:", 'metrics' in response);
+      console.log("Response metrics:", response.metrics);
       
       res.json(response);
     } catch (error: any) {
@@ -282,6 +297,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/admin/users', isAuthenticated, isAdmin, async (req, res) => {
     try {
       const users = await storage.getAllUsers();
+      console.log(`[Admin Users API] Fetched ${users.length} users from database`);
+      if (users.length > 0) {
+        console.log(`[Admin Users API] Sample user IDs:`, users.slice(0, 3).map(u => ({ id: u.id, idType: typeof u.id, email: u.email })));
+      }
       res.json(users);
     } catch (error) {
       console.error("Error fetching users:", error);
@@ -1200,6 +1219,206 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     res.json(announcement);
   }));
+
+  // ========================================
+  // SLEEPSTORIES APP ROUTES
+  // ========================================
+
+  // User routes - view and play stories
+  app.get('/api/sleepstories', isAuthenticated, async (req, res) => {
+    try {
+      const stories = await storage.getActiveSleepStories();
+      res.json(stories);
+    } catch (error) {
+      console.error("Error fetching sleep stories:", error);
+      res.status(500).json({ message: "Failed to fetch sleep stories" });
+    }
+  });
+
+  app.get('/api/sleepstories/:id', isAuthenticated, async (req, res) => {
+    try {
+      const story = await storage.getSleepStoryById(req.params.id);
+      if (!story) {
+        return res.status(404).json({ message: "Story not found" });
+      }
+      res.json(story);
+    } catch (error) {
+      console.error("Error fetching sleep story:", error);
+      res.status(500).json({ message: "Failed to fetch sleep story" });
+    }
+  });
+
+  // Admin routes - manage stories
+  app.get('/api/sleepstories/admin/all', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const stories = await storage.getAllSleepStories();
+      res.json(stories);
+    } catch (error) {
+      console.error("Error fetching all sleep stories:", error);
+      res.status(500).json({ message: "Failed to fetch sleep stories" });
+    }
+  });
+
+  app.post('/api/sleepstories/admin', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      
+      // Validate request body
+      const validatedData = insertSleepStorySchema.parse(req.body);
+      const story = await storage.createSleepStory(validatedData);
+      
+      await logAdminAction(
+        userId,
+        "create_sleep_story",
+        "sleep_story",
+        story.id,
+        { title: story.title }
+      );
+
+      res.json(story);
+    } catch (error: any) {
+      console.error("Error creating sleep story:", error);
+      res.status(400).json({ message: error.message || "Failed to create sleep story" });
+    }
+  });
+
+  app.put('/api/sleepstories/admin/:id', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      
+      // Check if story exists
+      const existingStory = await storage.getSleepStoryById(req.params.id);
+      if (!existingStory) {
+        return res.status(404).json({ message: "Story not found" });
+      }
+      
+      // Validate request body (partial update)
+      const validatedData = insertSleepStorySchema.partial().parse(req.body);
+      const story = await storage.updateSleepStory(req.params.id, validatedData);
+      
+      await logAdminAction(
+        userId,
+        "update_sleep_story",
+        "sleep_story",
+        story.id,
+        { title: story.title }
+      );
+
+      res.json(story);
+    } catch (error: any) {
+      console.error("Error updating sleep story:", error);
+      res.status(400).json({ message: error.message || "Failed to update sleep story" });
+    }
+  });
+
+  app.delete('/api/sleepstories/admin/:id', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      
+      // Check if story exists
+      const existingStory = await storage.getSleepStoryById(req.params.id);
+      if (!existingStory) {
+        return res.status(404).json({ message: "Story not found" });
+      }
+      
+      await storage.deleteSleepStory(req.params.id);
+      
+      await logAdminAction(
+        userId,
+        "delete_sleep_story",
+        "sleep_story",
+        req.params.id
+      );
+
+      res.json({ message: "Sleep story deleted successfully" });
+    } catch (error: any) {
+      console.error("Error deleting sleep story:", error);
+      res.status(400).json({ message: error.message || "Failed to delete sleep story" });
+    }
+  });
+
+  // SleepStories Announcement routes (public)
+  app.get('/api/sleepstories/announcements', isAuthenticated, async (req, res) => {
+    try {
+      const announcements = await storage.getActiveSleepStoriesAnnouncements();
+      res.json(announcements);
+    } catch (error) {
+      console.error("Error fetching SleepStories announcements:", error);
+      res.status(500).json({ message: "Failed to fetch announcements" });
+    }
+  });
+
+  // SleepStories Admin announcement routes
+  app.get('/api/sleepstories/admin/announcements', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const announcements = await storage.getAllSleepStoriesAnnouncements();
+      res.json(announcements);
+    } catch (error) {
+      console.error("Error fetching SleepStories announcements:", error);
+      res.status(500).json({ message: "Failed to fetch announcements" });
+    }
+  });
+
+  app.post('/api/sleepstories/admin/announcements', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const validatedData = insertSleepStoriesAnnouncementSchema.parse(req.body);
+
+      const announcement = await storage.createSleepStoriesAnnouncement(validatedData);
+      
+      await logAdminAction(
+        userId,
+        "create_sleepstories_announcement",
+        "sleepstories_announcement",
+        announcement.id,
+        { title: announcement.title, type: announcement.type }
+      );
+
+      res.json(announcement);
+    } catch (error: any) {
+      console.error("Error creating SleepStories announcement:", error);
+      res.status(400).json({ message: error.message || "Failed to create announcement" });
+    }
+  });
+
+  app.put('/api/sleepstories/admin/announcements/:id', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const announcement = await storage.updateSleepStoriesAnnouncement(req.params.id, req.body);
+      
+      await logAdminAction(
+        userId,
+        "update_sleepstories_announcement",
+        "sleepstories_announcement",
+        announcement.id,
+        { title: announcement.title }
+      );
+
+      res.json(announcement);
+    } catch (error: any) {
+      console.error("Error updating SleepStories announcement:", error);
+      res.status(400).json({ message: error.message || "Failed to update announcement" });
+    }
+  });
+
+  app.delete('/api/sleepstories/admin/announcements/:id', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const announcement = await storage.deactivateSleepStoriesAnnouncement(req.params.id);
+      
+      await logAdminAction(
+        userId,
+        "deactivate_sleepstories_announcement",
+        "sleepstories_announcement",
+        announcement.id
+      );
+
+      res.json(announcement);
+    } catch (error: any) {
+      console.error("Error deactivating SleepStories announcement:", error);
+      res.status(400).json({ message: error.message || "Failed to deactivate announcement" });
+    }
+  });
 
   // ========================================
   // LIGHTHOUSE APP ROUTES
@@ -3157,6 +3376,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       'createResearchItem'
     );
     
+    console.log(`Research item created: ${item.id} by ${userId}`);
     res.json(item);
   }));
 
@@ -3775,6 +3995,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           similarityScore,
           isSupportive: similarityScore > 0.7 && domainScore > 0.5,
         });
+
+        console.log(`Link verified: ${url} for answer ${answerId}`);
       } catch (fetchError: any) {
         // If fetch fails, still create provenance with error status
         await storage.createResearchLinkProvenance({
@@ -3868,6 +4090,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       'createOrUpdateGentlepulseRating'
     );
     
+    console.log(`GentlePulse rating submitted: meditation ${validatedData.meditationId}, rating ${validatedData.rating}`);
+    
     res.json(rating);
   }));
 
@@ -3904,6 +4128,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       'getGentlepulseMoodChecksByClientId'
     );
     const extremelyNegative = recentMoods.filter(m => m.moodValue === 1).length;
+    
+    console.log(`GentlePulse mood check submitted: client ${validatedData.clientId}, mood ${validatedData.moodValue}`);
     
     res.json({
       ...moodCheck,
@@ -4140,6 +4366,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       'createLostmailIncident'
     );
     
+    console.log(`LostMail incident created: ${incident.id} by ${incident.reporterEmail}`);
+    
     res.json(incident);
   }));
 
@@ -4261,6 +4489,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       'updateLostmailIncident'
     );
     
+    console.log(`LostMail incident ${incidentId} updated by admin ${adminName}`);
+    
     res.json(updated);
   }));
 
@@ -4318,6 +4548,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.setHeader("Content-Disposition", `attachment; filename="lostmail-incidents-${Date.now()}.json"`);
         res.json(incidents);
       }
+      
+      console.log(`LostMail export: ${incidents.length} incidents exported as ${format}`);
     } catch (error: any) {
       console.error("Error exporting LostMail incidents:", error);
       res.status(500).json({ message: error.message || "Failed to export incidents" });

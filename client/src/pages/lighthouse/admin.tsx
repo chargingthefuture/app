@@ -104,7 +104,9 @@ export default function LighthouseAdminPage() {
   });
 
   useEffect(() => {
-    // Seekers loaded - debug logging removed for production
+    if (seekers.length > 0) {
+      console.log("Seekers loaded:", seekers);
+    }
     if (seekersError) {
       console.error("Seekers error:", seekersError);
     }

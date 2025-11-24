@@ -162,6 +162,8 @@ export type MyappAnnouncement = typeof myappAnnouncements.$inferSelect;
 
 **🚨 IMPORTANT:** Always use `varchar("id").primaryKey().default(sql\`gen_random_uuid()\`)` for IDs to match existing pattern.
 
+**🚨 CRITICAL:** After adding tables to `shared/schema.ts`, you MUST also update `schema.sql` with the corresponding SQL `CREATE TABLE` statements. See the **Database Migration Workflow** section for details on keeping `schema.sql` synchronized.
+
 #### **Step 2: Storage Interface (`server/storage.ts`)**
 
 1. Import your new tables/types at the top
@@ -1501,6 +1503,69 @@ Admin endpoints for monitoring suspicious activity:
 
 **NEVER change ID column types** (serial ↔ varchar) - This breaks existing data!
 
+### **🚨 CRITICAL: Keep `schema.sql` Updated**
+
+**IMPORTANT:** The `npm run db:push` command may timeout when working with large schemas or remote databases. As a fallback, the project maintains a `schema.sql` file that can be pasted directly into the Neon console (or any PostgreSQL database).
+
+**When to update `schema.sql`:**
+- **ALWAYS** when you add, modify, or remove tables in `shared/schema.ts`
+- **ALWAYS** when you change column types, constraints, or defaults
+- **ALWAYS** when you add new foreign key relationships
+- **ALWAYS** when you modify indexes
+
+**How to update `schema.sql`:**
+1. After making changes to `shared/schema.ts`, regenerate the SQL schema
+2. Convert all Drizzle schema definitions to PostgreSQL `CREATE TABLE` statements
+3. Include all:
+   - Table definitions with proper column types
+   - Primary keys with `gen_random_uuid()` defaults
+   - Foreign key constraints
+   - Default values and NOT NULL constraints
+   - Indexes (e.g., `IDX_session_expire`)
+   - Deferred foreign key constraints for circular dependencies (e.g., `research_items.accepted_answer_id`)
+4. Use `CREATE TABLE IF NOT EXISTS` for idempotency
+5. Maintain proper table ordering (dependencies first)
+6. Update the `schema.sql` file in the project root
+
+**Format requirements:**
+- Use PostgreSQL-compatible SQL syntax
+- Column types: `VARCHAR`, `TEXT`, `INTEGER`, `BOOLEAN`, `TIMESTAMP`, `DECIMAL(precision, scale)`, `NUMERIC(precision, scale)`, `DATE`, `JSONB`, `TEXT[]`
+- Primary keys: `VARCHAR PRIMARY KEY DEFAULT gen_random_uuid()`
+- Foreign keys: `REFERENCES table_name(column_name)`
+- Defaults: Use `DEFAULT NOW()`, `DEFAULT false`, etc.
+- Arrays: Use `TEXT[]` for array columns
+
+**Example conversion:**
+```typescript
+// Drizzle schema (shared/schema.ts)
+export const myTable = pgTable("my_table", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  name: varchar("name", { length: 100 }).notNull(),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+```
+
+```sql
+-- SQL schema (schema.sql)
+CREATE TABLE IF NOT EXISTS my_table (
+  id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id VARCHAR NOT NULL REFERENCES users(id),
+  name VARCHAR(100) NOT NULL,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+```
+
+**Testing the SQL:**
+- The `schema.sql` file should be executable in the Neon console
+- All tables should be created successfully
+- Foreign key constraints should be valid
+- Circular dependencies should be handled with deferred constraints
+
+**🚨 REQUIRED:** Every time you modify `shared/schema.ts`, you MUST also update `schema.sql` to keep them in sync. This ensures the database can be set up even when the CLI migration tool times out.
+
 ---
 
 ## 🧪 Testing Requirements
@@ -2038,7 +2103,8 @@ Study these for patterns:
 - [ ] WCAG AAA compliance verified (contrast, keyboard nav)
 - [ ] Loading states implemented
 - [ ] Error handling implemented
-- [ ] Database schema pushed: `npm run db:push`
+- [ ] Database schema pushed: `npm run db:push` (or update `schema.sql` if CLI times out)
+- [ ] **`schema.sql` file updated** - REQUIRED: Keep `schema.sql` in sync with `shared/schema.ts` for manual database setup
 
 ### **Testing Checklist** 🧪
 

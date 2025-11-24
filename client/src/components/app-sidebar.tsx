@@ -96,6 +96,12 @@ const adminMenuItems = [
     testId: "link-lighthouse-admin",
   },
   {
+    title: "SleepStories Admin",
+    url: "/apps/sleepstories/admin",
+    icon: Moon,
+    testId: "link-sleepstories-admin",
+  },
+  {
     title: "SocketRelay Admin",
     url: "/apps/socketrelay/admin",
     icon: Radio,
@@ -175,6 +181,12 @@ const userMenuItems = [
     url: "/apps/lighthouse",
     icon: Building2,
     testId: "link-lighthouse",
+  },
+  {
+    title: "SleepStories",
+    url: "/apps/sleepstories",
+    icon: Moon,
+    testId: "link-sleepstories",
   },
   {
     title: "SocketRelay",
