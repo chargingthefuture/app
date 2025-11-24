@@ -107,6 +107,7 @@ import GentlePulseAdmin from "@/pages/gentlepulse/admin";
 import GentlePulseAdminAnnouncements from "@/pages/gentlepulse/admin-announcements";
 import { GentlePulseBottomNav } from "@/components/gentlepulse/bottom-nav";
 import Terms from "@/pages/terms";
+import Logout from "@/pages/logout";
 import { TermsAcceptanceDialog, useTermsAcceptanceCheck } from "@/components/terms-acceptance-dialog";
 
 // Protected route wrapper that redirects unauthenticated users
@@ -224,6 +225,9 @@ function Router() {
       <Route path="/">
         <RootRoute />
       </Route>
+      
+      {/* Logout route - public, automatically signs out */}
+      <Route path="/logout" component={Logout} />
       
       {/* Protected routes - always rendered, but wrapped with auth checks */}
       <Route path="/services">
