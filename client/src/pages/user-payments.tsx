@@ -112,6 +112,17 @@ export default function UserPayments() {
     }
   };
 
+  const formatYearlyPeriod = (startMonth: string | null, endMonth: string | null) => {
+    if (!startMonth || !endMonth) return "-";
+    try {
+      const start = formatBillingMonth(startMonth);
+      const end = formatBillingMonth(endMonth);
+      return `${start} - ${end}`;
+    } catch {
+      return `${startMonth} - ${endMonth}`;
+    }
+  };
+
   return (
     <div className="p-6 md:p-8 space-y-6">
       <div>
@@ -519,6 +530,8 @@ export default function UserPayments() {
                       <TableCell className="text-muted-foreground">
                         {payment.billingPeriod === "monthly" 
                           ? formatBillingMonth(payment.billingMonth)
+                          : payment.billingPeriod === "yearly"
+                          ? formatYearlyPeriod(payment.yearlyStartMonth, payment.yearlyEndMonth)
                           : "-"}
                       </TableCell>
                       <TableCell className="capitalize">

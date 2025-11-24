@@ -106,6 +106,8 @@ import GentlePulseSettings from "@/pages/gentlepulse/settings";
 import GentlePulseAdmin from "@/pages/gentlepulse/admin";
 import GentlePulseAdminAnnouncements from "@/pages/gentlepulse/admin-announcements";
 import { GentlePulseBottomNav } from "@/components/gentlepulse/bottom-nav";
+import Terms from "@/pages/terms";
+import { TermsAcceptanceDialog, useTermsAcceptanceCheck } from "@/components/terms-acceptance-dialog";
 
 // Protected route wrapper that redirects unauthenticated users
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -238,6 +240,9 @@ function Router() {
         <ProtectedRoute>
           <DeleteAccount />
         </ProtectedRoute>
+      </Route>
+      <Route path="/terms">
+        <Terms />
       </Route>
       <Route path="/admin">
         <ProtectedRoute>

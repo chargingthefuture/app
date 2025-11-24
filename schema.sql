@@ -46,6 +46,8 @@ CREATE TABLE IF NOT EXISTS payments (
   payment_method VARCHAR(50) NOT NULL DEFAULT 'cash',
   billing_period VARCHAR(20) NOT NULL DEFAULT 'monthly',
   billing_month VARCHAR(7),
+  yearly_start_month VARCHAR(7),
+  yearly_end_month VARCHAR(7),
   notes TEXT,
   recorded_by VARCHAR NOT NULL REFERENCES users(id),
   created_at TIMESTAMP NOT NULL DEFAULT NOW()

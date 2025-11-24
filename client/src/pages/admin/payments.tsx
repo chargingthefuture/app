@@ -55,11 +55,27 @@ export default function AdminPayments() {
   const [userSearchOpen, setUserSearchOpen] = useState(false);
   const [amount, setAmount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("cash");
+  const [paymentDate, setPaymentDate] = useState<string>(() => {
+    // Default to current date in YYYY-MM-DD format
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  });
   const [billingPeriod, setBillingPeriod] = useState<"monthly" | "yearly">("monthly");
   const [billingMonth, setBillingMonth] = useState<string>(() => {
     // Default to current month in YYYY-MM format
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
+  const [yearlyStartMonth, setYearlyStartMonth] = useState<string>(() => {
+    // Default to current month in YYYY-MM format
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
+  const [yearlyEndMonth, setYearlyEndMonth] = useState<string>(() => {
+    // Default to 12 months from now in YYYY-MM format
+    const now = new Date();
+    const endDate = new Date(now.getFullYear(), now.getMonth() + 12, 1);
+    return `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, '0')}`;
   });
   const [notes, setNotes] = useState("");
 
@@ -86,20 +102,40 @@ export default function AdminPayments() {
         throw new Error("Please select the billing month");
       }
       
+      // Validate yearly subscription dates
+      if (billingPeriod === "yearly") {
+        if (!yearlyStartMonth) {
+          throw new Error("Please select the yearly subscription start month");
+        }
+        if (!yearlyEndMonth) {
+          throw new Error("Please select the yearly subscription end month");
+        }
+      }
+      
+      // Validate payment date
+      if (!paymentDate) {
+        throw new Error("Please select the payment date");
+      }
+      
       const payload: any = {
         userId: selectedUserId,
         amount: amount, // Send as string, not parseFloat(amount)
-        paymentDate: new Date().toISOString(), // Send as ISO string
+        paymentDate: new Date(paymentDate).toISOString(), // Convert date string to ISO
         paymentMethod,
         billingPeriod,
         notes: notes || null,
       };
       
-      // Include billingMonth for monthly payments (validation ensures it exists)
+      // Include billingMonth for monthly payments
       if (billingPeriod === "monthly" && billingMonth) {
         payload.billingMonth = billingMonth;
       }
-      // For yearly payments, omit billingMonth (it will be null in database)
+      
+      // Include yearly subscription dates for yearly payments
+      if (billingPeriod === "yearly") {
+        payload.yearlyStartMonth = yearlyStartMonth;
+        payload.yearlyEndMonth = yearlyEndMonth;
+      }
       
       // Debug logging removed for production
       
@@ -112,9 +148,13 @@ export default function AdminPayments() {
       setSelectedUserId("");
       setUserSearchOpen(false);
       setAmount("");
-      setBillingPeriod("monthly");
       const now = new Date();
+      setPaymentDate(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`);
+      setBillingPeriod("monthly");
       setBillingMonth(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`);
+      setYearlyStartMonth(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`);
+      const endDate = new Date(now.getFullYear(), now.getMonth() + 12, 1);
+      setYearlyEndMonth(`${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, '0')}`);
       setNotes("");
       toast({
         title: "Success",
@@ -160,6 +200,17 @@ export default function AdminPayments() {
       return date.toLocaleDateString("en-US", { month: "long", year: "numeric" });
     } catch {
       return billingMonth;
+    }
+  };
+
+  const formatYearlyPeriod = (startMonth: string | null, endMonth: string | null) => {
+    if (!startMonth || !endMonth) return "-";
+    try {
+      const start = formatBillingMonth(startMonth);
+      const end = formatBillingMonth(endMonth);
+      return `${start} - ${end}`;
+    } catch {
+      return `${startMonth} - ${endMonth}`;
     }
   };
 
@@ -238,6 +289,8 @@ export default function AdminPayments() {
                         <TableCell className="text-muted-foreground">
                           {payment.billingPeriod === "monthly" 
                             ? formatBillingMonth(payment.billingMonth)
+                            : payment.billingPeriod === "yearly"
+                            ? formatYearlyPeriod(payment.yearlyStartMonth, payment.yearlyEndMonth)
                             : "-"}
                         </TableCell>
                         <TableCell className="capitalize">
@@ -283,6 +336,12 @@ export default function AdminPayments() {
                         <div className="text-sm">
                           <span className="text-muted-foreground">Billing Month: </span>
                           <span>{formatBillingMonth(payment.billingMonth)}</span>
+                        </div>
+                      )}
+                      {payment.billingPeriod === "yearly" && payment.yearlyStartMonth && payment.yearlyEndMonth && (
+                        <div className="text-sm">
+                          <span className="text-muted-foreground">Subscription Period: </span>
+                          <span>{formatYearlyPeriod(payment.yearlyStartMonth, payment.yearlyEndMonth)}</span>
                         </div>
                       )}
                       <div className="grid grid-cols-2 gap-2 text-sm">
@@ -401,6 +460,21 @@ export default function AdminPayments() {
             </div>
 
             <div className="space-y-2">
+              <Label htmlFor="payment-date">Payment Date</Label>
+              <Input
+                id="payment-date"
+                type="date"
+                value={paymentDate}
+                onChange={(e) => setPaymentDate(e.target.value)}
+                data-testid="input-payment-date"
+                required
+              />
+              <p className="text-xs text-muted-foreground">
+                The exact date the customer made this payment
+              </p>
+            </div>
+
+            <div className="space-y-2">
               <Label htmlFor="payment-method">Payment Method</Label>
               <Select value={paymentMethod} onValueChange={setPaymentMethod}>
                 <SelectTrigger id="payment-method" data-testid="select-payment-method">
@@ -445,8 +519,41 @@ export default function AdminPayments() {
                   required
                 />
                 <p className="text-xs text-muted-foreground">
-                  Select which calendar month this payment is for
+                  Select which calendar month this payment is being applied to (not prorated)
                 </p>
+              </div>
+            )}
+
+            {billingPeriod === "yearly" && (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="yearly-start-month">Subscription Start Month</Label>
+                  <Input
+                    id="yearly-start-month"
+                    type="month"
+                    value={yearlyStartMonth}
+                    onChange={(e) => setYearlyStartMonth(e.target.value)}
+                    data-testid="input-yearly-start-month"
+                    required
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    The month and year when the yearly subscription begins
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="yearly-end-month">Subscription End Month</Label>
+                  <Input
+                    id="yearly-end-month"
+                    type="month"
+                    value={yearlyEndMonth}
+                    onChange={(e) => setYearlyEndMonth(e.target.value)}
+                    data-testid="input-yearly-end-month"
+                    required
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    The month and year when the yearly subscription ends (not prorated)
+                  </p>
+                </div>
               </div>
             )}
 
@@ -470,7 +577,9 @@ export default function AdminPayments() {
               disabled={
                 !selectedUserId || 
                 !amount || 
+                !paymentDate ||
                 (billingPeriod === "monthly" && !billingMonth) ||
+                (billingPeriod === "yearly" && (!yearlyStartMonth || !yearlyEndMonth)) ||
                 recordPaymentMutation.isPending
               }
               data-testid="button-submit-payment"

@@ -824,7 +824,7 @@ export class DatabaseStorage implements IStorage {
   async createPayment(paymentData: InsertPayment): Promise<Payment> {
     console.log("Creating payment with data:", JSON.stringify(paymentData, null, 2));
     
-    // Explicitly build the values object to ensure billingMonth is included
+    // Explicitly build the values object to ensure all fields are included
     const values: any = {
       userId: paymentData.userId,
       amount: paymentData.amount,
@@ -835,11 +835,24 @@ export class DatabaseStorage implements IStorage {
       recordedBy: paymentData.recordedBy,
     };
     
-    // Explicitly include billingMonth (null is fine)
+    // Include billingMonth for monthly payments
     if ('billingMonth' in paymentData) {
       values.billingMonth = paymentData.billingMonth ?? null;
     } else {
       values.billingMonth = null;
+    }
+    
+    // Include yearly subscription dates for yearly payments
+    if ('yearlyStartMonth' in paymentData) {
+      values.yearlyStartMonth = paymentData.yearlyStartMonth ?? null;
+    } else {
+      values.yearlyStartMonth = null;
+    }
+    
+    if ('yearlyEndMonth' in paymentData) {
+      values.yearlyEndMonth = paymentData.yearlyEndMonth ?? null;
+    } else {
+      values.yearlyEndMonth = null;
     }
     
     console.log("Inserting with values:", JSON.stringify(values, null, 2));

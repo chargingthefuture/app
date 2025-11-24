@@ -77,10 +77,12 @@ export const payments = pgTable("payments", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id),
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
-  paymentDate: timestamp("payment_date").notNull(),
+  paymentDate: timestamp("payment_date").notNull(), // Exact date the customer paid
   paymentMethod: varchar("payment_method", { length: 50 }).notNull().default('cash'),
   billingPeriod: varchar("billing_period", { length: 20 }).notNull().default('monthly'), // monthly, yearly
-  billingMonth: varchar("billing_month", { length: 7 }), // YYYY-MM format for calendar month
+  billingMonth: varchar("billing_month", { length: 7 }), // YYYY-MM format for calendar month (monthly payments only)
+  yearlyStartMonth: varchar("yearly_start_month", { length: 7 }), // YYYY-MM format for yearly subscription start
+  yearlyEndMonth: varchar("yearly_end_month", { length: 7 }), // YYYY-MM format for yearly subscription end
   notes: text("notes"),
   recordedBy: varchar("recorded_by").notNull().references(() => users.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -123,6 +125,36 @@ export const insertPaymentSchema = createInsertSchema(payments).omit({
         return val;
       }
       // If it doesn't match, still return it (validation will catch it)
+      return val;
+    },
+    z.union([
+      z.string().regex(/^\d{4}-\d{2}$/, "Must be in YYYY-MM format"),
+      z.null(),
+    ]).optional()
+  ),
+  yearlyStartMonth: z.preprocess(
+    (val) => {
+      if (val === undefined || val === "" || val === null) {
+        return null;
+      }
+      if (typeof val === "string" && /^\d{4}-\d{2}$/.test(val)) {
+        return val;
+      }
+      return val;
+    },
+    z.union([
+      z.string().regex(/^\d{4}-\d{2}$/, "Must be in YYYY-MM format"),
+      z.null(),
+    ]).optional()
+  ),
+  yearlyEndMonth: z.preprocess(
+    (val) => {
+      if (val === undefined || val === "" || val === null) {
+        return null;
+      }
+      if (typeof val === "string" && /^\d{4}-\d{2}$/.test(val)) {
+        return val;
+      }
       return val;
     },
     z.union([
