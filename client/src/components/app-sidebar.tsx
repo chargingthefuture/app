@@ -18,8 +18,7 @@ import {
   Mail,
   Search,
   HeartPulse,
-  Video,
-  AlertCircle
+  Video
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useClerk } from "@clerk/clerk-react";
@@ -59,12 +58,6 @@ const adminMenuItems = [
     url: "/admin/payments",
     icon: DollarSign,
     testId: "link-admin-payments",
-  },
-  {
-    title: "Delinquent Payments",
-    url: "/admin/delinquent-payments",
-    icon: AlertCircle,
-    testId: "link-admin-delinquent-payments",
   },
   {
     title: "Pricing",

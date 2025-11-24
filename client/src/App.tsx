@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { Switch, Route, Redirect } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -20,7 +20,6 @@ import DeleteAccount from "@/pages/account/delete";
 import AdminDashboard from "@/pages/admin/dashboard";
 import AdminUsers from "@/pages/admin/users";
 import AdminPayments from "@/pages/admin/payments";
-import DelinquentPayments from "@/pages/admin/delinquent-payments";
 import AdminActivity from "@/pages/admin/activity";
 import AdminPricingTiers from "@/pages/admin/pricing-tiers";
 import AdminWeeklyPerformance from "@/pages/admin/weekly-performance";
@@ -107,9 +106,6 @@ import GentlePulseSettings from "@/pages/gentlepulse/settings";
 import GentlePulseAdmin from "@/pages/gentlepulse/admin";
 import GentlePulseAdminAnnouncements from "@/pages/gentlepulse/admin-announcements";
 import { GentlePulseBottomNav } from "@/components/gentlepulse/bottom-nav";
-import Terms from "@/pages/terms";
-import Logout from "@/pages/logout";
-import { TermsAcceptanceDialog, useTermsAcceptanceCheck } from "@/components/terms-acceptance-dialog";
 
 // Protected route wrapper that redirects unauthenticated users
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -227,9 +223,6 @@ function Router() {
         <RootRoute />
       </Route>
       
-      {/* Logout route - public, automatically signs out */}
-      <Route path="/logout" component={Logout} />
-      
       {/* Protected routes - always rendered, but wrapped with auth checks */}
       <Route path="/services">
         <ProtectedRoute>
@@ -246,9 +239,6 @@ function Router() {
           <DeleteAccount />
         </ProtectedRoute>
       </Route>
-      <Route path="/terms">
-        <Terms />
-      </Route>
       <Route path="/admin">
         <ProtectedRoute>
           <AdminDashboard />
@@ -262,11 +252,6 @@ function Router() {
       <Route path="/admin/payments">
         <ProtectedRoute>
           <AdminPayments />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/admin/delinquent-payments">
-        <ProtectedRoute>
-          <DelinquentPayments />
         </ProtectedRoute>
       </Route>
       <Route path="/admin/pricing">
@@ -701,15 +686,6 @@ function Router() {
 function AppContent() {
   const { user, isAuthenticated, isLoading } = useAuth();
   const needsApproval = user && !user.isApproved && !user.isAdmin;
-  const needsTermsAcceptance = useTermsAcceptanceCheck();
-  const [termsDialogOpen, setTermsDialogOpen] = useState(false);
-
-  // Show terms dialog when user needs to accept terms
-  useEffect(() => {
-    if (isAuthenticated && !isLoading && needsTermsAcceptance && !needsApproval) {
-      setTermsDialogOpen(true);
-    }
-  }, [isAuthenticated, isLoading, needsTermsAcceptance, needsApproval]);
 
   // Sidebar width customization for better content display
   const style = {
@@ -741,12 +717,6 @@ function AppContent() {
       )}
       <Toaster />
       {isAuthenticated && <NpsSurveyManager />}
-      {isAuthenticated && (
-        <TermsAcceptanceDialog
-          open={termsDialogOpen}
-          onOpenChange={setTermsDialogOpen}
-        />
-      )}
     </>
   );
 }

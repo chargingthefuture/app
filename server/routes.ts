@@ -1,7 +1,7 @@
 import express, { type Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated, isAdmin, getUserId, syncClerkUserToDatabase } from "./auth";
+import { setupAuth, isAuthenticated, isAdmin, getUserId } from "./auth";
 import { validateCsrfToken, generateCsrfTokenForAdmin } from "./csrf";
 import { publicListingLimiter, publicItemLimiter } from "./rateLimiter";
 import { fingerprintRequests, getSuspiciousPatterns, getSuspiciousPatternsForIP, clearSuspiciousPatterns } from "./antiScraping";
@@ -152,30 +152,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
       const userId = getUserId(req);
-      if (!userId) {
-        return res.status(401).json({ message: "User ID not found" });
-      }
-      
-      let user = await storage.getUser(userId);
-      
-      // If user doesn't exist in database, sync from Clerk (for new users)
-      if (!user) {
-        try {
-          user = await syncClerkUserToDatabase(userId);
-        } catch (syncError: any) {
-          console.error("Error syncing user from Clerk:", syncError);
-          // If it's a deleted user error, return 403
-          if (syncError.message?.includes("deleted")) {
-            return res.status(403).json({ 
-              message: syncError.message || "This account has been deleted. Please contact support if you believe this is an error." 
-            });
-          }
-          // For other sync errors, still try to return what we have or a proper error
-          return res.status(500).json({ 
-            message: "Failed to sync user from authentication provider" 
-          });
-        }
-      }
+      const user = await storage.getUser(userId);
       
       // Check if user is deleted
       if (user && user.email === null && user.firstName === "Deleted" && user.lastName === "User") {
@@ -184,11 +161,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Return user (or null if still not found after sync)
-      res.json(user || null);
-    } catch (error: any) {
+      res.json(user);
+    } catch (error) {
       console.error("Error fetching user:", error);
-      res.status(500).json({ message: error.message || "Failed to fetch user" });
+      res.status(500).json({ message: "Failed to fetch user" });
     }
   });
 
@@ -227,17 +203,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching payments:", error);
       res.status(500).json({ message: "Failed to fetch payments" });
-    }
-  });
-
-  app.get('/api/payments/status', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const status = await storage.getUserPaymentStatus(userId);
-      res.json(status);
-    } catch (error: any) {
-      console.error("Error fetching payment status:", error);
-      res.status(500).json({ message: error.message || "Failed to fetch payment status" });
     }
   });
 
@@ -386,14 +351,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       'getAllPayments'
     );
     res.json(payments);
-  }));
-
-  app.get('/api/admin/payments/delinquent', isAuthenticated, isAdmin, asyncHandler(async (_req, res) => {
-    const delinquentUsers = await withDatabaseErrorHandling(
-      () => storage.getDelinquentUsers(),
-      'getDelinquentUsers'
-    );
-    res.json(delinquentUsers);
   }));
 
   app.post('/api/admin/payments', isAuthenticated, isAdmin, validateCsrfToken, asyncHandler(async (req: any, res) => {
