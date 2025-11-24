@@ -10,8 +10,6 @@ import {
   reports,
   announcements,
   supportmatchAnnouncements,
-  sleepStories,
-  sleepStoriesAnnouncements,
   lighthouseProfiles,
   lighthouseProperties,
   lighthouseMatches,
@@ -57,10 +55,6 @@ import {
   type InsertAnnouncement,
   type SupportmatchAnnouncement,
   type InsertSupportmatchAnnouncement,
-  type SleepStory,
-  type InsertSleepStory,
-  type SleepStoriesAnnouncement,
-  type InsertSleepStoriesAnnouncement,
   type LighthouseProfile,
   type InsertLighthouseProfile,
   type LighthouseProperty,
@@ -304,20 +298,6 @@ export interface IStorage {
     pendingReports: number;
   }>;
 
-  // SleepStories operations
-  createSleepStory(story: InsertSleepStory): Promise<SleepStory>;
-  getAllSleepStories(): Promise<SleepStory[]>;
-  getActiveSleepStories(): Promise<SleepStory[]>;
-  getSleepStoryById(id: string): Promise<SleepStory | undefined>;
-  updateSleepStory(id: string, story: Partial<InsertSleepStory>): Promise<SleepStory>;
-  deleteSleepStory(id: string): Promise<void>;
-
-  // SleepStories Announcement operations
-  createSleepStoriesAnnouncement(announcement: InsertSleepStoriesAnnouncement): Promise<SleepStoriesAnnouncement>;
-  getActiveSleepStoriesAnnouncements(): Promise<SleepStoriesAnnouncement[]>;
-  getAllSleepStoriesAnnouncements(): Promise<SleepStoriesAnnouncement[]>;
-  updateSleepStoriesAnnouncement(id: string, announcement: Partial<InsertSleepStoriesAnnouncement>): Promise<SleepStoriesAnnouncement>;
-  deactivateSleepStoriesAnnouncement(id: string): Promise<SleepStoriesAnnouncement>;
 
   // LightHouse Profile operations
   createLighthouseProfile(profile: InsertLighthouseProfile): Promise<LighthouseProfile>;
@@ -1972,115 +1952,6 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  // ========================================
-  // SLEEPSTORIES APP OPERATIONS
-  // ========================================
-
-  async createSleepStory(storyData: InsertSleepStory): Promise<SleepStory> {
-    const [story] = await db
-      .insert(sleepStories)
-      .values(storyData)
-      .returning();
-    return story;
-  }
-
-  async getAllSleepStories(): Promise<SleepStory[]> {
-    return await db
-      .select()
-      .from(sleepStories)
-      .orderBy(desc(sleepStories.createdAt));
-  }
-
-  async getActiveSleepStories(): Promise<SleepStory[]> {
-    return await db
-      .select()
-      .from(sleepStories)
-      .where(eq(sleepStories.isActive, true))
-      .orderBy(desc(sleepStories.createdAt));
-  }
-
-  async getSleepStoryById(id: string): Promise<SleepStory | undefined> {
-    const [story] = await db
-      .select()
-      .from(sleepStories)
-      .where(eq(sleepStories.id, id));
-    return story;
-  }
-
-  async updateSleepStory(id: string, storyData: Partial<InsertSleepStory>): Promise<SleepStory> {
-    const [story] = await db
-      .update(sleepStories)
-      .set({
-        ...storyData,
-        updatedAt: new Date(),
-      })
-      .where(eq(sleepStories.id, id))
-      .returning();
-    return story;
-  }
-
-  async deleteSleepStory(id: string): Promise<void> {
-    await db
-      .delete(sleepStories)
-      .where(eq(sleepStories.id, id));
-  }
-
-  // SleepStories Announcement operations
-  async createSleepStoriesAnnouncement(announcementData: InsertSleepStoriesAnnouncement): Promise<SleepStoriesAnnouncement> {
-    const [announcement] = await db
-      .insert(sleepStoriesAnnouncements)
-      .values(announcementData)
-      .returning();
-    return announcement;
-  }
-  
-  async getActiveSleepStoriesAnnouncements(): Promise<SleepStoriesAnnouncement[]> {
-    const now = new Date();
-    return await db
-      .select()
-      .from(sleepStoriesAnnouncements)
-      .where(
-        and(
-          eq(sleepStoriesAnnouncements.isActive, true),
-          or(
-            sql`${sleepStoriesAnnouncements.expiresAt} IS NULL`,
-            gte(sleepStoriesAnnouncements.expiresAt, now)
-          )
-        )
-      )
-      .orderBy(desc(sleepStoriesAnnouncements.createdAt));
-  }
-  
-  async getAllSleepStoriesAnnouncements(): Promise<SleepStoriesAnnouncement[]> {
-    return await db
-      .select()
-      .from(sleepStoriesAnnouncements)
-      .orderBy(desc(sleepStoriesAnnouncements.createdAt));
-  }
-  
-  async updateSleepStoriesAnnouncement(id: string, announcementData: Partial<InsertSleepStoriesAnnouncement>): Promise<SleepStoriesAnnouncement> {
-    const [announcement] = await db
-      .update(sleepStoriesAnnouncements)
-      .set({
-        ...announcementData,
-        updatedAt: new Date(),
-      })
-      .where(eq(sleepStoriesAnnouncements.id, id))
-      .returning();
-    return announcement;
-  }
-  
-  async deactivateSleepStoriesAnnouncement(id: string): Promise<SleepStoriesAnnouncement> {
-    const [announcement] = await db
-      .update(sleepStoriesAnnouncements)
-      .set({
-        isActive: false,
-        updatedAt: new Date(),
-      })
-      .where(eq(sleepStoriesAnnouncements.id, id))
-      .returning();
-    return announcement;
-  }
 
 
   // ========================================
