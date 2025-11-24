@@ -42,6 +42,28 @@ function isUserDeleted(user: any): boolean {
     user.lastName === "User";
 }
 
+export async function syncClerkUserToDatabase(userId: string) {
+  try {
+    // Check if user is deleted before syncing
+    const existingUser = await storage.getUser(userId);
+    if (existingUser && isUserDeleted(existingUser)) {
+      throw new Error("This account has been deleted. Please contact support if you believe this is an error.");
+    }
+    
+    // Get full user details from Clerk
+    const clerkUser = await clerkClient.users.getUser(userId);
+    
+    // Upsert user in our database
+    await upsertUser(clerkUser);
+    
+    // Return the synced user
+    return await storage.getUser(userId);
+  } catch (error: any) {
+    console.error("Error syncing Clerk user to database:", error);
+    throw error;
+  }
+}
+
 async function upsertUser(clerkUser: any) {
   // Map Clerk user to our schema format
   const mappedUser = mapClerkUser(clerkUser);
@@ -100,20 +122,7 @@ export async function setupAuth(app: Express) {
     // After Clerk verifies auth, we sync user to our DB
     if (req.auth?.userId) {
       try {
-        // Check if user is deleted before syncing
-        const existingUser = await storage.getUser(req.auth.userId);
-        if (existingUser && isUserDeleted(existingUser)) {
-          // User account has been deleted - block authentication
-          return res.status(403).json({ 
-            message: "This account has been deleted. Please contact support if you believe this is an error." 
-          });
-        }
-        
-        // Get full user details from Clerk
-        const clerkUser = await clerkClient.users.getUser(req.auth.userId);
-        
-        // Upsert user in our database
-        await upsertUser(clerkUser);
+        await syncClerkUserToDatabase(req.auth.userId);
       } catch (error: any) {
         console.error("Error syncing Clerk user to database:", error);
         // If it's a deleted user error, block the request
