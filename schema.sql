@@ -854,4 +854,3 @@ BEGIN
     FOREIGN KEY (accepted_answer_id) REFERENCES research_answers(id);
   END IF;
 END $$;
-

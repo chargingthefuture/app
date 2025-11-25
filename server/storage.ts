@@ -1023,6 +1023,16 @@ export class DatabaseStorage implements IStorage {
     const previousWeekEnd = new Date(currentWeekEnd);
     previousWeekEnd.setDate(previousWeekEnd.getDate() - 7);
 
+    // Initialize user statistics variables (must be declared before use)
+    let totalUsersCurrentWeek = 0;
+    let verifiedUsersCurrentWeek = 0;
+    let approvedUsersCurrentWeek = 0;
+    let totalUsersPreviousWeek = 0;
+    let verifiedUsersPreviousWeek = 0;
+    let approvedUsersPreviousWeek = 0;
+    let verifiedUsersPercentage = 0;
+    let verifiedUsersPercentageChange = 0;
+
     // Remove unused variables - dates are already correct for DB comparison
 
     // Log week boundaries for debugging
@@ -1384,15 +1394,7 @@ export class DatabaseStorage implements IStorage {
     }
 
     // Calculate User Statistics (Total, Verified, Approved)
-    let verifiedUsersPercentage = 0;
-    let verifiedUsersPercentageChange = 0;
-    let totalUsersCurrentWeek = 0;
-    let verifiedUsersCurrentWeek = 0;
-    let approvedUsersCurrentWeek = 0;
-    let totalUsersPreviousWeek = 0;
-    let verifiedUsersPreviousWeek = 0;
-    let approvedUsersPreviousWeek = 0;
-    
+    // Variables are already declared above, now we populate them
     try {
       // Get all users created up to the end of current week (excluding deleted users)
       const allUsersCurrentWeek = await db
