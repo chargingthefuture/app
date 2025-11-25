@@ -1,5 +1,5 @@
 import { db } from "../server/db";
-import { users, trusttransportProfiles, trusttransportRideRequests } from "../shared/schema";
+import { users, trusttransportProfiles, trusttransportRideRequests, trusttransportAnnouncements } from "../shared/schema";
 import { eq } from "drizzle-orm";
 
 async function seedTrustTransport() {
@@ -190,7 +190,53 @@ async function seedTrustTransport() {
     }
   }
 
-  console.log("TrustTransport seed data created successfully!");
+  // Create announcements (REQUIRED for all mini-apps)
+  const announcementsData = [
+    {
+      title: "Welcome to TrustTransport",
+      content: "TrustTransport connects survivors with safe, reliable rides. Create a profile as a driver or rider to get started. Your safety is our priority.",
+      type: "info" as const,
+      isActive: true,
+      expiresAt: null,
+    },
+    {
+      title: "Safety Guidelines",
+      content: "Always meet in public places, verify driver/rider identity, and trust your instincts. Report any concerns immediately. Never share personal information until you feel comfortable.",
+      type: "warning" as const,
+      isActive: true,
+      expiresAt: null,
+    },
+    {
+      title: "New Features Available",
+      content: "You can now filter rides by car type, accessibility needs, and other preferences. Check out the updated ride request form!",
+      type: "update" as const,
+      isActive: true,
+      expiresAt: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000), // Expires in 60 days
+    },
+  ];
+
+  for (const announcementData of announcementsData) {
+    try {
+      await db.insert(trusttransportAnnouncements).values({
+        title: announcementData.title,
+        content: announcementData.content,
+        type: announcementData.type,
+        isActive: announcementData.isActive,
+        expiresAt: announcementData.expiresAt,
+      });
+
+      console.log(`Created announcement: ${announcementData.title}`);
+    } catch (error) {
+      console.log(`Error creating announcement:`, error);
+    }
+  }
+
+  console.log("\n✅ TrustTransport seed data created successfully!");
+  console.log("\nSummary:");
+  console.log(`- ${testUsers.length} users created`);
+  console.log(`- ${profilesData.length} TrustTransport profiles created`);
+  console.log(`- ${rideRequestsData.length} ride requests created`);
+  console.log(`- ${announcementsData.length} announcements created`);
 }
 
 seedTrustTransport()
