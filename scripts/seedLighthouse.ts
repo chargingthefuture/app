@@ -1,5 +1,5 @@
 import { db } from "../server/db";
-import { users, lighthouseProfiles, lighthouseProperties, lighthouseMatches } from "../shared/schema";
+import { users, lighthouseProfiles, lighthouseProperties, lighthouseMatches, lighthouseAnnouncements, type InsertLighthouseAnnouncement } from "../shared/schema";
 import { eq } from "drizzle-orm";
 
 async function seedLighthouse() {
@@ -446,6 +446,40 @@ async function seedLighthouse() {
   console.log(`  - ${matchesData.filter(m => m.status === 'pending').length} pending`);
   console.log(`  - ${matchesData.filter(m => m.status === 'accepted').length} accepted`);
   console.log(`  - ${matchesData.filter(m => m.status === 'rejected').length} rejected`);
+
+  // Seed LightHouse announcements
+  const announcementsData: InsertLighthouseAnnouncement[] = [
+    {
+      title: "Welcome to LightHouse",
+      content: "LightHouse provides safe accommodations and support resources for human trafficking survivors. Whether you're seeking housing or offering a safe space, we're here to help.",
+      type: "info",
+      isActive: true,
+      expiresAt: null,
+    },
+    {
+      title: "Safety First",
+      content: "All matches are reviewed for safety and compatibility. We encourage open communication and recommend meeting in public spaces first. Trust your instincts and report any concerns.",
+      type: "warning",
+      isActive: true,
+      expiresAt: null,
+    },
+    {
+      title: "New Properties Available",
+      content: "Several new properties have been added this month. Check out the updated listings for available rooms and apartments in your area.",
+      type: "update",
+      isActive: true,
+      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
+    },
+  ];
+
+  for (const announcementData of announcementsData) {
+    try {
+      await db.insert(lighthouseAnnouncements).values(announcementData);
+      console.log(`Created LightHouse announcement: ${announcementData.title}`);
+    } catch (error) {
+      console.log(`Error creating announcement "${announcementData.title}":`, error);
+    }
+  }
   
   process.exit(0);
 }

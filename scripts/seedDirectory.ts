@@ -1,5 +1,5 @@
 import { db } from "../server/db";
-import { directoryProfiles, users, type InsertDirectoryProfile } from "../shared/schema";
+import { directoryProfiles, users, directoryAnnouncements, type InsertDirectoryProfile, type InsertDirectoryAnnouncement } from "../shared/schema";
 
 async function seedDirectory() {
   console.log("Seeding Directory app profiles...");
@@ -47,6 +47,40 @@ async function seedDirectory() {
       await db.insert(directoryProfiles).values(payload);
     } catch (error) {
       console.log(`Row ${i + 1} may already exist, skipping...`);
+    }
+  }
+
+  // Seed Directory announcements
+  const announcementsData: InsertDirectoryAnnouncement[] = [
+    {
+      title: "Welcome to Directory",
+      content: "The Directory helps you find talented individuals to collaborate with. Browse profiles by skills, location, and availability. You can create your own profile to share your skills with the community.",
+      type: "info",
+      isActive: true,
+      expiresAt: null,
+    },
+    {
+      title: "Profile Verification",
+      content: "Verified profiles have been reviewed by our team. Look for the verification badge when browsing profiles. You can request verification for your own profile through the admin panel.",
+      type: "info",
+      isActive: true,
+      expiresAt: null,
+    },
+    {
+      title: "Privacy Settings",
+      content: "You can choose to make your profile public or private. Public profiles appear in search results, while private profiles are only visible to you. You can change this setting anytime.",
+      type: "info",
+      isActive: true,
+      expiresAt: null,
+    },
+  ];
+
+  for (const announcementData of announcementsData) {
+    try {
+      await db.insert(directoryAnnouncements).values(announcementData);
+      console.log(`Created Directory announcement: ${announcementData.title}`);
+    } catch (error) {
+      console.log(`Error creating announcement "${announcementData.title}":`, error);
     }
   }
 

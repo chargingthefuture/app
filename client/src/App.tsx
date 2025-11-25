@@ -17,7 +17,6 @@ import Home from "@/pages/home";
 import Services from "@/pages/services";
 import UserPayments from "@/pages/user-payments";
 import DeleteAccount from "@/pages/account/delete";
-import AdminDashboard from "@/pages/admin/dashboard";
 import AdminUsers from "@/pages/admin/users";
 import AdminPayments from "@/pages/admin/payments";
 import AdminActivity from "@/pages/admin/activity";
@@ -237,11 +236,6 @@ function Router() {
       <Route path="/account/delete">
         <ProtectedRoute>
           <DeleteAccount />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/admin">
-        <ProtectedRoute>
-          <AdminDashboard />
         </ProtectedRoute>
       </Route>
       <Route path="/admin/users">

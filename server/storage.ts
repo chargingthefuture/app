@@ -200,13 +200,6 @@ export interface IStorage {
   createAdminActionLog(log: InsertAdminActionLog): Promise<AdminActionLog>;
   getAllAdminActionLogs(): Promise<AdminActionLog[]>;
   
-  // Stats
-  getAdminStats(): Promise<{
-    totalUsers: number;
-    collectedMonthlyRevenue: string;
-    outstandingRevenue: string;
-  }>;
-  
   // Weekly Performance Review
   getWeeklyPerformanceReview(weekStart: Date): Promise<{
     currentWeek: {
@@ -949,13 +942,11 @@ export class DatabaseStorage implements IStorage {
     return weekStart;
   }
 
-  // Helper to get end of week (Friday) for a given date
-  // Week always ends on Friday, never on Sunday
+  // Helper to get end of week (Sunday) for a given date
   private getWeekEnd(date: Date): Date {
     const weekStart = this.getWeekStart(date);
     const weekEnd = new Date(weekStart);
-    // Monday (day 1) + 4 days = Friday (day 5), never Sunday (day 0)
-    weekEnd.setDate(weekEnd.getDate() + 4);
+    weekEnd.setDate(weekEnd.getDate() + 6);
     weekEnd.setHours(23, 59, 59, 999);
     return weekEnd;
   }
@@ -965,10 +956,10 @@ export class DatabaseStorage implements IStorage {
     return date.toISOString().split('T')[0];
   }
 
-  // Helper to get all days in a week (Monday to Friday)
+  // Helper to get all days in a week
   private getDaysInWeek(weekStart: Date): Array<{ date: Date; dateString: string }> {
     const days = [];
-    for (let i = 0; i < 5; i++) { // Monday to Friday = 5 days
+    for (let i = 0; i < 7; i++) {
       const day = new Date(weekStart);
       day.setDate(day.getDate() + i);
       days.push({
@@ -1013,15 +1004,15 @@ export class DatabaseStorage implements IStorage {
         verifiedUsersPercentageChange: number;
       };
   }> {
-    // Calculate current week boundaries (Monday to Friday)
+    // Calculate current week boundaries (Monday to Sunday)
     const currentWeekStart = this.getWeekStart(weekStart);
     const currentWeekEnd = this.getWeekEnd(weekStart);
     
     // Calculate previous week boundaries
     const previousWeekStart = new Date(currentWeekStart);
-    previousWeekStart.setDate(previousWeekStart.getDate() - 5); // Previous Monday (5 days back)
+    previousWeekStart.setDate(previousWeekStart.getDate() - 7);
     const previousWeekEnd = new Date(currentWeekEnd);
-    previousWeekEnd.setDate(previousWeekEnd.getDate() - 5); // Previous Friday (5 days back)
+    previousWeekEnd.setDate(previousWeekEnd.getDate() - 7);
 
     // Remove unused variables - dates are already correct for DB comparison
 

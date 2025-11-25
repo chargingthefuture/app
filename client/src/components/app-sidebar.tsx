@@ -42,12 +42,6 @@ import { ExternalLink } from "lucide-react";
 
 const adminMenuItems = [
   {
-    title: "Dashboard",
-    url: "/admin",
-    icon: Home,
-    testId: "link-admin-dashboard",
-  },
-  {
     title: "User Management",
     url: "/admin/users",
     icon: Users,
@@ -145,7 +139,8 @@ const adminMenuItems = [
   },
 ];
 
-const userMenuItems = [
+// Pinned items that always appear at the top
+const pinnedUserMenuItems = [
   {
     title: "My Dashboard",
     url: "/",
@@ -158,6 +153,10 @@ const userMenuItems = [
     icon: DollarSign,
     testId: "link-payments",
   },
+];
+
+// Mini-apps that will be sorted alphabetically
+const miniAppMenuItems = [
   {
     title: "Chat Groups",
     url: "/apps/chatgroups",
@@ -171,10 +170,34 @@ const userMenuItems = [
     testId: "link-directory",
   },
   {
+    title: "GentlePulse",
+    url: "/apps/gentlepulse",
+    icon: HeartPulse,
+    testId: "link-gentlepulse",
+  },
+  {
     title: "LightHouse",
     url: "/apps/lighthouse",
     icon: Building2,
     testId: "link-lighthouse",
+  },
+  {
+    title: "LostMail",
+    url: "/apps/lostmail",
+    icon: Mail,
+    testId: "link-lostmail",
+  },
+  {
+    title: "MechanicMatch",
+    url: "/apps/mechanicmatch",
+    icon: Wrench,
+    testId: "link-mechanicmatch",
+  },
+  {
+    title: "Research",
+    url: "/apps/research",
+    icon: Search,
+    testId: "link-research",
   },
   {
     title: "SocketRelay",
@@ -194,30 +217,12 @@ const userMenuItems = [
     icon: Car,
     testId: "link-trusttransport",
   },
-  {
-    title: "MechanicMatch",
-    url: "/apps/mechanicmatch",
-    icon: Wrench,
-    testId: "link-mechanicmatch",
-  },
-  {
-    title: "LostMail",
-    url: "/apps/lostmail",
-    icon: Mail,
-    testId: "link-lostmail",
-  },
-  {
-    title: "Research",
-    url: "/apps/research",
-    icon: Search,
-    testId: "link-research",
-  },
-  {
-    title: "GentlePulse",
-    url: "/apps/gentlepulse",
-    icon: HeartPulse,
-    testId: "link-gentlepulse",
-  },
+];
+
+// Combine pinned items with alphabetically sorted mini-apps
+const userMenuItems = [
+  ...pinnedUserMenuItems,
+  ...miniAppMenuItems.sort((a, b) => a.title.localeCompare(b.title)),
 ];
 
 export function AppSidebar() {
