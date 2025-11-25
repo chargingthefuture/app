@@ -3,6 +3,8 @@ import { clerkClient } from "@clerk/clerk-sdk-node";
 import type { Express, RequestHandler } from "express";
 import { storage } from "./storage";
 import { validateCsrfToken } from "./csrf";
+import { withDatabaseErrorHandling } from "./databaseErrorHandler";
+import { ExternalServiceError } from "./errors";
 
 // Clerk Configuration
 if (!process.env.CLERK_SECRET_KEY) {
@@ -45,7 +47,24 @@ function isUserDeleted(user: any): boolean {
 export async function syncClerkUserToDatabase(userId: string, sessionClaims?: any) {
   try {
     // Check if user is deleted before syncing
-    const existingUser = await storage.getUser(userId);
+    // Wrap in error handling - if database is unavailable, we'll try to continue with Clerk data
+    let existingUser;
+    try {
+      existingUser = await withDatabaseErrorHandling(
+        () => storage.getUser(userId),
+        'getUserForSync'
+      );
+    } catch (dbError: any) {
+      // If it's a connection error, log but continue - we'll try to create user from Clerk data
+      if (dbError instanceof ExternalServiceError && dbError.statusCode === 503) {
+        console.warn(`Database unavailable when checking existing user ${userId}, will attempt to create from Clerk data`);
+        existingUser = undefined;
+      } else {
+        // For other database errors (like deleted user check), re-throw
+        throw dbError;
+      }
+    }
+    
     if (existingUser && isUserDeleted(existingUser)) {
       throw new Error("This account has been deleted. Please contact support if you believe this is an error.");
     }
@@ -84,18 +103,39 @@ export async function syncClerkUserToDatabase(userId: string, sessionClaims?: an
             profileImageUrl: sessionClaims.imageUrl || null,
           };
           
-          // Get current pricing tier
-          const currentTier = await storage.getCurrentPricingTier();
-          const pricingTier = currentTier?.amount || '1.00';
+          // Get current pricing tier with error handling
+          let pricingTier = '1.00';
+          try {
+            const currentTier = await withDatabaseErrorHandling(
+              () => storage.getCurrentPricingTier(),
+              'getCurrentPricingTierForFallback'
+            );
+            pricingTier = currentTier?.amount || '1.00';
+          } catch (tierError: any) {
+            console.warn(`Failed to get pricing tier, using default: ${tierError.message}`);
+            // Use default pricing tier if database is unavailable
+          }
           
-          await storage.upsertUser({
-            ...minimalUser,
-            pricingTier,
-          });
+          // Try to create user - if database is unavailable, this will throw
+          await withDatabaseErrorHandling(
+            () => storage.upsertUser({
+              ...minimalUser,
+              pricingTier,
+            }),
+            'upsertUserFromJWTClaims'
+          );
           
-          return await storage.getUser(userId);
+          // Try to get the created user
+          return await withDatabaseErrorHandling(
+            () => storage.getUser(userId),
+            'getUserAfterJWTFallback'
+          );
         } catch (fallbackError: any) {
           console.error("Error creating user from JWT claims:", fallbackError);
+          // If it's a connection error, provide a more helpful message
+          if (fallbackError instanceof ExternalServiceError && fallbackError.statusCode === 503) {
+            throw new Error("Database temporarily unavailable. Please try again in a moment.");
+          }
           // Continue to throw original error
         }
       }
@@ -108,12 +148,17 @@ export async function syncClerkUserToDatabase(userId: string, sessionClaims?: an
     await upsertUser(clerkUser);
     
     // Return the synced user
-    return await storage.getUser(userId);
+    return await withDatabaseErrorHandling(
+      () => storage.getUser(userId),
+      'getUserAfterSync'
+    );
   } catch (error: any) {
     console.error("Error syncing Clerk user to database:", {
       userId,
       error: error.message,
       stack: error.stack,
+      name: error.name,
+      code: error.code,
     });
     throw error;
   }
@@ -127,37 +172,67 @@ async function upsertUser(clerkUser: any) {
     throw new Error("Invalid user data from Clerk");
   }
   
-  // Check if user already exists
-  const existingUser = await storage.getUser(mappedUser.sub);
+  // Check if user already exists with error handling
+  let existingUser;
+  try {
+    existingUser = await withDatabaseErrorHandling(
+      () => storage.getUser(mappedUser.sub),
+      'getUserForUpsert'
+    );
+  } catch (dbError: any) {
+    // If it's a connection error, we can't check if user exists
+    // But we should still try to upsert - if user exists, it will update; if not, it will create
+    if (dbError instanceof ExternalServiceError && dbError.statusCode === 503) {
+      console.warn(`Database unavailable when checking existing user for upsert ${mappedUser.sub}, will attempt upsert anyway`);
+      existingUser = undefined;
+    } else {
+      throw dbError;
+    }
+  }
   
   if (existingUser) {
     // For existing users, only update profile information, preserve pricing tier
     // Preserve approval status and admin status
     
-    await storage.upsertUser({
-      id: mappedUser.sub,
-      email: mappedUser.email,
-      firstName: mappedUser.first_name,
-      lastName: mappedUser.last_name,
-      profileImageUrl: mappedUser.profile_image_url,
-      pricingTier: existingUser.pricingTier, // Preserve existing pricing tier (grandfathered)
-      isAdmin: existingUser.isAdmin, // Preserve admin status
-      isApproved: existingUser.isApproved, // Preserve approval status
-      subscriptionStatus: existingUser.subscriptionStatus, // Preserve subscription status
-    });
+    await withDatabaseErrorHandling(
+      () => storage.upsertUser({
+        id: mappedUser.sub,
+        email: mappedUser.email,
+        firstName: mappedUser.first_name,
+        lastName: mappedUser.last_name,
+        profileImageUrl: mappedUser.profile_image_url,
+        pricingTier: existingUser.pricingTier, // Preserve existing pricing tier (grandfathered)
+        isAdmin: existingUser.isAdmin, // Preserve admin status
+        isApproved: existingUser.isApproved, // Preserve approval status
+        subscriptionStatus: existingUser.subscriptionStatus, // Preserve subscription status
+      }),
+      'upsertExistingUser'
+    );
   } else {
     // For new users, get current pricing tier
-    const currentTier = await storage.getCurrentPricingTier();
-    const pricingTier = currentTier?.amount || '1.00';
+    let pricingTier = '1.00';
+    try {
+      const currentTier = await withDatabaseErrorHandling(
+        () => storage.getCurrentPricingTier(),
+        'getCurrentPricingTierForNewUser'
+      );
+      pricingTier = currentTier?.amount || '1.00';
+    } catch (tierError: any) {
+      console.warn(`Failed to get pricing tier for new user, using default: ${tierError.message}`);
+      // Use default pricing tier if database is unavailable
+    }
 
-    await storage.upsertUser({
-      id: mappedUser.sub,
-      email: mappedUser.email,
-      firstName: mappedUser.first_name,
-      lastName: mappedUser.last_name,
-      profileImageUrl: mappedUser.profile_image_url,
-      pricingTier,
-    });
+    await withDatabaseErrorHandling(
+      () => storage.upsertUser({
+        id: mappedUser.sub,
+        email: mappedUser.email,
+        firstName: mappedUser.first_name,
+        lastName: mappedUser.last_name,
+        profileImageUrl: mappedUser.profile_image_url,
+        pricingTier,
+      }),
+      'upsertNewUser'
+    );
   }
 }
 
@@ -215,7 +290,22 @@ export const isAdmin: RequestHandler = async (req: any, res, next) => {
   }
 
   const userId = req.auth.userId;
-  const user = await storage.getUser(userId);
+  let user;
+  try {
+    user = await withDatabaseErrorHandling(
+      () => storage.getUser(userId),
+      'getUserForAdminCheck'
+    );
+  } catch (error: any) {
+    // If database is unavailable, deny admin access
+    if (error instanceof ExternalServiceError && error.statusCode === 503) {
+      return res.status(503).json({ 
+        message: "Database temporarily unavailable. Please try again in a moment." 
+      });
+    }
+    // For other errors, deny access
+    return res.status(403).json({ message: "Forbidden: Admin access required" });
+  }
   
   if (!user || !user.isAdmin) {
     return res.status(403).json({ message: "Forbidden: Admin access required" });
