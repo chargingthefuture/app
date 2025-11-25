@@ -244,7 +244,7 @@ CREATE TABLE IF NOT EXISTS socketrelay_requests (
   user_id VARCHAR NOT NULL REFERENCES users(id),
   description VARCHAR(140) NOT NULL,
   status VARCHAR(20) NOT NULL DEFAULT 'active',
-  is_public BOOLEAN NOT NULL DEFAULT false,
+  "isPublic" BOOLEAN NOT NULL DEFAULT false,
   expires_at TIMESTAMP NOT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMP NOT NULL DEFAULT NOW()
