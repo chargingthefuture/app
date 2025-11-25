@@ -1,5 +1,5 @@
 import { db } from "../server/db";
-import { chatGroups, type InsertChatGroup } from "../shared/schema";
+import { chatGroups, chatgroupsAnnouncements, type InsertChatGroup } from "../shared/schema";
 
 async function seedChatGroups() {
   console.log("Seeding Chat Groups...");
@@ -37,7 +37,50 @@ async function seedChatGroups() {
     }
   }
 
+  // Create announcements (REQUIRED for all mini-apps)
+  const announcementsData = [
+    {
+      title: "Welcome to Chat Groups",
+      content: "Chat Groups connects you with Signal.org group chats for survivors. Join groups that match your interests and needs.",
+      type: "info" as const,
+      isActive: true,
+      expiresAt: null,
+    },
+    {
+      title: "New Groups Added",
+      content: "We've added several new Signal groups this month. Check them out and find your community!",
+      type: "update" as const,
+      isActive: true,
+      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // Expires in 30 days
+    },
+    {
+      title: "Signal Privacy",
+      content: "All groups use Signal for end-to-end encrypted communication. Your privacy and security are protected.",
+      type: "info" as const,
+      isActive: true,
+      expiresAt: null,
+    },
+  ];
+
+  for (const announcementData of announcementsData) {
+    try {
+      await db.insert(chatgroupsAnnouncements).values({
+        title: announcementData.title,
+        content: announcementData.content,
+        type: announcementData.type,
+        isActive: announcementData.isActive,
+        expiresAt: announcementData.expiresAt,
+      });
+
+      console.log(`Created announcement: ${announcementData.title}`);
+    } catch (error) {
+      console.log(`Error creating announcement:`, error);
+    }
+  }
+
   console.log("Chat Groups seed complete.");
+  console.log(`- ${groups.length} chat groups created`);
+  console.log(`- ${announcementsData.length} announcements created`);
   process.exit(0);
 }
 

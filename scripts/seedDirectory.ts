@@ -1,5 +1,5 @@
 import { db } from "../server/db";
-import { directoryProfiles, users, type InsertDirectoryProfile } from "../shared/schema";
+import { directoryProfiles, users, directoryAnnouncements, type InsertDirectoryProfile } from "../shared/schema";
 
 async function seedDirectory() {
   console.log("Seeding Directory app profiles...");
@@ -50,7 +50,50 @@ async function seedDirectory() {
     }
   }
 
+  // Create announcements (REQUIRED for all mini-apps)
+  const announcementsData = [
+    {
+      title: "Welcome to Directory",
+      content: "Directory is a skill-sharing platform where survivors can offer help or seek assistance. Create a profile to connect with others in the community.",
+      type: "info" as const,
+      isActive: true,
+      expiresAt: null,
+    },
+    {
+      title: "Profile Verification",
+      content: "Verified profiles help build trust in our community. Contact an admin if you'd like to verify your profile.",
+      type: "update" as const,
+      isActive: true,
+      expiresAt: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000), // Expires in 60 days
+    },
+    {
+      title: "Safety Reminder",
+      content: "Remember to use Signal for secure communication. Never share personal information publicly. Your safety is our priority.",
+      type: "warning" as const,
+      isActive: true,
+      expiresAt: null,
+    },
+  ];
+
+  for (const announcementData of announcementsData) {
+    try {
+      await db.insert(directoryAnnouncements).values({
+        title: announcementData.title,
+        content: announcementData.content,
+        type: announcementData.type,
+        isActive: announcementData.isActive,
+        expiresAt: announcementData.expiresAt,
+      });
+
+      console.log(`Created announcement: ${announcementData.title}`);
+    } catch (error) {
+      console.log(`Error creating announcement:`, error);
+    }
+  }
+
   console.log("Directory seed complete.");
+  console.log(`- ${count} profiles created`);
+  console.log(`- ${announcementsData.length} announcements created`);
   process.exit(0);
 }
 

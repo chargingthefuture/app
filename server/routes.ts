@@ -2664,6 +2664,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const validatedData = validateWithZod(insertMechanicmatchProfileSchema, {
       ...req.body,
         userId,
+        isClaimed: true, // User is claiming their own profile
     }, 'Invalid profile data');
     const profile = await withDatabaseErrorHandling(
       () => storage.createMechanicmatchProfile(validatedData),

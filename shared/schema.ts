@@ -1219,6 +1219,7 @@ export const insertMechanicmatchProfileSchema = createInsertSchema(mechanicmatch
   portfolioPhotos: z.string().optional().nullable(), // Will store as JSON string
   responseTimeHours: z.number().int().min(0).optional().nullable(),
   averageRating: z.coerce.number().min(0).max(5).optional().nullable(),
+  isClaimed: z.boolean().default(false),
 });
 
 export type InsertMechanicmatchProfile = z.infer<typeof insertMechanicmatchProfileSchema>;

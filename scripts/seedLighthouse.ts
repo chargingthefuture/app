@@ -1,5 +1,5 @@
 import { db } from "../server/db";
-import { users, lighthouseProfiles, lighthouseProperties, lighthouseMatches } from "../shared/schema";
+import { users, lighthouseProfiles, lighthouseProperties, lighthouseMatches, lighthouseAnnouncements } from "../shared/schema";
 import { eq } from "drizzle-orm";
 
 async function seedLighthouse() {
@@ -432,6 +432,47 @@ async function seedLighthouse() {
     }
   }
 
+  // Create announcements (REQUIRED for all mini-apps)
+  const announcementsData = [
+    {
+      title: "Welcome to LightHouse",
+      content: "LightHouse connects survivors seeking safe housing with hosts offering supportive spaces. Create a profile as a seeker or host to get started.",
+      type: "info" as const,
+      isActive: true,
+      expiresAt: null,
+    },
+    {
+      title: "New Properties Available",
+      content: "Several new properties have been added this month. Check out the listings to find your perfect match!",
+      type: "update" as const,
+      isActive: true,
+      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // Expires in 30 days
+    },
+    {
+      title: "Safety First",
+      content: "Remember to meet in public places first and trust your instincts. Your safety is our top priority. Report any concerns immediately.",
+      type: "warning" as const,
+      isActive: true,
+      expiresAt: null,
+    },
+  ];
+
+  for (const announcementData of announcementsData) {
+    try {
+      await db.insert(lighthouseAnnouncements).values({
+        title: announcementData.title,
+        content: announcementData.content,
+        type: announcementData.type,
+        isActive: announcementData.isActive,
+        expiresAt: announcementData.expiresAt,
+      });
+
+      console.log(`Created announcement: ${announcementData.title}`);
+    } catch (error) {
+      console.log(`Error creating announcement:`, error);
+    }
+  }
+
   console.log("\n✅ Lighthouse seed data created successfully!");
   console.log("\nSummary:");
   console.log(`- ${testUsers.length} users created`);
@@ -446,6 +487,7 @@ async function seedLighthouse() {
   console.log(`  - ${matchesData.filter(m => m.status === 'pending').length} pending`);
   console.log(`  - ${matchesData.filter(m => m.status === 'accepted').length} accepted`);
   console.log(`  - ${matchesData.filter(m => m.status === 'rejected').length} rejected`);
+  console.log(`- ${announcementsData.length} announcements created`);
   
   process.exit(0);
 }

@@ -479,6 +479,7 @@ CREATE TABLE IF NOT EXISTS mechanicmatch_profiles (
   response_time_hours INTEGER,
   total_jobs_completed INTEGER NOT NULL DEFAULT 0,
   average_rating DECIMAL(3, 2),
+  is_claimed BOOLEAN NOT NULL DEFAULT false,
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
