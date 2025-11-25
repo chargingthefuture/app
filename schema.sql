@@ -457,7 +457,7 @@ CREATE TABLE IF NOT EXISTS nps_responses (
 -- MechanicMatch Profiles (users can be both car owners and mechanics)
 CREATE TABLE IF NOT EXISTS mechanicmatch_profiles (
   id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id VARCHAR UNIQUE REFERENCES users(id),
+  user_id VARCHAR NOT NULL UNIQUE REFERENCES users(id),
   is_car_owner BOOLEAN NOT NULL DEFAULT false,
   is_mechanic BOOLEAN NOT NULL DEFAULT false,
   display_name VARCHAR(100) NOT NULL,
@@ -479,7 +479,6 @@ CREATE TABLE IF NOT EXISTS mechanicmatch_profiles (
   response_time_hours INTEGER,
   total_jobs_completed INTEGER NOT NULL DEFAULT 0,
   average_rating DECIMAL(3, 2),
-  is_claimed BOOLEAN NOT NULL DEFAULT false,
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
