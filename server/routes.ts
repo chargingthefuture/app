@@ -1,7 +1,7 @@
 import express, { type Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated, isAdmin, getUserId } from "./auth";
+import { setupAuth, isAuthenticated, isAdmin, getUserId, syncClerkUserToDatabase } from "./auth";
 import { validateCsrfToken, generateCsrfTokenForAdmin } from "./csrf";
 import { publicListingLimiter, publicItemLimiter } from "./rateLimiter";
 import { fingerprintRequests, getSuspiciousPatterns, getSuspiciousPatternsForIP, clearSuspiciousPatterns } from "./antiScraping";
@@ -152,7 +152,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
       const userId = getUserId(req);
-      const user = await storage.getUser(userId);
+      
+      // Validate userId is present
+      if (!userId || userId.trim() === "") {
+        console.error("Error: userId is missing or empty", {
+          hasAuth: !!req.auth,
+          authUserId: req.auth?.userId,
+          authSessionId: req.auth?.sessionId,
+        });
+        return res.status(401).json({ 
+          message: "Authentication failed: User ID not found. Please try signing in again." 
+        });
+      }
+      
+      let user = await storage.getUser(userId);
+      
+      // If user doesn't exist in our database, try to sync from Clerk
+      if (!user) {
+        console.log(`User not found in database, attempting to sync from Clerk: ${userId}`);
+        try {
+          // Pass session claims as fallback if Clerk API fails
+          const sessionClaims = (req.auth as any)?.sessionClaims;
+          user = await syncClerkUserToDatabase(userId, sessionClaims);
+        } catch (syncError: any) {
+          console.error("Error syncing user from Clerk:", {
+            userId,
+            error: syncError.message,
+            statusCode: syncError.statusCode,
+            stack: syncError.stack,
+          });
+          
+          // If sync fails (e.g., deleted user), return appropriate error
+          if (syncError.message?.includes("deleted")) {
+            return res.status(403).json({ 
+              message: syncError.message || "This account has been deleted. Please contact support if you believe this is an error." 
+            });
+          }
+          
+          // If Clerk API call failed but we have partial data, log and return null
+          // The user will be created on the next successful sync
+          if (syncError.message?.includes("Failed to fetch user from Clerk")) {
+            console.warn(`Clerk API unavailable for user ${userId}, returning null. User will be synced on next request.`);
+            return res.json(null);
+          }
+          
+          // For other sync errors, return null (user will be created on next request)
+          // Don't return 500 - this allows the frontend to handle gracefully
+          return res.json(null);
+        }
+      }
       
       // Check if user is deleted
       if (user && user.email === null && user.firstName === "Deleted" && user.lastName === "User") {
@@ -162,9 +210,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       res.json(user);
-    } catch (error) {
-      console.error("Error fetching user:", error);
-      res.status(500).json({ message: "Failed to fetch user" });
+    } catch (error: any) {
+      console.error("Error fetching user:", {
+        error: error.message,
+        stack: error.stack,
+        userId: req.auth?.userId,
+        hasAuth: !!req.auth,
+      });
+      res.status(500).json({ 
+        message: "Failed to fetch user",
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
     }
   });
 

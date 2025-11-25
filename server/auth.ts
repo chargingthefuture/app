@@ -42,7 +42,7 @@ function isUserDeleted(user: any): boolean {
     user.lastName === "User";
 }
 
-export async function syncClerkUserToDatabase(userId: string) {
+export async function syncClerkUserToDatabase(userId: string, sessionClaims?: any) {
   try {
     // Check if user is deleted before syncing
     const existingUser = await storage.getUser(userId);
@@ -51,7 +51,58 @@ export async function syncClerkUserToDatabase(userId: string) {
     }
     
     // Get full user details from Clerk
-    const clerkUser = await clerkClient.users.getUser(userId);
+    let clerkUser;
+    try {
+      clerkUser = await clerkClient.users.getUser(userId);
+    } catch (clerkError: any) {
+      // Log detailed error for debugging
+      console.error("Error fetching user from Clerk API:", {
+        userId,
+        error: clerkError.message,
+        statusCode: clerkError.statusCode,
+        status: clerkError.status,
+        stack: clerkError.stack,
+        hasSecretKey: !!process.env.CLERK_SECRET_KEY,
+        secretKeyPrefix: process.env.CLERK_SECRET_KEY?.substring(0, 10),
+      });
+      
+      // If we have an existing user in DB, return it instead of failing
+      if (existingUser) {
+        console.log(`Clerk API call failed, but user exists in DB. Returning existing user: ${userId}`);
+        return existingUser;
+      }
+      
+      // If we have session claims from JWT, try to create a minimal user
+      if (sessionClaims && sessionClaims.email) {
+        console.log(`Clerk API unavailable, creating minimal user from JWT claims for: ${userId}`);
+        try {
+          const minimalUser = {
+            id: userId,
+            email: sessionClaims.email,
+            firstName: sessionClaims.firstName || sessionClaims.name?.split(' ')[0] || '',
+            lastName: sessionClaims.lastName || sessionClaims.name?.split(' ').slice(1).join(' ') || '',
+            profileImageUrl: sessionClaims.imageUrl || null,
+          };
+          
+          // Get current pricing tier
+          const currentTier = await storage.getCurrentPricingTier();
+          const pricingTier = currentTier?.amount || '1.00';
+          
+          await storage.upsertUser({
+            ...minimalUser,
+            pricingTier,
+          });
+          
+          return await storage.getUser(userId);
+        } catch (fallbackError: any) {
+          console.error("Error creating user from JWT claims:", fallbackError);
+          // Continue to throw original error
+        }
+      }
+      
+      // Re-throw with more context
+      throw new Error(`Failed to fetch user from Clerk: ${clerkError.message || 'Unknown error'}`);
+    }
     
     // Upsert user in our database
     await upsertUser(clerkUser);
@@ -59,7 +110,11 @@ export async function syncClerkUserToDatabase(userId: string) {
     // Return the synced user
     return await storage.getUser(userId);
   } catch (error: any) {
-    console.error("Error syncing Clerk user to database:", error);
+    console.error("Error syncing Clerk user to database:", {
+      userId,
+      error: error.message,
+      stack: error.stack,
+    });
     throw error;
   }
 }
@@ -122,7 +177,8 @@ export async function setupAuth(app: Express) {
     // After Clerk verifies auth, we sync user to our DB
     if (req.auth?.userId) {
       try {
-        await syncClerkUserToDatabase(req.auth.userId);
+        const sessionClaims = (req.auth as any)?.sessionClaims;
+        await syncClerkUserToDatabase(req.auth.userId, sessionClaims);
       } catch (error: any) {
         console.error("Error syncing Clerk user to database:", error);
         // If it's a deleted user error, block the request
