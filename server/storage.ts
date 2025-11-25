@@ -1,4 +1,4 @@
-DSAimport {
+import {
   users,
   pricingTiers,
   payments,
