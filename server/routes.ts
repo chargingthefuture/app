@@ -165,7 +165,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      let user = await storage.getUser(userId);
+      // Try to get user from database with specific error handling
+      let user: any;
+      try {
+        user = await storage.getUser(userId);
+      } catch (dbError: any) {
+        // Log detailed database error for production debugging
+        console.error("Database error fetching user:", {
+          userId,
+          error: dbError.message,
+          code: dbError.code,
+          errno: dbError.errno,
+          sqlState: dbError.sqlState,
+          stack: dbError.stack,
+          name: dbError.name,
+          // Include environment info for debugging
+          nodeEnv: process.env.NODE_ENV,
+          hasDatabaseUrl: !!process.env.DATABASE_URL,
+        });
+        
+        // If database query fails, try to sync from Clerk as fallback
+        // This handles cases where database is temporarily unavailable
+        console.log(`Database query failed for user ${userId}, attempting to sync from Clerk as fallback`);
+        try {
+          const sessionClaims = (req.auth as any)?.sessionClaims;
+          user = await syncClerkUserToDatabase(userId, sessionClaims);
+          // If sync succeeds, return the user
+          if (user) {
+            return res.json(user);
+          }
+        } catch (syncError: any) {
+          console.error("Both database and Clerk sync failed:", {
+            userId,
+            dbError: dbError.message,
+            syncError: syncError.message,
+          });
+          
+          // If sync fails (e.g., deleted user), return appropriate error
+          if (syncError.message?.includes("deleted")) {
+            return res.status(403).json({ 
+              message: syncError.message || "This account has been deleted. Please contact support if you believe this is an error." 
+            });
+          }
+          
+          // If both database and Clerk fail, return a more specific error
+          // Check if it's a connection/timeout error
+          const isConnectionError = 
+            dbError.message?.includes("timeout") ||
+            dbError.message?.includes("ECONNREFUSED") ||
+            dbError.message?.includes("ENOTFOUND") ||
+            dbError.code === "ETIMEDOUT" ||
+            dbError.code === "ECONNREFUSED";
+          
+          if (isConnectionError) {
+            console.error("Database connection error - returning 503 Service Unavailable");
+            return res.status(503).json({ 
+              message: "Database temporarily unavailable. Please try again in a moment.",
+              retryAfter: 5, // Suggest retry after 5 seconds
+            });
+          }
+          
+          // For other errors, return null to allow frontend to handle gracefully
+          // This prevents the app from completely breaking
+          return res.json(null);
+        }
+      }
       
       // If user doesn't exist in our database, try to sync from Clerk
       if (!user) {
@@ -211,11 +275,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json(user);
     } catch (error: any) {
-      console.error("Error fetching user:", {
+      // Catch any unexpected errors
+      console.error("Unexpected error fetching user:", {
         error: error.message,
         stack: error.stack,
         userId: req.auth?.userId,
         hasAuth: !!req.auth,
+        name: error.name,
+        code: error.code,
       });
       res.status(500).json({ 
         message: "Failed to fetch user",
