@@ -1,0 +1,189 @@
+#!/usr/bin/env node
+
+/**
+ * Master seed script for all mini-apps
+ * 
+ * This script runs all mini-app seed scripts in sequence.
+ * Each script seeds its respective mini-app's data including announcements.
+ * 
+ * Usage: tsx scripts/seedAllMiniApps.ts
+ */
+
+import { exec } from "child_process";
+import { promisify } from "util";
+
+const execAsync = promisify(exec);
+
+const seedScripts = [
+  {
+    name: "ChatGroups",
+    script: "seedChatGroups.ts",
+    description: "Chat Groups - Signal group listings",
+  },
+  {
+    name: "Directory",
+    script: "seedDirectory.ts",
+    description: "Directory - Skill-sharing profiles",
+  },
+  {
+    name: "LightHouse",
+    script: "seedLighthouse.ts",
+    description: "LightHouse - Housing for survivors",
+  },
+  {
+    name: "SocketRelay",
+    script: "seedSocketRelay.ts",
+    description: "SocketRelay - Request/fulfillment system",
+  },
+  {
+    name: "SupportMatch",
+    script: "seedSupportMatch.ts",
+    description: "SupportMatch - Accountability partnerships",
+  },
+  {
+    name: "TrustTransport",
+    script: "seedTrustTransport.ts",
+    description: "TrustTransport - Ride sharing",
+  },
+  {
+    name: "MechanicMatch",
+    script: "seedMechanicMatch.ts",
+    description: "MechanicMatch - Vehicle repair services",
+  },
+  {
+    name: "LostMail",
+    script: "seedLostMail.ts",
+    description: "LostMail - Mail incident reporting",
+  },
+  {
+    name: "Research",
+    script: "seedResearch.ts",
+    description: "Research - Q&A and knowledge sharing",
+  },
+  {
+    name: "GentlePulse",
+    script: "seedGentlePulse.ts",
+    description: "GentlePulse - Meditation library",
+  },
+];
+
+async function runSeedScript(scriptPath: string, name: string): Promise<void> {
+  console.log(`\n${"=".repeat(60)}`);
+  console.log(`🌱 Seeding ${name}...`);
+  console.log(`${"=".repeat(60)}\n`);
+
+  try {
+    const { stdout, stderr } = await execAsync(`tsx scripts/${scriptPath}`, {
+      cwd: process.cwd(),
+      maxBuffer: 10 * 1024 * 1024, // 10MB buffer
+    });
+
+    if (stdout) {
+      console.log(stdout);
+    }
+
+    if (stderr && !stderr.includes("already exists")) {
+      // Some scripts log "already exists" messages to stderr, which is fine
+      // Only show stderr if it's not just duplicate warnings
+      if (!stderr.match(/already exists|skipping/i)) {
+        console.error(`⚠️  Warnings for ${name}:`, stderr);
+      }
+    }
+
+    console.log(`✅ ${name} seeding completed successfully\n`);
+  } catch (error: any) {
+    // Check if it's a non-zero exit code (which is expected for some scripts)
+    if (error.code === 0 || error.stdout) {
+      // Script ran but may have exited with code 0 after process.exit(0)
+      if (error.stdout) {
+        console.log(error.stdout);
+      }
+      console.log(`✅ ${name} seeding completed\n`);
+    } else {
+      console.error(`❌ Error seeding ${name}:`, error.message);
+      if (error.stdout) {
+        console.error("Output:", error.stdout);
+      }
+      if (error.stderr) {
+        console.error("Errors:", error.stderr);
+      }
+      throw error;
+    }
+  }
+}
+
+async function seedAllMiniApps() {
+  console.log("\n" + "=".repeat(60));
+  console.log("🚀 Starting Master Seed Script for All Mini-Apps");
+  console.log("=".repeat(60));
+  console.log(`\nWill seed ${seedScripts.length} mini-apps:\n`);
+
+  seedScripts.forEach((script, index) => {
+    console.log(`  ${index + 1}. ${script.name} - ${script.description}`);
+  });
+
+  console.log("\n" + "=".repeat(60));
+  console.log("Starting seeding process...\n");
+
+  const startTime = Date.now();
+  const results: Array<{ name: string; success: boolean; error?: string }> = [];
+
+  for (const seedScript of seedScripts) {
+    try {
+      await runSeedScript(seedScript.script, seedScript.name);
+      results.push({ name: seedScript.name, success: true });
+    } catch (error: any) {
+      const errorMessage = error.message || String(error);
+      results.push({
+        name: seedScript.name,
+        success: false,
+        error: errorMessage,
+      });
+      console.error(`\n⚠️  Failed to seed ${seedScript.name}, continuing with next script...\n`);
+    }
+  }
+
+  const endTime = Date.now();
+  const duration = ((endTime - startTime) / 1000).toFixed(2);
+
+  // Print summary
+  console.log("\n" + "=".repeat(60));
+  console.log("📊 Seeding Summary");
+  console.log("=".repeat(60) + "\n");
+
+  const successful = results.filter((r) => r.success);
+  const failed = results.filter((r) => !r.success);
+
+  console.log(`✅ Successful: ${successful.length}/${seedScripts.length}`);
+  successful.forEach((result) => {
+    console.log(`   ✓ ${result.name}`);
+  });
+
+  if (failed.length > 0) {
+    console.log(`\n❌ Failed: ${failed.length}/${seedScripts.length}`);
+    failed.forEach((result) => {
+      console.log(`   ✗ ${result.name}`);
+      if (result.error) {
+        console.log(`     Error: ${result.error}`);
+      }
+    });
+  }
+
+  console.log(`\n⏱️  Total time: ${duration}s`);
+  console.log("\n" + "=".repeat(60));
+
+  if (failed.length > 0) {
+    console.log("\n⚠️  Some seed scripts failed. Check the errors above.");
+    process.exit(1);
+  } else {
+    console.log("\n🎉 All mini-apps seeded successfully!");
+    process.exit(0);
+  }
+}
+
+// Run the master seed script
+seedAllMiniApps().catch((error) => {
+  console.error("\n❌ Fatal error in master seed script:", error);
+  process.exit(1);
+});
+

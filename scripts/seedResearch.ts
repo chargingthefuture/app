@@ -205,32 +205,32 @@ async function seedResearch() {
     }
   }
 
-  // Create votes
+  // Create votes (value: 1 for upvote, -1 for downvote)
   const votesData: InsertResearchVote[] = [
     {
       researchItemId: createdItems[0].id,
       userId: userIds["researcher4@example.com"],
-      voteType: "upvote",
+      value: 1,
     },
     {
       researchItemId: createdItems[0].id,
       userId: userIds["researcher3@example.com"],
-      voteType: "upvote",
+      value: 1,
     },
     {
       answerId: createdAnswers[0].id,
       userId: userIds["researcher1@example.com"],
-      voteType: "upvote",
+      value: 1,
     },
     {
       answerId: createdAnswers[0].id,
       userId: userIds["researcher4@example.com"],
-      voteType: "upvote",
+      value: 1,
     },
     {
       answerId: createdAnswers[1].id,
       userId: userIds["researcher1@example.com"],
-      voteType: "upvote",
+      value: 1,
     },
   ];
 
