@@ -20,6 +20,9 @@ interface WeeklyPerformanceData {
     dailyActiveUsers: Array<{ date: string; count: number }>;
     revenue: number;
     dailyRevenue: Array<{ date: string; amount: number }>;
+    totalUsers: number;
+    verifiedUsers: number;
+    approvedUsers: number;
   };
   previousWeek: {
     startDate: string;
@@ -28,10 +31,16 @@ interface WeeklyPerformanceData {
     dailyActiveUsers: Array<{ date: string; count: number }>;
     revenue: number;
     dailyRevenue: Array<{ date: string; amount: number }>;
+    totalUsers: number;
+    verifiedUsers: number;
+    approvedUsers: number;
   };
   comparison: {
     newUsersChange: number;
     revenueChange: number;
+    totalUsersChange: number;
+    verifiedUsersChange: number;
+    approvedUsersChange: number;
   };
   metrics: {
     weeklyGrowthRate: number;
@@ -666,6 +675,81 @@ export default function WeeklyPerformanceReview() {
               </CardContent>
             </Card>
 
+            {/* User Statistics */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="w-5 h-5" />
+                  User Statistics
+                </CardTitle>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Total platform users and their verification/approval status
+                </p>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div>
+                    <div className="text-sm font-medium text-muted-foreground mb-1">Total Users</div>
+                    <div className="text-3xl font-bold tabular-nums">
+                      {data.currentWeek.totalUsers ?? 0}
+                    </div>
+                    <div className="flex items-center gap-2 mt-2">
+                      <Badge
+                        variant={(data.comparison.totalUsersChange ?? 0) >= 0 ? "default" : "destructive"}
+                        className="text-xs"
+                      >
+                        {formatPercentage(data.comparison.totalUsersChange ?? 0)}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">vs last week</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Previous week: {data.previousWeek.totalUsers ?? 0} users
+                    </p>
+                  </div>
+                  <div>
+                    <div className="text-sm font-medium text-muted-foreground mb-1">Verified Users</div>
+                    <div className="text-3xl font-bold tabular-nums">
+                      {data.currentWeek.verifiedUsers ?? 0}
+                    </div>
+                    <div className="flex items-center gap-2 mt-2">
+                      <Badge
+                        variant={(data.comparison.verifiedUsersChange ?? 0) >= 0 ? "default" : "destructive"}
+                        className="text-xs"
+                      >
+                        {formatPercentage(data.comparison.verifiedUsersChange ?? 0)}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">vs last week</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      {data.currentWeek.totalUsers > 0 
+                        ? `${Math.round((data.currentWeek.verifiedUsers / data.currentWeek.totalUsers) * 100)}% verified`
+                        : "0% verified"} • Previous: {data.previousWeek.verifiedUsers ?? 0}
+                    </p>
+                  </div>
+                  <div>
+                    <div className="text-sm font-medium text-muted-foreground mb-1">Approved Users</div>
+                    <div className="text-3xl font-bold tabular-nums">
+                      {data.currentWeek.approvedUsers ?? 0}
+                    </div>
+                    <div className="flex items-center gap-2 mt-2">
+                      <Badge
+                        variant={(data.comparison.approvedUsersChange ?? 0) >= 0 ? "default" : "destructive"}
+                        className="text-xs"
+                      >
+                        {formatPercentage(data.comparison.approvedUsersChange ?? 0)}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">vs last week</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      {data.currentWeek.totalUsers > 0 
+                        ? `${Math.round((data.currentWeek.approvedUsers / data.currentWeek.totalUsers) * 100)}% approved`
+                        : "0% approved"} • Previous: {data.previousWeek.approvedUsers ?? 0}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Engagement and Retention */}
             <Card>
               <CardHeader>
@@ -960,6 +1044,66 @@ export default function WeeklyPerformanceReview() {
                           }
                         >
                           {formatPercentage(data?.comparison.revenueChange ?? 0)}
+                        </Badge>
+                      </td>
+                    </tr>
+                    <tr className="border-b">
+                      <td className="py-2 px-4 font-medium">Total Users</td>
+                      <td className="text-right py-2 px-4" data-testid="table-total-users-current">
+                        {data?.currentWeek.totalUsers ?? 0}
+                      </td>
+                      <td className="text-right py-2 px-4" data-testid="table-total-users-previous">
+                        {data?.previousWeek.totalUsers ?? 0}
+                      </td>
+                      <td className="text-right py-2 px-4">
+                        <Badge
+                          variant={
+                            (data?.comparison.totalUsersChange ?? 0) >= 0
+                              ? "default"
+                              : "destructive"
+                          }
+                        >
+                          {formatPercentage(data?.comparison.totalUsersChange ?? 0)}
+                        </Badge>
+                      </td>
+                    </tr>
+                    <tr className="border-b">
+                      <td className="py-2 px-4 font-medium">Verified Users</td>
+                      <td className="text-right py-2 px-4" data-testid="table-verified-users-current">
+                        {data?.currentWeek.verifiedUsers ?? 0}
+                      </td>
+                      <td className="text-right py-2 px-4" data-testid="table-verified-users-previous">
+                        {data?.previousWeek.verifiedUsers ?? 0}
+                      </td>
+                      <td className="text-right py-2 px-4">
+                        <Badge
+                          variant={
+                            (data?.comparison.verifiedUsersChange ?? 0) >= 0
+                              ? "default"
+                              : "destructive"
+                          }
+                        >
+                          {formatPercentage(data?.comparison.verifiedUsersChange ?? 0)}
+                        </Badge>
+                      </td>
+                    </tr>
+                    <tr className="border-b">
+                      <td className="py-2 px-4 font-medium">Approved Users</td>
+                      <td className="text-right py-2 px-4" data-testid="table-approved-users-current">
+                        {data?.currentWeek.approvedUsers ?? 0}
+                      </td>
+                      <td className="text-right py-2 px-4" data-testid="table-approved-users-previous">
+                        {data?.previousWeek.approvedUsers ?? 0}
+                      </td>
+                      <td className="text-right py-2 px-4">
+                        <Badge
+                          variant={
+                            (data?.comparison.approvedUsersChange ?? 0) >= 0
+                              ? "default"
+                              : "destructive"
+                          }
+                        >
+                          {formatPercentage(data?.comparison.approvedUsersChange ?? 0)}
                         </Badge>
                       </td>
                     </tr>

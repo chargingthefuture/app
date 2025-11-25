@@ -978,6 +978,9 @@ export class DatabaseStorage implements IStorage {
       dailyActiveUsers: Array<{ date: string; count: number }>;
       revenue: number;
       dailyRevenue: Array<{ date: string; amount: number }>;
+      totalUsers: number;
+      verifiedUsers: number;
+      approvedUsers: number;
     };
     previousWeek: {
       startDate: string;
@@ -986,10 +989,16 @@ export class DatabaseStorage implements IStorage {
       dailyActiveUsers: Array<{ date: string; count: number }>;
       revenue: number;
       dailyRevenue: Array<{ date: string; amount: number }>;
+      totalUsers: number;
+      verifiedUsers: number;
+      approvedUsers: number;
     };
     comparison: {
       newUsersChange: number;
       revenueChange: number;
+      totalUsersChange: number;
+      verifiedUsersChange: number;
+      approvedUsersChange: number;
     };
       metrics: {
         weeklyGrowthRate: number;
@@ -1206,6 +1215,19 @@ export class DatabaseStorage implements IStorage {
       ? (currentWeekRevenue > 0 ? 100 : 0)
       : ((currentWeekRevenue - previousWeekRevenue) / previousWeekRevenue) * 100;
 
+    // Calculate user stats changes
+    const totalUsersChange = totalUsersPreviousWeek === 0
+      ? (totalUsersCurrentWeek > 0 ? 100 : 0)
+      : ((totalUsersCurrentWeek - totalUsersPreviousWeek) / totalUsersPreviousWeek) * 100;
+
+    const verifiedUsersChange = verifiedUsersPreviousWeek === 0
+      ? (verifiedUsersCurrentWeek > 0 ? 100 : 0)
+      : ((verifiedUsersCurrentWeek - verifiedUsersPreviousWeek) / verifiedUsersPreviousWeek) * 100;
+
+    const approvedUsersChange = approvedUsersPreviousWeek === 0
+      ? (approvedUsersCurrentWeek > 0 ? 100 : 0)
+      : ((approvedUsersCurrentWeek - approvedUsersPreviousWeek) / approvedUsersPreviousWeek) * 100;
+
     // Growth Metrics
     // Calculate weekly growth rate (already calculated as newUsersChange, but expressed as percentage)
     const weeklyGrowthRate = parseFloat(newUsersChange.toFixed(2));
@@ -1361,9 +1383,15 @@ export class DatabaseStorage implements IStorage {
       console.error("Error calculating NPS:", error);
     }
 
-    // Calculate Verified Users Percentage
+    // Calculate User Statistics (Total, Verified, Approved)
     let verifiedUsersPercentage = 0;
     let verifiedUsersPercentageChange = 0;
+    let totalUsersCurrentWeek = 0;
+    let verifiedUsersCurrentWeek = 0;
+    let approvedUsersCurrentWeek = 0;
+    let totalUsersPreviousWeek = 0;
+    let verifiedUsersPreviousWeek = 0;
+    let approvedUsersPreviousWeek = 0;
     
     try {
       // Get all users created up to the end of current week (excluding deleted users)
@@ -1379,8 +1407,10 @@ export class DatabaseStorage implements IStorage {
         return !id.startsWith("deleted_user_");
       });
       
-      const verifiedUsersCurrentWeek = activeUsersCurrentWeek.filter(user => user.isVerified === true).length;
-      const totalUsersCurrentWeek = activeUsersCurrentWeek.length;
+      totalUsersCurrentWeek = activeUsersCurrentWeek.length;
+      verifiedUsersCurrentWeek = activeUsersCurrentWeek.filter(user => user.isVerified === true).length;
+      approvedUsersCurrentWeek = activeUsersCurrentWeek.filter(user => user.isApproved === true).length;
+      
       verifiedUsersPercentage = totalUsersCurrentWeek === 0 
         ? 0 
         : parseFloat(((verifiedUsersCurrentWeek / totalUsersCurrentWeek) * 100).toFixed(2));
@@ -1397,8 +1427,10 @@ export class DatabaseStorage implements IStorage {
         return !id.startsWith("deleted_user_");
       });
       
-      const verifiedUsersPreviousWeek = activeUsersPreviousWeek.filter(user => user.isVerified === true).length;
-      const totalUsersPreviousWeek = activeUsersPreviousWeek.length;
+      totalUsersPreviousWeek = activeUsersPreviousWeek.length;
+      verifiedUsersPreviousWeek = activeUsersPreviousWeek.filter(user => user.isVerified === true).length;
+      approvedUsersPreviousWeek = activeUsersPreviousWeek.filter(user => user.isApproved === true).length;
+      
       const verifiedUsersPercentagePreviousWeek = totalUsersPreviousWeek === 0 
         ? 0 
         : parseFloat(((verifiedUsersPreviousWeek / totalUsersPreviousWeek) * 100).toFixed(2));
@@ -1406,7 +1438,7 @@ export class DatabaseStorage implements IStorage {
       // Calculate week-over-week change
       verifiedUsersPercentageChange = verifiedUsersPercentage - verifiedUsersPercentagePreviousWeek;
     } catch (error) {
-      console.error("Error calculating verified users percentage:", error);
+      console.error("Error calculating user statistics:", error);
     }
 
     const result = {
@@ -1417,6 +1449,9 @@ export class DatabaseStorage implements IStorage {
         dailyActiveUsers: currentWeekDAU,
         revenue: parseFloat(currentWeekRevenue.toFixed(2)),
         dailyRevenue: currentWeekDailyRevenue,
+        totalUsers: totalUsersCurrentWeek,
+        verifiedUsers: verifiedUsersCurrentWeek,
+        approvedUsers: approvedUsersCurrentWeek,
       },
       previousWeek: {
         startDate: this.formatDate(previousWeekStart),
@@ -1425,10 +1460,16 @@ export class DatabaseStorage implements IStorage {
         dailyActiveUsers: previousWeekDAU,
         revenue: parseFloat(previousWeekRevenue.toFixed(2)),
         dailyRevenue: previousWeekDailyRevenue,
+        totalUsers: totalUsersPreviousWeek,
+        verifiedUsers: verifiedUsersPreviousWeek,
+        approvedUsers: approvedUsersPreviousWeek,
       },
       comparison: {
         newUsersChange: parseFloat(newUsersChange.toFixed(2)),
         revenueChange: parseFloat(revenueChange.toFixed(2)),
+        totalUsersChange: parseFloat(totalUsersChange.toFixed(2)),
+        verifiedUsersChange: parseFloat(verifiedUsersChange.toFixed(2)),
+        approvedUsersChange: parseFloat(approvedUsersChange.toFixed(2)),
       },
       metrics: {
         weeklyGrowthRate: weeklyGrowthRate,
