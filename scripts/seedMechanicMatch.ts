@@ -5,8 +5,6 @@ import {
   mechanicmatchVehicles,
   mechanicmatchServiceRequests,
   mechanicmatchJobs,
-  mechanicmatchAnnouncements,
-  type InsertMechanicmatchAnnouncement,
 } from "../shared/schema";
 import { eq, and } from "drizzle-orm";
 
@@ -164,47 +162,6 @@ async function seedMechanicMatch() {
       } catch (error: any) {
         console.error(`Error creating vehicle:`, error.message);
       }
-    }
-  }
-
-  // Seed MechanicMatch announcements
-  const announcementsData: InsertMechanicmatchAnnouncement[] = [
-    {
-      title: "Welcome to MechanicMatch",
-      content: "Connect with trusted mechanics for vehicle repair, remote diagnosis, or expert advice. Mechanics can build their profile and help car owners. Car owners can find reliable mechanics in their area.",
-      type: "info",
-      isActive: true,
-      expiresAt: null,
-    },
-    {
-      title: "For Mechanics",
-      content: "Create a detailed profile showcasing your experience, specialties, and certifications. Build your reputation through completed jobs and positive reviews from car owners.",
-      type: "info",
-      isActive: true,
-      expiresAt: null,
-    },
-    {
-      title: "For Car Owners",
-      content: "Browse mechanic profiles, read reviews, and request service. You can also add your vehicles to your profile for easier service requests.",
-      type: "info",
-      isActive: true,
-      expiresAt: null,
-    },
-    {
-      title: "Safety Reminder",
-      content: "Always meet in safe, public locations for vehicle inspections. Verify mechanic credentials and read reviews before committing to service. Report any safety concerns immediately.",
-      type: "warning",
-      isActive: true,
-      expiresAt: null,
-    },
-  ];
-
-  for (const announcementData of announcementsData) {
-    try {
-      await db.insert(mechanicmatchAnnouncements).values(announcementData);
-      console.log(`Created MechanicMatch announcement: ${announcementData.title}`);
-    } catch (error) {
-      console.log(`Error creating announcement "${announcementData.title}":`, error);
     }
   }
 

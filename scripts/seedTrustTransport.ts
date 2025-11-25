@@ -1,5 +1,5 @@
 import { db } from "../server/db";
-import { users, trusttransportProfiles, trusttransportRideRequests, trusttransportAnnouncements, type InsertTrusttransportAnnouncement } from "../shared/schema";
+import { users, trusttransportProfiles, trusttransportRideRequests } from "../shared/schema";
 import { eq } from "drizzle-orm";
 
 async function seedTrustTransport() {
@@ -187,47 +187,6 @@ async function seedTrustTransport() {
       console.log(`Created ride request from ${rideRequestData.pickupCity} to ${rideRequestData.dropoffCity}`);
     } catch (error: any) {
       console.error(`Error creating ride request:`, error.message);
-    }
-  }
-
-  // Seed TrustTransport announcements
-  const announcementsData: InsertTrusttransportAnnouncement[] = [
-    {
-      title: "Welcome to TrustTransport",
-      content: "TrustTransport connects riders with trusted drivers in the community. Request a ride or offer to drive. All drivers are verified members of our community.",
-      type: "info",
-      isActive: true,
-      expiresAt: null,
-    },
-    {
-      title: "Safety Guidelines",
-      content: "Always verify driver identity before getting in a vehicle. Share your trip details with a trusted contact. Meet in public locations. Trust your instincts and report any concerns.",
-      type: "warning",
-      isActive: true,
-      expiresAt: null,
-    },
-    {
-      title: "For Drivers",
-      content: "Complete your driver profile with vehicle information and bio. Respond to ride requests and help community members get where they need to go safely.",
-      type: "info",
-      isActive: true,
-      expiresAt: null,
-    },
-    {
-      title: "For Riders",
-      content: "Create ride requests with your pickup and dropoff locations, date, and time. Specify any special requirements (wheelchair access, child seat, etc.). Drivers will respond to your requests.",
-      type: "info",
-      isActive: true,
-      expiresAt: null,
-    },
-  ];
-
-  for (const announcementData of announcementsData) {
-    try {
-      await db.insert(trusttransportAnnouncements).values(announcementData);
-      console.log(`Created TrustTransport announcement: ${announcementData.title}`);
-    } catch (error) {
-      console.log(`Error creating announcement "${announcementData.title}":`, error);
     }
   }
 

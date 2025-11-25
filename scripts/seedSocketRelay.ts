@@ -1,5 +1,5 @@
 import { db } from "../server/db";
-import { users, socketrelayProfiles, socketrelayRequests, socketrelayFulfillments, socketrelayMessages, socketrelayAnnouncements, type InsertSocketrelayAnnouncement } from "../shared/schema";
+import { users, socketrelayProfiles, socketrelayRequests, socketrelayFulfillments, socketrelayMessages } from "../shared/schema";
 import { eq } from "drizzle-orm";
 
 async function seedSocketRelay() {
@@ -251,40 +251,6 @@ async function seedSocketRelay() {
   console.log(`  - ${fulfillmentsData.filter(f => f.status === 'completed_success').length} successful`);
   console.log(`  - ${fulfillmentsData.filter(f => f.status === 'completed_failure').length} failed`);
   console.log(`- ${fulfillmentsData.filter(f => f.hasMessages).length * 7} messages created`);
-
-  // Seed SocketRelay announcements
-  const announcementsData: InsertSocketrelayAnnouncement[] = [
-    {
-      title: "Welcome to SocketRelay",
-      content: "SocketRelay helps you find what you need or help others get the goods and services they request. Create a request to ask for help, or browse requests to see how you can help others.",
-      type: "info",
-      isActive: true,
-      expiresAt: null,
-    },
-    {
-      title: "Privacy Settings",
-      content: "You can choose to make your requests public or private. Public requests can be shared with others, while private requests are only visible to you and potential fulfillers.",
-      type: "info",
-      isActive: true,
-      expiresAt: null,
-    },
-    {
-      title: "Safety Guidelines",
-      content: "When meeting to exchange items, choose public, well-lit locations. Bring a friend if possible. Trust your instincts and report any concerns to our moderation team.",
-      type: "warning",
-      isActive: true,
-      expiresAt: null,
-    },
-  ];
-
-  for (const announcementData of announcementsData) {
-    try {
-      await db.insert(socketrelayAnnouncements).values(announcementData);
-      console.log(`Created SocketRelay announcement: ${announcementData.title}`);
-    } catch (error) {
-      console.log(`Error creating announcement "${announcementData.title}":`, error);
-    }
-  }
   
   process.exit(0);
 }
