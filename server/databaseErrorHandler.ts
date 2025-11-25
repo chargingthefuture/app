@@ -5,7 +5,7 @@
  * to user-friendly application errors.
  */
 
-import { DatabaseError, ValidationError, ConflictError, NotFoundError } from './errors';
+import { DatabaseError, ValidationError, ConflictError, NotFoundError, ExternalServiceError } from './errors';
 
 /**
  * PostgreSQL error interface
@@ -18,6 +18,63 @@ interface PostgresError {
   constraint?: string;
   column?: string;
   table?: string;
+  errno?: string | number;
+  name?: string;
+}
+
+/**
+ * Check if error is a connection/timeout error
+ * Handles both PostgreSQL errors and Neon serverless connection errors
+ */
+function isConnectionError(error: any): boolean {
+  // Check PostgreSQL error codes
+  if (error?.code) {
+    const connectionCodes = [
+      '08006', // CONNECTION_FAILURE
+      '08003', // CONNECTION_DOES_NOT_EXIST
+      '08001', // CONNECTION_REFUSED
+      '57014', // TIMEOUT
+    ];
+    if (connectionCodes.includes(error.code)) {
+      return true;
+    }
+  }
+  
+  // Check error message for connection-related keywords
+  const errorMessage = (error?.message || '').toLowerCase();
+  const connectionKeywords = [
+    'timeout',
+    'econnrefused',
+    'enotfound',
+    'connection',
+    'connect',
+    'network',
+    'socket',
+    'closed',
+    'refused',
+    'unreachable',
+  ];
+  
+  if (connectionKeywords.some(keyword => errorMessage.includes(keyword))) {
+    return true;
+  }
+  
+  // Check error name/code for Node.js network errors
+  const errorName = (error?.name || '').toLowerCase();
+  const errorCode = (error?.code || '').toLowerCase();
+  const networkErrorCodes = [
+    'etimedout',
+    'econnrefused',
+    'enotfound',
+    'econnreset',
+    'ehostunreach',
+  ];
+  
+  if (networkErrorCodes.includes(errorCode) || networkErrorCodes.some(code => errorName.includes(code))) {
+    return true;
+  }
+  
+  return false;
 }
 
 /**
@@ -57,9 +114,34 @@ export function isPostgresError(error: any): error is PostgresError {
 /**
  * Convert database error to application error
  */
-export function handleDatabaseError(error: any, context?: string): DatabaseError | ValidationError | ConflictError | NotFoundError {
+export function handleDatabaseError(error: any, context?: string): DatabaseError | ValidationError | ConflictError | NotFoundError | ExternalServiceError {
+  // Log detailed error information for production debugging
+  console.error("Database error occurred:", {
+    context,
+    error: error?.message,
+    code: error?.code,
+    errno: error?.errno,
+    name: error?.name,
+    stack: error?.stack,
+    // Include environment info
+    nodeEnv: process.env.NODE_ENV,
+    hasDatabaseUrl: !!process.env.DATABASE_URL,
+  });
+  
+  // Check if it's a connection/timeout error first (before checking if it's a PostgreSQL error)
+  // This handles Neon serverless connection errors that might not have PostgreSQL error codes
+  if (isConnectionError(error)) {
+    console.error("Database connection error detected - returning 503 Service Unavailable");
+    return new ExternalServiceError(
+      'Database',
+      'Database temporarily unavailable. Please try again in a moment.',
+      503
+    );
+  }
+  
   if (!isPostgresError(error)) {
     // Not a PostgreSQL error, return generic database error
+    // (Connection errors are already handled above)
     return new DatabaseError(
       context ? `Database error in ${context}` : 'Database operation failed',
       error
@@ -134,15 +216,19 @@ export function handleDatabaseError(error: any, context?: string): DatabaseError
     case PG_ERROR_CODES.CONNECTION_FAILURE:
     case PG_ERROR_CODES.CONNECTION_DOES_NOT_EXIST:
     case PG_ERROR_CODES.CONNECTION_REFUSED:
-      return new DatabaseError(
-        'Database connection failed. Please try again later.',
-        error
+      // Return 503 Service Unavailable for connection errors
+      return new ExternalServiceError(
+        'Database',
+        'Database connection failed. Please try again in a moment.',
+        503
       );
 
     case PG_ERROR_CODES.TIMEOUT:
-      return new DatabaseError(
-        'Database operation timed out. Please try again.',
-        error
+      // Return 503 Service Unavailable for timeout errors
+      return new ExternalServiceError(
+        'Database',
+        'Database operation timed out. Please try again in a moment.',
+        503
       );
 
     case PG_ERROR_CODES.INSUFFICIENT_PRIVILEGE:
@@ -170,6 +256,16 @@ export async function withDatabaseErrorHandling<T>(
   try {
     return await operation();
   } catch (error) {
+    // Log the raw error before converting it
+    const rawError = error as any;
+    console.error(`Database operation failed in ${context || 'unknown context'}:`, {
+      message: rawError?.message,
+      code: rawError?.code,
+      errno: rawError?.errno,
+      name: rawError?.name,
+      stack: rawError?.stack,
+    });
+    
     throw handleDatabaseError(error, context);
   }
 }

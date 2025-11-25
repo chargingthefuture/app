@@ -318,16 +318,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }));
 
   // User routes
-  app.get('/api/payments', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const payments = await storage.getPaymentsByUser(userId);
-      res.json(payments);
-    } catch (error) {
-      console.error("Error fetching payments:", error);
-      res.status(500).json({ message: "Failed to fetch payments" });
-    }
-  });
+  app.get('/api/payments', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const payments = await withDatabaseErrorHandling(
+      () => storage.getPaymentsByUser(userId),
+      'getPaymentsByUser'
+    );
+    res.json(payments);
+  }));
 
   // Weekly Performance Review
   app.get('/api/admin/weekly-performance', isAuthenticated, isAdmin, async (req: any, res) => {
