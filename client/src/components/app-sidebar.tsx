@@ -40,7 +40,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { useExternalLink } from "@/hooks/useExternalLink";
 import { ExternalLink } from "lucide-react";
 
-const adminMenuItems = [
+const baseAdminMenuItems = [
   {
     title: "User Management",
     url: "/admin/users",
@@ -138,6 +138,18 @@ const adminMenuItems = [
     testId: "link-video-to-gif",
   },
 ];
+
+const pinnedAdminTitles = ["User Management", "Pricing", "Video to GIF"];
+
+const pinnedAdminMenuItems = pinnedAdminTitles
+  .map((title) => baseAdminMenuItems.find((item) => item.title === title))
+  .filter((item): item is (typeof baseAdminMenuItems)[number] => Boolean(item));
+
+const otherAdminMenuItems = baseAdminMenuItems
+  .filter((item) => !pinnedAdminTitles.includes(item.title))
+  .sort((a, b) => a.title.localeCompare(b.title));
+
+const adminMenuItems = [...pinnedAdminMenuItems, ...otherAdminMenuItems];
 
 // Pinned items that always appear at the top
 const pinnedUserMenuItems = [
