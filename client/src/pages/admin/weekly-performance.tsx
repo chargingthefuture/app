@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import html2canvas from "html2canvas";
 import { Camera, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { Users, DollarSign, TrendingUp, TrendingDown, Calendar, Target, Activity, Zap, Brain } from "lucide-react";
+import { Users, DollarSign, TrendingUp, TrendingDown, Calendar, Target, Activity, Zap } from "lucide-react";
 import { format, startOfWeek, addDays, parseISO } from "date-fns";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -23,11 +23,6 @@ interface WeeklyPerformanceData {
     totalUsers: number;
     verifiedUsers: number;
     approvedUsers: number;
-    moodChecks: {
-      averageMood: number;
-      totalChecks: number;
-      dailyMood: Array<{ date: string; averageMood: number; count: number }>;
-    };
   };
   previousWeek: {
     startDate: string;
@@ -39,11 +34,6 @@ interface WeeklyPerformanceData {
     totalUsers: number;
     verifiedUsers: number;
     approvedUsers: number;
-    moodChecks: {
-      averageMood: number;
-      totalChecks: number;
-      dailyMood: Array<{ date: string; averageMood: number; count: number }>;
-    };
   };
   comparison: {
     newUsersChange: number;
@@ -51,7 +41,6 @@ interface WeeklyPerformanceData {
     totalUsersChange: number;
     verifiedUsersChange: number;
     approvedUsersChange: number;
-    moodChange: number;
   };
   metrics: {
     weeklyGrowthRate: number;
@@ -879,121 +868,6 @@ export default function WeeklyPerformanceReview() {
                     minus percentage of Detractors (inverted scores 0-6). Scores of 7-8 are considered Passive and don&apos;t affect the calculation.
                   </p>
                 </div>
-              </CardContent>
-            </Card>
-
-            {/* GentlePulse Mood Ratings */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Brain className="w-5 h-5" />
-                  GentlePulse Mood Ratings
-                </CardTitle>
-                <p className="text-sm text-muted-foreground mt-2">
-                  Average mood ratings from GentlePulse users (1-5 scale, where 1 = very sad, 5 = very happy)
-                </p>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                  <div>
-                    <div className="text-sm font-medium text-muted-foreground mb-1">Current Week Average</div>
-                    <div className="text-3xl font-bold tabular-nums">
-                      {data.currentWeek.moodChecks?.averageMood > 0 
-                        ? data.currentWeek.moodChecks.averageMood.toFixed(2)
-                        : "N/A"}
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-2">
-                      {data.currentWeek.moodChecks?.totalChecks > 0 
-                        ? `${data.currentWeek.moodChecks.totalChecks} mood check${data.currentWeek.moodChecks.totalChecks !== 1 ? 's' : ''}`
-                        : "No mood checks this week"}
-                    </p>
-                  </div>
-                  <div>
-                    <div className="text-sm font-medium text-muted-foreground mb-1">Previous Week Average</div>
-                    <div className="text-2xl font-bold tabular-nums text-muted-foreground">
-                      {data.previousWeek.moodChecks?.averageMood > 0 
-                        ? data.previousWeek.moodChecks.averageMood.toFixed(2)
-                        : "N/A"}
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-2">
-                      {data.previousWeek.moodChecks?.totalChecks > 0 
-                        ? `${data.previousWeek.moodChecks.totalChecks} mood check${data.previousWeek.moodChecks.totalChecks !== 1 ? 's' : ''}`
-                        : "No mood checks last week"}
-                    </p>
-                  </div>
-                  <div>
-                    <div className="text-sm font-medium text-muted-foreground mb-1">Week-over-Week Change</div>
-                    <div className={`text-2xl font-bold tabular-nums ${
-                      (data.comparison.moodChange ?? 0) > 0
-                        ? "text-green-600"
-                        : (data.comparison.moodChange ?? 0) < 0
-                        ? "text-red-600"
-                        : ""
-                    }`}>
-                      {(data.comparison.moodChange ?? 0) > 0 ? "+" : ""}
-                      {data.comparison.moodChange !== undefined && data.comparison.moodChange !== null
-                        ? data.comparison.moodChange.toFixed(2)
-                        : "N/A"}
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-2">
-                      Change in average mood rating
-                    </p>
-                  </div>
-                </div>
-                
-                {/* Daily Mood Chart */}
-                {(data.currentWeek.moodChecks?.dailyMood && data.currentWeek.moodChecks.dailyMood.length > 0) && (
-                  <div className="mt-6 pt-6 border-t">
-                    <h3 className="text-lg font-semibold mb-4">Daily Mood Averages</h3>
-                    <div className="space-y-3">
-                      {data.currentWeek.moodChecks.dailyMood.map((day, index) => {
-                        const prevDay = data.previousWeek.moodChecks?.dailyMood?.[index];
-                        return (
-                          <div key={day.date} className="flex items-center gap-4">
-                            <div className="w-24 text-sm font-medium text-muted-foreground">
-                              {format(parseISO(day.date), "EEE, MMM d")}
-                            </div>
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2">
-                                <div className="text-sm font-semibold tabular-nums">
-                                  {day.averageMood > 0 ? day.averageMood.toFixed(2) : "N/A"}
-                                </div>
-                                {day.count > 0 && (
-                                  <span className="text-xs text-muted-foreground">
-                                    ({day.count} check{day.count !== 1 ? 's' : ''})
-                                  </span>
-                                )}
-                                {prevDay && prevDay.averageMood > 0 && day.averageMood > 0 && (
-                                  <Badge
-                                    variant={
-                                      day.averageMood > prevDay.averageMood
-                                        ? "default"
-                                        : day.averageMood < prevDay.averageMood
-                                        ? "destructive"
-                                        : "secondary"
-                                    }
-                                    className="text-xs"
-                                  >
-                                    {day.averageMood > prevDay.averageMood ? "↑" : day.averageMood < prevDay.averageMood ? "↓" : "="}
-                                    {Math.abs(day.averageMood - prevDay.averageMood).toFixed(2)}
-                                  </Badge>
-                                )}
-                              </div>
-                              {day.averageMood > 0 && (
-                                <div className="mt-1 h-2 bg-muted rounded-full overflow-hidden">
-                                  <div
-                                    className="h-full bg-primary transition-all"
-                                    style={{ width: `${(day.averageMood / 5) * 100}%` }}
-                                  />
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
               </CardContent>
             </Card>
 
