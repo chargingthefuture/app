@@ -61,7 +61,7 @@ export default function Home() {
 
       toast({
         title: "Payment not received",
-        description: `Payment not received for ${missingMonthText}. Update payment or get help.`,
+        description: `Payment not received for ${missingMonthText}. Make payment or get help.`,
         duration: 5000,
         action: (
           <Button 
@@ -70,7 +70,7 @@ export default function Home() {
             className="border-amber-300 text-amber-900"
             onClick={() => setLocation("/payments")}
           >
-            Update payment
+            Make payment
           </Button>
         ),
       });

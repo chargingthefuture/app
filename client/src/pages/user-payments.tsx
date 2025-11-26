@@ -209,7 +209,7 @@ export default function UserPayments() {
                         className="mt-2 border-amber-300 text-amber-900 hover:bg-amber-100"
                         data-testid="button-update-payment-inline"
                       >
-                        Update payment
+                        Make payment
                       </Button>
                     </Link>
                   </div>

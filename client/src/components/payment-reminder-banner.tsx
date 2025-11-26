@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Wallet, Clock, X, ChevronDown, ChevronUp, HelpCircle } from "lucide-react";
 import { Link } from "wouter";
 import { cn } from "@/lib/utils";
+import { useExternalLink } from "@/hooks/useExternalLink";
 
 interface PaymentStatus {
   isDelinquent: boolean;
@@ -21,6 +22,7 @@ interface PaymentReminderBannerProps {
 export function PaymentReminderBanner({ className }: PaymentReminderBannerProps) {
   const [isMinimized, setIsMinimized] = useState(false);
   const [isDismissed, setIsDismissed] = useState(false);
+  const { openExternal, ExternalLinkDialog } = useExternalLink();
 
   const { data: paymentStatus, isLoading } = useQuery<PaymentStatus>({
     queryKey: ["/api/payments/status"],
@@ -43,9 +45,9 @@ export function PaymentReminderBanner({ className }: PaymentReminderBannerProps)
 
   if (isMinimized) {
     return (
-      <Card className={cn("border-amber-200 bg-amber-50/50", className)}>
+      <Card className={cn("border-amber-200 bg-amber-50/50 dark:border-amber-800 dark:bg-amber-900/30", className)}>
         <div className="flex items-center justify-between p-3">
-          <div className="flex items-center gap-2 text-sm text-amber-800">
+          <div className="flex items-center gap-2 text-sm text-amber-800 dark:text-amber-200">
             <Clock className="w-4 h-4" />
             <span>Payment not received for {missingMonthText}</span>
           </div>
@@ -54,7 +56,7 @@ export function PaymentReminderBanner({ className }: PaymentReminderBannerProps)
               variant="ghost"
               size="sm"
               onClick={() => setIsMinimized(false)}
-              className="h-7 text-amber-800 hover:text-amber-900"
+              className="h-7 text-amber-800 hover:text-amber-900 dark:text-amber-200 dark:hover:text-amber-100"
               data-testid="button-expand-payment-banner"
             >
               <ChevronUp className="w-4 h-4" />
@@ -63,7 +65,7 @@ export function PaymentReminderBanner({ className }: PaymentReminderBannerProps)
               variant="ghost"
               size="sm"
               onClick={() => setIsDismissed(true)}
-              className="h-7 text-amber-800 hover:text-amber-900"
+              className="h-7 text-amber-800 hover:text-amber-900 dark:text-amber-200 dark:hover:text-amber-100"
               data-testid="button-dismiss-payment-banner"
             >
               <X className="w-4 h-4" />
@@ -135,22 +137,22 @@ export function PaymentReminderBanner({ className }: PaymentReminderBannerProps)
               className="border-amber-300 text-amber-900 hover:bg-amber-100"
               data-testid="button-update-payment"
             >
-              Update payment
+              Make payment
             </Button>
           </Link>
-          <Link href="/payments">
-            <Button
-              variant="outline"
-              size="sm"
-              className="border-amber-300 text-amber-900 hover:bg-amber-100"
-              data-testid="button-get-help"
-            >
-              <HelpCircle className="w-4 h-4 mr-1" />
-              Get help
-            </Button>
-          </Link>
+          <Button
+            variant="outline"
+            size="sm"
+            className="border-amber-300 text-amber-900 hover:bg-amber-100"
+            onClick={() => openExternal("https://signal.group/#CjQKILHj7074l2Kl-oYy0qGSFdydXbtu0Pf66Z_88K9IlSCtEhDDdqV_BFAW2qm2EiTGEaNs")}
+            data-testid="button-get-help"
+          >
+            <HelpCircle className="w-4 h-4 mr-1" />
+            Get help
+          </Button>
         </div>
       </div>
+      <ExternalLinkDialog />
     </Card>
   );
 }
