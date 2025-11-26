@@ -1,14 +1,86 @@
+import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { DollarSign, Package, Calendar } from "lucide-react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { PrivacyField } from "@/components/ui/privacy-field";
+import { PaymentReminderBanner } from "@/components/payment-reminder-banner";
+import { useToast } from "@/hooks/use-toast";
+
+const PAYMENT_TOAST_KEY = "payment-toast-shown";
 
 export default function Home() {
   const { user, isLoading, _clerk, _dbError } = useAuth();
+  const { toast } = useToast();
+  const [, setLocation] = useLocation();
+  const [toastShown, setToastShown] = useState(false);
+
+  const { data: paymentStatus } = useQuery<{
+    isDelinquent: boolean;
+    missingMonths: string[];
+    nextBillingDate: string | null;
+    amountOwed: string;
+    gracePeriodEnds?: string;
+  }>({
+    queryKey: ["/api/payments/status"],
+    enabled: !!user,
+  });
+
+  // Show toast once when user first becomes delinquent
+  useEffect(() => {
+    if (!user || !paymentStatus || toastShown) return;
+
+    const hasShownToast = localStorage.getItem(PAYMENT_TOAST_KEY);
+    const missingMonthsKey = paymentStatus.missingMonths.join(",");
+    const storedKey = localStorage.getItem(`${PAYMENT_TOAST_KEY}-months`);
+
+    // Show toast if:
+    // 1. User is delinquent
+    // 2. Toast hasn't been shown for this set of missing months
+    // 3. Grace period has ended (if it existed) or no grace period
+    const gracePeriodEnded = paymentStatus.gracePeriodEnds
+      ? new Date(paymentStatus.gracePeriodEnds) < new Date()
+      : true;
+
+    if (
+      paymentStatus.isDelinquent &&
+      gracePeriodEnded &&
+      missingMonthsKey !== storedKey
+    ) {
+      const missingMonthText = paymentStatus.missingMonths.length === 1
+        ? (() => {
+            const [year, month] = paymentStatus.missingMonths[0].split("-");
+            const date = new Date(parseInt(year), parseInt(month) - 1);
+            return date.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+          })()
+        : `${paymentStatus.missingMonths.length} months`;
+
+      toast({
+        title: "Payment not received",
+        description: `Payment not received for ${missingMonthText}. Update payment or get help.`,
+        duration: 5000,
+        action: (
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="border-amber-300 text-amber-900"
+            onClick={() => setLocation("/payments")}
+          >
+            Update payment
+          </Button>
+        ),
+      });
+
+      // Mark toast as shown for this set of missing months
+      localStorage.setItem(PAYMENT_TOAST_KEY, "true");
+      localStorage.setItem(`${PAYMENT_TOAST_KEY}-months`, missingMonthsKey);
+      setToastShown(true);
+    }
+  }, [user, paymentStatus, toast, toastShown]);
 
   // Debug logging
   if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
@@ -106,6 +178,9 @@ export default function Home() {
           Your psyop-free space for accessing essential support services
         </p>
       </div>
+
+      {/* Payment reminder banner */}
+      <PaymentReminderBanner />
 
       {/* Profile overview */}
       <Card>

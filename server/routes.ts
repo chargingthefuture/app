@@ -399,6 +399,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(payments);
   }));
 
+  app.get('/api/payments/status', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const status = await withDatabaseErrorHandling(
+      () => storage.getUserPaymentStatus(userId),
+      'getUserPaymentStatus'
+    );
+    res.json(status);
+  }));
+
   // Weekly Performance Review
   app.get('/api/admin/weekly-performance', isAuthenticated, isAdmin, async (req: any, res) => {
     try {
@@ -533,6 +542,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       'getAllPayments'
     );
     res.json(payments);
+  }));
+
+  app.get('/api/admin/payments/delinquent', isAuthenticated, isAdmin, asyncHandler(async (_req, res) => {
+    const delinquentUsers = await withDatabaseErrorHandling(
+      () => storage.getDelinquentUsers(),
+      'getDelinquentUsers'
+    );
+    res.json(delinquentUsers);
   }));
 
   app.post('/api/admin/payments', isAuthenticated, isAdmin, validateCsrfToken, asyncHandler(async (req: any, res) => {

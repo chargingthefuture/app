@@ -51,6 +51,16 @@ export default function UserPayments() {
     queryKey: ["/api/payments"],
   });
 
+  const { data: paymentStatus } = useQuery<{
+    isDelinquent: boolean;
+    missingMonths: string[];
+    nextBillingDate: string | null;
+    amountOwed: string;
+    gracePeriodEnds?: string;
+  }>({
+    queryKey: ["/api/payments/status"],
+  });
+
   // Check localStorage on mount - validate if acknowledgment is for current month
   useEffect(() => {
     const isValid = isAcknowledgmentValid();
@@ -169,6 +179,43 @@ export default function UserPayments() {
             <p className="text-xs text-muted-foreground mt-2">
               Subscription status
             </p>
+            {paymentStatus?.isDelinquent && (
+              <div className="mt-4 p-3 rounded-lg border border-amber-200 bg-amber-50/50 space-y-2">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 text-amber-700 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1 space-y-1">
+                    <p className="text-sm text-amber-900 font-medium">
+                      Payment not received for {paymentStatus.missingMonths.length === 1
+                        ? (() => {
+                            const [year, month] = paymentStatus.missingMonths[0].split("-");
+                            const date = new Date(parseInt(year), parseInt(month) - 1);
+                            return date.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+                          })()
+                        : `${paymentStatus.missingMonths.length} months`}
+                    </p>
+                    <div className="text-xs text-amber-700 space-y-1">
+                      <div>Amount owed: ${parseFloat(paymentStatus.amountOwed).toFixed(2)}</div>
+                      {paymentStatus.nextBillingDate && (
+                        <div>Next billing: {new Date(paymentStatus.nextBillingDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</div>
+                      )}
+                      {paymentStatus.gracePeriodEnds && (
+                        <div>Grace period ends: {new Date(paymentStatus.gracePeriodEnds).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</div>
+                      )}
+                    </div>
+                    <Link href="/payments">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="mt-2 border-amber-300 text-amber-900 hover:bg-amber-100"
+                        data-testid="button-update-payment-inline"
+                      >
+                        Update payment
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 

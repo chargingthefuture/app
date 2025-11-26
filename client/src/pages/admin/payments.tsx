@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -45,7 +46,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { PrivacyField } from "@/components/ui/privacy-field";
 import type { User, Payment } from "@shared/schema";
-import { DollarSign, Check, ChevronsUpDown } from "lucide-react";
+import { DollarSign, Check, ChevronsUpDown, AlertCircle, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function AdminPayments() {
@@ -85,6 +86,18 @@ export default function AdminPayments() {
 
   const { data: payments, isLoading } = useQuery<Payment[]>({
     queryKey: ["/api/admin/payments"],
+  });
+
+  const { data: delinquentUsers, isLoading: isLoadingDelinquent } = useQuery<Array<{
+    userId: string;
+    email: string | null;
+    firstName: string | null;
+    lastName: string | null;
+    missingMonths: string[];
+    amountOwed: string;
+    lastPaymentDate: Date | null;
+  }>>({
+    queryKey: ["/api/admin/payments/delinquent"],
   });
 
   const recordPaymentMutation = useMutation({
@@ -237,6 +250,139 @@ export default function AdminPayments() {
           Record Payment
         </Button>
       </div>
+
+      {/* Delinquent Users Section */}
+      <Card className="border-amber-200 bg-amber-50/50">
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-5 h-5 text-amber-600" />
+            <CardTitle className="text-lg sm:text-xl">Delinquent Users</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {isLoadingDelinquent ? (
+            <div className="text-center py-8 text-muted-foreground">
+              Loading delinquent users...
+            </div>
+          ) : !delinquentUsers || delinquentUsers.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <Check className="w-8 h-8 mx-auto mb-2 text-green-600" />
+              <p>All users are up to date with payments</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="text-sm text-muted-foreground mb-4">
+                {delinquentUsers.length} user{delinquentUsers.length !== 1 ? 's' : ''} with missed payments
+              </div>
+              <div className="hidden md:block rounded-lg border bg-background">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>User</TableHead>
+                      <TableHead>Missing Months</TableHead>
+                      <TableHead>Amount Owed</TableHead>
+                      <TableHead>Last Payment</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {delinquentUsers.map((user) => (
+                      <TableRow key={user.userId} data-testid={`row-delinquent-${user.userId}`}>
+                        <TableCell className="font-medium">
+                          <div className="space-y-1">
+                            <div>
+                              {user.firstName && user.lastName
+                                ? `${user.firstName} ${user.lastName}`
+                                : "User"}
+                            </div>
+                            <PrivacyField 
+                              value={user.email || ""} 
+                              type="email"
+                              testId={`delinquent-email-${user.userId}`}
+                              className="text-xs"
+                            />
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1">
+                            {user.missingMonths.map((month) => {
+                              const [year, monthNum] = month.split("-");
+                              const date = new Date(parseInt(year), parseInt(monthNum) - 1);
+                              return (
+                                <Badge key={month} variant="outline" className="text-xs">
+                                  {date.toLocaleDateString("en-US", { month: "short", year: "numeric" })}
+                                </Badge>
+                              );
+                            })}
+                          </div>
+                        </TableCell>
+                        <TableCell className="font-mono font-semibold text-amber-700">
+                          ${parseFloat(user.amountOwed).toFixed(2)}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {user.lastPaymentDate
+                            ? new Date(user.lastPaymentDate).toLocaleDateString()
+                            : "Never"}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              <div className="md:hidden space-y-3">
+                {delinquentUsers.map((user) => (
+                  <Card key={user.userId} data-testid={`row-delinquent-${user.userId}`}>
+                    <CardContent className="p-4 space-y-2">
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium">
+                            {user.firstName && user.lastName
+                              ? `${user.firstName} ${user.lastName}`
+                              : "User"}
+                          </span>
+                          <span className="font-mono font-semibold text-amber-700">
+                            ${parseFloat(user.amountOwed).toFixed(2)}
+                          </span>
+                        </div>
+                        <PrivacyField 
+                          value={user.email || ""} 
+                          type="email"
+                          testId={`delinquent-email-mobile-${user.userId}`}
+                          className="text-xs"
+                        />
+                      </div>
+                      
+                      <div className="text-sm">
+                        <span className="text-muted-foreground">Missing Months: </span>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {user.missingMonths.map((month) => {
+                            const [year, monthNum] = month.split("-");
+                            const date = new Date(parseInt(year), parseInt(monthNum) - 1);
+                            return (
+                              <Badge key={month} variant="outline" className="text-xs">
+                                {date.toLocaleDateString("en-US", { month: "short", year: "numeric" })}
+                              </Badge>
+                            );
+                          })}
+                        </div>
+                      </div>
+                      
+                      <div className="text-sm">
+                        <span className="text-muted-foreground">Last Payment: </span>
+                        <span>
+                          {user.lastPaymentDate
+                            ? new Date(user.lastPaymentDate).toLocaleDateString()
+                            : "Never"}
+                        </span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

@@ -195,6 +195,22 @@ export interface IStorage {
   createPayment(payment: InsertPayment): Promise<Payment>;
   getPaymentsByUser(userId: string): Promise<Payment[]>;
   getAllPayments(): Promise<Payment[]>;
+  getUserPaymentStatus(userId: string): Promise<{
+    isDelinquent: boolean;
+    missingMonths: string[]; // Array of YYYY-MM format months
+    nextBillingDate: string | null; // YYYY-MM-DD format
+    amountOwed: string; // Decimal as string
+    gracePeriodEnds?: string; // YYYY-MM-DD format if grace period applies
+  }>;
+  getDelinquentUsers(): Promise<Array<{
+    userId: string;
+    email: string | null;
+    firstName: string | null;
+    lastName: string | null;
+    missingMonths: string[];
+    amountOwed: string;
+    lastPaymentDate: Date | null;
+  }>>;
   
   // Admin action log operations
   createAdminActionLog(log: InsertAdminActionLog): Promise<AdminActionLog>;
@@ -872,6 +888,148 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(payments)
       .orderBy(desc(payments.paymentDate));
+  }
+
+  async getUserPaymentStatus(userId: string): Promise<{
+    isDelinquent: boolean;
+    missingMonths: string[];
+    nextBillingDate: string | null;
+    amountOwed: string;
+    gracePeriodEnds?: string;
+  }> {
+    const user = await this.getUser(userId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    const userPayments = await this.getPaymentsByUser(userId);
+    const now = new Date();
+    const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const lastMonthStr = `${lastMonth.getFullYear()}-${String(lastMonth.getMonth() + 1).padStart(2, '0')}`;
+
+    // Check for yearly subscription coverage
+    const activeYearlyPayment = userPayments.find(p => {
+      if (p.billingPeriod !== 'yearly' || !p.yearlyStartMonth || !p.yearlyEndMonth) {
+        return false;
+      }
+      const start = new Date(p.yearlyStartMonth + '-01');
+      const end = new Date(p.yearlyEndMonth + '-01');
+      // Set end to last day of the month
+      end.setMonth(end.getMonth() + 1);
+      end.setDate(0);
+      return now >= start && now <= end;
+    });
+
+    // If user has active yearly subscription, they're not delinquent
+    if (activeYearlyPayment) {
+      const endDate = new Date(activeYearlyPayment.yearlyEndMonth + '-01');
+      endDate.setMonth(endDate.getMonth() + 1);
+      endDate.setDate(0);
+      const nextBilling = new Date(endDate);
+      nextBilling.setMonth(nextBilling.getMonth() + 1);
+      nextBilling.setDate(1);
+      
+      return {
+        isDelinquent: false,
+        missingMonths: [],
+        nextBillingDate: nextBilling.toISOString().split('T')[0],
+        amountOwed: '0.00',
+      };
+    }
+
+    // For monthly payments, check which months are missing
+    const paidMonths = new Set<string>();
+    userPayments.forEach(payment => {
+      if (payment.billingPeriod === 'monthly' && payment.billingMonth) {
+        paidMonths.add(payment.billingMonth);
+      }
+    });
+
+    // Calculate missing months (current month and last month if not paid)
+    const missingMonths: string[] = [];
+    const monthlyRate = parseFloat(user.pricingTier);
+    
+    // Check last month (users have grace period until current month ends)
+    if (!paidMonths.has(lastMonthStr)) {
+      missingMonths.push(lastMonthStr);
+    }
+    
+    // Check current month (not yet due, but track for admin view)
+    // Users are considered delinquent if last month is unpaid
+
+    // Grace period: 15 days into current month
+    const gracePeriodEnds = new Date(now.getFullYear(), now.getMonth(), 15);
+    const isInGracePeriod = now <= gracePeriodEnds;
+
+    const isDelinquent = missingMonths.length > 0 && !isInGracePeriod;
+    
+    // Calculate amount owed (only for actually missing months)
+    const amountOwed = (missingMonths.length * monthlyRate).toFixed(2);
+    
+    // Next billing date is first of next month
+    const nextBilling = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+
+    return {
+      isDelinquent,
+      missingMonths,
+      nextBillingDate: nextBilling.toISOString().split('T')[0],
+      amountOwed,
+      gracePeriodEnds: isInGracePeriod ? gracePeriodEnds.toISOString().split('T')[0] : undefined,
+    };
+  }
+
+  async getDelinquentUsers(): Promise<Array<{
+    userId: string;
+    email: string | null;
+    firstName: string | null;
+    lastName: string | null;
+    missingMonths: string[];
+    amountOwed: string;
+    lastPaymentDate: Date | null;
+  }>> {
+    const allUsers = await this.getAllUsers();
+    const delinquentUsers: Array<{
+      userId: string;
+      email: string | null;
+      firstName: string | null;
+      lastName: string | null;
+      missingMonths: string[];
+      amountOwed: string;
+      lastPaymentDate: Date | null;
+    }> = [];
+
+    for (const user of allUsers) {
+      const status = await this.getUserPaymentStatus(user.id);
+      if (status.isDelinquent) {
+        const userPayments = await this.getPaymentsByUser(user.id);
+        const lastPayment = userPayments.length > 0 
+          ? userPayments[0].paymentDate 
+          : null;
+
+        delinquentUsers.push({
+          userId: user.id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          missingMonths: status.missingMonths,
+          amountOwed: status.amountOwed,
+          lastPaymentDate: lastPayment,
+        });
+      }
+    }
+
+    return delinquentUsers.sort((a, b) => {
+      // Sort by number of missing months (most delinquent first)
+      if (b.missingMonths.length !== a.missingMonths.length) {
+        return b.missingMonths.length - a.missingMonths.length;
+      }
+      // Then by last payment date (oldest first)
+      if (!a.lastPaymentDate && !b.lastPaymentDate) return 0;
+      if (!a.lastPaymentDate) return -1;
+      if (!b.lastPaymentDate) return 1;
+      return a.lastPaymentDate.getTime() - b.lastPaymentDate.getTime();
+    });
   }
 
   // Admin action log operations
