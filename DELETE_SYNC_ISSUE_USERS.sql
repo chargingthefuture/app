@@ -6,7 +6,7 @@
 -- from the production database. No anonymization - complete deletion.
 --
 -- Users to delete:
--- 1. user_35zLCF4vxn3QHZPYZ1oJwuoxrTW (grit-squeeze-chute@duck.com)
+-- 1. user_35zLCF4vxn3QHZPYZ1oJwuoxrTW
 -- 2. user_35AzoSyWLvW8FL4LGgKvzfPv8F8
 --
 -- WARNING: This is a destructive operation. Run in a transaction first
