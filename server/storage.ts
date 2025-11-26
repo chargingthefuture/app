@@ -1139,6 +1139,11 @@ export class DatabaseStorage implements IStorage {
       totalUsers: number;
       verifiedUsers: number;
       approvedUsers: number;
+      moodChecks: {
+        averageMood: number;
+        totalChecks: number;
+        dailyMood: Array<{ date: string; averageMood: number; count: number }>;
+      };
     };
     previousWeek: {
       startDate: string;
@@ -1150,6 +1155,11 @@ export class DatabaseStorage implements IStorage {
       totalUsers: number;
       verifiedUsers: number;
       approvedUsers: number;
+      moodChecks: {
+        averageMood: number;
+        totalChecks: number;
+        dailyMood: Array<{ date: string; averageMood: number; count: number }>;
+      };
     };
     comparison: {
       newUsersChange: number;
@@ -1157,6 +1167,7 @@ export class DatabaseStorage implements IStorage {
       totalUsersChange: number;
       verifiedUsersChange: number;
       approvedUsersChange: number;
+      moodChange: number;
     };
       metrics: {
         weeklyGrowthRate: number;
@@ -1605,6 +1616,124 @@ export class DatabaseStorage implements IStorage {
       console.error("Error calculating user statistics:", error);
     }
 
+    // Calculate GentlePulse mood check statistics
+    let currentWeekMoodChecks = {
+      averageMood: 0,
+      totalChecks: 0,
+      dailyMood: [] as Array<{ date: string; averageMood: number; count: number }>,
+    };
+    let previousWeekMoodChecks = {
+      averageMood: 0,
+      totalChecks: 0,
+      dailyMood: [] as Array<{ date: string; averageMood: number; count: number }>,
+    };
+    let moodChange = 0;
+
+    try {
+      // Get mood checks for current week
+      const currentWeekMoodData = await this.getGentlepulseMoodChecksByDateRange(currentWeekStart, currentWeekEnd);
+      
+      if (currentWeekMoodData.length > 0) {
+        const totalMood = currentWeekMoodData.reduce((sum, check) => sum + check.moodValue, 0);
+        currentWeekMoodChecks.averageMood = parseFloat((totalMood / currentWeekMoodData.length).toFixed(2));
+        currentWeekMoodChecks.totalChecks = currentWeekMoodData.length;
+
+        // Calculate daily mood averages
+        const dailyMoodMap = new Map<string, { sum: number; count: number }>();
+        currentWeekMoodData.forEach(check => {
+          // Handle date as Date object or string
+          let dateStr: string;
+          if (check.date instanceof Date) {
+            dateStr = check.date.toISOString().split('T')[0];
+          } else if (typeof check.date === 'string') {
+            // If it's already a string, use it directly (format: YYYY-MM-DD)
+            dateStr = check.date.split('T')[0];
+          } else {
+            // Fallback: convert to string
+            dateStr = new Date(check.date).toISOString().split('T')[0];
+          }
+          const existing = dailyMoodMap.get(dateStr) || { sum: 0, count: 0 };
+          dailyMoodMap.set(dateStr, {
+            sum: existing.sum + check.moodValue,
+            count: existing.count + 1,
+          });
+        });
+
+        currentWeekMoodChecks.dailyMood = currentWeekDays.map(day => {
+          const dateStr = day.dateString;
+          const dayData = dailyMoodMap.get(dateStr);
+          if (dayData) {
+            return {
+              date: dateStr,
+              averageMood: parseFloat((dayData.sum / dayData.count).toFixed(2)),
+              count: dayData.count,
+            };
+          }
+          return {
+            date: dateStr,
+            averageMood: 0,
+            count: 0,
+          };
+        });
+      }
+
+      // Get mood checks for previous week
+      const previousWeekMoodData = await this.getGentlepulseMoodChecksByDateRange(previousWeekStart, previousWeekEnd);
+      
+      if (previousWeekMoodData.length > 0) {
+        const totalMood = previousWeekMoodData.reduce((sum, check) => sum + check.moodValue, 0);
+        previousWeekMoodChecks.averageMood = parseFloat((totalMood / previousWeekMoodData.length).toFixed(2));
+        previousWeekMoodChecks.totalChecks = previousWeekMoodData.length;
+
+        // Calculate daily mood averages
+        const dailyMoodMap = new Map<string, { sum: number; count: number }>();
+        previousWeekMoodData.forEach(check => {
+          // Handle date as Date object or string
+          let dateStr: string;
+          if (check.date instanceof Date) {
+            dateStr = check.date.toISOString().split('T')[0];
+          } else if (typeof check.date === 'string') {
+            // If it's already a string, use it directly (format: YYYY-MM-DD)
+            dateStr = check.date.split('T')[0];
+          } else {
+            // Fallback: convert to string
+            dateStr = new Date(check.date).toISOString().split('T')[0];
+          }
+          const existing = dailyMoodMap.get(dateStr) || { sum: 0, count: 0 };
+          dailyMoodMap.set(dateStr, {
+            sum: existing.sum + check.moodValue,
+            count: existing.count + 1,
+          });
+        });
+
+        previousWeekMoodChecks.dailyMood = previousWeekDays.map(day => {
+          const dateStr = day.dateString;
+          const dayData = dailyMoodMap.get(dateStr);
+          if (dayData) {
+            return {
+              date: dateStr,
+              averageMood: parseFloat((dayData.sum / dayData.count).toFixed(2)),
+              count: dayData.count,
+            };
+          }
+          return {
+            date: dateStr,
+            averageMood: 0,
+            count: 0,
+          };
+        });
+      }
+
+      // Calculate week-over-week mood change
+      if (previousWeekMoodChecks.averageMood > 0) {
+        moodChange = parseFloat((currentWeekMoodChecks.averageMood - previousWeekMoodChecks.averageMood).toFixed(2));
+      } else if (currentWeekMoodChecks.averageMood > 0) {
+        moodChange = currentWeekMoodChecks.averageMood;
+      }
+    } catch (error) {
+      console.error("Error calculating mood check statistics:", error);
+    }
+
     const result = {
       currentWeek: {
         startDate: this.formatDate(currentWeekStart),
@@ -1616,6 +1745,7 @@ export class DatabaseStorage implements IStorage {
         totalUsers: totalUsersCurrentWeek,
         verifiedUsers: verifiedUsersCurrentWeek,
         approvedUsers: approvedUsersCurrentWeek,
+        moodChecks: currentWeekMoodChecks,
       },
       previousWeek: {
         startDate: this.formatDate(previousWeekStart),
@@ -1627,6 +1757,7 @@ export class DatabaseStorage implements IStorage {
         totalUsers: totalUsersPreviousWeek,
         verifiedUsers: verifiedUsersPreviousWeek,
         approvedUsers: approvedUsersPreviousWeek,
+        moodChecks: previousWeekMoodChecks,
       },
       comparison: {
         newUsersChange: parseFloat(newUsersChange.toFixed(2)),
@@ -1634,6 +1765,7 @@ export class DatabaseStorage implements IStorage {
         totalUsersChange: parseFloat(totalUsersChange.toFixed(2)),
         verifiedUsersChange: parseFloat(verifiedUsersChange.toFixed(2)),
         approvedUsersChange: parseFloat(approvedUsersChange.toFixed(2)),
+        moodChange: moodChange,
       },
       metrics: {
         weeklyGrowthRate: weeklyGrowthRate,
