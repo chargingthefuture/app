@@ -203,7 +203,7 @@ export const supportMatchProfiles = pgTable("support_match_profiles", {
   userId: varchar("user_id").notNull().unique().references(() => users.id),
   nickname: varchar("nickname", { length: 100 }),
   gender: varchar("gender", { length: 50 }), // male, female, prefer-not-to-say
-  genderPreference: varchar("gender_preference", { length: 50 }), // male, female, prefer-not-to-say, any
+  genderPreference: varchar("gender_preference", { length: 50 }), // same_gender, any
   city: varchar("city", { length: 100 }),
   state: varchar("state", { length: 100 }),
   country: varchar("country", { length: 100 }),

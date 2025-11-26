@@ -1669,13 +1669,14 @@ export class DatabaseStorage implements IStorage {
     // Helper function to check if two users are compatible
     const areCompatible = (user1: typeof unmatchedProfiles[0], user2: typeof unmatchedProfiles[0]): boolean => {
       // Check gender preference compatibility (bidirectional)
+      // Options: 'any' (matches any gender) or 'same_gender' (matches only same gender as user)
       const user1GenderMatch = 
         user1.genderPreference === 'any' || 
-        user1.genderPreference === user2.gender;
+        (user1.genderPreference === 'same_gender' && user1.gender && user1.gender === user2.gender);
       
       const user2GenderMatch = 
         user2.genderPreference === 'any' || 
-        user2.genderPreference === user1.gender;
+        (user2.genderPreference === 'same_gender' && user2.gender && user2.gender === user1.gender);
       
       if (!user1GenderMatch || !user2GenderMatch) {
         return false;
@@ -1741,7 +1742,7 @@ export class DatabaseStorage implements IStorage {
             score += 10;
           }
           
-          // Specific gender preferences are slightly better than "any"
+          // Specific gender preferences (same_gender) are slightly better than "any"
           if (user1.genderPreference !== 'any' && user2.genderPreference !== 'any') {
             score += 5;
           }

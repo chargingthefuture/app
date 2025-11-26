@@ -246,9 +246,8 @@ export default function SupportMatchProfile() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="male">Male</SelectItem>
-                        <SelectItem value="female">Female</SelectItem>
-                        <SelectItem value="any">Any</SelectItem>
+                        <SelectItem value="same_gender">Same gender as yourself</SelectItem>
+                        <SelectItem value="any">Any gender</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />

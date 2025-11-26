@@ -16,12 +16,12 @@ async function seedSupportMatch() {
   // Create test users for SupportMatch
   const testUsers = [
     { email: "alice@example.com", firstName: "Alice", lastName: "Smith", nickname: "Alice", gender: "female", genderPreference: "any", timezone: "America/New_York", city: "New York", state: "New York", country: "United States" },
-    { email: "bob@example.com", firstName: "Bob", lastName: "Johnson", nickname: "Bob", gender: "male", genderPreference: "male", timezone: "America/New_York", city: "Boston", state: "Massachusetts", country: "United States" },
-    { email: "carol@example.com", firstName: "Carol", lastName: "Williams", nickname: "Carol", gender: "female", genderPreference: "female", timezone: "America/Los_Angeles", city: "Los Angeles", state: "California", country: "United States" },
+    { email: "bob@example.com", firstName: "Bob", lastName: "Johnson", nickname: "Bob", gender: "male", genderPreference: "same_gender", timezone: "America/New_York", city: "Boston", state: "Massachusetts", country: "United States" },
+    { email: "carol@example.com", firstName: "Carol", lastName: "Williams", nickname: "Carol", gender: "female", genderPreference: "same_gender", timezone: "America/Los_Angeles", city: "Los Angeles", state: "California", country: "United States" },
     { email: "david@example.com", firstName: "David", lastName: "Brown", nickname: "David", gender: "male", genderPreference: "any", timezone: "America/New_York", city: "Philadelphia", state: "Pennsylvania", country: "United States" },
     { email: "emma@example.com", firstName: "Emma", lastName: "Davis", nickname: "Emma", gender: "female", genderPreference: "any", timezone: "America/Chicago", city: "Chicago", state: "Illinois", country: "United States" },
-    { email: "frank@example.com", firstName: "Frank", lastName: "Miller", nickname: "Frank", gender: "male", genderPreference: "male", timezone: "America/Chicago", city: "Detroit", state: "Michigan", country: "United States" },
-    { email: "grace@example.com", firstName: "Grace", lastName: "Taylor", nickname: "Grace", gender: "female", genderPreference: "female", timezone: "America/New_York", city: "Washington", state: "District of Columbia", country: "United States" },
+    { email: "frank@example.com", firstName: "Frank", lastName: "Miller", nickname: "Frank", gender: "male", genderPreference: "same_gender", timezone: "America/Chicago", city: "Detroit", state: "Michigan", country: "United States" },
+    { email: "grace@example.com", firstName: "Grace", lastName: "Taylor", nickname: "Grace", gender: "female", genderPreference: "same_gender", timezone: "America/New_York", city: "Washington", state: "District of Columbia", country: "United States" },
     { email: "henry@example.com", firstName: "Henry", lastName: "Anderson", nickname: "Henry", gender: "male", genderPreference: "any", timezone: "America/Los_Angeles", city: "San Francisco", state: "California", country: "United States" },
   ];
 
