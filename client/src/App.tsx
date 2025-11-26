@@ -221,11 +221,6 @@ function Router() {
       {/* Public Terms page */}
       <Route path="/terms" component={Terms} />
       
-      {/* Root route - handles landing vs redirect */}
-      <Route path="/">
-        <RootRoute />
-      </Route>
-      
       {/* Protected routes - always rendered, but wrapped with auth checks */}
       <Route path="/services">
         <ProtectedRoute>
@@ -236,6 +231,11 @@ function Router() {
         <ProtectedRoute>
           <UserPayments />
         </ProtectedRoute>
+      </Route>
+      
+      {/* Root route - handles landing vs redirect (must be last) */}
+      <Route path="/">
+        <RootRoute />
       </Route>
       <Route path="/account/delete">
         <ProtectedRoute>

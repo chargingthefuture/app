@@ -180,11 +180,11 @@ export default function UserPayments() {
               Subscription status
             </p>
             {paymentStatus?.isDelinquent && (
-              <div className="mt-4 p-3 rounded-lg border border-amber-200 bg-amber-50/50 space-y-2">
+              <div className="mt-4 p-3 rounded-lg border border-amber-200 bg-amber-50/50 dark:border-amber-800 dark:bg-amber-900/30 space-y-2">
                 <div className="flex items-start gap-2">
-                  <AlertCircle className="w-4 h-4 text-amber-700 mt-0.5 flex-shrink-0" />
+                  <AlertCircle className="w-4 h-4 text-amber-700 dark:text-amber-300 mt-0.5 flex-shrink-0" />
                   <div className="flex-1 space-y-1">
-                    <p className="text-sm text-amber-900 font-medium">
+                    <p className="text-sm text-amber-900 dark:text-amber-100 font-medium">
                       Payment not received for {paymentStatus.missingMonths.length === 1
                         ? (() => {
                             const [year, month] = paymentStatus.missingMonths[0].split("-");
@@ -193,7 +193,7 @@ export default function UserPayments() {
                           })()
                         : `${paymentStatus.missingMonths.length} months`}
                     </p>
-                    <div className="text-xs text-amber-700 space-y-1">
+                    <div className="text-xs text-amber-700 dark:text-amber-300 space-y-1">
                       <div>Amount owed: ${parseFloat(paymentStatus.amountOwed).toFixed(2)}</div>
                       {paymentStatus.nextBillingDate && (
                         <div>Next billing: {new Date(paymentStatus.nextBillingDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</div>
@@ -206,7 +206,7 @@ export default function UserPayments() {
                       <Button
                         variant="outline"
                         size="sm"
-                        className="mt-2 border-amber-300 text-amber-900 hover:bg-amber-100"
+                        className="mt-2 border-amber-300 text-amber-900 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-200 dark:hover:bg-amber-800/50"
                         data-testid="button-update-payment-inline"
                       >
                         Make payment

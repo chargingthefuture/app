@@ -77,18 +77,18 @@ export function PaymentReminderBanner({ className }: PaymentReminderBannerProps)
   }
 
   return (
-    <Card className={cn("border-amber-200 bg-amber-50/50", className)} data-testid="payment-reminder-banner">
+    <Card className={cn("border-amber-200 bg-amber-50/50 dark:border-amber-800 dark:bg-amber-900/30", className)} data-testid="payment-reminder-banner">
       <div className="p-4 space-y-4">
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-start gap-3 flex-1">
-            <div className="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0">
-              <Wallet className="w-5 h-5 text-amber-700" />
+            <div className="w-10 h-10 rounded-lg bg-amber-100 dark:bg-amber-800 flex items-center justify-center flex-shrink-0">
+              <Wallet className="w-5 h-5 text-amber-700 dark:text-amber-200" />
             </div>
             <div className="flex-1 space-y-2">
-              <p className="text-sm text-amber-900 font-medium">
+              <p className="text-sm text-amber-900 dark:text-amber-100 font-medium">
                 Payment not received for {missingMonthText}. Need help updating payment or changing plan?
               </p>
-              <div className="flex flex-wrap items-center gap-4 text-xs text-amber-700">
+              <div className="flex flex-wrap items-center gap-4 text-xs text-amber-700 dark:text-amber-300">
                 <div className="flex items-center gap-1">
                   <Clock className="w-3 h-3" />
                   <span>Amount: ${parseFloat(paymentStatus.amountOwed).toFixed(2)}</span>
@@ -111,7 +111,7 @@ export function PaymentReminderBanner({ className }: PaymentReminderBannerProps)
               variant="ghost"
               size="sm"
               onClick={() => setIsMinimized(true)}
-              className="h-7 text-amber-800 hover:text-amber-900"
+              className="h-7 text-amber-800 hover:text-amber-900 dark:text-amber-200 dark:hover:text-amber-100"
               data-testid="button-minimize-payment-banner"
               aria-label="Minimize"
             >
@@ -121,7 +121,7 @@ export function PaymentReminderBanner({ className }: PaymentReminderBannerProps)
               variant="ghost"
               size="sm"
               onClick={() => setIsDismissed(true)}
-              className="h-7 text-amber-800 hover:text-amber-900"
+              className="h-7 text-amber-800 hover:text-amber-900 dark:text-amber-200 dark:hover:text-amber-100"
               data-testid="button-dismiss-payment-banner"
               aria-label="Dismiss"
             >
@@ -134,7 +134,7 @@ export function PaymentReminderBanner({ className }: PaymentReminderBannerProps)
             <Button
               variant="outline"
               size="sm"
-              className="border-amber-300 text-amber-900 hover:bg-amber-100"
+              className="border-amber-300 text-amber-900 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-200 dark:hover:bg-amber-800/50"
               data-testid="button-update-payment"
             >
               Make payment
@@ -143,7 +143,7 @@ export function PaymentReminderBanner({ className }: PaymentReminderBannerProps)
           <Button
             variant="outline"
             size="sm"
-            className="border-amber-300 text-amber-900 hover:bg-amber-100"
+            className="border-amber-300 text-amber-900 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-200 dark:hover:bg-amber-800/50"
             onClick={() => openExternal("https://signal.group/#CjQKILHj7074l2Kl-oYy0qGSFdydXbtu0Pf66Z_88K9IlSCtEhDDdqV_BFAW2qm2EiTGEaNs")}
             data-testid="button-get-help"
           >
