@@ -17,6 +17,7 @@ import { useEffect, useState, useRef } from "react";
 import { Car, ExternalLink, Check as CheckIcon } from "lucide-react";
 import { DeleteProfileDialog } from "@/components/delete-profile-dialog";
 import { useExternalLink } from "@/hooks/useExternalLink";
+import { MiniAppBackButton } from "@/components/mini-app-back-button";
 import { COUNTRIES } from "@/lib/countries";
 import { US_STATES } from "@/lib/usStates";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -182,6 +183,7 @@ export default function TrustTransportProfile() {
 
   return (
     <div className="p-4 sm:p-6 md:p-8 space-y-6">
+      <MiniAppBackButton />
       <div>
         <div className="flex items-center gap-3 mb-2">
           <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">

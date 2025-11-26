@@ -19,6 +19,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
 import { Check as CheckIcon } from "lucide-react";
 import { DeleteProfileDialog } from "@/components/delete-profile-dialog";
+import { MiniAppBackButton } from "@/components/mini-app-back-button";
 
 const profileFormSchema = insertSupportMatchProfileSchema.omit({ userId: true }).extend({
   nickname: z.preprocess((val) => (val === "" ? null : val), z.string().nullish()),
@@ -173,6 +174,7 @@ export default function SupportMatchProfile() {
 
   return (
     <div className="p-4 sm:p-6 md:p-8 space-y-6 sm:space-y-8">
+      <MiniAppBackButton />
       <div>
         <h1 className="text-2xl sm:text-3xl md:text-4xl font-semibold mb-2">
           {profile ? "Edit Profile" : "Create Profile"}

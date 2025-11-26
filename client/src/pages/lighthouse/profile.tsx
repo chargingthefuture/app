@@ -17,6 +17,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { DeleteProfileDialog } from "@/components/delete-profile-dialog";
 import { useLocation } from "wouter";
 import { useExternalLink } from "@/hooks/useExternalLink";
+import { MiniAppBackButton } from "@/components/mini-app-back-button";
 
 export default function LighthouseProfilePage() {
   const { toast } = useToast();
@@ -163,6 +164,7 @@ export default function LighthouseProfilePage() {
 
   return (
     <div className="p-6 md:p-8 max-w-4xl mx-auto space-y-6">
+      <MiniAppBackButton />
       <div>
         <div className="flex items-center gap-3 mb-2">
           <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">

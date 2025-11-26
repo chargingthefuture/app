@@ -30,6 +30,7 @@ import type { LighthouseAnnouncement } from "@shared/schema";
 import { format } from "date-fns";
 import { AlertCircle, Info, Wrench, Bell, Megaphone, Plus, Trash2, ArrowLeft } from "lucide-react";
 import { Link } from "wouter";
+import { MiniAppBackButton } from "@/components/mini-app-back-button";
 
 const announcementFormSchema = z.object({
   title: z.string().min(1, "Title is required"),
@@ -195,8 +196,9 @@ export default function LighthouseAdminAnnouncements() {
 
   return (
     <div className="p-6 md:p-8 space-y-8">
+      <MiniAppBackButton />
       <div className="flex items-center gap-4">
-        <Link href="/admin">
+        <Link href="/apps/lighthouse/admin">
           <Button variant="ghost" size="icon" data-testid="button-back">
             <ArrowLeft className="w-5 h-5" />
           </Button>

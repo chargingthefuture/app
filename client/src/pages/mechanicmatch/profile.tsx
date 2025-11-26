@@ -14,6 +14,7 @@ import { z } from "zod";
 import { useState, useEffect } from "react";
 import { DeleteProfileDialog } from "@/components/delete-profile-dialog";
 import { useLocation } from "wouter";
+import { MiniAppBackButton } from "@/components/mini-app-back-button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
 import { Check, ChevronsUpDown } from "lucide-react";
@@ -190,6 +191,7 @@ export default function MechanicMatchProfile() {
 
   return (
     <div className="p-4 sm:p-6 md:p-8 space-y-6">
+      <MiniAppBackButton />
       <h1 className="text-2xl sm:text-3xl font-semibold mb-2">
         {profile ? "Edit Profile" : "Create Profile"}
       </h1>

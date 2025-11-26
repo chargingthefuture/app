@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Home, MapPin, BedDouble, Bath, DollarSign, Calendar, CheckCircle2, ExternalLink } from "lucide-react";
-import type { LighthouseProperty, LighthouseProfile } from "@shared/schema";
+import type { LighthouseProperty, LighthouseProfile, LighthouseMatch } from "@shared/schema";
 import { useState } from "react";
 import { useExternalLink } from "@/hooks/useExternalLink";
 
@@ -27,6 +27,16 @@ export default function PropertyDetailPage() {
     queryKey: ["/api/lighthouse/profile"],
   });
 
+  const { data: matches } = useQuery<LighthouseMatch[]>({
+    queryKey: ["/api/lighthouse/matches"],
+    enabled: !!profile && profile.profileType === "seeker",
+  });
+
+  // Check if there's already a match for this property (excluding cancelled)
+  const existingMatch = matches?.find(
+    (match) => match.propertyId === id && match.status !== "cancelled"
+  );
+
   const requestMatchMutation = useMutation({
     mutationFn: async () => apiRequest("POST", "/api/lighthouse/matches", {
       propertyId: id,
@@ -41,11 +51,26 @@ export default function PropertyDetailPage() {
       setLocation("/apps/lighthouse/matches");
     },
     onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to request match",
-        variant: "destructive",
-      });
+      // Handle 409 error specifically
+      // Error format from apiRequest is "409: {...}" or error.message contains "already requested"
+      const errorMessage = error.message || "";
+      const is409Error = errorMessage.startsWith("409:") || errorMessage.includes("already requested");
+      
+      if (is409Error) {
+        toast({
+          title: "Already Requested",
+          description: "You have already messaged this host. Check your matches to view the conversation.",
+          variant: "default",
+        });
+        // Invalidate matches to refresh the UI
+        queryClient.invalidateQueries({ queryKey: ["/api/lighthouse/matches"] });
+      } else {
+        toast({
+          title: "Error",
+          description: error.message || "Failed to request match",
+          variant: "destructive",
+        });
+      }
     },
   });
 
@@ -213,24 +238,47 @@ export default function PropertyDetailPage() {
           <CardHeader>
             <CardTitle>Request to Connect</CardTitle>
             <CardDescription>
-              Send a message to the host to request this housing option
+              {existingMatch
+                ? "You have already messaged this host"
+                : "Send a message to the host to request this housing option"}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {existingMatch && (
+              <div className="bg-muted p-4 rounded-lg">
+                <p className="text-sm text-muted-foreground">
+                  You already messaged this host. Check your matches to view the conversation and any responses.
+                </p>
+                <Button
+                  variant="outline"
+                  className="mt-3"
+                  onClick={() => setLocation("/apps/lighthouse/matches")}
+                  data-testid="button-view-matches"
+                >
+                  View My Matches
+                </Button>
+              </div>
+            )}
             <div>
               <Label htmlFor="message">Message to Host (Optional)</Label>
               <Textarea
                 id="message"
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
-                placeholder="Introduce yourself and explain why you're interested in this housing option..."
+                placeholder={
+                  existingMatch
+                    ? "You have already messaged this host..."
+                    : "Introduce yourself and explain why you're interested in this housing option..."
+                }
                 rows={4}
+                disabled={!!existingMatch}
+                className={existingMatch ? "bg-muted cursor-not-allowed" : ""}
                 data-testid="input-message"
               />
             </div>
             <Button 
               onClick={() => requestMatchMutation.mutate()} 
-              disabled={requestMatchMutation.isPending}
+              disabled={requestMatchMutation.isPending || !!existingMatch}
               data-testid="button-request-match"
             >
               {requestMatchMutation.isPending ? "Sending..." : "Request Match"}

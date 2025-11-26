@@ -16,6 +16,7 @@ import { useEffect, useState } from "react";
 import { Package, Check as CheckIcon } from "lucide-react";
 import { DeleteProfileDialog } from "@/components/delete-profile-dialog";
 import { US_STATES } from "@/lib/usStates";
+import { MiniAppBackButton } from "@/components/mini-app-back-button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
 
@@ -167,6 +168,7 @@ export default function SocketRelayProfile() {
 
   return (
     <div className="p-6 md:p-8 max-w-2xl mx-auto space-y-6">
+      <MiniAppBackButton />
       <div className="flex items-center gap-3 mb-2">
         <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
           <Package className="w-6 h-6 text-primary" />

@@ -24,6 +24,7 @@ import { VerifiedBadge } from "@/components/verified-badge";
 import { DeleteProfileDialog } from "@/components/delete-profile-dialog";
 import { AnnouncementBanner } from "@/components/announcement-banner";
 import { useAuth } from "@/hooks/useAuth";
+import { MiniAppBackButton } from "@/components/mini-app-back-button";
 
 export default function DirectoryProfilePage() {
   const { toast } = useToast();
@@ -212,6 +213,7 @@ export default function DirectoryProfilePage() {
 
   return (
     <div className="p-4 sm:p-6 md:p-8 space-y-6 sm:space-y-8">
+      <MiniAppBackButton />
       <div>
         <h1 className="text-2xl sm:text-3xl md:text-4xl font-semibold mb-2">Directory Profile</h1>
         <p className="text-muted-foreground text-sm sm:text-base">Connect and exchange skills with other survivors</p>
