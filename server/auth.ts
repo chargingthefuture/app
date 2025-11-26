@@ -44,6 +44,40 @@ function isUserDeleted(user: any): boolean {
     user.lastName === "User";
 }
 
+/**
+ * Retry helper for transient failures
+ */
+async function retryWithBackoff<T>(
+  fn: () => Promise<T>,
+  maxRetries: number = 3,
+  baseDelay: number = 1000
+): Promise<T> {
+  let lastError: any;
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error: any) {
+      lastError = error;
+      // Don't retry on non-transient errors
+      if (error.message?.includes("deleted") || 
+          error.message?.includes("Invalid") ||
+          error.statusCode === 403 ||
+          error.statusCode === 404) {
+        throw error;
+      }
+      // If it's the last attempt, throw
+      if (attempt === maxRetries - 1) {
+        throw error;
+      }
+      // Exponential backoff
+      const delay = baseDelay * Math.pow(2, attempt);
+      console.log(`Retry attempt ${attempt + 1}/${maxRetries} after ${delay}ms for sync operation`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+  throw lastError;
+}
+
 export async function syncClerkUserToDatabase(userId: string, sessionClaims?: any) {
   try {
     // Check if user is deleted before syncing
@@ -69,13 +103,17 @@ export async function syncClerkUserToDatabase(userId: string, sessionClaims?: an
       throw new Error("This account has been deleted. Please contact support if you believe this is an error.");
     }
     
-    // Get full user details from Clerk
+    // Get full user details from Clerk with retry logic for transient failures
     let clerkUser;
     try {
-      clerkUser = await clerkClient.users.getUser(userId);
+      clerkUser = await retryWithBackoff(
+        () => clerkClient.users.getUser(userId),
+        3, // 3 retries
+        1000 // 1 second base delay
+      );
     } catch (clerkError: any) {
       // Log detailed error for debugging
-      console.error("Error fetching user from Clerk API:", {
+      console.error("Error fetching user from Clerk API (after retries):", {
         userId,
         error: clerkError.message,
         statusCode: clerkError.statusCode,
@@ -83,6 +121,7 @@ export async function syncClerkUserToDatabase(userId: string, sessionClaims?: an
         stack: clerkError.stack,
         hasSecretKey: !!process.env.CLERK_SECRET_KEY,
         secretKeyPrefix: process.env.CLERK_SECRET_KEY?.substring(0, 10),
+        environment: process.env.NODE_ENV,
       });
       
       // If we have an existing user in DB, return it instead of failing
@@ -116,27 +155,49 @@ export async function syncClerkUserToDatabase(userId: string, sessionClaims?: an
             // Use default pricing tier if database is unavailable
           }
           
-          // Try to create user - if database is unavailable, this will throw
-          await withDatabaseErrorHandling(
-            () => storage.upsertUser({
-              ...minimalUser,
-              pricingTier,
-            }),
-            'upsertUserFromJWTClaims'
+          // Try to create user with retry logic
+          await retryWithBackoff(
+            () => withDatabaseErrorHandling(
+              () => storage.upsertUser({
+                ...minimalUser,
+                pricingTier,
+              }),
+              'upsertUserFromJWTClaims'
+            ),
+            2, // 2 retries for database operations
+            500 // 500ms base delay
           );
           
-          // Try to get the created user
-          return await withDatabaseErrorHandling(
-            () => storage.getUser(userId),
-            'getUserAfterJWTFallback'
+          // Try to get the created user with retry logic
+          const createdUser = await retryWithBackoff(
+            () => withDatabaseErrorHandling(
+              () => storage.getUser(userId),
+              'getUserAfterJWTFallback'
+            ),
+            2,
+            500
           );
+          
+          if (!createdUser) {
+            console.error(`User created but not found after creation for ${userId}. This indicates a database sync issue.`);
+            throw new Error("User created but not found. Please try again.");
+          }
+          
+          return createdUser;
         } catch (fallbackError: any) {
-          console.error("Error creating user from JWT claims:", fallbackError);
+          console.error("Error creating user from JWT claims:", {
+            userId,
+            error: fallbackError.message,
+            stack: fallbackError.stack,
+            name: fallbackError.name,
+            code: fallbackError.code,
+          });
           // If it's a connection error, provide a more helpful message
           if (fallbackError instanceof ExternalServiceError && fallbackError.statusCode === 503) {
             throw new Error("Database temporarily unavailable. Please try again in a moment.");
           }
           // Continue to throw original error
+          throw fallbackError;
         }
       }
       
@@ -144,14 +205,37 @@ export async function syncClerkUserToDatabase(userId: string, sessionClaims?: an
       throw new Error(`Failed to fetch user from Clerk: ${clerkError.message || 'Unknown error'}`);
     }
     
-    // Upsert user in our database
-    await upsertUser(clerkUser);
-    
-    // Return the synced user
-    return await withDatabaseErrorHandling(
-      () => storage.getUser(userId),
-      'getUserAfterSync'
+    // Upsert user in our database with retry logic
+    await retryWithBackoff(
+      () => upsertUser(clerkUser),
+      2, // 2 retries for database operations
+      500 // 500ms base delay
     );
+    
+    // Return the synced user with retry logic
+    const syncedUser = await retryWithBackoff(
+      () => withDatabaseErrorHandling(
+        () => storage.getUser(userId),
+        'getUserAfterSync'
+      ),
+      2,
+      500
+    );
+    
+    if (!syncedUser) {
+      console.error(`User synced but not found after sync for ${userId}. This indicates a database sync issue.`);
+      // Try one more time to get the user
+      const retryUser = await withDatabaseErrorHandling(
+        () => storage.getUser(userId),
+        'getUserAfterSyncRetry'
+      );
+      if (!retryUser) {
+        throw new Error("User synced but not found. Please try again.");
+      }
+      return retryUser;
+    }
+    
+    return syncedUser;
   } catch (error: any) {
     console.error("Error syncing Clerk user to database:", {
       userId,
@@ -159,6 +243,8 @@ export async function syncClerkUserToDatabase(userId: string, sessionClaims?: an
       stack: error.stack,
       name: error.name,
       code: error.code,
+      environment: process.env.NODE_ENV,
+      timestamp: new Date().toISOString(),
     });
     throw error;
   }

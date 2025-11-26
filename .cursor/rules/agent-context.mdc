@@ -1566,6 +1566,31 @@ CREATE TABLE IF NOT EXISTS my_table (
 
 **🚨 REQUIRED:** Every time you modify `shared/schema.ts`, you MUST also update `schema.sql` to keep them in sync. This ensures the database can be set up even when the CLI migration tool times out.
 
+### **🚨 CRITICAL: Keep `DELETE_SYNC_ISSUE_USERS.sql` Updated**
+
+**IMPORTANT:** The `DELETE_SYNC_ISSUE_USERS.sql` file in the project root contains SQL statements for deleting users and all their related data. This script must be kept synchronized with `schema.sql` to ensure all foreign key relationships are correctly handled during user deletion.
+
+**When to update `DELETE_SYNC_ISSUE_USERS.sql`:**
+- **ALWAYS** when you add new tables that reference `users.id` (directly or through profiles)
+- **ALWAYS** when you modify foreign key relationships involving user IDs
+- **ALWAYS** when you add new foreign key columns that reference user-related tables
+- **ALWAYS** when you change how user data is structured (e.g., moving from profile-based to direct user references)
+
+**How to update `DELETE_SYNC_ISSUE_USERS.sql`:**
+1. Review all foreign key relationships in `schema.sql` that involve `users.id` or user profile tables
+2. For each new table/relationship, add appropriate DELETE statements in the correct order (respecting foreign key dependencies)
+3. Ensure deletion order follows foreign key constraints (delete child records before parent records)
+4. Test the deletion script in a transaction before committing
+5. Update both user deletion sections (USER 1 and USER 2) if the pattern applies to both
+
+**Key considerations:**
+- Some tables reference `users.id` directly (e.g., `payments.user_id`, `socketrelay_requests.user_id`)
+- Some tables reference user profiles (e.g., `messages.sender_id` references `support_match_profiles.user_id`)
+- Deletion order matters: delete dependent records before parent records
+- Use the same user IDs in both deletion sections for consistency
+
+**🚨 REQUIRED:** Every time you modify `schema.sql` (which happens whenever `shared/schema.ts` changes), you MUST also review and update `DELETE_SYNC_ISSUE_USERS.sql` to ensure it correctly handles all foreign key relationships. This prevents foreign key constraint errors during user deletion operations.
+
 ---
 
 ## 🧪 Testing Requirements
@@ -2105,6 +2130,7 @@ Study these for patterns:
 - [ ] Error handling implemented
 - [ ] Database schema pushed: `npm run db:push` (or update `schema.sql` if CLI times out)
 - [ ] **`schema.sql` file updated** - REQUIRED: Keep `schema.sql` in sync with `shared/schema.ts` for manual database setup
+- [ ] **`DELETE_SYNC_ISSUE_USERS.sql` file updated** - REQUIRED: Keep `DELETE_SYNC_ISSUE_USERS.sql` in sync with `schema.sql` to ensure all foreign key relationships are handled correctly during user deletion
 
 ### **Testing Checklist** 🧪
 

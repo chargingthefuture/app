@@ -255,18 +255,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`User not found in database, attempting to sync from Clerk: ${userId}`, {
           hasSessionClaims: !!(req.auth as any)?.sessionClaims,
           environment: process.env.NODE_ENV,
+          timestamp: new Date().toISOString(),
         });
         try {
           // Pass session claims as fallback if Clerk API fails
           const sessionClaims = (req.auth as any)?.sessionClaims;
+          const syncStartTime = Date.now();
           user = await syncClerkUserToDatabase(userId, sessionClaims);
+          const syncDuration = Date.now() - syncStartTime;
           
           // If sync succeeded but user is still null, log warning
           if (!user) {
-            console.warn(`Sync completed but user is still null for ${userId}. This should not happen.`);
+            console.error(`Sync completed but user is still null for ${userId}. This should not happen.`, {
+              syncDuration,
+              environment: process.env.NODE_ENV,
+              timestamp: new Date().toISOString(),
+            });
+            // Try one more time to get the user
+            try {
+              user = await storage.getUser(userId);
+              if (user) {
+                console.log(`User found on retry for ${userId}`);
+              }
+            } catch (retryError: any) {
+              console.error(`Retry getUser also failed for ${userId}:`, retryError.message);
+            }
+          } else {
+            console.log(`Successfully synced user ${userId} in ${syncDuration}ms`);
           }
         } catch (syncError: any) {
-          console.error("Error syncing user from Clerk:", {
+          const errorDetails = {
             userId,
             error: syncError.message,
             statusCode: syncError.statusCode,
@@ -276,12 +294,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
             environment: process.env.NODE_ENV,
             hasClerkSecretKey: !!process.env.CLERK_SECRET_KEY,
             hasDatabaseUrl: !!process.env.DATABASE_URL,
-          });
+            timestamp: new Date().toISOString(),
+          };
+          
+          console.error("Error syncing user from Clerk:", errorDetails);
           
           // If sync fails (e.g., deleted user), return appropriate error
           if (syncError.message?.includes("deleted")) {
             return res.status(403).json({ 
               message: syncError.message || "This account has been deleted. Please contact support if you believe this is an error." 
+            });
+          }
+          
+          // If it's a database connection error, return 503
+          if (syncError.message?.includes("Database temporarily unavailable") ||
+              syncError instanceof ExternalServiceError && syncError.statusCode === 503) {
+            return res.status(503).json({ 
+              message: "Database temporarily unavailable. Please try again in a moment.",
+              retryAfter: 5,
             });
           }
           
@@ -301,7 +331,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.error(`Sync failed for user ${userId}, returning null. Error: ${syncError.message}`, {
             environment: process.env.NODE_ENV,
             timestamp: new Date().toISOString(),
-            errorType: syncError.constructor.name,
+            errorType: syncError.constructor?.name,
+            ...errorDetails,
           });
           return res.json(null);
         }
