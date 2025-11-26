@@ -1,19 +1,20 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest } from "@/lib/queryClient";
 import { insertLostmailIncidentSchema } from "@shared/schema";
 import { z } from "zod";
 import { useLocation } from "wouter";
-import { Save, Send } from "lucide-react";
+import { Send, AlertCircle } from "lucide-react";
 import type { LostmailIncident } from "@shared/schema";
 
 const reportFormSchema = insertLostmailIncidentSchema.omit({
@@ -22,8 +23,6 @@ const reportFormSchema = insertLostmailIncidentSchema.omit({
 });
 
 type ReportFormData = z.infer<typeof reportFormSchema>;
-
-const DRAFT_STORAGE_KEY = "lostmail_report_draft";
 
 export default function LostMailReport() {
   const { toast } = useToast();
@@ -48,47 +47,6 @@ export default function LostMailReport() {
     },
   });
 
-  // Load draft from localStorage on mount
-  useEffect(() => {
-    const draft = localStorage.getItem(DRAFT_STORAGE_KEY);
-    if (draft) {
-      try {
-        const draftData = JSON.parse(draft);
-        form.reset(draftData);
-      } catch (e) {
-        console.error("Error loading draft:", e);
-      }
-    }
-  }, [form]);
-
-  // Save draft to localStorage on change
-  const saveDraft = (e?: React.MouseEvent) => {
-    if (e) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-    
-    try {
-      const formData = form.getValues();
-      const draftData = {
-        ...formData,
-      };
-      localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draftData));
-      toast({
-        title: "Draft Saved",
-        description: "Your report has been saved locally",
-      });
-    } catch (error: any) {
-      console.error("Error saving draft:", error);
-      toast({
-        title: "Error",
-        description: "Failed to save draft",
-        variant: "destructive",
-      });
-    }
-  };
-
-
   const onSubmit = async (data: ReportFormData) => {
     setIsSubmitting(true);
     
@@ -99,9 +57,6 @@ export default function LostMailReport() {
         expectedDeliveryDate: new Date(data.expectedDeliveryDate as string).toISOString(),
         noticedDate: data.noticedDate ? new Date(data.noticedDate as string).toISOString() : null,
       });
-
-      // Clear draft
-      localStorage.removeItem(DRAFT_STORAGE_KEY);
       
       toast({
         title: "Report Submitted",
@@ -130,12 +85,17 @@ export default function LostMailReport() {
         </p>
       </div>
 
+      <Alert variant="destructive" className="mb-6">
+        <AlertCircle className="h-4 w-4" />
+        <AlertTitle>Important Notice</AlertTitle>
+        <AlertDescription>
+          This form does not auto-save. If you navigate away from this page without clicking the "Submit Report" button, your data will be lost.
+        </AlertDescription>
+      </Alert>
+
       <Card>
         <CardHeader>
           <CardTitle>Incident Details</CardTitle>
-          <CardDescription>
-            Fill out the form below. You can save a draft and return later.
-          </CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -345,15 +305,6 @@ export default function LostMailReport() {
 
               {/* Actions */}
               <div className="flex gap-3 pt-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={saveDraft}
-                  data-testid="button-save-draft"
-                >
-                  <Save className="w-4 h-4 mr-2" />
-                  Save Draft
-                </Button>
                 <Button
                   type="submit"
                   disabled={isSubmitting || !form.watch("consent")}
