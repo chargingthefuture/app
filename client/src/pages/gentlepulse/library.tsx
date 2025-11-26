@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,12 +9,15 @@ import { MoodCheckDialog, SafetyMessageDialog } from "@/components/gentlepulse/m
 import { AnnouncementBanner } from "@/components/announcement-banner";
 import { PaginationControls } from "@/components/pagination-controls";
 import { useClientId } from "@/hooks/useClientId";
+import { Link } from "wouter";
+import { Heart } from "lucide-react";
 import type { GentlepulseMeditation } from "@shared/schema";
 
 export default function GentlePulseLibrary() {
   const clientId = useClientId();
   const [sortBy, setSortBy] = useState("newest");
   const [tagFilter, setTagFilter] = useState<string>("all");
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [showMoodDialog, setShowMoodDialog] = useState(false);
   const [showSafetyMessage, setShowSafetyMessage] = useState(false);
   const [page, setPage] = useState(0);
@@ -38,19 +41,54 @@ export default function GentlePulseLibrary() {
     }
   }, [moodEligible]);
 
+  // Fetch favorites - always fetch if clientId exists, but only use when filtering
+  const { data: favoriteIds = [] } = useQuery<string[]>({
+    queryKey: [`/api/gentlepulse/favorites?clientId=${clientId}`],
+    enabled: !!clientId,
+  });
+
   // Convert "all" to empty string for API call
   const tagFilterForApi = tagFilter === "all" ? "" : tagFilter;
 
+  // When showing favorites only, we need to fetch all meditations and filter client-side
+  // Otherwise, use paginated API
+  const shouldFetchAll = showFavoritesOnly && favoriteIds.length > 0;
+  const queryKey = shouldFetchAll
+    ? `/api/gentlepulse/meditations?sortBy=${sortBy}&tag=${tagFilterForApi}&limit=1000&offset=0`
+    : `/api/gentlepulse/meditations?sortBy=${sortBy}&tag=${tagFilterForApi}&limit=${limit}&offset=${page * limit}`;
+
   const { data, isLoading } = useQuery<{ meditations: GentlepulseMeditation[]; total: number }>({
-    queryKey: [`/api/gentlepulse/meditations?sortBy=${sortBy}&tag=${tagFilterForApi}&limit=${limit}&offset=${page * limit}`],
+    queryKey: [queryKey],
   });
 
-  const meditations = data?.meditations || [];
-  const total = data?.total || 0;
+  // Filter meditations by favorites if needed
+  const filteredMeditations = useMemo(() => {
+    if (!showFavoritesOnly) {
+      return data?.meditations || [];
+    }
+    // If showing favorites only but no favorites, return empty array
+    if (favoriteIds.length === 0) {
+      return [];
+    }
+    return (data?.meditations || []).filter(m => favoriteIds.includes(m.id));
+  }, [data?.meditations, showFavoritesOnly, favoriteIds]);
 
-  // Get unique tags from all meditations
+  // Apply client-side pagination when showing favorites
+  const paginatedMeditations = useMemo(() => {
+    if (showFavoritesOnly) {
+      const start = page * limit;
+      const end = start + limit;
+      return filteredMeditations.slice(start, end);
+    }
+    return filteredMeditations;
+  }, [filteredMeditations, page, limit, showFavoritesOnly]);
+
+  const total = showFavoritesOnly ? filteredMeditations.length : (data?.total || 0);
+  const meditations = paginatedMeditations;
+
+  // Get unique tags from all meditations (use data?.meditations to get all tags, not just filtered)
   const allTags = new Set<string>();
-  meditations.forEach((m) => {
+  (data?.meditations || []).forEach((m) => {
     if (m.tags) {
       try {
         const tags = JSON.parse(m.tags);
@@ -118,13 +156,50 @@ export default function GentlePulseLibrary() {
             ))}
           </SelectContent>
         </Select>
+
+        <div className="flex gap-2">
+          <Button
+            variant={showFavoritesOnly ? "default" : "outline"}
+            onClick={() => {
+              setShowFavoritesOnly(!showFavoritesOnly);
+              setPage(0); // Reset to first page when toggling filter
+            }}
+            className="flex items-center gap-2"
+            data-testid="button-toggle-favorites"
+          >
+            <Heart className={`w-4 h-4 ${showFavoritesOnly ? "fill-current" : ""}`} />
+            {showFavoritesOnly ? "Show All" : "Favorites Only"}
+          </Button>
+          {!showFavoritesOnly && (
+            <Button
+              variant="outline"
+              asChild
+              className="flex items-center gap-2"
+              data-testid="button-view-favorites"
+            >
+              <Link href="/apps/gentlepulse/favorites">
+                <Heart className="w-4 h-4" />
+                View Favorites
+              </Link>
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Meditation Grid */}
       {meditations.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
-            <p className="text-muted-foreground">No meditations found</p>
+            <p className="text-muted-foreground mb-4">
+              {showFavoritesOnly 
+                ? "No favorite meditations found" 
+                : "No meditations found"}
+            </p>
+            {showFavoritesOnly && (
+              <p className="text-sm text-muted-foreground">
+                Tap the heart icon on any meditation to save it as a favorite
+              </p>
+            )}
           </CardContent>
         </Card>
       ) : (
