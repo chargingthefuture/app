@@ -23,10 +23,12 @@ import { useExternalLink } from "@/hooks/useExternalLink";
 import { VerifiedBadge } from "@/components/verified-badge";
 import { DeleteProfileDialog } from "@/components/delete-profile-dialog";
 import { AnnouncementBanner } from "@/components/announcement-banner";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function DirectoryProfilePage() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
+  const { user } = useAuth();
   const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
   const { data: profile, isLoading } = useQuery<DirectoryProfile | null>({
     queryKey: ["/api/directory/profile"],
@@ -79,14 +81,22 @@ export default function DirectoryProfilePage() {
       setCountry(profile.country || "");
       setIsPublic(!!profile.isPublic);
       setNickname(profile.nickname || "");
-      setDirectoryFirstName(profile.firstName || "");
+      // Use profile firstName if set, otherwise fall back to account firstName
+      setDirectoryFirstName(profile.firstName || user?.firstName || "");
       setDisplayNameType((profile.displayNameType as 'first' | 'nickname') || "first");
       setIsEditing(false);
+    } else if (user) {
+      // When creating a new profile, initialize with account firstName
+      setDirectoryFirstName(user.firstName || "");
     }
-  }, [profile]);
+  }, [profile, user]);
 
   const createMutation = useMutation({
     mutationFn: async () => {
+      // Use account firstName if directoryFirstName is blank
+      const firstNameValue = displayNameType === 'first' 
+        ? (directoryFirstName.trim() || user?.firstName || null)
+        : null;
       const payload = {
         description: description.trim(),
         skills,
@@ -95,7 +105,7 @@ export default function DirectoryProfilePage() {
         city: city || null,
         state: stateVal || null,
         country: country,
-        firstName: displayNameType === 'first' ? (directoryFirstName.trim() || null) : null,
+        firstName: firstNameValue,
         nickname: nickname || null,
         displayNameType,
         isPublic,
@@ -115,6 +125,10 @@ export default function DirectoryProfilePage() {
 
   const updateMutation = useMutation({
     mutationFn: async () => {
+      // Use account firstName if directoryFirstName is blank
+      const firstNameValue = displayNameType === 'first' 
+        ? (directoryFirstName.trim() || user?.firstName || null)
+        : null;
       const payload = {
         description: description.trim(),
         skills,
@@ -123,7 +137,7 @@ export default function DirectoryProfilePage() {
         city: city || null,
         state: stateVal || null,
         country: country,
-        firstName: displayNameType === 'first' ? (directoryFirstName.trim() || null) : null,
+        firstName: firstNameValue,
         nickname: nickname || null,
         displayNameType,
         isPublic,
@@ -271,7 +285,7 @@ export default function DirectoryProfilePage() {
                 <p className="mt-1">
                   {displayNameType === 'nickname' 
                     ? (nickname || '—') 
-                    : (directoryFirstName || (profile as any)?.displayName || 'First name')}
+                    : (directoryFirstName || user?.firstName || (profile as any)?.displayName || 'First name')}
                 </p>
               </div>
               <div>
