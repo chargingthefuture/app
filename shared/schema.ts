@@ -1206,7 +1206,10 @@ export const insertMechanicmatchProfileSchema = createInsertSchema(mechanicmatch
   state: z.string().max(100).optional().nullable(),
   country: z.string().max(100).optional().nullable(),
   phoneNumber: z.string().max(20).optional().nullable(),
-  signalUrl: z.string().url().optional().nullable().or(z.literal("")),
+  signalUrl: z.string().optional().nullable().refine(
+    (val) => !val || val === "" || z.string().url().safeParse(val).success,
+    { message: "Must be a valid URL" }
+  ).transform(val => val === "" ? null : val),
   ownerBio: z.string().optional().nullable(),
   mechanicBio: z.string().optional().nullable(),
   experience: z.number().int().min(0).max(100).optional().nullable(),

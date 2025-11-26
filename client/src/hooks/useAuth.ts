@@ -85,16 +85,26 @@ export function useAuth() {
 
   const { data: dbUser, isLoading: dbLoading, error: dbError } = useQuery<DbUser | null>({
     queryKey: ["/api/auth/user"],
-    retry: false,
+    retry: 2, // Retry up to 2 times on failure
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 3000), // Exponential backoff
     enabled: clerkLoaded && isSignedIn,
   });
 
-  // Log errors for debugging
+  // Log errors and null responses for debugging
   useEffect(() => {
     if (dbError) {
       console.error("Error fetching user from database:", dbError);
     }
-  }, [dbError]);
+    // Log when we get null response but user is authenticated with Clerk
+    // This indicates a sync failure that needs investigation
+    if (clerkLoaded && isSignedIn && !dbLoading && dbUser === null && !dbError) {
+      console.error("User authenticated with Clerk but database returned null. This may indicate a sync failure.", {
+        clerkUserId: clerkUser?.id,
+        clerkEmail: clerkUser?.primaryEmailAddress?.emailAddress,
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }, [dbError, dbUser, clerkLoaded, isSignedIn, dbLoading, clerkUser]);
 
   // isLoading: true when:
   // - Clerk is not loaded yet (and not timed out), OR
@@ -103,6 +113,7 @@ export function useAuth() {
   const isLoading = (!clerkLoaded && !clerkLoadTimeout) || (clerkLoaded && isSignedIn && dbLoading);
 
   const isAuthenticated = isSignedIn && Boolean(clerkUser);
+  // If user is authenticated with Clerk but dbUser is null, treat as sync failure
   const user = isAuthenticated && dbUser ? dbUser : null;
 
   return {

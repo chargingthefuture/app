@@ -42,15 +42,34 @@ export default function Home() {
   }
 
   // If not authenticated, this shouldn't happen due to routing, but handle gracefully
+  // Also handle case where user is authenticated with Clerk but database sync failed
   if (!user) {
+    // Check if user is authenticated with Clerk but database returned null (sync failure)
+    const isSyncFailure = _clerk.isSignedIn && !_dbError && !isLoading;
+    
     return (
       <div className="p-6 md:p-8">
         <div className="text-center py-12">
-          <p className="text-muted-foreground">Unable to load user data. Please try refreshing the page.</p>
+          <p className="text-muted-foreground">
+            {isSyncFailure 
+              ? "Your account is being set up. This may take a moment. Please wait a few seconds and refresh the page."
+              : "Unable to load user data. Please try refreshing the page."}
+          </p>
           {_dbError && (
             <p className="text-sm text-destructive mt-2">
               Error: {_dbError instanceof Error ? _dbError.message : String(_dbError)}
             </p>
+          )}
+          {isSyncFailure && (
+            <div className="mt-4">
+              <Button 
+                onClick={() => window.location.reload()} 
+                variant="outline"
+                data-testid="button-refresh-page"
+              >
+                Refresh Page
+              </Button>
+            </div>
           )}
         </div>
       </div>

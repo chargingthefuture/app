@@ -199,6 +199,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
             userId,
             dbError: dbError.message,
             syncError: syncError.message,
+            dbErrorCode: dbError.code,
+            syncErrorCode: syncError.code,
+            dbErrorStack: dbError.stack,
+            syncErrorStack: syncError.stack,
+            environment: process.env.NODE_ENV,
+            hasClerkSecretKey: !!process.env.CLERK_SECRET_KEY,
+            hasDatabaseUrl: !!process.env.DATABASE_URL,
+            timestamp: new Date().toISOString(),
           });
           
           // If sync fails (e.g., deleted user), return appropriate error
@@ -218,7 +226,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             dbError.code === "ECONNREFUSED";
           
           if (isConnectionError) {
-            console.error("Database connection error - returning 503 Service Unavailable");
+            console.error("Database connection error - returning 503 Service Unavailable", {
+              userId,
+              environment: process.env.NODE_ENV,
+              timestamp: new Date().toISOString(),
+            });
             return res.status(503).json({ 
               message: "Database temporarily unavailable. Please try again in a moment.",
               retryAfter: 5, // Suggest retry after 5 seconds
@@ -227,23 +239,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           // For other errors, return null to allow frontend to handle gracefully
           // This prevents the app from completely breaking
+          // But log extensively for production debugging
+          console.error(`Both database query and sync failed for user ${userId}, returning null.`, {
+            environment: process.env.NODE_ENV,
+            timestamp: new Date().toISOString(),
+            dbErrorType: dbError.constructor?.name,
+            syncErrorType: syncError.constructor?.name,
+          });
           return res.json(null);
         }
       }
       
       // If user doesn't exist in our database, try to sync from Clerk
       if (!user) {
-        console.log(`User not found in database, attempting to sync from Clerk: ${userId}`);
+        console.log(`User not found in database, attempting to sync from Clerk: ${userId}`, {
+          hasSessionClaims: !!(req.auth as any)?.sessionClaims,
+          environment: process.env.NODE_ENV,
+        });
         try {
           // Pass session claims as fallback if Clerk API fails
           const sessionClaims = (req.auth as any)?.sessionClaims;
           user = await syncClerkUserToDatabase(userId, sessionClaims);
+          
+          // If sync succeeded but user is still null, log warning
+          if (!user) {
+            console.warn(`Sync completed but user is still null for ${userId}. This should not happen.`);
+          }
         } catch (syncError: any) {
           console.error("Error syncing user from Clerk:", {
             userId,
             error: syncError.message,
             statusCode: syncError.statusCode,
             stack: syncError.stack,
+            name: syncError.name,
+            code: syncError.code,
+            environment: process.env.NODE_ENV,
+            hasClerkSecretKey: !!process.env.CLERK_SECRET_KEY,
+            hasDatabaseUrl: !!process.env.DATABASE_URL,
           });
           
           // If sync fails (e.g., deleted user), return appropriate error
@@ -256,12 +288,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // If Clerk API call failed but we have partial data, log and return null
           // The user will be created on the next successful sync
           if (syncError.message?.includes("Failed to fetch user from Clerk")) {
-            console.warn(`Clerk API unavailable for user ${userId}, returning null. User will be synced on next request.`);
+            console.warn(`Clerk API unavailable for user ${userId}, returning null. User will be synced on next request.`, {
+              environment: process.env.NODE_ENV,
+              timestamp: new Date().toISOString(),
+            });
             return res.json(null);
           }
           
           // For other sync errors, return null (user will be created on next request)
           // Don't return 500 - this allows the frontend to handle gracefully
+          // But log extensively for production debugging
+          console.error(`Sync failed for user ${userId}, returning null. Error: ${syncError.message}`, {
+            environment: process.env.NODE_ENV,
+            timestamp: new Date().toISOString(),
+            errorType: syncError.constructor.name,
+          });
           return res.json(null);
         }
       }
