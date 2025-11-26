@@ -16,6 +16,16 @@ const execAsync = promisify(exec);
 
 const seedScripts = [
   {
+    name: "Test Users",
+    script: "seedTestUsers.ts",
+    description: "Test Users - Test users for the application",
+  },
+  {
+    name: "NPS Responses",
+    script: "seedNpsResponses.ts",
+    description: "NPS Responses - NPS responses for the application",
+  },
+  {
     name: "ChatGroups",
     script: "seedChatGroups.ts",
     description: "Chat Groups - Signal group listings",
@@ -68,12 +78,17 @@ const seedScripts = [
   {
     name: "Payment Tracking",
     script: "seedPaymentTracking.ts",
-    description: "Payment Tracking",
+    description: "Payment Tracking - Payment tracking and delinquent user features",
   },
   {
     name: "WeeklyPerformanceMetrics",
     script: "seedWeeklyPerformanceMetrics.ts",
-    description: "Weekly Performance Metrics",
+    description: "Weekly Performance Metrics - Weekly performance metrics for the application",
+  },
+  {
+    name: "Reports Data",
+    script: "seedReportsData.ts",
+    description: "Reports Data - Reports data for the application",
   },
 ];
 
