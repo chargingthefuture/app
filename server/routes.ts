@@ -989,8 +989,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put('/api/chatgroups/admin/announcements/:id', isAuthenticated, isAdmin, validateCsrfToken, asyncHandler(async (req: any, res) => {
     const userId = getUserId(req);
+    const validatedData = validateWithZod(insertChatgroupsAnnouncementSchema.partial() as any, req.body, 'Invalid announcement data');
     const announcement = await withDatabaseErrorHandling(
-      () => storage.updateChatgroupsAnnouncement(req.params.id, req.body),
+      () => storage.updateChatgroupsAnnouncement(req.params.id, validatedData),
       'updateChatgroupsAnnouncement'
     );
     
@@ -1307,8 +1308,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put('/api/supportmatch/admin/announcements/:id', isAuthenticated, isAdmin, validateCsrfToken, asyncHandler(async (req: any, res) => {
     const userId = getUserId(req);
+    const validatedData = validateWithZod(insertSupportmatchAnnouncementSchema.partial() as any, req.body, 'Invalid announcement data');
     const announcement = await withDatabaseErrorHandling(
-      () => storage.updateSupportmatchAnnouncement(req.params.id, req.body),
+      () => storage.updateSupportmatchAnnouncement(req.params.id, validatedData),
       'updateSupportmatchAnnouncement'
     );
     
@@ -1863,8 +1865,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put('/api/lighthouse/admin/announcements/:id', isAuthenticated, isAdmin, validateCsrfToken, asyncHandler(async (req: any, res) => {
     const userId = getUserId(req);
+    const validatedData = validateWithZod(insertLighthouseAnnouncementSchema.partial() as any, req.body, 'Invalid announcement data');
     const announcement = await withDatabaseErrorHandling(
-      () => storage.updateLighthouseAnnouncement(req.params.id, req.body),
+      () => storage.updateLighthouseAnnouncement(req.params.id, validatedData),
       'updateLighthouseAnnouncement'
     );
     
@@ -2327,8 +2330,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put('/api/socketrelay/admin/announcements/:id', isAuthenticated, isAdmin, asyncHandler(async (req: any, res) => {
     const userId = getUserId(req);
+    const validatedData = validateWithZod(insertSocketrelayAnnouncementSchema.partial() as any, req.body, 'Invalid announcement data');
     const announcement = await withDatabaseErrorHandling(
-      () => storage.updateSocketrelayAnnouncement(req.params.id, req.body),
+      () => storage.updateSocketrelayAnnouncement(req.params.id, validatedData),
       'updateSocketrelayAnnouncement'
     );
     
@@ -2400,8 +2404,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put('/api/directory/admin/announcements/:id', isAuthenticated, isAdmin, asyncHandler(async (req: any, res) => {
     const userId = getUserId(req);
+    const validatedData = validateWithZod(insertDirectoryAnnouncementSchema.partial() as any, req.body, 'Invalid announcement data');
     const announcement = await withDatabaseErrorHandling(
-      () => storage.updateDirectoryAnnouncement(req.params.id, req.body),
+      () => storage.updateDirectoryAnnouncement(req.params.id, validatedData),
       'updateDirectoryAnnouncement'
     );
     
@@ -2655,8 +2660,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put('/api/trusttransport/admin/announcements/:id', isAuthenticated, isAdmin, asyncHandler(async (req: any, res) => {
     const userId = getUserId(req);
+    const validatedData = validateWithZod(insertTrusttransportAnnouncementSchema.partial() as any, req.body, 'Invalid announcement data');
     const announcement = await withDatabaseErrorHandling(
-      () => storage.updateTrusttransportAnnouncement(req.params.id, req.body),
+      () => storage.updateTrusttransportAnnouncement(req.params.id, validatedData),
       'updateTrusttransportAnnouncement'
     );
     
@@ -3369,8 +3375,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put('/api/mechanicmatch/admin/announcements/:id', isAuthenticated, isAdmin, validateCsrfToken, asyncHandler(async (req: any, res) => {
     const userId = getUserId(req);
+    const validatedData = validateWithZod(insertMechanicmatchAnnouncementSchema.partial() as any, req.body, 'Invalid announcement data');
     const announcement = await withDatabaseErrorHandling(
-      () => storage.updateMechanicmatchAnnouncement(req.params.id, req.body),
+      () => storage.updateMechanicmatchAnnouncement(req.params.id, validatedData),
       'updateMechanicmatchAnnouncement'
     );
     
@@ -3990,8 +3997,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put('/api/research/admin/announcements/:id', isAuthenticated, isAdmin, asyncHandler(async (req: any, res) => {
     const userId = getUserId(req);
+    const validatedData = validateWithZod(insertResearchAnnouncementSchema.partial() as any, req.body, 'Invalid announcement data');
     const announcement = await withDatabaseErrorHandling(
-      () => storage.updateResearchAnnouncement(req.params.id, req.body),
+      () => storage.updateResearchAnnouncement(req.params.id, validatedData),
       'updateResearchAnnouncement'
     );
     
@@ -4365,8 +4373,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put('/api/gentlepulse/admin/announcements/:id', isAuthenticated, isAdmin, asyncHandler(async (req: any, res) => {
     const userId = getUserId(req);
+    const validatedData = validateWithZod(insertGentlepulseAnnouncementSchema.partial() as any, req.body, 'Invalid announcement data');
     const announcement = await withDatabaseErrorHandling(
-      () => storage.updateGentlepulseAnnouncement(req.params.id, req.body),
+      () => storage.updateGentlepulseAnnouncement(req.params.id, validatedData),
       'updateGentlepulseAnnouncement'
     );
     
@@ -4654,8 +4663,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put('/api/lostmail/admin/announcements/:id', isAuthenticated, isAdmin, asyncHandler(async (req: any, res) => {
     const userId = getUserId(req);
+    const validatedData = validateWithZod(insertLostmailAnnouncementSchema.partial() as any, req.body, 'Invalid announcement data');
     const announcement = await withDatabaseErrorHandling(
-      () => storage.updateLostmailAnnouncement(req.params.id, req.body),
+      () => storage.updateLostmailAnnouncement(req.params.id, validatedData),
       'updateLostmailAnnouncement'
     );
     
