@@ -1369,8 +1369,11 @@ export class DatabaseStorage implements IStorage {
       const previousWeekNpsResponses = await this.getNpsResponsesForWeek(previousWeekStart, previousWeekEnd);
       
       if (currentWeekNpsResponses.length > 0) {
-        const promoters = currentWeekNpsResponses.filter(r => r.score >= 9).length;
-        const detractors = currentWeekNpsResponses.filter(r => r.score <= 6).length;
+        // Invert scores because the question is "How would you feel if this app no longer existed?"
+        // Score 0 (extremely unhappy about losing app) = promoter (inverted to 10)
+        // Score 10 (extremely happy about losing app) = detractor (inverted to 0)
+        const promoters = currentWeekNpsResponses.filter(r => (10 - r.score) >= 9).length;
+        const detractors = currentWeekNpsResponses.filter(r => (10 - r.score) <= 6).length;
         const total = currentWeekNpsResponses.length;
         const promoterPercent = (promoters / total) * 100;
         const detractorPercent = (detractors / total) * 100;
@@ -1379,8 +1382,9 @@ export class DatabaseStorage implements IStorage {
       }
       
       if (previousWeekNpsResponses.length > 0 && currentWeekNpsResponses.length > 0) {
-        const prevPromoters = previousWeekNpsResponses.filter(r => r.score >= 9).length;
-        const prevDetractors = previousWeekNpsResponses.filter(r => r.score <= 6).length;
+        // Invert scores for previous week as well
+        const prevPromoters = previousWeekNpsResponses.filter(r => (10 - r.score) >= 9).length;
+        const prevDetractors = previousWeekNpsResponses.filter(r => (10 - r.score) <= 6).length;
         const prevTotal = previousWeekNpsResponses.length;
         const prevPromoterPercent = (prevPromoters / prevTotal) * 100;
         const prevDetractorPercent = (prevDetractors / prevTotal) * 100;

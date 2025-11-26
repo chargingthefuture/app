@@ -14,6 +14,7 @@ import { ErrorBoundary } from "@/components/error-boundary";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
 import Home from "@/pages/home";
+import Terms from "@/pages/terms";
 import Services from "@/pages/services";
 import UserPayments from "@/pages/user-payments";
 import DeleteAccount from "@/pages/account/delete";
@@ -216,6 +217,9 @@ function Router() {
       {/* Publicly viewable SocketRelay requests */}
       <Route path="/apps/socketrelay/public" component={PublicSocketRelayList} />
       <Route path="/apps/socketrelay/public/:id" component={PublicSocketRelayRequest} />
+      
+      {/* Public Terms page */}
+      <Route path="/terms" component={Terms} />
       
       {/* Root route - handles landing vs redirect */}
       <Route path="/">

@@ -862,8 +862,10 @@ export default function WeeklyPerformanceReview() {
                 </div>
                 <div className="mt-4 pt-4 border-t">
                   <p className="text-xs text-muted-foreground">
-                    <strong>How NPS is calculated:</strong> Percentage of Promoters (scores 9-10) minus percentage of Detractors (scores 0-6). 
-                    Scores of 7-8 are considered Passive and don&apos;t affect the calculation.
+                    <strong>How NPS is calculated:</strong> The question asks &quot;How would you feel if this app no longer existed?&quot; 
+                    Scores are inverted before calculation: 0 (extremely unhappy about losing app) = Promoter, 
+                    10 (extremely happy about losing app) = Detractor. Percentage of Promoters (inverted scores 9-10) 
+                    minus percentage of Detractors (inverted scores 0-6). Scores of 7-8 are considered Passive and don&apos;t affect the calculation.
                   </p>
                 </div>
               </CardContent>
