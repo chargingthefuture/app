@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Master seed script for all mini-apps
+ * Main seed script for all mini-apps
  * 
  * This script runs all mini-app seed scripts in sequence.
  * Each script seeds its respective mini-app's data including announcements.
@@ -64,6 +64,16 @@ const seedScripts = [
     name: "GentlePulse",
     script: "seedGentlePulse.ts",
     description: "GentlePulse - Meditation library",
+  },
+  {
+    name: "Payment Tracking",
+    script: "seedPaymentTracking.ts",
+    description: "Payment Tracking",
+  },
+  {
+    name: "WeeklyPerformanceMetrics",
+    script: "seedWeeklyPerformanceMetrics.ts",
+    description: "Weekly Performance Metrics",
   },
 ];
 
