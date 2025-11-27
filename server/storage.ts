@@ -1091,20 +1091,20 @@ export class DatabaseStorage implements IStorage {
   private getWeekStart(date: Date): Date {
     const d = new Date(date);
     const day = d.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
-    // Calculate days to subtract to get to Monday
-    // If Sunday (0), subtract 6 days. If Monday (1), subtract 0 days. If Tuesday (2), subtract 1 day, etc.
-    const daysToSubtract = day === 0 ? 6 : day - 1;
+    // Calculate days to subtract to get to Saturday
+    // If Saturday (6), subtract 0 days. If Sunday (0), subtract 1 day. If Monday (1), subtract 2 days, etc.
+    const daysToSubtract = day === 6 ? 0 : day + 1;
     const weekStart = new Date(d);
     weekStart.setDate(d.getDate() - daysToSubtract);
     weekStart.setHours(0, 0, 0, 0);
     return weekStart;
   }
 
-  // Helper to get end of week (Sunday) for a given date
+  // Helper to get end of week (Friday) for a given date
   private getWeekEnd(date: Date): Date {
     const weekStart = this.getWeekStart(date);
     const weekEnd = new Date(weekStart);
-    weekEnd.setDate(weekEnd.getDate() + 6);
+    weekEnd.setDate(weekEnd.getDate() + 6); // Saturday + 6 days = Friday
     weekEnd.setHours(23, 59, 59, 999);
     return weekEnd;
   }
@@ -1171,7 +1171,7 @@ export class DatabaseStorage implements IStorage {
         verifiedUsersPercentageChange: number;
       };
   }> {
-    // Calculate current week boundaries (Monday to Sunday)
+    // Calculate current week boundaries (Saturday to Friday)
     const currentWeekStart = this.getWeekStart(weekStart);
     const currentWeekEnd = this.getWeekEnd(weekStart);
     

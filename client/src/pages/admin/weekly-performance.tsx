@@ -65,16 +65,16 @@ export default function WeeklyPerformanceReview() {
   const [isCapturing, setIsCapturing] = useState(false);
   
   const [selectedWeek, setSelectedWeek] = useState<string>(() => {
-    // Default to current week start (Monday)
+    // Default to current week start (Saturday)
     const today = new Date();
-    const weekStart = startOfWeek(today, { weekStartsOn: 1 }); // Monday
+    const weekStart = startOfWeek(today, { weekStartsOn: 6 }); // Saturday
     return format(weekStart, "yyyy-MM-dd");
   });
 
   // Check if selected week is the current week (for real-time updates)
   const isCurrentWeek = useMemo(() => {
     const today = new Date();
-    const currentWeekStart = startOfWeek(today, { weekStartsOn: 1 });
+    const currentWeekStart = startOfWeek(today, { weekStartsOn: 6 }); // Saturday
     const selectedWeekDate = parseISO(selectedWeek);
     return format(selectedWeekDate, "yyyy-MM-dd") === format(currentWeekStart, "yyyy-MM-dd");
   }, [selectedWeek]);
@@ -115,7 +115,7 @@ export default function WeeklyPerformanceReview() {
 
   const goToCurrentWeek = () => {
     const today = new Date();
-    const weekStart = startOfWeek(today, { weekStartsOn: 1 });
+    const weekStart = startOfWeek(today, { weekStartsOn: 6 }); // Saturday
     setSelectedWeek(format(weekStart, "yyyy-MM-dd"));
   };
 
@@ -443,7 +443,7 @@ export default function WeeklyPerformanceReview() {
         <CardContent>
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
             <div className="space-y-2 flex-1">
-              <Label htmlFor="week-start">Week Starting (Monday)</Label>
+              <Label htmlFor="week-start">Week Starting (Saturday)</Label>
               <Input
                 id="week-start"
                 type="date"
