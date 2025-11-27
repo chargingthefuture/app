@@ -16,9 +16,11 @@ import { VerifiedBadge } from "@/components/verified-badge";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { User } from "@shared/schema";
+import { useExternalLink } from "@/hooks/useExternalLink";
 
 export default function AdminUsers() {
   const { toast } = useToast();
+  const { openExternal, ExternalLinkDialog } = useExternalLink();
   const { data: users, isLoading, error } = useQuery<User[]>({
     queryKey: ["/api/admin/users"],
   });
@@ -145,6 +147,7 @@ export default function AdminUsers() {
                       <TableHead>Status</TableHead>
                       <TableHead>Role</TableHead>
                       <TableHead>Approved</TableHead>
+                      <TableHead>Quora Profile</TableHead>
                       <TableHead>Joined</TableHead>
                       <TableHead>Actions</TableHead>
                     </TableRow>
@@ -189,6 +192,19 @@ export default function AdminUsers() {
                             <Badge variant="default">Approved</Badge>
                           ) : (
                             <Badge variant="secondary">Pending</Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {user.quoraProfileUrl ? (
+                            <button
+                              onClick={() => openExternal(user.quoraProfileUrl!)}
+                              className="text-primary hover:underline text-sm truncate max-w-[200px]"
+                              data-testid={`quora-link-${user.id}`}
+                            >
+                              View Profile
+                            </button>
+                          ) : (
+                            <span className="text-xs">Not provided</span>
                           )}
                         </TableCell>
                         <TableCell className="text-muted-foreground">
@@ -270,6 +286,22 @@ export default function AdminUsers() {
                             )}
                           </div>
                         </div>
+                        <div>
+                          <span className="text-muted-foreground text-sm">Quora Profile</span>
+                          <div className="mt-1">
+                            {user.quoraProfileUrl ? (
+                              <button
+                                onClick={() => openExternal(user.quoraProfileUrl!)}
+                                className="text-primary hover:underline text-sm"
+                                data-testid={`quora-link-mobile-${user.id}`}
+                              >
+                                View Profile
+                              </button>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">Not provided</span>
+                            )}
+                          </div>
+                        </div>
                         <div className="grid grid-cols-2 gap-2 text-sm">
                           <div>
                             <span className="text-muted-foreground">Status</span>
@@ -331,6 +363,7 @@ export default function AdminUsers() {
           )}
         </CardContent>
       </Card>
+      <ExternalLinkDialog />
     </div>
   );
 }

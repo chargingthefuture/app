@@ -1,7 +1,7 @@
 import React from "react";
 import { Switch, Route, Redirect } from "wouter";
-import { queryClient } from "./lib/queryClient";
-import { QueryClientProvider } from "@tanstack/react-query";
+import { queryClient, apiRequest } from "./lib/queryClient";
+import { QueryClientProvider, useMutation } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
@@ -9,6 +9,9 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
 import { NpsSurveyManager } from "@/components/nps-survey-manager";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { TermsAcceptanceDialog, useTermsAcceptanceCheck } from "@/components/terms-acceptance-dialog";
@@ -124,6 +127,36 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const needsApproval = user && !user.isApproved && !user.isAdmin;
   const needsTermsAcceptance = useTermsAcceptanceCheck();
   const [termsDialogOpen, setTermsDialogOpen] = React.useState(false);
+  const [quoraProfileUrl, setQuoraProfileUrl] = React.useState(user?.quoraProfileUrl || "");
+  const { toast } = useToast();
+
+  // Update form when user data loads
+  React.useEffect(() => {
+    if (user?.quoraProfileUrl) {
+      setQuoraProfileUrl(user.quoraProfileUrl);
+    }
+  }, [user?.quoraProfileUrl]);
+
+  const updateQuoraUrlMutation = useMutation({
+    mutationFn: async (url: string) => {
+      const res = await apiRequest("PUT", "/api/user/quora-profile-url", { quoraProfileUrl: url });
+      return await res.json();
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+      toast({ 
+        title: "Quora Profile URL Updated", 
+        description: "Your Quora profile URL has been saved. An administrator will review your request." 
+      });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Error", 
+        description: error.message || "Failed to update Quora profile URL", 
+        variant: "destructive" 
+      });
+    },
+  });
 
   // If Clerk is still loading, show loading indicator
   if (!_clerk.clerkLoaded) {
@@ -142,18 +175,56 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return <Redirect to="/" />;
   }
 
-  // If needs approval, show waiting message
+  // If needs approval, show waiting message with Quora profile URL form
   if (needsApproval) {
+    const handleSubmit = (e: React.FormEvent) => {
+      e.preventDefault();
+      if (quoraProfileUrl.trim()) {
+        updateQuoraUrlMutation.mutate(quoraProfileUrl.trim());
+      }
+    };
+
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
           <CardHeader>
             <CardTitle>Access Pending</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
             <p className="text-muted-foreground">
               Your account is pending approval. An administrator will review your request shortly.
             </p>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="quora-profile-url">
+                  Quora Profile URL <span className="text-muted-foreground">(optional)</span>
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  Please provide your Quora profile URL to help us verify your identity.
+                </p>
+                <Input
+                  id="quora-profile-url"
+                  type="url"
+                  placeholder="https://www.quora.com/profile/YourName"
+                  value={quoraProfileUrl}
+                  onChange={(e) => setQuoraProfileUrl(e.target.value)}
+                  disabled={updateQuoraUrlMutation.isPending}
+                  data-testid="input-quora-profile-url"
+                />
+              </div>
+              <Button
+                type="submit"
+                disabled={updateQuoraUrlMutation.isPending || !quoraProfileUrl.trim()}
+                className="w-full"
+                data-testid="button-submit-quora-url"
+              >
+                {updateQuoraUrlMutation.isPending 
+                  ? "Saving..." 
+                  : user?.quoraProfileUrl 
+                    ? "Update Quora Profile URL" 
+                    : "Save Quora Profile URL"}
+              </Button>
+            </form>
           </CardContent>
         </Card>
       </div>
@@ -200,6 +271,36 @@ function RootRoute() {
   const needsApproval = user && !user.isApproved && !user.isAdmin;
   const needsTermsAcceptance = useTermsAcceptanceCheck();
   const [termsDialogOpen, setTermsDialogOpen] = React.useState(false);
+  const [quoraProfileUrl, setQuoraProfileUrl] = React.useState(user?.quoraProfileUrl || "");
+  const { toast } = useToast();
+
+  // Update form when user data loads
+  React.useEffect(() => {
+    if (user?.quoraProfileUrl) {
+      setQuoraProfileUrl(user.quoraProfileUrl);
+    }
+  }, [user?.quoraProfileUrl]);
+
+  const updateQuoraUrlMutation = useMutation({
+    mutationFn: async (url: string) => {
+      const res = await apiRequest("PUT", "/api/user/quora-profile-url", { quoraProfileUrl: url });
+      return await res.json();
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+      toast({ 
+        title: "Quora Profile URL Updated", 
+        description: "Your Quora profile URL has been saved. An administrator will review your request." 
+      });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Error", 
+        description: error.message || "Failed to update Quora profile URL", 
+        variant: "destructive" 
+      });
+    },
+  });
 
   // If Clerk is still loading, show loading indicator
   if (!_clerk.clerkLoaded) {
@@ -227,18 +328,56 @@ function RootRoute() {
       );
     }
     
-    // If needs approval, show waiting message
+    // If needs approval, show waiting message with Quora profile URL form
     if (needsApproval) {
+      const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (quoraProfileUrl.trim()) {
+          updateQuoraUrlMutation.mutate(quoraProfileUrl.trim());
+        }
+      };
+
       return (
         <div className="min-h-screen flex items-center justify-center p-4">
           <Card className="w-full max-w-md">
             <CardHeader>
               <CardTitle>Access Pending</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
               <p className="text-muted-foreground">
                 Your account is pending approval. An administrator will review your request shortly.
               </p>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="quora-profile-url-root">
+                    Quora Profile URL <span className="text-muted-foreground">(optional)</span>
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    Please provide your Quora profile URL to help us verify your identity.
+                  </p>
+                  <Input
+                    id="quora-profile-url-root"
+                    type="url"
+                    placeholder="https://www.quora.com/profile/YourName"
+                    value={quoraProfileUrl}
+                    onChange={(e) => setQuoraProfileUrl(e.target.value)}
+                    disabled={updateQuoraUrlMutation.isPending}
+                    data-testid="input-quora-profile-url-root"
+                  />
+                </div>
+                <Button
+                  type="submit"
+                  disabled={updateQuoraUrlMutation.isPending || !quoraProfileUrl.trim()}
+                  className="w-full"
+                  data-testid="button-submit-quora-url-root"
+                >
+                  {updateQuoraUrlMutation.isPending 
+                    ? "Saving..." 
+                    : user?.quoraProfileUrl 
+                      ? "Update Quora Profile URL" 
+                      : "Save Quora Profile URL"}
+                </Button>
+              </form>
             </CardContent>
           </Card>
         </div>

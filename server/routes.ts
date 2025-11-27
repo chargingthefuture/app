@@ -374,6 +374,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   }));
 
+  // Update Quora profile URL
+  app.put('/api/user/quora-profile-url', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const { quoraProfileUrl } = req.body;
+
+    // Validate URL format (optional - allow null/empty)
+    if (quoraProfileUrl && quoraProfileUrl.trim() !== '') {
+      const urlPattern = /^https?:\/\/.+/;
+      if (!urlPattern.test(quoraProfileUrl.trim())) {
+        return res.status(400).json({ message: "Please provide a valid URL starting with http:// or https://" });
+      }
+    }
+
+    try {
+      const user = await storage.updateUserQuoraProfileUrl(userId, quoraProfileUrl?.trim() || null);
+      res.json(user);
+    } catch (error: any) {
+      console.error("Error updating Quora profile URL:", error);
+      res.status(400).json({ message: error.message || "Failed to update Quora profile URL" });
+    }
+  }));
+
   // Terms acceptance
   app.post('/api/account/accept-terms', isAuthenticated, asyncHandler(async (req: any, res) => {
     const userId = getUserId(req);
