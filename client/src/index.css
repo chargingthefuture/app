@@ -360,4 +360,91 @@
   .border.hover-elevate:not(.no-hover-interaction-elevate)::after {
     inset: -1px;
   }
+
+  /* GentlePulse Accessibility Features */
+  
+  /* High Contrast Mode - WCAG AAA compliant (7:1 contrast ratio) */
+  .high-contrast {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 0%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 0%;
+    --border: 0 0% 0%;
+    --primary: 142 100% 20%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 90%;
+    --secondary-foreground: 0 0% 0%;
+    --muted: 0 0% 95%;
+    --muted-foreground: 0 0% 20%;
+    --accent: 0 0% 90%;
+    --accent-foreground: 0 0% 0%;
+    --destructive: 0 100% 30%;
+    --destructive-foreground: 0 0% 100%;
+    --ring: 142 100% 20%;
+  }
+
+  .dark.high-contrast {
+    --background: 0 0% 0%;
+    --foreground: 0 0% 100%;
+    --card: 0 0% 5%;
+    --card-foreground: 0 0% 100%;
+    --border: 0 0% 100%;
+    --primary: 142 100% 50%;
+    --primary-foreground: 0 0% 0%;
+    --secondary: 0 0% 20%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 0 0% 10%;
+    --muted-foreground: 0 0% 80%;
+    --accent: 0 0% 20%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 100% 60%;
+    --destructive-foreground: 0 0% 0%;
+    --ring: 142 100% 50%;
+  }
+
+  /* Dyslexia-Friendly Font */
+  .dyslexia-font {
+    font-family: 'OpenDyslexic', 'Comic Sans MS', 'Comic Sans', sans-serif;
+  }
+
+  /* Font Size Options */
+  .font-size-normal {
+    font-size: 1rem;
+  }
+
+  .font-size-large {
+    font-size: 1.25rem;
+  }
+
+  .font-size-extra-large {
+    font-size: 1.5rem;
+  }
+
+  /* Apply font size to all text elements within the document */
+  .font-size-large * {
+    font-size: 1.25rem;
+  }
+
+  .font-size-extra-large * {
+    font-size: 1.5rem;
+  }
+
+  /* Ensure headings scale appropriately */
+  .font-size-large h1,
+  .font-size-large h2,
+  .font-size-large h3,
+  .font-size-large h4,
+  .font-size-large h5,
+  .font-size-large h6 {
+    font-size: 1.5em;
+  }
+
+  .font-size-extra-large h1,
+  .font-size-extra-large h2,
+  .font-size-extra-large h3,
+  .font-size-extra-large h4,
+  .font-size-extra-large h5,
+  .font-size-extra-large h6 {
+    font-size: 1.5em;
+  }
 }

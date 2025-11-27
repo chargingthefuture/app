@@ -12,7 +12,7 @@ export function GentlePulseBottomNav() {
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-background border-t z-50 sm:hidden">
+    <nav className="fixed bottom-0 left-0 right-0 bg-background border-t z-50 sm:hidden" aria-label="GentlePulse navigation">
       <div className="grid grid-cols-3 gap-1 p-2">
         {navItems.map((item) => {
           const Icon = item.icon;
@@ -29,6 +29,7 @@ export function GentlePulseBottomNav() {
                 )}
                 data-testid={item.testId}
                 aria-label={item.label}
+                aria-current={isActive ? "page" : undefined}
               >
                 <Icon className="w-5 h-5" />
                 <span className="text-xs font-medium">{item.label}</span>

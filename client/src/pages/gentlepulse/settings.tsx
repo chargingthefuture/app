@@ -28,7 +28,21 @@ export default function GentlePulseSettings() {
     const saved = localStorage.getItem(SETTINGS_STORAGE_KEY);
     if (saved) {
       try {
-        setSettings(JSON.parse(saved));
+        const loadedSettings = JSON.parse(saved);
+        setSettings(loadedSettings);
+        
+        // Apply settings immediately on mount
+        if (loadedSettings.highContrast) {
+          document.documentElement.classList.add("high-contrast");
+        }
+        if (loadedSettings.dyslexiaFont) {
+          document.documentElement.classList.add("dyslexia-font");
+        }
+        if (loadedSettings.fontSize) {
+          document.documentElement.className = document.documentElement.className
+            .replace(/font-size-\w+/g, "");
+          document.documentElement.classList.add(`font-size-${loadedSettings.fontSize}`);
+        }
       } catch (e) {
         // ignore
       }
