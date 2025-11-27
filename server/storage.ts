@@ -925,22 +925,32 @@ export class DatabaseStorage implements IStorage {
       }
     });
 
-    // Calculate missing months (current month and last month if not paid)
-    const missingMonths: string[] = [];
-    const monthlyRate = parseFloat(user.pricingTier);
+    // Calculate billing months starting from user's signup date
+    const signupDate = user.createdAt;
+    const signupMonth = new Date(signupDate.getFullYear(), signupDate.getMonth(), 1);
+    const signupMonthStr = `${signupMonth.getFullYear()}-${String(signupMonth.getMonth() + 1).padStart(2, '0')}`;
     
-    // Check last month (users have grace period until current month ends)
-    if (!paidMonths.has(lastMonthStr)) {
-      missingMonths.push(lastMonthStr);
+    // Generate all expected billing months from signup to last month (current month not due yet)
+    const expectedMonths: string[] = [];
+    const checkDate = new Date(signupMonth);
+    const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    
+    while (checkDate <= lastMonthDate) {
+      const monthStr = `${checkDate.getFullYear()}-${String(checkDate.getMonth() + 1).padStart(2, '0')}`;
+      expectedMonths.push(monthStr);
+      // Move to next month
+      checkDate.setMonth(checkDate.getMonth() + 1);
     }
     
-    // Check current month (not yet due, but track for admin view)
-    // Users are considered delinquent if last month is unpaid
+    // Find missing months (expected months that haven't been paid)
+    const missingMonths: string[] = expectedMonths.filter(month => !paidMonths.has(month));
+    const monthlyRate = parseFloat(user.pricingTier);
 
     // Grace period: 15 days into current month
     const gracePeriodEnds = new Date(now.getFullYear(), now.getMonth(), 15);
     const isInGracePeriod = now <= gracePeriodEnds;
 
+    // User is delinquent if they have missing months and grace period has passed
     const isDelinquent = missingMonths.length > 0 && !isInGracePeriod;
     
     // Calculate amount owed (only for actually missing months)
