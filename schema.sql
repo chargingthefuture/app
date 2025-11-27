@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS users (
   first_name VARCHAR,
   last_name VARCHAR,
   profile_image_url VARCHAR,
+  quora_profile_url VARCHAR,
   is_admin BOOLEAN NOT NULL DEFAULT false,
   is_verified BOOLEAN NOT NULL DEFAULT false,
   is_approved BOOLEAN NOT NULL DEFAULT false,
