@@ -721,37 +721,6 @@ CREATE TABLE IF NOT EXISTS research_follows (
   created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
--- Research Boards (Trello-style)
-CREATE TABLE IF NOT EXISTS research_boards (
-  id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
-  research_item_id VARCHAR NOT NULL REFERENCES research_items(id),
-  user_id VARCHAR NOT NULL REFERENCES users(id),
-  name VARCHAR(200) NOT NULL,
-  position INTEGER DEFAULT 0 NOT NULL,
-  created_at TIMESTAMP NOT NULL DEFAULT NOW()
-);
-
--- Research Columns (Trello-style)
-CREATE TABLE IF NOT EXISTS research_columns (
-  id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
-  board_id VARCHAR NOT NULL REFERENCES research_boards(id),
-  name VARCHAR(200) NOT NULL,
-  position INTEGER DEFAULT 0 NOT NULL,
-  created_at TIMESTAMP NOT NULL DEFAULT NOW()
-);
-
--- Research Cards (Trello-style)
-CREATE TABLE IF NOT EXISTS research_cards (
-  id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
-  column_id VARCHAR NOT NULL REFERENCES research_columns(id),
-  answer_id VARCHAR REFERENCES research_answers(id),
-  link_id VARCHAR REFERENCES research_link_provenances(id),
-  title VARCHAR(300) NOT NULL,
-  description TEXT,
-  position INTEGER DEFAULT 0 NOT NULL,
-  created_at TIMESTAMP NOT NULL DEFAULT NOW()
-);
-
 -- Research Reports (moderation)
 CREATE TABLE IF NOT EXISTS research_reports (
   id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),

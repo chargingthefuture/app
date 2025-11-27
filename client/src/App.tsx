@@ -79,6 +79,8 @@ import TrustTransportAdminAnnouncements from "@/pages/trusttransport/admin-annou
 import MechanicMatchDashboard from "@/pages/mechanicmatch/dashboard";
 import MechanicMatchProfile from "@/pages/mechanicmatch/profile";
 import MechanicMatchVehicles from "@/pages/mechanicmatch/vehicles";
+import MechanicMatchVehicleNew from "@/pages/mechanicmatch/vehicle-new";
+import MechanicMatchVehicleEdit from "@/pages/mechanicmatch/vehicle-edit";
 import MechanicMatchRequestNew from "@/pages/mechanicmatch/request-new";
 import MechanicMatchBrowseMechanics from "@/pages/mechanicmatch/browse-mechanics";
 import MechanicMatchAvailability from "@/pages/mechanicmatch/availability";
@@ -593,6 +595,16 @@ function Router() {
       <Route path="/apps/mechanicmatch/vehicles">
         <ProtectedRoute>
           <MechanicMatchVehicles />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/mechanicmatch/vehicles/new">
+        <ProtectedRoute>
+          <MechanicMatchVehicleNew />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/mechanicmatch/vehicles/:id/edit">
+        <ProtectedRoute>
+          <MechanicMatchVehicleEdit />
         </ProtectedRoute>
       </Route>
       <Route path="/apps/mechanicmatch/request-new">

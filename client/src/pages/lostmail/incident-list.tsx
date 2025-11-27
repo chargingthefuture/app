@@ -29,8 +29,11 @@ export default function LostMailIncidentList({ email }: LostMailIncidentListProp
   if (incidents.length === 0) {
     return (
       <Card>
-        <CardContent className="py-12 text-center">
-          <p className="text-muted-foreground">No incidents found for {email}</p>
+        <CardContent className="py-12 text-center space-y-4">
+          <p className="text-muted-foreground">No incidents found for this email address.</p>
+          <p className="text-sm text-muted-foreground">
+            If you submitted a report, make sure you're using the same email address you used when submitting.
+          </p>
         </CardContent>
       </Card>
     );

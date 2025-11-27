@@ -126,9 +126,6 @@ import {
   researchLinkProvenances,
   researchBookmarks,
   researchFollows,
-  researchBoards,
-  researchColumns,
-  researchCards,
   researchReports,
   researchAnnouncements,
   type ResearchItem,
@@ -145,12 +142,6 @@ import {
   type InsertResearchBookmark,
   type ResearchFollow,
   type InsertResearchFollow,
-  type ResearchBoard,
-  type InsertResearchBoard,
-  type ResearchColumn,
-  type InsertResearchColumn,
-  type ResearchCard,
-  type InsertResearchCard,
   type ResearchReport,
   type InsertResearchReport,
   type ResearchAnnouncement,
@@ -599,18 +590,6 @@ export interface IStorage {
   createResearchFollow(follow: InsertResearchFollow): Promise<ResearchFollow>;
   deleteResearchFollow(userId: string, filters: { followedUserId?: string; researchItemId?: string; tag?: string }): Promise<void>;
   getResearchFollows(userId: string): Promise<ResearchFollow[]>;
-
-  // Research Boards/Columns/Cards (Trello-style)
-  createResearchBoard(board: InsertResearchBoard): Promise<ResearchBoard>;
-  getResearchBoardsByItemId(itemId: string, userId: string): Promise<ResearchBoard[]>;
-  updateResearchBoard(id: string, board: Partial<InsertResearchBoard>): Promise<ResearchBoard>;
-  createResearchColumn(column: InsertResearchColumn): Promise<ResearchColumn>;
-  getResearchColumnsByBoardId(boardId: string): Promise<ResearchColumn[]>;
-  updateResearchColumn(id: string, column: Partial<InsertResearchColumn>): Promise<ResearchColumn>;
-  createResearchCard(card: InsertResearchCard): Promise<ResearchCard>;
-  getResearchCardsByColumnId(columnId: string): Promise<ResearchCard[]>;
-  updateResearchCard(id: string, card: Partial<InsertResearchCard>): Promise<ResearchCard>;
-  moveResearchCard(cardId: string, columnId: string, position: number): Promise<ResearchCard>;
 
   // Research Reports
   createResearchReport(report: InsertResearchReport): Promise<ResearchReport>;
@@ -4189,10 +4168,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getLostmailIncidentsByEmail(email: string): Promise<LostmailIncident[]> {
+    // Use case-insensitive email matching
     return await db
       .select()
       .from(lostmailIncidents)
-      .where(eq(lostmailIncidents.reporterEmail, email))
+      .where(sql`LOWER(${lostmailIncidents.reporterEmail}) = LOWER(${email})`)
       .orderBy(desc(lostmailIncidents.createdAt));
   }
 
@@ -4852,96 +4832,6 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(researchFollows)
       .where(eq(researchFollows.userId, userId));
-  }
-
-  // Research Boards/Columns/Cards (Trello-style)
-  async createResearchBoard(boardData: InsertResearchBoard): Promise<ResearchBoard> {
-    const [board] = await db
-      .insert(researchBoards)
-      .values(boardData)
-      .returning();
-    return board;
-  }
-
-  async getResearchBoardsByItemId(itemId: string, userId: string): Promise<ResearchBoard[]> {
-    return await db
-      .select()
-      .from(researchBoards)
-      .where(
-        and(
-          eq(researchBoards.researchItemId, itemId),
-          eq(researchBoards.userId, userId)
-        )
-      )
-      .orderBy(asc(researchBoards.position));
-  }
-
-  async updateResearchBoard(id: string, boardData: Partial<InsertResearchBoard>): Promise<ResearchBoard> {
-    const [board] = await db
-      .update(researchBoards)
-      .set(boardData)
-      .where(eq(researchBoards.id, id))
-      .returning();
-    return board;
-  }
-
-  async createResearchColumn(columnData: InsertResearchColumn): Promise<ResearchColumn> {
-    const [column] = await db
-      .insert(researchColumns)
-      .values(columnData)
-      .returning();
-    return column;
-  }
-
-  async getResearchColumnsByBoardId(boardId: string): Promise<ResearchColumn[]> {
-    return await db
-      .select()
-      .from(researchColumns)
-      .where(eq(researchColumns.boardId, boardId))
-      .orderBy(asc(researchColumns.position));
-  }
-
-  async updateResearchColumn(id: string, columnData: Partial<InsertResearchColumn>): Promise<ResearchColumn> {
-    const [column] = await db
-      .update(researchColumns)
-      .set(columnData)
-      .where(eq(researchColumns.id, id))
-      .returning();
-    return column;
-  }
-
-  async createResearchCard(cardData: InsertResearchCard): Promise<ResearchCard> {
-    const [card] = await db
-      .insert(researchCards)
-      .values(cardData)
-      .returning();
-    return card;
-  }
-
-  async getResearchCardsByColumnId(columnId: string): Promise<ResearchCard[]> {
-    return await db
-      .select()
-      .from(researchCards)
-      .where(eq(researchCards.columnId, columnId))
-      .orderBy(asc(researchCards.position));
-  }
-
-  async updateResearchCard(id: string, cardData: Partial<InsertResearchCard>): Promise<ResearchCard> {
-    const [card] = await db
-      .update(researchCards)
-      .set(cardData)
-      .where(eq(researchCards.id, id))
-      .returning();
-    return card;
-  }
-
-  async moveResearchCard(cardId: string, columnId: string, position: number): Promise<ResearchCard> {
-    const [card] = await db
-      .update(researchCards)
-      .set({ columnId, position })
-      .where(eq(researchCards.id, cardId))
-      .returning();
-    return card;
   }
 
   // Research Reports

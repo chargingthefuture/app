@@ -55,7 +55,7 @@ const services = [
   },
   {
     title: "Research",
-    description: "Post research questions, receive sourced answers, and collaboratively surface the most relevant, accurate responses with voting, tagging, and Trello-style boards.",
+    description: "Post research questions, receive sourced answers, and collaboratively surface the most relevant, accurate responses with voting and tagging.",
     icon: Search,
     href: "/apps/research",
     testId: "card-service-research",

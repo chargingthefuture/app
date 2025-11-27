@@ -364,7 +364,7 @@ async function seedResearch() {
     },
     {
       title: "New Features Available",
-      content: "You can now bookmark questions, follow topics, and organize research using boards. Check out the new features!",
+      content: "You can now bookmark questions and follow topics. Check out the new features!",
       type: "update" as const,
       isActive: true,
       expiresAt: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000), // Expires in 60 days

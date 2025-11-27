@@ -115,16 +115,6 @@ DELETE FROM nps_responses WHERE user_id = 'user_35zLCF4vxn3QHZPYZ1oJwuoxrTW';
 -- Reports: user_id references users.id directly, reviewed_by references users.id directly
 DELETE FROM research_reports WHERE user_id = 'user_35zLCF4vxn3QHZPYZ1oJwuoxrTW';
 DELETE FROM research_reports WHERE reviewed_by = 'user_35zLCF4vxn3QHZPYZ1oJwuoxrTW';
--- Cards are linked through columns -> boards, so delete cards from columns in user's boards
-DELETE FROM research_cards WHERE column_id IN (
-  SELECT id FROM research_columns WHERE board_id IN (
-    SELECT id FROM research_boards WHERE user_id = 'user_35zLCF4vxn3QHZPYZ1oJwuoxrTW'
-  )
-);
-DELETE FROM research_columns WHERE board_id IN (
-  SELECT id FROM research_boards WHERE user_id = 'user_35zLCF4vxn3QHZPYZ1oJwuoxrTW'
-);
-DELETE FROM research_boards WHERE user_id = 'user_35zLCF4vxn3QHZPYZ1oJwuoxrTW';
 -- Follows: user_id and followed_user_id both reference users.id directly
 DELETE FROM research_follows WHERE user_id = 'user_35zLCF4vxn3QHZPYZ1oJwuoxrTW';
 DELETE FROM research_follows WHERE followed_user_id = 'user_35zLCF4vxn3QHZPYZ1oJwuoxrTW';
@@ -246,16 +236,6 @@ DELETE FROM nps_responses WHERE user_id = 'user_35AzoSyWLvW8FL4LGgKvzfPv8F8';
 -- Reports: user_id references users.id directly, reviewed_by references users.id directly
 DELETE FROM research_reports WHERE user_id = 'user_35AzoSyWLvW8FL4LGgKvzfPv8F8';
 DELETE FROM research_reports WHERE reviewed_by = 'user_35AzoSyWLvW8FL4LGgKvzfPv8F8';
--- Cards are linked through columns -> boards, so delete cards from columns in user's boards
-DELETE FROM research_cards WHERE column_id IN (
-  SELECT id FROM research_columns WHERE board_id IN (
-    SELECT id FROM research_boards WHERE user_id = 'user_35AzoSyWLvW8FL4LGgKvzfPv8F8'
-  )
-);
-DELETE FROM research_columns WHERE board_id IN (
-  SELECT id FROM research_boards WHERE user_id = 'user_35AzoSyWLvW8FL4LGgKvzfPv8F8'
-);
-DELETE FROM research_boards WHERE user_id = 'user_35AzoSyWLvW8FL4LGgKvzfPv8F8';
 -- Follows: user_id and followed_user_id both reference users.id directly
 DELETE FROM research_follows WHERE user_id = 'user_35AzoSyWLvW8FL4LGgKvzfPv8F8';
 DELETE FROM research_follows WHERE followed_user_id = 'user_35AzoSyWLvW8FL4LGgKvzfPv8F8';

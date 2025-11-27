@@ -13,7 +13,6 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import type { ResearchItem, ResearchAnswer, ResearchComment } from "@shared/schema";
 import ResearchAnswerComposer from "./answer-composer";
-import ResearchBoardView from "./board-view";
 
 export default function ResearchItemView() {
   const [, params] = useRoute("/apps/research/item/:id");
@@ -147,9 +146,7 @@ export default function ResearchItemView() {
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-6">
-        {/* Left: Question */}
-        <div className="lg:col-span-2 space-y-6">
+      <div className="space-y-6">
           <Card>
             <CardHeader>
               <div className="flex items-start justify-between">
@@ -289,11 +286,6 @@ export default function ResearchItemView() {
               </Card>
             )}
           </div>
-        </div>
-
-        {/* Right: Board */}
-        <div className="lg:col-span-1">
-          <ResearchBoardView researchItemId={itemId!} />
         </div>
       </div>
     </div>

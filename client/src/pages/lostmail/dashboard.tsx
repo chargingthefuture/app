@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +11,7 @@ import LostMailIncidentList from "./incident-list";
 export default function LostMailDashboard() {
   const { isAuthenticated, _clerk } = useAuth();
   const [email, setEmail] = useState("");
-  const [showList, setShowList] = useState(false);
+  const [displayEmail, setDisplayEmail] = useState<string | null>(null);
 
   // Get authenticated user's email from Clerk
   const userEmail = useMemo(() => {
@@ -21,13 +21,17 @@ export default function LostMailDashboard() {
     return null;
   }, [isAuthenticated, _clerk.clerkUser]);
 
-  // Automatically show list for authenticated users, or when manually searched
-  // Manual lookup takes precedence over automatic display
-  const displayEmail = showList ? email : (userEmail || null);
+  // Automatically show reports for authenticated users when email is available
+  useEffect(() => {
+    if (userEmail) {
+      // Auto-set user email for authenticated users
+      setDisplayEmail(userEmail);
+    }
+  }, [userEmail]);
 
   const handleLookup = () => {
     if (email && email.includes("@")) {
-      setShowList(true);
+      setDisplayEmail(email);
     } else {
       alert("Please enter a valid email address");
     }
@@ -68,10 +72,10 @@ export default function LostMailDashboard() {
             {isAuthenticated && userEmail ? (
               <>
                 <p className="text-sm text-muted-foreground">
-                  Your reports for {userEmail} are displayed below.
+                  Your reports are displayed below.
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  To view reports for a different email, enter it below.
+                  To view reports for a different email address, enter it below.
                 </p>
               </>
             ) : (

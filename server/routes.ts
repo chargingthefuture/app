@@ -53,9 +53,6 @@ import {
   insertResearchLinkProvenanceSchema,
   insertResearchBookmarkSchema,
   insertResearchFollowSchema,
-  insertResearchBoardSchema,
-  insertResearchColumnSchema,
-  insertResearchCardSchema,
   insertResearchReportSchema,
   insertResearchAnnouncementSchema,
   insertGentlepulseMeditationSchema,
@@ -3944,69 +3941,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
 
     res.json({ message: "Link verification queued" });
-  }));
-
-  // Research Board/Column/Card routes (Trello-style)
-  app.post('/api/research/boards', isAuthenticated, asyncHandler(async (req: any, res) => {
-    const userId = getUserId(req);
-    const validatedData = validateWithZod(insertResearchBoardSchema, { ...req.body, userId }, 'Invalid board data');
-    const board = await withDatabaseErrorHandling(
-      () => storage.createResearchBoard(validatedData),
-      'createResearchBoard'
-    );
-    res.json(board);
-  }));
-
-  app.get('/api/research/items/:itemId/boards', isAuthenticated, asyncHandler(async (req: any, res) => {
-    const userId = getUserId(req);
-    const boards = await withDatabaseErrorHandling(
-      () => storage.getResearchBoardsByItemId(req.params.itemId, userId),
-      'getResearchBoardsByItemId'
-    );
-    res.json(boards);
-  }));
-
-  app.post('/api/research/columns', isAuthenticated, asyncHandler(async (req: any, res) => {
-    const validatedData = validateWithZod(insertResearchColumnSchema, req.body, 'Invalid column data');
-    const column = await withDatabaseErrorHandling(
-      () => storage.createResearchColumn(validatedData),
-      'createResearchColumn'
-    );
-    res.json(column);
-  }));
-
-  app.get('/api/research/boards/:boardId/columns', asyncHandler(async (req, res) => {
-    const columns = await withDatabaseErrorHandling(
-      () => storage.getResearchColumnsByBoardId(req.params.boardId),
-      'getResearchColumnsByBoardId'
-    );
-    res.json(columns);
-  }));
-
-  app.post('/api/research/cards', isAuthenticated, asyncHandler(async (req: any, res) => {
-    const validatedData = validateWithZod(insertResearchCardSchema, req.body, 'Invalid card data');
-    const card = await withDatabaseErrorHandling(
-      () => storage.createResearchCard(validatedData),
-      'createResearchCard'
-    );
-    res.json(card);
-  }));
-
-  app.get('/api/research/columns/:columnId/cards', asyncHandler(async (req, res) => {
-    const cards = await withDatabaseErrorHandling(
-      () => storage.getResearchCardsByColumnId(req.params.columnId),
-      'getResearchCardsByColumnId'
-    );
-    res.json(cards);
-  }));
-
-  app.put('/api/research/cards/:id/move', isAuthenticated, asyncHandler(async (req: any, res) => {
-    const { columnId, position } = req.body;
-    const card = await withDatabaseErrorHandling(
-      () => storage.moveResearchCard(req.params.id, columnId, position),
-      'moveResearchCard'
-    );
-    res.json(card);
   }));
 
   // Research Report routes
