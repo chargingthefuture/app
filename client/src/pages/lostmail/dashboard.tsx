@@ -1,15 +1,29 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Link } from "wouter";
 import { FileText, Search, Plus } from "lucide-react";
 import { AnnouncementBanner } from "@/components/announcement-banner";
+import { useAuth } from "@/hooks/useAuth";
 import LostMailIncidentList from "./incident-list";
 
 export default function LostMailDashboard() {
+  const { isAuthenticated, _clerk } = useAuth();
   const [email, setEmail] = useState("");
   const [showList, setShowList] = useState(false);
+
+  // Get authenticated user's email from Clerk
+  const userEmail = useMemo(() => {
+    if (isAuthenticated && _clerk.clerkUser?.primaryEmailAddress?.emailAddress) {
+      return _clerk.clerkUser.primaryEmailAddress.emailAddress;
+    }
+    return null;
+  }, [isAuthenticated, _clerk.clerkUser]);
+
+  // Automatically show list for authenticated users, or when manually searched
+  // Manual lookup takes precedence over automatic display
+  const displayEmail = showList ? email : (userEmail || null);
 
   const handleLookup = () => {
     if (email && email.includes("@")) {
@@ -51,9 +65,20 @@ export default function LostMailDashboard() {
             <CardTitle>View Your Reports</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Enter your email address to view your submitted incidents.
-            </p>
+            {isAuthenticated && userEmail ? (
+              <>
+                <p className="text-sm text-muted-foreground">
+                  Your reports for {userEmail} are displayed below.
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  To view reports for a different email, enter it below.
+                </p>
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Enter your email address to view your submitted incidents.
+              </p>
+            )}
             <div className="flex gap-2">
               <Input
                 type="email"
@@ -72,8 +97,8 @@ export default function LostMailDashboard() {
         </Card>
       </div>
 
-      {showList && email && (
-        <LostMailIncidentList email={email} />
+      {displayEmail && (
+        <LostMailIncidentList email={displayEmail} />
       )}
     </div>
   );

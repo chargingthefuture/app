@@ -197,12 +197,19 @@ export default function MechanicMatchVehicleForm({ mode, vehicleId }: MechanicMa
                     <FormControl>
                       <Input
                         type="number"
-                        {...field}
-                        value={field.value ?? ""}
+                        value={typeof field.value === "number" ? field.value : new Date().getFullYear()}
                         onChange={(event) => {
                           const value = event.target.value;
-                          field.onChange(value === "" ? "" : Number(value));
+                          // Convert to number, default to current year if empty or invalid
+                          if (value === "" || isNaN(Number(value))) {
+                            field.onChange(new Date().getFullYear());
+                          } else {
+                            field.onChange(Number(value));
+                          }
                         }}
+                        onBlur={field.onBlur}
+                        name={field.name}
+                        ref={field.ref}
                         min="1900"
                         max={new Date().getFullYear() + 1}
                         data-testid="input-year"

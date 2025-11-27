@@ -72,13 +72,7 @@ export default function MechanicMatchVehicles() {
       {vehicles.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
-            <p className="text-muted-foreground mb-4">No vehicles yet</p>
-            <Link href="/apps/mechanicmatch/vehicles/new">
-              <Button data-testid="button-add-first-vehicle">
-                <Plus className="w-4 h-4 mr-2" />
-                Add Your First Vehicle
-              </Button>
-            </Link>
+            <p className="text-muted-foreground">No vehicles yet. Use the "Add Vehicle" button above to get started.</p>
           </CardContent>
         </Card>
       ) : (

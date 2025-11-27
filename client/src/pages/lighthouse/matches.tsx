@@ -1,17 +1,39 @@
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueries } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Users, Calendar, MapPin, Home } from "lucide-react";
-import type { LighthouseMatch } from "@shared/schema";
+import { Users, Calendar, MapPin, Home, ExternalLink } from "lucide-react";
+import { Link } from "wouter";
+import { useMemo } from "react";
+import type { LighthouseMatch, LighthouseProperty } from "@shared/schema";
 
 export default function MatchesPage() {
   const { toast } = useToast();
   const { data: matches, isLoading } = useQuery<LighthouseMatch[]>({
     queryKey: ["/api/lighthouse/matches"],
   });
+
+  // Fetch property data for each match
+  const propertyQueries = useQueries({
+    queries: (matches || []).map((match) => ({
+      queryKey: ["/api/lighthouse/properties", match.propertyId] as const,
+      enabled: !!match.propertyId && !!matches,
+    })),
+  });
+
+  // Create a map of propertyId -> property for easy lookup
+  const propertyMap = useMemo(() => {
+    const map = new Map<string, LighthouseProperty | null>();
+    propertyQueries.forEach((query, index) => {
+      if (matches && matches[index]) {
+        const property = query.data as LighthouseProperty | undefined;
+        map.set(matches[index].propertyId, property || null);
+      }
+    });
+    return map;
+  }, [propertyQueries, matches]);
 
   const updateMatchMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => 
@@ -86,27 +108,48 @@ export default function MatchesPage() {
         </Card>
       ) : (
         <div className="grid gap-6">
-          {matches.map((match) => (
-            <Card key={match.id} data-testid={`match-card-${match.id}`}>
-              <CardHeader>
-                <div className="flex items-start justify-between gap-4 flex-wrap">
-                  <div>
-                    <CardTitle className="flex items-center gap-2">
-                      <Home className="w-5 h-5" />
-                      Match Request
-                    </CardTitle>
-                    <div className="flex items-center gap-2 mt-2">
-                      <Badge className={getStatusColor(match.status)} data-testid={`badge-status-${match.id}`}>
-                        {match.status}
-                      </Badge>
-                      <span className="text-sm text-muted-foreground">
-                        {new Date(match.createdAt).toLocaleDateString()}
-                      </span>
+          {matches.map((match) => {
+            const property = propertyMap.get(match.propertyId);
+            const isLoadingProperty = propertyQueries.find(
+              (q, idx) => matches[idx]?.propertyId === match.propertyId
+            )?.isLoading;
+
+            return (
+              <Card key={match.id} data-testid={`match-card-${match.id}`}>
+                <CardHeader>
+                  <div className="flex items-start justify-between gap-4 flex-wrap">
+                    <div className="flex-1">
+                      <CardTitle className="flex items-center gap-2">
+                        <Home className="w-5 h-5" />
+                        Match Request
+                      </CardTitle>
+                      {property && (
+                        <div className="mt-2">
+                          <Link 
+                            href={`/apps/lighthouse/property/${property.id}`}
+                            className="text-primary hover:underline inline-flex items-center gap-1 font-medium"
+                            data-testid={`link-property-${match.id}`}
+                          >
+                            {property.title}
+                            <ExternalLink className="w-4 h-4" />
+                          </Link>
+                        </div>
+                      )}
+                      {isLoadingProperty && (
+                        <div className="mt-2 text-sm text-muted-foreground">Loading property...</div>
+                      )}
+                      <div className="flex items-center gap-2 mt-2">
+                        <Badge className={getStatusColor(match.status)} data-testid={`badge-status-${match.id}`}>
+                          {match.status}
+                        </Badge>
+                        <span className="text-sm text-muted-foreground">
+                          {new Date(match.createdAt).toLocaleDateString()}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
+                </CardHeader>
+                <CardContent className="space-y-4">
                 {match.seekerMessage && (
                   <div>
                     <h4 className="font-semibold text-sm mb-1">Your Message</h4>
@@ -166,7 +209,8 @@ export default function MatchesPage() {
                 )}
               </CardContent>
             </Card>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
