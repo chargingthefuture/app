@@ -446,6 +446,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         retentionRate: 0,
         verifiedUsersPercentage: 0,
         verifiedUsersPercentageChange: 0,
+        averageMood: 0,
+        moodChange: 0,
+        moodResponses: 0,
       };
       
       const response = {

@@ -288,6 +288,5 @@ export default function ResearchItemView() {
           </div>
         </div>
       </div>
-    </div>
   );
 }

@@ -8,6 +8,7 @@ import type { GentlepulseMeditation } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { AnnouncementBanner } from "@/components/announcement-banner";
 import { PaginationControls } from "@/components/pagination-controls";
+import { GentlePulseDesktopNav } from "@/components/gentlepulse/desktop-nav";
 import { Link } from "wouter";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -80,7 +81,7 @@ export default function GentlePulseFavorites() {
   return (
     <div className="p-4 sm:p-6 md:p-8 space-y-6 pb-24">
       <div className="flex items-center gap-4">
-        <Link href="/apps/gentlepulse">
+        <Link href="/apps/gentlepulse" className="sm:hidden">
           <Button variant="ghost" size="icon" data-testid="button-back">
             <ArrowLeft className="w-5 h-5" />
           </Button>
@@ -92,6 +93,8 @@ export default function GentlePulseFavorites() {
           </p>
         </div>
       </div>
+
+      <GentlePulseDesktopNav />
 
       <AnnouncementBanner
         apiEndpoint="/api/gentlepulse/announcements"

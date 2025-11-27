@@ -8,6 +8,7 @@ import { MeditationCard } from "@/components/gentlepulse/meditation-card";
 import { MoodCheckDialog, SafetyMessageDialog } from "@/components/gentlepulse/mood-check-dialog";
 import { AnnouncementBanner } from "@/components/announcement-banner";
 import { PaginationControls } from "@/components/pagination-controls";
+import { GentlePulseDesktopNav } from "@/components/gentlepulse/desktop-nav";
 import { useClientId } from "@/hooks/useClientId";
 import { Heart, List } from "lucide-react";
 import type { GentlepulseMeditation } from "@shared/schema";
@@ -123,6 +124,8 @@ export default function GentlePulseLibrary() {
           Guided meditations for peace and healing
         </p>
       </div>
+
+      <GentlePulseDesktopNav />
 
       <AnnouncementBanner
         apiEndpoint="/api/gentlepulse/announcements"

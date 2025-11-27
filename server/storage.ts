@@ -1148,6 +1148,9 @@ export class DatabaseStorage implements IStorage {
         retentionRate: number;
         verifiedUsersPercentage: number;
         verifiedUsersPercentageChange: number;
+        averageMood: number;
+        moodChange: number;
+        moodResponses: number;
       };
   }> {
     // Calculate current week boundaries (Saturday to Friday)
@@ -1534,6 +1537,51 @@ export class DatabaseStorage implements IStorage {
       console.error("Error calculating NPS:", error);
     }
 
+    // Calculate GentlePulse Mood Check statistics
+    let averageMood = 0;
+    let moodChange = 0;
+    let moodResponsesCount = 0;
+    
+    try {
+      // Get mood checks for current week (using date field, not createdAt)
+      const currentWeekMoodChecks = await db
+        .select()
+        .from(gentlepulseMoodChecks)
+        .where(
+          and(
+            gte(gentlepulseMoodChecks.date, currentWeekStart.toISOString().split('T')[0]),
+            lte(gentlepulseMoodChecks.date, currentWeekEnd.toISOString().split('T')[0])
+          )
+        );
+      
+      // Get mood checks for previous week
+      const previousWeekMoodChecks = await db
+        .select()
+        .from(gentlepulseMoodChecks)
+        .where(
+          and(
+            gte(gentlepulseMoodChecks.date, previousWeekStart.toISOString().split('T')[0]),
+            lte(gentlepulseMoodChecks.date, previousWeekEnd.toISOString().split('T')[0])
+          )
+        );
+      
+      if (currentWeekMoodChecks.length > 0) {
+        const totalMood = currentWeekMoodChecks.reduce((sum, check) => sum + check.moodValue, 0);
+        averageMood = parseFloat((totalMood / currentWeekMoodChecks.length).toFixed(2));
+        moodResponsesCount = currentWeekMoodChecks.length;
+      }
+      
+      if (previousWeekMoodChecks.length > 0 && currentWeekMoodChecks.length > 0) {
+        const prevTotalMood = previousWeekMoodChecks.reduce((sum, check) => sum + check.moodValue, 0);
+        const prevAverageMood = parseFloat((prevTotalMood / previousWeekMoodChecks.length).toFixed(2));
+        moodChange = parseFloat((averageMood - prevAverageMood).toFixed(2));
+      } else if (previousWeekMoodChecks.length === 0 && currentWeekMoodChecks.length > 0) {
+        moodChange = averageMood;
+      }
+    } catch (error) {
+      console.error("Error calculating mood statistics:", error);
+    }
+
     // Calculate User Statistics (Total, Verified, Approved)
     // Variables are already declared above, now we populate them
     try {
@@ -1628,6 +1676,9 @@ export class DatabaseStorage implements IStorage {
         npsResponses: npsResponsesCount,
         verifiedUsersPercentage: verifiedUsersPercentage,
         verifiedUsersPercentageChange: parseFloat(verifiedUsersPercentageChange.toFixed(2)),
+        averageMood: averageMood,
+        moodChange: moodChange,
+        moodResponses: moodResponsesCount,
       },
     };
     

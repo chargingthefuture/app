@@ -1,4 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { GentlePulseDesktopNav } from "@/components/gentlepulse/desktop-nav";
 
 export default function GentlePulseSupport() {
   return (
@@ -9,6 +10,8 @@ export default function GentlePulseSupport() {
           Information about the app
         </p>
       </div>
+
+      <GentlePulseDesktopNav />
 
       {/* App Information */}
       <Card>

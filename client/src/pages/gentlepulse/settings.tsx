@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { GentlePulseDesktopNav } from "@/components/gentlepulse/desktop-nav";
 import { useState, useEffect } from "react";
 import { Moon, Sun, Eye, Type } from "lucide-react";
 
@@ -64,6 +65,8 @@ export default function GentlePulseSettings() {
           Customize your experience
         </p>
       </div>
+
+      <GentlePulseDesktopNav />
 
       <Card>
         <CardHeader>

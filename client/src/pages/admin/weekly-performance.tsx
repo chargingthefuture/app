@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import html2canvas from "html2canvas";
 import { Camera, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { Users, DollarSign, TrendingUp, TrendingDown, Calendar, Target, Activity, Zap } from "lucide-react";
+import { Users, DollarSign, TrendingUp, TrendingDown, Calendar, Target, Activity, Zap, Heart } from "lucide-react";
 import { format, startOfWeek, addDays, parseISO } from "date-fns";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -56,6 +56,9 @@ interface WeeklyPerformanceData {
     npsResponses: number;
     verifiedUsersPercentage: number;
     verifiedUsersPercentageChange: number;
+    averageMood: number;
+    moodChange: number;
+    moodResponses: number;
   };
 }
 
@@ -866,6 +869,80 @@ export default function WeeklyPerformanceReview() {
                     Scores are inverted before calculation: 0 (extremely unhappy about losing app) = Promoter, 
                     10 (extremely happy about losing app) = Detractor. Percentage of Promoters (inverted scores 9-10) 
                     minus percentage of Detractors (inverted scores 0-6). Scores of 7-8 are considered Passive and don&apos;t affect the calculation.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* GentlePulse Mood Ratings */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Heart className="w-5 h-5" />
+                  GentlePulse Mood Ratings
+                </CardTitle>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Average mood ratings from GentlePulse users (anonymous, aggregated data)
+                </p>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div>
+                    <div className="text-sm font-medium text-muted-foreground mb-1">Current Week Average</div>
+                    <div className="text-3xl font-bold tabular-nums">
+                      {data.metrics?.averageMood ?? 0}
+                    </div>
+                    <div className="flex items-center gap-2 mt-2">
+                      <Badge
+                        variant={
+                          (data.metrics?.averageMood ?? 0) >= 4
+                            ? "default"
+                            : (data.metrics?.averageMood ?? 0) >= 3
+                            ? "secondary"
+                            : "destructive"
+                        }
+                        className="text-xs"
+                      >
+                        {(data.metrics?.averageMood ?? 0) >= 4
+                          ? "Positive"
+                          : (data.metrics?.averageMood ?? 0) >= 3
+                          ? "Neutral"
+                          : "Needs Attention"}
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Scale: 1 (very sad) to 5 (very happy)
+                    </p>
+                  </div>
+                  <div>
+                    <div className="text-sm font-medium text-muted-foreground mb-1">Week-over-Week Change</div>
+                    <div className={`text-2xl font-bold tabular-nums ${
+                      (data.metrics?.moodChange ?? 0) > 0
+                        ? "text-green-600"
+                        : (data.metrics?.moodChange ?? 0) < 0
+                        ? "text-red-600"
+                        : ""
+                    }`}>
+                      {(data.metrics?.moodChange ?? 0) > 0 ? "+" : ""}
+                      {data.metrics?.moodChange ?? 0}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Change from previous week
+                    </p>
+                  </div>
+                  <div>
+                    <div className="text-sm font-medium text-muted-foreground mb-1">Total Responses</div>
+                    <div className="text-2xl font-bold tabular-nums">{data.metrics?.moodResponses ?? 0}</div>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Mood check responses this week
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-4 pt-4 border-t">
+                  <p className="text-xs text-muted-foreground">
+                    <strong>Privacy Note:</strong> All mood ratings are collected anonymously using client IDs. 
+                    Individual responses cannot be traced back to users, maintaining complete anonymity while 
+                    providing valuable aggregated insights into user wellbeing.
                   </p>
                 </div>
               </CardContent>
