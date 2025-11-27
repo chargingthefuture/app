@@ -32,7 +32,7 @@ export function TermsAcceptanceDialog({ open, onOpenChange }: TermsAcceptanceDia
       return apiRequest("POST", "/api/account/accept-terms", {});
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       onOpenChange(false);
       toast({
         title: "Terms Accepted",
@@ -57,9 +57,24 @@ export function TermsAcceptanceDialog({ open, onOpenChange }: TermsAcceptanceDia
     acceptMutation.mutate();
   };
 
+  const handleOpenChange = (newOpen: boolean) => {
+    // Prevent closing the dialog without accepting terms
+    // Only allow closing after terms are accepted (handled in onSuccess)
+    if (!newOpen && !acceptMutation.isSuccess) {
+      return; // Ignore close attempts
+    }
+    onOpenChange(newOpen);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md" data-testid="dialog-terms-acceptance">
+    <Dialog open={open} onOpenChange={handleOpenChange} modal={true}>
+      <DialogContent 
+        className="sm:max-w-md [&>button]:hidden" 
+        data-testid="dialog-terms-acceptance"
+        onEscapeKeyDown={(e) => e.preventDefault()}
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle>Terms and Conditions Update</DialogTitle>
           <DialogDescription>

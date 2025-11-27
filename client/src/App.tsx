@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { NpsSurveyManager } from "@/components/nps-survey-manager";
 import { ErrorBoundary } from "@/components/error-boundary";
+import { TermsAcceptanceDialog, useTermsAcceptanceCheck } from "@/components/terms-acceptance-dialog";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
 import Home from "@/pages/home";
@@ -111,6 +112,8 @@ import { GentlePulseBottomNav } from "@/components/gentlepulse/bottom-nav";
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { _clerk, user, isLoading } = useAuth();
   const needsApproval = user && !user.isApproved && !user.isAdmin;
+  const needsTermsAcceptance = useTermsAcceptanceCheck();
+  const [termsDialogOpen, setTermsDialogOpen] = React.useState(false);
 
   // If Clerk is still loading, show loading indicator
   if (!_clerk.clerkLoaded) {
@@ -147,6 +150,37 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     );
   }
 
+  // Show terms acceptance dialog if needed (block access until accepted)
+  React.useEffect(() => {
+    if (!isLoading && user && needsTermsAcceptance) {
+      setTermsDialogOpen(true);
+    }
+  }, [isLoading, user, needsTermsAcceptance]);
+
+  // Block access if terms need to be accepted
+  if (needsTermsAcceptance && !isLoading && user) {
+    return (
+      <>
+        <TermsAcceptanceDialog 
+          open={termsDialogOpen} 
+          onOpenChange={setTermsDialogOpen}
+        />
+        <div className="min-h-screen flex items-center justify-center p-4">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <CardTitle>Terms Acceptance Required</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">
+                Please accept the terms and conditions to continue using the platform.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </>
+    );
+  }
+
   return <>{children}</>;
 }
 
@@ -154,6 +188,8 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 function RootRoute() {
   const { _clerk, user, isLoading } = useAuth();
   const needsApproval = user && !user.isApproved && !user.isAdmin;
+  const needsTermsAcceptance = useTermsAcceptanceCheck();
+  const [termsDialogOpen, setTermsDialogOpen] = React.useState(false);
 
   // If Clerk is still loading, show loading indicator
   if (!_clerk.clerkLoaded) {
@@ -196,6 +232,37 @@ function RootRoute() {
             </CardContent>
           </Card>
         </div>
+      );
+    }
+
+    // Show terms acceptance dialog if needed (block access until accepted)
+    React.useEffect(() => {
+      if (!isLoading && user && needsTermsAcceptance) {
+        setTermsDialogOpen(true);
+      }
+    }, [isLoading, user, needsTermsAcceptance]);
+
+    // Block access if terms need to be accepted
+    if (needsTermsAcceptance && !isLoading && user) {
+      return (
+        <>
+          <TermsAcceptanceDialog 
+            open={termsDialogOpen} 
+            onOpenChange={setTermsDialogOpen}
+          />
+          <div className="min-h-screen flex items-center justify-center p-4">
+            <Card className="w-full max-w-md">
+              <CardHeader>
+                <CardTitle>Terms Acceptance Required</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground">
+                  Please accept the terms and conditions to continue using the platform.
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        </>
       );
     }
     

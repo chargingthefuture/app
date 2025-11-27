@@ -28,8 +28,16 @@ const DAYS_OF_WEEK = [
 
 const availabilityFormSchema = z.object({
   dayOfWeek: z.number().int().min(0).max(6),
-  startTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/).optional().nullable(),
-  endTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/).optional().nullable(),
+  startTime: z
+    .union([z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/), z.literal("")])
+    .transform((val) => (val === "" ? null : val))
+    .nullable()
+    .optional(),
+  endTime: z
+    .union([z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/), z.literal("")])
+    .transform((val) => (val === "" ? null : val))
+    .nullable()
+    .optional(),
   isAvailable: z.boolean().default(true),
 });
 
