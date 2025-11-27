@@ -1,14 +1,17 @@
 import { Link, useLocation } from "wouter";
-import { Home, HelpCircle, Settings } from "lucide-react";
+import { Home, User, MessageSquare, History, ShieldAlert, Bell } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export function GentlePulseBottomNav() {
+export function SupportMatchBottomNav() {
   const [location] = useLocation();
 
   const navItems = [
-    { icon: Home, label: "Library", path: "/apps/gentlepulse", testId: "nav-library" },
-    { icon: HelpCircle, label: "Support", path: "/apps/gentlepulse/support", testId: "nav-support" },
-    { icon: Settings, label: "Settings", path: "/apps/gentlepulse/settings", testId: "nav-settings" },
+    { icon: Home, label: "Dashboard", path: "/apps/supportmatch", testId: "nav-dashboard" },
+    { icon: User, label: "Profile", path: "/apps/supportmatch/profile", testId: "nav-profile" },
+    { icon: MessageSquare, label: "Partnership", path: "/apps/supportmatch/partnership", testId: "nav-partnership" },
+    { icon: History, label: "History", path: "/apps/supportmatch/history", testId: "nav-history" },
+    { icon: ShieldAlert, label: "Safety", path: "/apps/supportmatch/safety", testId: "nav-safety" },
+    { icon: Bell, label: "Announcements", path: "/apps/supportmatch/announcements", testId: "nav-announcements" },
   ];
 
   return (
@@ -21,7 +24,7 @@ export function GentlePulseBottomNav() {
             <Link key={item.path} href={item.path}>
               <button
                 className={cn(
-                  "flex flex-col items-center gap-1 p-3 rounded-lg transition-colors",
+                  "flex flex-col items-center gap-1 p-2 rounded-lg transition-colors",
                   "focus:outline-none focus:ring-2 focus:ring-primary",
                   isActive
                     ? "text-primary bg-primary/10"
@@ -30,7 +33,7 @@ export function GentlePulseBottomNav() {
                 data-testid={item.testId}
                 aria-label={item.label}
               >
-                <Icon className="w-5 h-5" />
+                <Icon className="w-4 h-4" />
                 <span className="text-xs font-medium">{item.label}</span>
               </button>
             </Link>
@@ -40,3 +43,4 @@ export function GentlePulseBottomNav() {
     </nav>
   );
 }
+

@@ -1,14 +1,14 @@
 import { Link, useLocation } from "wouter";
-import { Home, HelpCircle, Settings } from "lucide-react";
+import { Home, User, Bell } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export function GentlePulseBottomNav() {
+export function DirectoryBottomNav() {
   const [location] = useLocation();
 
   const navItems = [
-    { icon: Home, label: "Library", path: "/apps/gentlepulse", testId: "nav-library" },
-    { icon: HelpCircle, label: "Support", path: "/apps/gentlepulse/support", testId: "nav-support" },
-    { icon: Settings, label: "Settings", path: "/apps/gentlepulse/settings", testId: "nav-settings" },
+    { icon: Home, label: "Dashboard", path: "/apps/directory", testId: "nav-dashboard" },
+    { icon: User, label: "Profile", path: "/apps/directory/profile", testId: "nav-profile" },
+    { icon: Bell, label: "Announcements", path: "/apps/directory/announcements", testId: "nav-announcements" },
   ];
 
   return (
@@ -40,3 +40,5 @@ export function GentlePulseBottomNav() {
     </nav>
   );
 }
+
+

@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Home, Heart, HelpCircle, Settings } from "lucide-react";
+import { Home, HelpCircle, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function GentlePulseDesktopNav() {
@@ -7,7 +7,6 @@ export function GentlePulseDesktopNav() {
 
   const navItems = [
     { icon: Home, label: "Library", path: "/apps/gentlepulse", testId: "nav-desktop-library" },
-    { icon: Heart, label: "Favorites", path: "/apps/gentlepulse/favorites", testId: "nav-desktop-favorites" },
     { icon: HelpCircle, label: "Support", path: "/apps/gentlepulse/support", testId: "nav-desktop-support" },
     { icon: Settings, label: "Settings", path: "/apps/gentlepulse/settings", testId: "nav-desktop-settings" },
   ];
@@ -43,6 +42,7 @@ export function GentlePulseDesktopNav() {
     </nav>
   );
 }
+
 
 
 

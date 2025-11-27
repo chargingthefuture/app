@@ -1,19 +1,18 @@
 import { Link, useLocation } from "wouter";
-import { Home, HelpCircle, Settings } from "lucide-react";
+import { Home, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export function GentlePulseBottomNav() {
+export function LostMailBottomNav() {
   const [location] = useLocation();
 
   const navItems = [
-    { icon: Home, label: "Library", path: "/apps/gentlepulse", testId: "nav-library" },
-    { icon: HelpCircle, label: "Support", path: "/apps/gentlepulse/support", testId: "nav-support" },
-    { icon: Settings, label: "Settings", path: "/apps/gentlepulse/settings", testId: "nav-settings" },
+    { icon: Home, label: "Dashboard", path: "/apps/lostmail", testId: "nav-dashboard" },
+    { icon: FileText, label: "Report", path: "/apps/lostmail/report", testId: "nav-report" },
   ];
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-background border-t z-50 sm:hidden">
-      <div className="grid grid-cols-3 gap-1 p-2">
+      <div className="grid grid-cols-2 gap-1 p-2">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = location === item.path || location.startsWith(item.path + "/");
@@ -40,3 +39,4 @@ export function GentlePulseBottomNav() {
     </nav>
   );
 }
+

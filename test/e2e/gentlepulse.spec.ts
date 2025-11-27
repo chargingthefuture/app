@@ -44,18 +44,25 @@ test.describe('GentlePulse Favorites', () => {
     await expect(page.locator('[data-testid="toast-success"]')).toBeVisible();
   });
 
-  test('should view favorite meditations', async ({ page }) => {
-    await page.goto('/apps/gentlepulse/favorites');
+  test('should filter library to show favorites only', async ({ page }) => {
+    await page.goto('/apps/gentlepulse');
     
-    // Should show favorites list
-    await expect(page.locator('[data-testid="favorites-list"]')).toBeVisible();
+    // Toggle favorites filter
+    await page.click('[data-testid="button-toggle-favorites"]');
+    
+    // Should show filtered meditations (or empty state if no favorites)
+    await expect(page.locator('[data-testid="meditation-card"], [data-testid="empty-state"]')).toBeVisible();
   });
 
   test('should remove meditation from favorites', async ({ page }) => {
-    await page.goto('/apps/gentlepulse/favorites');
+    await page.goto('/apps/gentlepulse');
     
-    // Click unfavorite button
-    await page.click('[data-testid="button-unfavorite"]').first();
+    // First, add a favorite
+    await page.click('[data-testid="button-favorite"]').first();
+    await expect(page.locator('[data-testid="toast-success"]')).toBeVisible();
+    
+    // Then remove it
+    await page.click('[data-testid="button-favorite"]').first();
     
     // Should show success
     await expect(page.locator('[data-testid="toast-success"]')).toBeVisible();
@@ -87,16 +94,16 @@ test.describe('GentlePulse Progress', () => {
 });
 
 test.describe('GentlePulse Navigation', () => {
-  test('should navigate between library, favorites, and support', async ({ page }) => {
+  test('should navigate between library, support, and settings', async ({ page }) => {
     await page.goto('/apps/gentlepulse');
-    
-    // Navigate to favorites
-    await page.click('[data-testid="nav-favorites"]');
-    await expect(page).toHaveURL(/\/apps\/gentlepulse\/favorites/);
     
     // Navigate to support
     await page.click('[data-testid="nav-support"]');
     await expect(page).toHaveURL(/\/apps\/gentlepulse\/support/);
+    
+    // Navigate to settings
+    await page.click('[data-testid="nav-settings"]');
+    await expect(page).toHaveURL(/\/apps\/gentlepulse\/settings/);
     
     // Navigate back to library
     await page.click('[data-testid="nav-library"]');
