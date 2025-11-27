@@ -237,7 +237,7 @@ export default function AdminPayments() {
   };
 
   return (
-    <div className="p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6">
+    <div className="p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6 max-w-full overflow-x-hidden">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl md:text-4xl font-semibold mb-2">Payment Tracking</h1>
@@ -274,7 +274,7 @@ export default function AdminPayments() {
               <div className="text-sm text-muted-foreground mb-4">
                 {delinquentUsers.length} user{delinquentUsers.length !== 1 ? 's' : ''} with missed payments
               </div>
-              <div className="hidden md:block rounded-lg border bg-background">
+              <div className="hidden md:block rounded-lg border bg-background overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -287,9 +287,9 @@ export default function AdminPayments() {
                   <TableBody>
                     {delinquentUsers.map((user) => (
                       <TableRow key={user.userId} data-testid={`row-delinquent-${user.userId}`}>
-                        <TableCell className="font-medium">
+                        <TableCell className="font-medium min-w-[150px]">
                           <div className="space-y-1">
-                            <div>
+                            <div className="break-words">
                               {user.firstName && user.lastName
                                 ? `${user.firstName} ${user.lastName}`
                                 : "User"}
@@ -298,11 +298,11 @@ export default function AdminPayments() {
                               value={user.email || ""} 
                               type="email"
                               testId={`delinquent-email-${user.userId}`}
-                              className="text-xs"
+                              className="text-xs break-words"
                             />
                           </div>
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="min-w-[200px]">
                           <div className="flex flex-wrap gap-1">
                             {user.missingMonths.map((month) => {
                               const [year, monthNum] = month.split("-");
@@ -315,10 +315,10 @@ export default function AdminPayments() {
                             })}
                           </div>
                         </TableCell>
-                        <TableCell className="font-mono font-semibold text-amber-700">
+                        <TableCell className="font-mono font-semibold text-amber-700 whitespace-nowrap">
                           ${parseFloat(user.amountOwed).toFixed(2)}
                         </TableCell>
-                        <TableCell className="text-muted-foreground">
+                        <TableCell className="text-muted-foreground whitespace-nowrap">
                           {user.lastPaymentDate
                             ? new Date(user.lastPaymentDate).toLocaleDateString()
                             : "Never"}
@@ -334,13 +334,13 @@ export default function AdminPayments() {
                   <Card key={user.userId} data-testid={`row-delinquent-${user.userId}`}>
                     <CardContent className="p-4 space-y-2">
                       <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="font-medium">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-medium break-words flex-1 min-w-0">
                             {user.firstName && user.lastName
                               ? `${user.firstName} ${user.lastName}`
                               : "User"}
                           </span>
-                          <span className="font-mono font-semibold text-amber-700">
+                          <span className="font-mono font-semibold text-amber-700 shrink-0">
                             ${parseFloat(user.amountOwed).toFixed(2)}
                           </span>
                         </div>
@@ -399,7 +399,7 @@ export default function AdminPayments() {
             </div>
           ) : (
             <>
-              <div className="hidden md:block rounded-lg border">
+              <div className="hidden md:block rounded-lg border overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -415,38 +415,40 @@ export default function AdminPayments() {
                   <TableBody>
                     {payments.map((payment) => (
                       <TableRow key={payment.id} data-testid={`row-payment-${payment.id}`}>
-                        <TableCell className="font-medium">
+                        <TableCell className="font-medium min-w-[150px]">
                           <div className="space-y-1">
-                            <div>{getUserDisplayName(payment.userId)}</div>
+                            <div className="break-words">{getUserDisplayName(payment.userId)}</div>
                             <PrivacyField 
                               value={users?.find(u => u.id === payment.userId)?.email || ""} 
                               type="email"
                               testId={`payment-email-${payment.id}`}
-                              className="text-xs"
+                              className="text-xs break-words"
                             />
                           </div>
                         </TableCell>
-                        <TableCell className="font-mono">
+                        <TableCell className="font-mono whitespace-nowrap">
                           ${parseFloat(payment.amount).toFixed(2)}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="whitespace-nowrap">
                           <span className="capitalize">{payment.billingPeriod || 'monthly'}</span>
                         </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {payment.billingPeriod === "monthly" 
-                            ? formatBillingMonth(payment.billingMonth)
-                            : payment.billingPeriod === "yearly"
-                            ? formatYearlyPeriod(payment.yearlyStartMonth, payment.yearlyEndMonth)
-                            : "-"}
+                        <TableCell className="text-muted-foreground min-w-[150px]">
+                          <span className="break-words">
+                            {payment.billingPeriod === "monthly" 
+                              ? formatBillingMonth(payment.billingMonth)
+                              : payment.billingPeriod === "yearly"
+                              ? formatYearlyPeriod(payment.yearlyStartMonth, payment.yearlyEndMonth)
+                              : "-"}
+                          </span>
                         </TableCell>
-                        <TableCell className="capitalize">
+                        <TableCell className="capitalize whitespace-nowrap">
                           {payment.paymentMethod.replace(/-/g, ' ')}
                         </TableCell>
-                        <TableCell className="text-muted-foreground">
+                        <TableCell className="text-muted-foreground whitespace-nowrap">
                           {new Date(payment.paymentDate).toLocaleDateString()}
                         </TableCell>
-                        <TableCell className="text-muted-foreground text-sm">
-                          {payment.notes || "-"}
+                        <TableCell className="text-muted-foreground text-sm min-w-[150px] max-w-[200px]">
+                          <span className="break-words line-clamp-2">{payment.notes || "-"}</span>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -459,9 +461,9 @@ export default function AdminPayments() {
                   <Card key={payment.id} data-testid={`row-payment-${payment.id}`}>
                     <CardContent className="p-4 space-y-2">
                       <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="font-medium">{getUserDisplayName(payment.userId)}</span>
-                          <div className="text-right">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-medium break-words flex-1 min-w-0">{getUserDisplayName(payment.userId)}</span>
+                          <div className="text-right shrink-0">
                             <span className="font-mono font-semibold">
                               ${parseFloat(payment.amount).toFixed(2)}
                             </span>
@@ -481,13 +483,13 @@ export default function AdminPayments() {
                       {payment.billingPeriod === "monthly" && payment.billingMonth && (
                         <div className="text-sm">
                           <span className="text-muted-foreground">Billing Month: </span>
-                          <span>{formatBillingMonth(payment.billingMonth)}</span>
+                          <span className="break-words">{formatBillingMonth(payment.billingMonth)}</span>
                         </div>
                       )}
                       {payment.billingPeriod === "yearly" && payment.yearlyStartMonth && payment.yearlyEndMonth && (
                         <div className="text-sm">
                           <span className="text-muted-foreground">Subscription Period: </span>
-                          <span>{formatYearlyPeriod(payment.yearlyStartMonth, payment.yearlyEndMonth)}</span>
+                          <span className="break-words">{formatYearlyPeriod(payment.yearlyStartMonth, payment.yearlyEndMonth)}</span>
                         </div>
                       )}
                       <div className="grid grid-cols-2 gap-2 text-sm">
@@ -504,7 +506,7 @@ export default function AdminPayments() {
                       {payment.notes && (
                         <div className="text-sm">
                           <span className="text-muted-foreground">Notes: </span>
-                          <span>{payment.notes}</span>
+                          <span className="break-words">{payment.notes}</span>
                         </div>
                       )}
                     </CardContent>
@@ -522,7 +524,7 @@ export default function AdminPayments() {
           setUserSearchOpen(false);
         }
       }}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md max-w-[calc(100vw-2rem)] max-h-[calc(100vh-2rem)] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Record Payment</DialogTitle>
             <DialogDescription>
@@ -546,7 +548,7 @@ export default function AdminPayments() {
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                <PopoverContent className="w-[--radix-popover-trigger-width] max-w-[calc(100vw-2rem)] p-0" align="start">
                   <Command shouldFilter>
                     <CommandInput placeholder="Search users by name or email..." />
                     <CommandList>
@@ -566,20 +568,21 @@ export default function AdminPayments() {
                                 setUserSearchOpen(false);
                               }}
                               data-testid={`command-user-${user.id}`}
+                              className="break-words"
                             >
                               <Check
                                 className={cn(
-                                  "mr-2 h-4 w-4",
+                                  "mr-2 h-4 w-4 shrink-0",
                                   selected ? "opacity-100" : "opacity-0"
                                 )}
                               />
-                              <div className="flex flex-col">
-                                <span>{displayName}</span>
+                              <div className="flex flex-col min-w-0 flex-1">
+                                <span className="truncate">{displayName}</span>
                                 <PrivacyField 
                                   value={user.email || ""} 
                                   type="email"
                                   testId={`command-email-${user.id}`}
-                                  className="text-xs"
+                                  className="text-xs truncate"
                                 />
                               </div>
                             </CommandItem>
@@ -711,6 +714,7 @@ export default function AdminPayments() {
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 data-testid="input-notes"
+                className="resize-none min-h-[80px]"
               />
             </div>
           </div>
