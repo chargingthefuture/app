@@ -9,7 +9,6 @@ import { MoodCheckDialog, SafetyMessageDialog } from "@/components/gentlepulse/m
 import { AnnouncementBanner } from "@/components/announcement-banner";
 import { PaginationControls } from "@/components/pagination-controls";
 import { useClientId } from "@/hooks/useClientId";
-import { Link } from "wouter";
 import { Heart } from "lucide-react";
 import type { GentlepulseMeditation } from "@shared/schema";
 
@@ -170,19 +169,6 @@ export default function GentlePulseLibrary() {
             <Heart className={`w-4 h-4 ${showFavoritesOnly ? "fill-current" : ""}`} />
             {showFavoritesOnly ? "Show All" : "Favorites Only"}
           </Button>
-          {!showFavoritesOnly && (
-            <Button
-              variant="outline"
-              asChild
-              className="flex items-center gap-2"
-              data-testid="button-view-favorites"
-            >
-              <Link href="/apps/gentlepulse/favorites">
-                <Heart className="w-4 h-4" />
-                View Favorites
-              </Link>
-            </Button>
-          )}
         </div>
       </div>
 
