@@ -91,9 +91,8 @@ export function AppClerkProvider({ children }: { children: ReactNode }) {
       signUpUrl={signUpUrl}
       unauthorizedSignInUrl={unauthorizedSignInUrl}
       // Redirect to home after sign-up (users need admin approval)
-      fallbackRedirectUrl={`${baseUrl}/`}
       // Redirect to home after sign-in (if approved) or show pending message (if not)
-      afterSignInUrl={`${baseUrl}/`}
+      fallbackRedirectUrl={`${baseUrl}/`}
       // Redirect to sign-in page after sign-out
       afterSignOutUrl={signInUrl}
       appearance={{
