@@ -1056,9 +1056,16 @@ function AppContent() {
     "--sidebar-width-icon": "3rem",
   };
 
+  // Only show sidebar if:
+  // 1. Not loading
+  // 2. Authenticated
+  // 3. User exists (not null)
+  // 4. User doesn't need approval
+  const shouldShowSidebar = !isLoading && isAuthenticated && user && !needsApproval;
+
   return (
     <>
-      {!isLoading && isAuthenticated && !needsApproval ? (
+      {shouldShowSidebar ? (
         <SidebarProvider style={style as React.CSSProperties}>
           <div className="flex h-screen w-full">
             <AppSidebar />

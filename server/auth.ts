@@ -156,20 +156,47 @@ export async function syncClerkUserToDatabase(userId: string, sessionClaims?: an
           }
           
           // Try to create user with retry logic
-          await retryWithBackoff(
+          const jwtUserData = {
+            ...minimalUser,
+            pricingTier,
+            isApproved: false, // New users must be approved by admin
+          };
+          
+          console.log(`Creating user from JWT claims with isApproved: false`, {
+            userId: jwtUserData.id,
+            email: jwtUserData.email,
+            isApproved: jwtUserData.isApproved,
+          });
+          
+          const jwtUserResult = await retryWithBackoff(
             () => withDatabaseErrorHandling(
-              () => storage.upsertUser({
-                ...minimalUser,
-                pricingTier,
-                isApproved: false, // New users must be approved by admin
-              }),
+              () => storage.upsertUser(jwtUserData),
               'upsertUserFromJWTClaims'
             ),
             2, // 2 retries for database operations
             500 // 500ms base delay
           );
           
-          // Try to get the created user with retry logic
+          if (jwtUserResult) {
+            console.log(`User created from JWT claims successfully`, {
+              userId: jwtUserResult.id,
+              email: jwtUserResult.email,
+              isApproved: jwtUserResult.isApproved,
+            });
+            
+            if (jwtUserResult.isApproved !== false) {
+              console.error(`WARNING: User created from JWT with isApproved=${jwtUserResult.isApproved} instead of false!`, {
+                userId: jwtUserResult.id,
+                email: jwtUserResult.email,
+                isApproved: jwtUserResult.isApproved,
+              });
+            }
+            
+            // Use the result directly instead of querying again
+            return jwtUserResult;
+          }
+          
+          // Fallback: Try to get the created user with retry logic
           const createdUser = await retryWithBackoff(
             () => withDatabaseErrorHandling(
               () => storage.getUser(userId),
@@ -337,18 +364,49 @@ async function upsertUser(clerkUser: any) {
       // Use default pricing tier if database is unavailable
     }
 
+    const newUserData = {
+      id: mappedUser.sub,
+      email: mappedUser.email,
+      firstName: mappedUser.first_name,
+      lastName: mappedUser.last_name,
+      profileImageUrl: mappedUser.profile_image_url,
+      pricingTier,
+      isApproved: false, // New users must be approved by admin
+    };
+    
+    console.log(`Creating new user with isApproved: false`, {
+      userId: newUserData.id,
+      email: newUserData.email,
+      isApproved: newUserData.isApproved,
+    });
+
     result = await withDatabaseErrorHandling(
-      () => storage.upsertUser({
-        id: mappedUser.sub,
-        email: mappedUser.email,
-        firstName: mappedUser.first_name,
-        lastName: mappedUser.last_name,
-        profileImageUrl: mappedUser.profile_image_url,
-        pricingTier,
-        isApproved: false, // New users must be approved by admin
-      }),
+      () => storage.upsertUser(newUserData),
       'upsertNewUser'
     );
+    
+    // Verify the user was created with isApproved: false
+    if (result) {
+      console.log(`User created successfully`, {
+        userId: result.id,
+        email: result.email,
+        isApproved: result.isApproved,
+        isAdmin: result.isAdmin,
+      });
+      
+      if (result.isApproved !== false) {
+        console.error(`WARNING: New user was created with isApproved=${result.isApproved} instead of false!`, {
+          userId: result.id,
+          email: result.email,
+          isApproved: result.isApproved,
+        });
+      }
+    } else {
+      console.error(`ERROR: upsertUser returned null/undefined for new user`, {
+        userId: newUserData.id,
+        email: newUserData.email,
+      });
+    }
   }
   
   // Return the result from upsertUser
