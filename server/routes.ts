@@ -64,7 +64,7 @@ import {
 import { asyncHandler } from "./errorHandler";
 import { validateWithZod } from "./validationErrorFormatter";
 import { withDatabaseErrorHandling } from "./databaseErrorHandler";
-import { NotFoundError, ForbiddenError, ValidationError, UnauthorizedError } from "./errors";
+import { NotFoundError, ForbiddenError, ValidationError, UnauthorizedError, ExternalServiceError } from "./errors";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -146,6 +146,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Auth routes
+  // Manual sync endpoint for troubleshooting sync issues
+  app.post('/api/auth/sync', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      
+      // Validate userId is present
+      if (!userId || userId.trim() === "") {
+        return res.status(401).json({ 
+          message: "Authentication failed: User ID not found. Please try signing in again." 
+        });
+      }
+      
+      // Get session claims for fallback
+      const sessionClaims = (req.auth as any)?.sessionClaims;
+      
+      // Attempt to sync user from Clerk
+      const syncStartTime = Date.now();
+      const user = await syncClerkUserToDatabase(userId, sessionClaims);
+      const syncDuration = Date.now() - syncStartTime;
+      
+      if (!user) {
+        return res.status(500).json({ 
+          message: "Sync completed but user is still null. Please contact support.",
+          syncDuration,
+        });
+      }
+      
+      console.log(`Manual sync successful for user ${userId} in ${syncDuration}ms`);
+      res.json({ 
+        message: "User synced successfully",
+        user,
+        syncDuration,
+      });
+    } catch (error: any) {
+      console.error("Error in manual sync endpoint:", {
+        userId: req.auth?.userId,
+        error: error.message,
+        stack: error.stack,
+        timestamp: new Date().toISOString(),
+      });
+      
+      // If it's a deleted user error, return 403
+      if (error.message?.includes("deleted")) {
+        return res.status(403).json({ 
+          message: error.message || "This account has been deleted. Please contact support if you believe this is an error." 
+        });
+      }
+      
+      // If it's a database connection error, return 503
+      if (error.message?.includes("Database temporarily unavailable") ||
+          error instanceof ExternalServiceError && error.statusCode === 503) {
+        return res.status(503).json({ 
+          message: "Database temporarily unavailable. Please try again in a moment.",
+          retryAfter: 5,
+        });
+      }
+      
+      // For other errors, return 500
+      res.status(500).json({ 
+        message: error.message || "Failed to sync user",
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+  });
+
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
       const userId = getUserId(req);

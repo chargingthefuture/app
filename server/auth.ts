@@ -79,7 +79,16 @@ async function retryWithBackoff<T>(
 }
 
 export async function syncClerkUserToDatabase(userId: string, sessionClaims?: any) {
+  const syncStartTime = Date.now();
+  const syncId = `sync_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+  
   try {
+    console.log(`[${syncId}] Starting sync for user ${userId}`, {
+      hasSessionClaims: !!sessionClaims,
+      sessionClaimsEmail: sessionClaims?.email,
+      timestamp: new Date().toISOString(),
+    });
+    
     // Check if user is deleted before syncing
     // Wrap in error handling - if database is unavailable, we'll try to continue with Clerk data
     let existingUser;
@@ -88,32 +97,53 @@ export async function syncClerkUserToDatabase(userId: string, sessionClaims?: an
         () => storage.getUser(userId),
         'getUserForSync'
       );
+      console.log(`[${syncId}] Database query completed`, {
+        userExists: !!existingUser,
+        isDeleted: existingUser ? isUserDeleted(existingUser) : false,
+      });
     } catch (dbError: any) {
       // If it's a connection error, log but continue - we'll try to create user from Clerk data
       if (dbError instanceof ExternalServiceError && dbError.statusCode === 503) {
-        console.warn(`Database unavailable when checking existing user ${userId}, will attempt to create from Clerk data`);
+        console.warn(`[${syncId}] Database unavailable when checking existing user ${userId}, will attempt to create from Clerk data`, {
+          error: dbError.message,
+          statusCode: dbError.statusCode,
+        });
         existingUser = undefined;
       } else {
         // For other database errors (like deleted user check), re-throw
+        console.error(`[${syncId}] Database error checking existing user`, {
+          error: dbError.message,
+          code: dbError.code,
+          name: dbError.name,
+        });
         throw dbError;
       }
     }
     
     if (existingUser && isUserDeleted(existingUser)) {
+      console.warn(`[${syncId}] Attempted sync for deleted user ${userId}`);
       throw new Error("This account has been deleted. Please contact support if you believe this is an error.");
     }
     
     // Get full user details from Clerk with retry logic for transient failures
     let clerkUser;
     try {
+      console.log(`[${syncId}] Fetching user from Clerk API`, {
+        userId,
+        hasSecretKey: !!process.env.CLERK_SECRET_KEY,
+      });
       clerkUser = await retryWithBackoff(
         () => clerkClient.users.getUser(userId),
         3, // 3 retries
         1000 // 1 second base delay
       );
+      console.log(`[${syncId}] Successfully fetched user from Clerk API`, {
+        clerkUserId: clerkUser?.id,
+        clerkEmail: clerkUser?.primaryEmailAddress?.emailAddress || clerkUser?.emailAddresses?.[0]?.emailAddress,
+      });
     } catch (clerkError: any) {
       // Log detailed error for debugging
-      console.error("Error fetching user from Clerk API (after retries):", {
+      console.error(`[${syncId}] Error fetching user from Clerk API (after retries):`, {
         userId,
         error: clerkError.message,
         statusCode: clerkError.statusCode,
@@ -122,6 +152,7 @@ export async function syncClerkUserToDatabase(userId: string, sessionClaims?: an
         hasSecretKey: !!process.env.CLERK_SECRET_KEY,
         secretKeyPrefix: process.env.CLERK_SECRET_KEY?.substring(0, 10),
         environment: process.env.NODE_ENV,
+        retryAttempts: 3,
       });
       
       // If we have an existing user in DB, return it instead of failing
@@ -237,6 +268,10 @@ export async function syncClerkUserToDatabase(userId: string, sessionClaims?: an
     // Store the result to verify it succeeded
     let upsertResult;
     try {
+      console.log(`[${syncId}] Upserting user to database`, {
+        userId,
+        email: clerkUser?.primaryEmailAddress?.emailAddress || clerkUser?.emailAddresses?.[0]?.emailAddress,
+      });
       upsertResult = await retryWithBackoff(
         async () => {
           const result = await upsertUser(clerkUser);
@@ -248,26 +283,41 @@ export async function syncClerkUserToDatabase(userId: string, sessionClaims?: an
         2, // 2 retries for database operations
         500 // 500ms base delay
       );
+      console.log(`[${syncId}] Successfully upserted user`, {
+        userId: upsertResult.id,
+        email: upsertResult.email,
+        isApproved: upsertResult.isApproved,
+        isAdmin: upsertResult.isAdmin,
+      });
     } catch (upsertError: any) {
       const clerkEmail = clerkUser?.primaryEmailAddress?.emailAddress || 
                         clerkUser?.emailAddresses?.[0]?.emailAddress || 
                         'unknown';
-      console.error(`Failed to upsert user ${userId}:`, {
+      console.error(`[${syncId}] Failed to upsert user ${userId}:`, {
         error: upsertError.message,
         stack: upsertError.stack,
         clerkUserId: clerkUser?.id,
         clerkEmail,
+        errorCode: upsertError.code,
+        errorName: upsertError.name,
+        retryAttempts: 2,
       });
       throw new Error(`Failed to create/update user in database: ${upsertError.message}`);
     }
     
     // If upsertUser returned a user directly, use it (more reliable than querying)
     if (upsertResult) {
-      console.log(`Successfully upserted user ${userId} directly from upsert result`);
+      const syncDuration = Date.now() - syncStartTime;
+      console.log(`[${syncId}] Successfully upserted user ${userId} directly from upsert result`, {
+        syncDuration,
+        userId: upsertResult.id,
+        email: upsertResult.email,
+      });
       return upsertResult;
     }
     
     // Fallback: Return the synced user with retry logic
+    console.log(`[${syncId}] Upsert result was null, querying database for user`);
     const syncedUser = await retryWithBackoff(
       () => withDatabaseErrorHandling(
         () => storage.getUser(userId),
@@ -278,21 +328,40 @@ export async function syncClerkUserToDatabase(userId: string, sessionClaims?: an
     );
     
     if (!syncedUser) {
-      console.error(`User synced but not found after sync for ${userId}. This indicates a database sync issue.`);
+      console.error(`[${syncId}] User synced but not found after sync for ${userId}. This indicates a database sync issue.`, {
+        userId,
+        syncDuration: Date.now() - syncStartTime,
+      });
       // Try one more time to get the user
       const retryUser = await withDatabaseErrorHandling(
         () => storage.getUser(userId),
         'getUserAfterSyncRetry'
       );
       if (!retryUser) {
+        const syncDuration = Date.now() - syncStartTime;
+        console.error(`[${syncId}] User still not found after retry`, {
+          userId,
+          syncDuration,
+        });
         throw new Error("User synced but not found. Please try again.");
       }
+      console.log(`[${syncId}] User found on retry`, {
+        userId: retryUser.id,
+        syncDuration: Date.now() - syncStartTime,
+      });
       return retryUser;
     }
     
+    const syncDuration = Date.now() - syncStartTime;
+    console.log(`[${syncId}] Sync completed successfully`, {
+      userId: syncedUser.id,
+      email: syncedUser.email,
+      syncDuration,
+    });
     return syncedUser;
   } catch (error: any) {
-    console.error("Error syncing Clerk user to database:", {
+    const syncDuration = Date.now() - syncStartTime;
+    console.error(`[${syncId}] Error syncing Clerk user to database:`, {
       userId,
       error: error.message,
       stack: error.stack,
@@ -300,6 +369,8 @@ export async function syncClerkUserToDatabase(userId: string, sessionClaims?: an
       code: error.code,
       environment: process.env.NODE_ENV,
       timestamp: new Date().toISOString(),
+      syncDuration,
+      syncId,
     });
     throw error;
   }

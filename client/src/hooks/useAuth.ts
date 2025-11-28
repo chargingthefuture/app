@@ -1,7 +1,8 @@
 import { useUser as useClerkUser, useAuth as useClerkAuth } from "@clerk/clerk-react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { User as DbUser } from "@shared/schema";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
+import { apiRequest } from "@/lib/queryClient";
 
 /**
  * useAuth
@@ -11,6 +12,9 @@ import { useEffect, useState } from "react";
 export function useAuth() {
   const [clerkError, setClerkError] = useState<string | null>(null);
   const [clerkLoadTimeout, setClerkLoadTimeout] = useState(false);
+  const queryClient = useQueryClient();
+  const syncRetryCountRef = useRef(0);
+  const lastSyncRetryRef = useRef<number>(0);
   
   // Read Clerk hook values - hooks must be called unconditionally
   // If ClerkProvider isn't mounted or fails, these will throw or return undefined
@@ -91,6 +95,7 @@ export function useAuth() {
   });
 
   // Log errors and null responses for debugging
+  // Automatically retry sync when sync failure is detected
   useEffect(() => {
     if (dbError) {
       console.error("Error fetching user from database:", dbError);
@@ -98,13 +103,65 @@ export function useAuth() {
     // Log when we get null response but user is authenticated with Clerk
     // This indicates a sync failure that needs investigation
     if (clerkLoaded && isSignedIn && !dbLoading && dbUser === null && !dbError) {
-      console.error("User authenticated with Clerk but database returned null. This may indicate a sync failure.", {
-        clerkUserId: clerkUser?.id,
-        clerkEmail: clerkUser?.primaryEmailAddress?.emailAddress,
-        timestamp: new Date().toISOString(),
-      });
+      const now = Date.now();
+      const timeSinceLastRetry = now - lastSyncRetryRef.current;
+      const maxRetries = 3;
+      const retryCooldown = 5000; // 5 seconds between retries
+      
+      // Only retry if we haven't exceeded max retries and enough time has passed
+      if (syncRetryCountRef.current < maxRetries && timeSinceLastRetry > retryCooldown) {
+        console.warn("User authenticated with Clerk but database returned null. Attempting automatic sync retry...", {
+          clerkUserId: clerkUser?.id,
+          clerkEmail: clerkUser?.primaryEmailAddress?.emailAddress,
+          retryAttempt: syncRetryCountRef.current + 1,
+          maxRetries,
+          timestamp: new Date().toISOString(),
+        });
+        
+        syncRetryCountRef.current += 1;
+        lastSyncRetryRef.current = now;
+        
+        // Trigger a manual sync by calling the sync endpoint
+        apiRequest("POST", "/api/auth/sync", {})
+          .then(async (res) => {
+            // Check if response is OK
+            if (res.ok) {
+              // Invalidate and refetch the user query
+              queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+              console.log("Sync retry triggered successfully");
+            } else {
+              console.error("Sync retry failed with status:", res.status);
+            }
+          })
+          .catch((error) => {
+            console.error("Failed to trigger sync retry:", error);
+          });
+      } else if (syncRetryCountRef.current >= maxRetries) {
+        // Log error after max retries exceeded
+        console.error("User authenticated with Clerk but database returned null. Max sync retries exceeded.", {
+          clerkUserId: clerkUser?.id,
+          clerkEmail: clerkUser?.primaryEmailAddress?.emailAddress,
+          retryAttempts: syncRetryCountRef.current,
+          timestamp: new Date().toISOString(),
+        });
+      } else {
+        // Log the sync failure but don't retry yet (still in cooldown)
+        console.error("User authenticated with Clerk but database returned null. This may indicate a sync failure.", {
+          clerkUserId: clerkUser?.id,
+          clerkEmail: clerkUser?.primaryEmailAddress?.emailAddress,
+          retryAttempts: syncRetryCountRef.current,
+          timeSinceLastRetry,
+          timestamp: new Date().toISOString(),
+        });
+      }
     }
-  }, [dbError, dbUser, clerkLoaded, isSignedIn, dbLoading, clerkUser]);
+    
+    // Reset retry count when user is successfully loaded
+    if (dbUser !== null) {
+      syncRetryCountRef.current = 0;
+      lastSyncRetryRef.current = 0;
+    }
+  }, [dbError, dbUser, clerkLoaded, isSignedIn, dbLoading, clerkUser, queryClient]);
 
   // isLoading: true when:
   // - Clerk is not loaded yet (and not timed out), OR
