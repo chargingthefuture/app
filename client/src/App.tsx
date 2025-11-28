@@ -137,6 +137,13 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     }
   }, [user?.quoraProfileUrl]);
 
+  // Show terms acceptance dialog if needed (block access until accepted)
+  React.useEffect(() => {
+    if (!isLoading && user && needsTermsAcceptance) {
+      setTermsDialogOpen(true);
+    }
+  }, [isLoading, user, needsTermsAcceptance]);
+
   const updateQuoraUrlMutation = useMutation({
     mutationFn: async (url: string) => {
       const res = await apiRequest("PUT", "/api/user/quora-profile-url", { quoraProfileUrl: url });
@@ -231,13 +238,6 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Show terms acceptance dialog if needed (block access until accepted)
-  React.useEffect(() => {
-    if (!isLoading && user && needsTermsAcceptance) {
-      setTermsDialogOpen(true);
-    }
-  }, [isLoading, user, needsTermsAcceptance]);
-
   // Block access if terms need to be accepted
   if (needsTermsAcceptance && !isLoading && user) {
     return (
@@ -280,6 +280,13 @@ function RootRoute() {
       setQuoraProfileUrl(user.quoraProfileUrl);
     }
   }, [user?.quoraProfileUrl]);
+
+  // Show terms acceptance dialog if needed (block access until accepted)
+  React.useEffect(() => {
+    if (!isLoading && user && needsTermsAcceptance) {
+      setTermsDialogOpen(true);
+    }
+  }, [isLoading, user, needsTermsAcceptance]);
 
   const updateQuoraUrlMutation = useMutation({
     mutationFn: async (url: string) => {
@@ -383,13 +390,6 @@ function RootRoute() {
         </div>
       );
     }
-
-    // Show terms acceptance dialog if needed (block access until accepted)
-    React.useEffect(() => {
-      if (!isLoading && user && needsTermsAcceptance) {
-        setTermsDialogOpen(true);
-      }
-    }, [isLoading, user, needsTermsAcceptance]);
 
     // Block access if terms need to be accepted
     if (needsTermsAcceptance && !isLoading && user) {
