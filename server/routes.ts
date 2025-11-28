@@ -148,11 +148,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auth routes
   // Manual sync endpoint for troubleshooting sync issues
   app.post('/api/auth/sync', isAuthenticated, async (req: any, res) => {
+    let userId: string | undefined;
     try {
-      const userId = getUserId(req);
+      userId = getUserId(req);
       
       // Validate userId is present
       if (!userId || userId.trim() === "") {
+        console.error("Sync endpoint: userId is missing or empty", {
+          hasAuth: !!req.auth,
+          authUserId: req.auth?.userId,
+        });
         return res.status(401).json({ 
           message: "Authentication failed: User ID not found. Please try signing in again." 
         });
@@ -161,12 +166,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get session claims for fallback
       const sessionClaims = (req.auth as any)?.sessionClaims;
       
+      console.log(`Manual sync endpoint called for user ${userId}`, {
+        hasSessionClaims: !!sessionClaims,
+        timestamp: new Date().toISOString(),
+      });
+      
       // Attempt to sync user from Clerk
       const syncStartTime = Date.now();
-      const user = await syncClerkUserToDatabase(userId, sessionClaims);
+      let user;
+      try {
+        user = await syncClerkUserToDatabase(userId, sessionClaims);
+      } catch (syncError: any) {
+        const syncDuration = Date.now() - syncStartTime;
+        console.error("Error in syncClerkUserToDatabase:", {
+          userId,
+          error: syncError?.message || String(syncError),
+          errorName: syncError?.name,
+          errorCode: syncError?.code,
+          stack: syncError?.stack,
+          syncDuration,
+          timestamp: new Date().toISOString(),
+        });
+        throw syncError; // Re-throw to be handled by outer catch
+      }
+      
       const syncDuration = Date.now() - syncStartTime;
       
       if (!user) {
+        console.error(`Sync completed but user is still null for ${userId}`, {
+          syncDuration,
+        });
         return res.status(500).json({ 
           message: "Sync completed but user is still null. Please contact support.",
           syncDuration,
@@ -174,39 +203,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       console.log(`Manual sync successful for user ${userId} in ${syncDuration}ms`);
-      res.json({ 
+      return res.json({ 
         message: "User synced successfully",
         user,
         syncDuration,
       });
     } catch (error: any) {
+      // Enhanced error logging
+      const errorMessage = error?.message || String(error) || "Unknown error";
+      const errorName = error?.name || "Error";
+      const errorCode = error?.code;
+      const errorStack = error?.stack;
+      
       console.error("Error in manual sync endpoint:", {
-        userId: req.auth?.userId,
-        error: error.message,
-        stack: error.stack,
+        userId: userId || req.auth?.userId || "unknown",
+        error: errorMessage,
+        errorName,
+        errorCode,
+        stack: errorStack,
+        hasAuth: !!req.auth,
+        authUserId: req.auth?.userId,
         timestamp: new Date().toISOString(),
       });
       
       // If it's a deleted user error, return 403
-      if (error.message?.includes("deleted")) {
+      if (errorMessage?.includes("deleted")) {
         return res.status(403).json({ 
-          message: error.message || "This account has been deleted. Please contact support if you believe this is an error." 
+          message: errorMessage || "This account has been deleted. Please contact support if you believe this is an error." 
         });
       }
       
       // If it's a database connection error, return 503
-      if (error.message?.includes("Database temporarily unavailable") ||
-          error instanceof ExternalServiceError && error.statusCode === 503) {
+      if (errorMessage?.includes("Database temporarily unavailable") ||
+          (error instanceof ExternalServiceError && error.statusCode === 503)) {
         return res.status(503).json({ 
           message: "Database temporarily unavailable. Please try again in a moment.",
           retryAfter: 5,
         });
       }
       
-      // For other errors, return 500
-      res.status(500).json({ 
-        message: error.message || "Failed to sync user",
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      // If it's a Clerk API error, return 502 (Bad Gateway)
+      if (errorMessage?.includes("Failed to fetch user from Clerk") ||
+          errorMessage?.includes("Clerk")) {
+        return res.status(502).json({ 
+          message: "Authentication service temporarily unavailable. Please try again in a moment.",
+          retryAfter: 5,
+        });
+      }
+      
+      // For other errors, return 500 with safe error message
+      return res.status(500).json({ 
+        message: errorMessage || "Failed to sync user",
+        ...(process.env.NODE_ENV === 'development' && {
+          error: errorMessage,
+          errorName,
+          errorCode,
+        }),
       });
     }
   });
