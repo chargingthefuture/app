@@ -126,15 +126,39 @@ export function useAuth() {
           .then(async (res) => {
             // Check if response is OK
             if (res.ok) {
-              // Invalidate and refetch the user query
-              queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
-              console.log("Sync retry triggered successfully");
+              try {
+                const data = await res.json();
+                console.log("Sync retry triggered successfully", {
+                  message: data.message,
+                  syncDuration: data.syncDuration,
+                });
+                // Invalidate and refetch the user query
+                queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+              } catch (parseError) {
+                console.error("Failed to parse sync response:", parseError);
+                // Still invalidate the query to trigger a refetch
+                queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+              }
             } else {
-              console.error("Sync retry failed with status:", res.status);
+              // Try to get error message from response
+              let errorMessage = `HTTP ${res.status}`;
+              try {
+                const errorData = await res.json();
+                errorMessage = errorData.message || errorMessage;
+              } catch {
+                // Ignore JSON parse errors
+              }
+              console.error("Sync retry failed", {
+                status: res.status,
+                message: errorMessage,
+              });
             }
           })
           .catch((error) => {
-            console.error("Failed to trigger sync retry:", error);
+            console.error("Failed to trigger sync retry:", {
+              error: error.message,
+              stack: error.stack,
+            });
           });
       } else if (syncRetryCountRef.current >= maxRetries) {
         // Log error after max retries exceeded

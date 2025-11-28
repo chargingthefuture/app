@@ -148,16 +148,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auth routes
   // Manual sync endpoint for troubleshooting sync issues
   app.post('/api/auth/sync', isAuthenticated, async (req: any, res) => {
+    const syncEndpointId = `sync_endpoint_${Date.now()}_${Math.random().toString(36).substring(7)}`;
     let userId: string | undefined;
+    
     try {
       userId = getUserId(req);
       
+      console.log(`[${syncEndpointId}] Manual sync endpoint called`, {
+        userId,
+        hasAuth: !!req.auth,
+        authUserId: req.auth?.userId,
+        timestamp: new Date().toISOString(),
+      });
+      
       // Validate userId is present
       if (!userId || userId.trim() === "") {
-        console.error("Sync endpoint: userId is missing or empty", {
-          hasAuth: !!req.auth,
-          authUserId: req.auth?.userId,
-        });
+        console.error(`[${syncEndpointId}] userId is missing or empty`);
         return res.status(401).json({ 
           message: "Authentication failed: User ID not found. Please try signing in again." 
         });
@@ -166,9 +172,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get session claims for fallback
       const sessionClaims = (req.auth as any)?.sessionClaims;
       
-      console.log(`Manual sync endpoint called for user ${userId}`, {
+      console.log(`[${syncEndpointId}] Starting sync process`, {
+        userId,
         hasSessionClaims: !!sessionClaims,
-        timestamp: new Date().toISOString(),
+        sessionClaimsEmail: sessionClaims?.email,
       });
       
       // Attempt to sync user from Clerk
@@ -178,22 +185,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         user = await syncClerkUserToDatabase(userId, sessionClaims);
       } catch (syncError: any) {
         const syncDuration = Date.now() - syncStartTime;
-        console.error("Error in syncClerkUserToDatabase:", {
+        console.error(`[${syncEndpointId}] syncClerkUserToDatabase threw error:`, {
           userId,
           error: syncError?.message || String(syncError),
           errorName: syncError?.name,
           errorCode: syncError?.code,
-          stack: syncError?.stack,
+          errorStack: syncError?.stack,
           syncDuration,
-          timestamp: new Date().toISOString(),
+          isExternalServiceError: syncError instanceof ExternalServiceError,
+          externalServiceStatusCode: syncError instanceof ExternalServiceError ? syncError.statusCode : undefined,
         });
-        throw syncError; // Re-throw to be handled by outer catch
+        // Re-throw to be handled by outer catch
+        throw syncError;
       }
       
       const syncDuration = Date.now() - syncStartTime;
       
       if (!user) {
-        console.error(`Sync completed but user is still null for ${userId}`, {
+        console.error(`[${syncEndpointId}] Sync completed but user is still null`, {
+          userId,
           syncDuration,
         });
         return res.status(500).json({ 
@@ -202,7 +212,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      console.log(`Manual sync successful for user ${userId} in ${syncDuration}ms`);
+      console.log(`[${syncEndpointId}] Manual sync successful`, {
+        userId: user.id,
+        email: user.email,
+        syncDuration,
+      });
+      
       return res.json({ 
         message: "User synced successfully",
         user,
@@ -215,16 +230,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const errorCode = error?.code;
       const errorStack = error?.stack;
       
-      console.error("Error in manual sync endpoint:", {
+      console.error(`[${syncEndpointId}] Error in manual sync endpoint:`, {
         userId: userId || req.auth?.userId || "unknown",
         error: errorMessage,
         errorName,
         errorCode,
         stack: errorStack,
+        isExternalServiceError: error instanceof ExternalServiceError,
+        externalServiceStatusCode: error instanceof ExternalServiceError ? error.statusCode : undefined,
         hasAuth: !!req.auth,
         authUserId: req.auth?.userId,
         timestamp: new Date().toISOString(),
       });
+      
+      // Check if response has already been sent
+      if (res.headersSent) {
+        console.error(`[${syncEndpointId}] Response already sent, cannot send error response`);
+        return;
+      }
       
       // If it's a deleted user error, return 403
       if (errorMessage?.includes("deleted")) {
@@ -251,14 +274,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // For other errors, return 500 with safe error message
+      // For other errors, return 500
       return res.status(500).json({ 
         message: errorMessage || "Failed to sync user",
-        ...(process.env.NODE_ENV === 'development' && {
-          error: errorMessage,
-          errorName,
-          errorCode,
-        }),
+        error: process.env.NODE_ENV === 'development' ? errorMessage : undefined,
+        syncEndpointId, // Include sync ID for debugging
       });
     }
   });

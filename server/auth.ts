@@ -80,9 +80,7 @@ async function retryWithBackoff<T>(
 
 export async function syncClerkUserToDatabase(userId: string, sessionClaims?: any) {
   const syncStartTime = Date.now();
-  // Generate sync ID early so it's available in catch block
   const syncId = `sync_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-  let syncDuration = 0;
   
   try {
     console.log(`[${syncId}] Starting sync for user ${userId}`, {
@@ -362,18 +360,13 @@ export async function syncClerkUserToDatabase(userId: string, sessionClaims?: an
     });
     return syncedUser;
   } catch (error: any) {
-    syncDuration = Date.now() - syncStartTime;
-    const errorMessage = error?.message || String(error) || "Unknown error";
-    const errorName = error?.name || "Error";
-    const errorCode = error?.code;
-    const errorStack = error?.stack;
-    
+    const syncDuration = Date.now() - syncStartTime;
     console.error(`[${syncId}] Error syncing Clerk user to database:`, {
-      userId: userId || "unknown",
-      error: errorMessage,
-      stack: errorStack,
-      name: errorName,
-      code: errorCode,
+      userId,
+      error: error.message,
+      stack: error.stack,
+      name: error.name,
+      code: error.code,
       environment: process.env.NODE_ENV,
       timestamp: new Date().toISOString(),
       syncDuration,
