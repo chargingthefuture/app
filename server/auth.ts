@@ -306,24 +306,61 @@ export async function syncClerkUserToDatabase(userId: string, sessionClaims?: an
     }
     
     // If upsertUser returned a user directly, use it (more reliable than querying)
+    // But verify it's queryable to ensure database consistency
     if (upsertResult) {
+      // Verify the user is queryable from the database (handles potential replication lag)
+      // Add a small delay and retry to ensure the transaction is committed
+      let verifiedUser = upsertResult;
+      try {
+        // Wait a brief moment for transaction to commit (especially important for Neon serverless)
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // Try to verify the user is queryable
+        const queriedUser = await withDatabaseErrorHandling(
+          () => storage.getUser(userId),
+          'verifyUserAfterUpsert'
+        );
+        
+        if (queriedUser) {
+          verifiedUser = queriedUser;
+          console.log(`[${syncId}] User verified in database after upsert`, {
+            userId: verifiedUser.id,
+            email: verifiedUser.email,
+          });
+        } else {
+          console.warn(`[${syncId}] User not immediately queryable after upsert, using upsert result`, {
+            userId: upsertResult.id,
+          });
+        }
+      } catch (verifyError: any) {
+        // If verification fails, log but use the upsert result
+        console.warn(`[${syncId}] Could not verify user after upsert, using upsert result`, {
+          userId: upsertResult.id,
+          error: verifyError.message,
+        });
+      }
+      
       const syncDuration = Date.now() - syncStartTime;
       console.log(`[${syncId}] Successfully upserted user ${userId} directly from upsert result`, {
         syncDuration,
-        userId: upsertResult.id,
-        email: upsertResult.email,
+        userId: verifiedUser.id,
+        email: verifiedUser.email,
       });
-      return upsertResult;
+      return verifiedUser;
     }
     
     // Fallback: Return the synced user with retry logic
     console.log(`[${syncId}] Upsert result was null, querying database for user`);
+    
+    // Add a small delay before querying to ensure transaction is committed
+    await new Promise(resolve => setTimeout(resolve, 200));
+    
     const syncedUser = await retryWithBackoff(
       () => withDatabaseErrorHandling(
         () => storage.getUser(userId),
         'getUserAfterSync'
       ),
-      2,
+      3, // Increased retries
       500
     );
     
@@ -332,7 +369,8 @@ export async function syncClerkUserToDatabase(userId: string, sessionClaims?: an
         userId,
         syncDuration: Date.now() - syncStartTime,
       });
-      // Try one more time to get the user
+      // Try one more time with a longer delay
+      await new Promise(resolve => setTimeout(resolve, 500));
       const retryUser = await withDatabaseErrorHandling(
         () => storage.getUser(userId),
         'getUserAfterSyncRetry'
@@ -451,32 +489,47 @@ async function upsertUser(clerkUser: any) {
       isApproved: newUserData.isApproved,
     });
 
-    result = await withDatabaseErrorHandling(
-      () => storage.upsertUser(newUserData),
-      'upsertNewUser'
-    );
-    
-    // Verify the user was created with isApproved: false
-    if (result) {
-      console.log(`User created successfully`, {
-        userId: result.id,
-        email: result.email,
-        isApproved: result.isApproved,
-        isAdmin: result.isAdmin,
-      });
+    try {
+      result = await withDatabaseErrorHandling(
+        () => storage.upsertUser(newUserData),
+        'upsertNewUser'
+      );
       
-      if (result.isApproved !== false) {
-        console.error(`WARNING: New user was created with isApproved=${result.isApproved} instead of false!`, {
+      // Verify the user was created with isApproved: false
+      if (result) {
+        console.log(`User created successfully`, {
           userId: result.id,
           email: result.email,
           isApproved: result.isApproved,
+          isAdmin: result.isAdmin,
         });
+        
+        if (result.isApproved !== false) {
+          console.error(`WARNING: New user was created with isApproved=${result.isApproved} instead of false!`, {
+            userId: result.id,
+            email: result.email,
+            isApproved: result.isApproved,
+          });
+        }
+      } else {
+        console.error(`ERROR: upsertUser returned null/undefined for new user`, {
+          userId: newUserData.id,
+          email: newUserData.email,
+        });
+        throw new Error("User creation failed: upsertUser returned null/undefined");
       }
-    } else {
-      console.error(`ERROR: upsertUser returned null/undefined for new user`, {
+    } catch (upsertError: any) {
+      console.error(`Failed to create new user in upsertUser function:`, {
         userId: newUserData.id,
         email: newUserData.email,
+        error: upsertError?.message,
+        errorName: upsertError?.name,
+        errorCode: upsertError?.code,
+        constraint: upsertError?.constraint,
+        detail: upsertError?.detail,
+        stack: upsertError?.stack,
       });
+      throw upsertError;
     }
   }
   

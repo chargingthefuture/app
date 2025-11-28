@@ -676,18 +676,48 @@ export class DatabaseStorage implements IStorage {
   }
 
   async upsertUser(userData: UpsertUser): Promise<User> {
-    const [user] = await db
-      .insert(users)
-      .values(userData)
-      .onConflictDoUpdate({
-        target: users.id,
-        set: {
-          ...userData,
-          updatedAt: new Date(),
-        },
-      })
-      .returning();
-    return user;
+    try {
+      const result = await db
+        .insert(users)
+        .values(userData)
+        .onConflictDoUpdate({
+          target: users.id,
+          set: {
+            ...userData,
+            updatedAt: new Date(),
+          },
+        })
+        .returning();
+      
+      if (!result || result.length === 0) {
+        console.error("upsertUser: returning() returned empty array", {
+          userId: userData.id,
+          email: userData.email,
+        });
+        throw new Error("User upsert failed: database returned no result");
+      }
+      
+      const user = result[0];
+      if (!user) {
+        console.error("upsertUser: first element of returning() is undefined", {
+          userId: userData.id,
+          email: userData.email,
+        });
+        throw new Error("User upsert failed: database returned undefined user");
+      }
+      
+      return user;
+    } catch (error: any) {
+      console.error("upsertUser: Database error during upsert", {
+        userId: userData.id,
+        email: userData.email,
+        error: error?.message,
+        code: error?.code,
+        constraint: error?.constraint,
+        detail: error?.detail,
+      });
+      throw error;
+    }
   }
 
   async getAllUsers(): Promise<User[]> {

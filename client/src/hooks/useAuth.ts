@@ -131,13 +131,30 @@ export function useAuth() {
                 console.log("Sync retry triggered successfully", {
                   message: data.message,
                   syncDuration: data.syncDuration,
+                  hasUser: !!data.user,
                 });
-                // Invalidate and refetch the user query
-                queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+                
+                // If the sync response includes the user, set it directly in the cache
+                // This avoids a race condition where we invalidate and refetch too quickly
+                if (data.user) {
+                  queryClient.setQueryData(["/api/auth/user"], data.user);
+                  console.log("User data set directly from sync response", {
+                    userId: data.user.id,
+                    email: data.user.email,
+                  });
+                } else {
+                  // If no user in response, wait a bit then invalidate to trigger refetch
+                  // This gives the database time to commit the transaction
+                  setTimeout(() => {
+                    queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+                  }, 300);
+                }
               } catch (parseError) {
                 console.error("Failed to parse sync response:", parseError);
-                // Still invalidate the query to trigger a refetch
-                queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+                // Wait a bit then invalidate the query to trigger a refetch
+                setTimeout(() => {
+                  queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+                }, 300);
               }
             } else {
               // Try to get error message from response
@@ -152,6 +169,11 @@ export function useAuth() {
                 status: res.status,
                 message: errorMessage,
               });
+              
+              // Even on error, try to refetch after a delay in case the sync partially succeeded
+              setTimeout(() => {
+                queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+              }, 1000);
             }
           })
           .catch((error) => {
@@ -159,6 +181,10 @@ export function useAuth() {
               error: error.message,
               stack: error.stack,
             });
+            // On network error, still try to refetch after a delay
+            setTimeout(() => {
+              queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+            }, 1000);
           });
       } else if (syncRetryCountRef.current >= maxRetries) {
         // Log error after max retries exceeded
