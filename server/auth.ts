@@ -207,13 +207,40 @@ export async function syncClerkUserToDatabase(userId: string, sessionClaims?: an
     }
     
     // Upsert user in our database with retry logic
-    await retryWithBackoff(
-      () => upsertUser(clerkUser),
-      2, // 2 retries for database operations
-      500 // 500ms base delay
-    );
+    // Store the result to verify it succeeded
+    let upsertResult;
+    try {
+      upsertResult = await retryWithBackoff(
+        async () => {
+          const result = await upsertUser(clerkUser);
+          if (!result) {
+            throw new Error("upsertUser returned undefined - user creation may have failed");
+          }
+          return result;
+        },
+        2, // 2 retries for database operations
+        500 // 500ms base delay
+      );
+    } catch (upsertError: any) {
+      const clerkEmail = clerkUser?.primaryEmailAddress?.emailAddress || 
+                        clerkUser?.emailAddresses?.[0]?.emailAddress || 
+                        'unknown';
+      console.error(`Failed to upsert user ${userId}:`, {
+        error: upsertError.message,
+        stack: upsertError.stack,
+        clerkUserId: clerkUser?.id,
+        clerkEmail,
+      });
+      throw new Error(`Failed to create/update user in database: ${upsertError.message}`);
+    }
     
-    // Return the synced user with retry logic
+    // If upsertUser returned a user directly, use it (more reliable than querying)
+    if (upsertResult) {
+      console.log(`Successfully upserted user ${userId} directly from upsert result`);
+      return upsertResult;
+    }
+    
+    // Fallback: Return the synced user with retry logic
     const syncedUser = await retryWithBackoff(
       () => withDatabaseErrorHandling(
         () => storage.getUser(userId),
@@ -277,11 +304,12 @@ async function upsertUser(clerkUser: any) {
     }
   }
   
+  let result;
   if (existingUser) {
     // For existing users, only update profile information, preserve pricing tier
     // Preserve approval status and admin status
     
-    await withDatabaseErrorHandling(
+    result = await withDatabaseErrorHandling(
       () => storage.upsertUser({
         id: mappedUser.sub,
         email: mappedUser.email,
@@ -309,7 +337,7 @@ async function upsertUser(clerkUser: any) {
       // Use default pricing tier if database is unavailable
     }
 
-    await withDatabaseErrorHandling(
+    result = await withDatabaseErrorHandling(
       () => storage.upsertUser({
         id: mappedUser.sub,
         email: mappedUser.email,
@@ -322,6 +350,13 @@ async function upsertUser(clerkUser: any) {
       'upsertNewUser'
     );
   }
+  
+  // Return the result from upsertUser
+  if (!result) {
+    throw new Error("upsertUser returned undefined - user creation/update may have failed");
+  }
+  
+  return result;
 }
 
 export async function setupAuth(app: Express) {
