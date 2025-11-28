@@ -161,6 +161,7 @@ export async function syncClerkUserToDatabase(userId: string, sessionClaims?: an
               () => storage.upsertUser({
                 ...minimalUser,
                 pricingTier,
+                isApproved: false, // New users must be approved by admin
               }),
               'upsertUserFromJWTClaims'
             ),
@@ -316,6 +317,7 @@ async function upsertUser(clerkUser: any) {
         lastName: mappedUser.last_name,
         profileImageUrl: mappedUser.profile_image_url,
         pricingTier,
+        isApproved: false, // New users must be approved by admin
       }),
       'upsertNewUser'
     );
