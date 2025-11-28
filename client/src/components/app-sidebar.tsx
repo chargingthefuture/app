@@ -18,7 +18,8 @@ import {
   Mail,
   Search,
   HeartPulse,
-  Video
+  Video,
+  FileCode
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useClerk } from "@clerk/clerk-react";
@@ -136,6 +137,12 @@ const baseAdminMenuItems = [
     url: "/admin/video-to-gif",
     icon: Video,
     testId: "link-video-to-gif",
+  },
+  {
+    title: "Server Logs",
+    url: "/admin/logs",
+    icon: FileCode,
+    testId: "link-admin-logs",
   },
 ];
 

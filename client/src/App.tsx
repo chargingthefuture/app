@@ -28,6 +28,7 @@ import AdminActivity from "@/pages/admin/activity";
 import AdminPricingTiers from "@/pages/admin/pricing-tiers";
 import AdminWeeklyPerformance from "@/pages/admin/weekly-performance";
 import VideoToGifConverter from "@/pages/admin/video-to-gif";
+import AdminLogs from "@/pages/admin/logs";
 import SupportMatchDashboard from "@/pages/supportmatch/dashboard";
 import SupportMatchProfile from "@/pages/supportmatch/profile";
 import SupportMatchPartnership from "@/pages/supportmatch/partnership";
@@ -486,6 +487,11 @@ function Router() {
       <Route path="/admin/video-to-gif">
         <ProtectedRoute>
           <VideoToGifConverter />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/logs">
+        <ProtectedRoute>
+          <AdminLogs />
         </ProtectedRoute>
       </Route>
       {/* Mini-app routes - all protected */}

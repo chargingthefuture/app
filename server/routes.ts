@@ -67,6 +67,155 @@ import { withDatabaseErrorHandling } from "./databaseErrorHandler";
 import { NotFoundError, ForbiddenError, ValidationError, UnauthorizedError, ExternalServiceError } from "./errors";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Public log viewer endpoint (bypasses auth - uses secret token instead)
+  // This allows viewing logs even when auth is broken
+  // Access via: /api/logs/viewer?token=YOUR_SECRET_TOKEN
+  app.get('/api/logs/viewer', async (req, res) => {
+    try {
+      const LOG_VIEWER_SECRET = process.env.LOG_VIEWER_SECRET;
+      const providedToken = req.query.token as string;
+
+      // Check if secret token is configured
+      if (!LOG_VIEWER_SECRET) {
+        return res.status(503).json({ 
+          message: "Log viewer not configured. Set LOG_VIEWER_SECRET environment variable.",
+          hint: "Generate a secure random token and set it as LOG_VIEWER_SECRET"
+        });
+      }
+
+      // Verify token
+      if (providedToken !== LOG_VIEWER_SECRET) {
+        return res.status(401).json({ 
+          message: "Invalid token",
+          hint: "Provide token as query parameter: ?token=YOUR_SECRET_TOKEN"
+        });
+      }
+
+      const fs = await import('fs');
+      const path = await import('path');
+      
+      const LOG_DIR = process.env.LOG_DIR || path.default.join(process.cwd(), 'logs');
+      
+      if (!fs.existsSync(LOG_DIR)) {
+        return res.json({ 
+          enabled: false, 
+          message: "File logging not enabled or logs directory doesn't exist",
+          files: [],
+          hint: "Set ENABLE_FILE_LOGGING=true to enable file logging"
+        });
+      }
+
+      // Get optional parameters
+      const filename = req.query.filename as string | undefined;
+      const search = req.query.search as string | undefined;
+      const limit = parseInt(req.query.limit as string || '100', 10);
+      const level = req.query.level as string | undefined;
+
+      // If filename is provided, return that file's contents
+      if (filename) {
+        // Security: Only allow log files
+        if (!filename.startsWith('app-') || !filename.endsWith('.log')) {
+          return res.status(400).json({ message: "Invalid filename. Must be a log file." });
+        }
+
+        const filePath = path.default.join(LOG_DIR, filename);
+
+        // Prevent directory traversal
+        if (!filePath.startsWith(LOG_DIR)) {
+          return res.status(403).json({ message: "Access denied" });
+        }
+
+        if (!fs.existsSync(filePath)) {
+          return res.status(404).json({ message: "Log file not found" });
+        }
+
+        // Read file
+        const content = fs.readFileSync(filePath, 'utf8');
+        const lines = content.split('\n').filter(line => line.trim());
+
+        // Filter by search term if provided
+        let filteredLines = lines;
+        if (search) {
+          filteredLines = lines.filter(line => {
+            try {
+              const parsed = JSON.parse(line);
+              return JSON.stringify(parsed).toLowerCase().includes(search.toLowerCase());
+            } catch {
+              return line.toLowerCase().includes(search.toLowerCase());
+            }
+          });
+        }
+
+        // Filter by level if provided
+        if (level) {
+          filteredLines = filteredLines.filter(line => {
+            try {
+              const parsed = JSON.parse(line);
+              return parsed.level === level;
+            } catch {
+              return false;
+            }
+          });
+        }
+
+        // Limit results (show last N lines)
+        const limitedLines = filteredLines.slice(-limit);
+
+        // Parse JSON lines
+        const entries = limitedLines
+          .map(line => {
+            try {
+              return JSON.parse(line);
+            } catch {
+              return { raw: line };
+            }
+          })
+          .filter(entry => entry !== null);
+
+        return res.json({
+          filename,
+          totalLines: lines.length,
+          filteredLines: filteredLines.length,
+          returnedLines: entries.length,
+          entries,
+        });
+      }
+
+      // Otherwise, return list of files
+      const files = fs.readdirSync(LOG_DIR)
+        .filter(file => file.startsWith('app-') && file.endsWith('.log'))
+        .map(file => {
+          const filePath = path.default.join(LOG_DIR, file);
+          const stats = fs.statSync(filePath);
+          return {
+            name: file,
+            size: stats.size,
+            sizeMB: (stats.size / (1024 * 1024)).toFixed(2),
+            modified: stats.mtime.toISOString(),
+            level: file.includes('error') ? 'error' : 
+                   file.includes('warn') ? 'warn' : 
+                   file.includes('info') ? 'info' : 'log',
+          };
+        })
+        .sort((a, b) => new Date(b.modified).getTime() - new Date(a.modified).getTime());
+
+      res.json({ 
+        enabled: true,
+        logDir: LOG_DIR,
+        files,
+        usage: {
+          listFiles: "/api/logs/viewer?token=YOUR_SECRET_TOKEN",
+          viewFile: "/api/logs/viewer?token=YOUR_SECRET_TOKEN&filename=app-error-2024-01-15.log",
+          search: "/api/logs/viewer?token=YOUR_SECRET_TOKEN&filename=app-error-2024-01-15.log&search=sync_123",
+          filter: "/api/logs/viewer?token=YOUR_SECRET_TOKEN&filename=app-error-2024-01-15.log&level=error",
+        }
+      });
+    } catch (error: any) {
+      console.error("Error in public log viewer:", error);
+      res.status(500).json({ message: "Failed to access logs", error: error.message });
+    }
+  });
+
   // Auth middleware
   await setupAuth(app);
 
@@ -650,6 +799,274 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error clearing suspicious patterns:", error);
       res.status(500).json({ message: "Failed to clear patterns" });
+    }
+  });
+
+  // Admin routes - Log viewing (if file logging is enabled)
+  app.get('/api/admin/logs/files', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const fs = await import('fs');
+      const path = await import('path');
+      
+      const LOG_DIR = process.env.LOG_DIR || path.default.join(process.cwd(), 'logs');
+      
+      if (!fs.existsSync(LOG_DIR)) {
+        return res.json({ 
+          enabled: false, 
+          message: "File logging not enabled or logs directory doesn't exist",
+          files: [] 
+        });
+      }
+
+      const files = fs.readdirSync(LOG_DIR)
+        .filter(file => file.startsWith('app-') && file.endsWith('.log'))
+        .map(file => {
+          const filePath = path.default.join(LOG_DIR, file);
+          const stats = fs.statSync(filePath);
+          return {
+            name: file,
+            size: stats.size,
+            sizeMB: (stats.size / (1024 * 1024)).toFixed(2),
+            modified: stats.mtime.toISOString(),
+            level: file.includes('error') ? 'error' : 
+                   file.includes('warn') ? 'warn' : 
+                   file.includes('info') ? 'info' : 'log',
+          };
+        })
+        .sort((a, b) => new Date(b.modified).getTime() - new Date(a.modified).getTime());
+
+      res.json({ 
+        enabled: true,
+        logDir: LOG_DIR,
+        files 
+      });
+    } catch (error: any) {
+      console.error("Error listing log files:", error);
+      res.status(500).json({ message: "Failed to list log files", error: error.message });
+    }
+  });
+
+  app.get('/api/admin/logs/view', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const fs = await import('fs');
+      const path = await import('path');
+      
+      const filename = req.query.filename as string;
+      const search = req.query.search as string | undefined;
+      const limit = parseInt(req.query.limit as string || '1000', 10);
+      const level = req.query.level as string | undefined;
+
+      if (!filename) {
+        return res.status(400).json({ message: "filename query parameter is required" });
+      }
+
+      // Security: Only allow log files from the logs directory
+      if (!filename.startsWith('app-') || !filename.endsWith('.log')) {
+        return res.status(400).json({ message: "Invalid filename. Must be a log file." });
+      }
+
+      const LOG_DIR = process.env.LOG_DIR || path.default.join(process.cwd(), 'logs');
+      const filePath = path.default.join(LOG_DIR, filename);
+
+      // Prevent directory traversal
+      if (!filePath.startsWith(LOG_DIR)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      if (!fs.existsSync(filePath)) {
+        return res.status(404).json({ message: "Log file not found" });
+      }
+
+      // Read file
+      const content = fs.readFileSync(filePath, 'utf8');
+      const lines = content.split('\n').filter(line => line.trim());
+
+      // Filter by search term if provided
+      let filteredLines = lines;
+      if (search) {
+        filteredLines = lines.filter(line => {
+          try {
+            const parsed = JSON.parse(line);
+            return JSON.stringify(parsed).toLowerCase().includes(search.toLowerCase());
+          } catch {
+            return line.toLowerCase().includes(search.toLowerCase());
+          }
+        });
+      }
+
+      // Filter by level if provided
+      if (level) {
+        filteredLines = filteredLines.filter(line => {
+          try {
+            const parsed = JSON.parse(line);
+            return parsed.level === level;
+          } catch {
+            return false;
+          }
+        });
+      }
+
+      // Limit results
+      const limitedLines = filteredLines.slice(-limit);
+
+      // Parse JSON lines
+      const entries = limitedLines
+        .map(line => {
+          try {
+            return JSON.parse(line);
+          } catch {
+            return { raw: line };
+          }
+        })
+        .filter(entry => entry !== null);
+
+      res.json({
+        filename,
+        totalLines: lines.length,
+        filteredLines: filteredLines.length,
+        returnedLines: entries.length,
+        entries,
+      });
+    } catch (error: any) {
+      console.error("Error viewing log file:", error);
+      res.status(500).json({ message: "Failed to view log file", error: error.message });
+    }
+  });
+
+  app.get('/api/admin/logs/download', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const fs = await import('fs');
+      const path = await import('path');
+      
+      const filename = req.query.filename as string;
+
+      if (!filename) {
+        return res.status(400).json({ message: "filename query parameter is required" });
+      }
+
+      // Security: Only allow log files
+      if (!filename.startsWith('app-') || !filename.endsWith('.log')) {
+        return res.status(400).json({ message: "Invalid filename. Must be a log file." });
+      }
+
+      const LOG_DIR = process.env.LOG_DIR || path.default.join(process.cwd(), 'logs');
+      const filePath = path.default.join(LOG_DIR, filename);
+
+      // Prevent directory traversal
+      if (!filePath.startsWith(LOG_DIR)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      if (!fs.existsSync(filePath)) {
+        return res.status(404).json({ message: "Log file not found" });
+      }
+
+      // Set headers for file download
+      res.setHeader('Content-Type', 'text/plain');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      
+      // Stream file
+      const fileStream = fs.createReadStream(filePath);
+      fileStream.pipe(res);
+    } catch (error: any) {
+      console.error("Error downloading log file:", error);
+      res.status(500).json({ message: "Failed to download log file", error: error.message });
+    }
+  });
+
+  app.get('/api/admin/logs/search', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const fs = await import('fs');
+      const path = await import('path');
+      
+      const query = req.query.q as string;
+      const level = req.query.level as string | undefined;
+      const limit = parseInt(req.query.limit as string || '100', 10);
+
+      if (!query) {
+        return res.status(400).json({ message: "q (query) parameter is required" });
+      }
+
+      const LOG_DIR = process.env.LOG_DIR || path.default.join(process.cwd(), 'logs');
+      
+      if (!fs.existsSync(LOG_DIR)) {
+        return res.json({ 
+          enabled: false, 
+          message: "File logging not enabled",
+          results: [] 
+        });
+      }
+
+      const files = fs.readdirSync(LOG_DIR)
+        .filter(file => file.startsWith('app-') && file.endsWith('.log'));
+
+      const results: any[] = [];
+
+      for (const file of files) {
+        const filePath = path.default.join(LOG_DIR, file);
+        const content = fs.readFileSync(filePath, 'utf8');
+        const lines = content.split('\n').filter(line => line.trim());
+
+        for (const line of lines) {
+          try {
+            const parsed = JSON.parse(line);
+            const lineText = JSON.stringify(parsed).toLowerCase();
+            
+            // Check if query matches
+            if (lineText.includes(query.toLowerCase())) {
+              // Filter by level if provided
+              if (level && parsed.level !== level) {
+                continue;
+              }
+              
+              results.push({
+                file,
+                ...parsed,
+              });
+
+              if (results.length >= limit) {
+                break;
+              }
+            }
+          } catch {
+            // If not JSON, do simple string search
+            if (line.toLowerCase().includes(query.toLowerCase())) {
+              results.push({
+                file,
+                raw: line,
+              });
+
+              if (results.length >= limit) {
+                break;
+              }
+            }
+          }
+
+          if (results.length >= limit) {
+            break;
+          }
+        }
+
+        if (results.length >= limit) {
+          break;
+        }
+      }
+
+      // Sort by timestamp (newest first)
+      results.sort((a, b) => {
+        const timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+        const timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+        return timeB - timeA;
+      });
+
+      res.json({
+        query,
+        totalResults: results.length,
+        results: results.slice(0, limit),
+      });
+    } catch (error: any) {
+      console.error("Error searching logs:", error);
+      res.status(500).json({ message: "Failed to search logs", error: error.message });
     }
   });
 
