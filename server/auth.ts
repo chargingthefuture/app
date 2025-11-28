@@ -5,6 +5,7 @@ import { storage } from "./storage";
 import { validateCsrfToken } from "./csrf";
 import { withDatabaseErrorHandling } from "./databaseErrorHandler";
 import { ExternalServiceError } from "./errors";
+import { fileLogStructured, fileError, fileWarn, fileInfo } from "./fileLogger";
 
 // Clerk Configuration
 if (!process.env.CLERK_SECRET_KEY) {
@@ -83,11 +84,15 @@ export async function syncClerkUserToDatabase(userId: string, sessionClaims?: an
   const syncId = `sync_${Date.now()}_${Math.random().toString(36).substring(7)}`;
   
   try {
-    console.log(`[${syncId}] Starting sync for user ${userId}`, {
+    const syncStartData = {
+      syncId,
+      userId,
       hasSessionClaims: !!sessionClaims,
       sessionClaimsEmail: sessionClaims?.email,
       timestamp: new Date().toISOString(),
-    });
+    };
+    console.log(`[${syncId}] Starting sync for user ${userId}`, syncStartData);
+    fileLogStructured('info', { message: `[${syncId}] Starting sync for user ${userId}`, ...syncStartData });
     
     // Check if user is deleted before syncing
     // Wrap in error handling - if database is unavailable, we'll try to continue with Clerk data
@@ -283,17 +288,22 @@ export async function syncClerkUserToDatabase(userId: string, sessionClaims?: an
         2, // 2 retries for database operations
         500 // 500ms base delay
       );
-      console.log(`[${syncId}] Successfully upserted user`, {
+      const successData = {
+        syncId,
         userId: upsertResult.id,
         email: upsertResult.email,
         isApproved: upsertResult.isApproved,
         isAdmin: upsertResult.isAdmin,
-      });
+      };
+      console.log(`[${syncId}] Successfully upserted user`, successData);
+      fileLogStructured('info', { message: `[${syncId}] Successfully upserted user`, ...successData });
     } catch (upsertError: any) {
       const clerkEmail = clerkUser?.primaryEmailAddress?.emailAddress || 
                         clerkUser?.emailAddresses?.[0]?.emailAddress || 
                         'unknown';
-      console.error(`[${syncId}] Failed to upsert user ${userId}:`, {
+      const errorData = {
+        syncId,
+        userId,
         error: upsertError.message,
         stack: upsertError.stack,
         clerkUserId: clerkUser?.id,
@@ -301,7 +311,9 @@ export async function syncClerkUserToDatabase(userId: string, sessionClaims?: an
         errorCode: upsertError.code,
         errorName: upsertError.name,
         retryAttempts: 2,
-      });
+      };
+      console.error(`[${syncId}] Failed to upsert user ${userId}:`, errorData);
+      fileLogStructured('error', { message: `[${syncId}] Failed to upsert user ${userId}`, ...errorData });
       throw new Error(`Failed to create/update user in database: ${upsertError.message}`);
     }
     
@@ -399,7 +411,8 @@ export async function syncClerkUserToDatabase(userId: string, sessionClaims?: an
     return syncedUser;
   } catch (error: any) {
     const syncDuration = Date.now() - syncStartTime;
-    console.error(`[${syncId}] Error syncing Clerk user to database:`, {
+    const finalErrorData = {
+      syncId,
       userId,
       error: error.message,
       stack: error.stack,
@@ -408,8 +421,9 @@ export async function syncClerkUserToDatabase(userId: string, sessionClaims?: an
       environment: process.env.NODE_ENV,
       timestamp: new Date().toISOString(),
       syncDuration,
-      syncId,
-    });
+    };
+    console.error(`[${syncId}] Error syncing Clerk user to database:`, finalErrorData);
+    fileLogStructured('error', { message: `[${syncId}] Error syncing Clerk user to database`, ...finalErrorData });
     throw error;
   }
 }
