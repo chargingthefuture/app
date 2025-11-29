@@ -133,3 +133,4 @@ BEGIN
   RAISE NOTICE 'Schema migration completed. Please verify the results above.';
 END $$;
 
+

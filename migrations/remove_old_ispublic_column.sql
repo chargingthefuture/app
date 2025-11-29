@@ -76,3 +76,4 @@ SELECT
     ELSE 'ERROR: No column exists!'
   END as final_status;
 
+
