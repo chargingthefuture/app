@@ -14,7 +14,7 @@ import { VerifiedBadge } from "@/components/verified-badge";
 import { Textarea } from "@/components/ui/textarea";
 import { COUNTRIES } from "@/lib/countries";
 import { US_STATES } from "@/lib/usStates";
-import { ALL_SKILLS } from "@/lib/skills";
+import type { DirectorySkill } from "@shared/schema";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Check } from "lucide-react";
@@ -38,6 +38,9 @@ export default function AdminDirectoryPage() {
     queryKey: ["/api/directory/admin/profiles"],
   });
   const { data: users = [] } = useQuery<User[]>({ queryKey: ["/api/admin/users"] });
+  const { data: skills = [], isLoading: skillsLoading } = useQuery<DirectorySkill[]>({
+    queryKey: ["/api/directory/admin/skills"],
+  });
 
   const [newDescription, setNewDescription] = useState("");
   const [newFirstName, setNewFirstName] = useState("");
@@ -193,6 +196,39 @@ export default function AdminDirectoryPage() {
     });
   };
 
+  // Skill management mutations
+  const [deleteSkillDialogOpen, setDeleteSkillDialogOpen] = useState(false);
+  const [skillToDelete, setSkillToDelete] = useState<DirectorySkill | null>(null);
+
+  const createSkillMutation = useMutation({
+    mutationFn: async (data: { name: string }) => {
+      const res = await apiRequest("POST", "/api/directory/admin/skills", data);
+      return await res.json();
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["/api/directory/admin/skills"] });
+      toast({ title: "Created", description: "Skill created successfully" });
+    },
+    onError: (e: any) => {
+      toast({ title: "Error", description: e.message || "Failed to create skill", variant: "destructive" });
+    }
+  });
+
+  const deleteSkillMutation = useMutation({
+    mutationFn: async (id: string) => apiRequest("DELETE", `/api/directory/admin/skills/${id}`),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["/api/directory/admin/skills"] });
+      setDeleteSkillDialogOpen(false);
+      setSkillToDelete(null);
+      toast({ title: "Deleted", description: "Skill deleted successfully" });
+    },
+    onError: (e: any) => {
+      toast({ title: "Error", description: e.message || "Failed to delete skill", variant: "destructive" });
+      setDeleteSkillDialogOpen(false);
+      setSkillToDelete(null);
+    }
+  });
+
   // Seed functionality removed - use scripts/seedDirectory.ts
 
   return (
@@ -256,7 +292,26 @@ export default function AdminDirectoryPage() {
             )}
           </div>
           <div className="space-y-2">
-            <Label id="admin-skills-label">Skills (up to 3) <span className="text-red-600">*</span></Label>
+            <div className="flex items-center justify-between">
+              <Label id="admin-skills-label">Skills (up to 3) <span className="text-red-600">*</span></Label>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const name = prompt("Enter new skill name:");
+                    if (name && name.trim()) {
+                      createSkillMutation.mutate({ name: name.trim() });
+                    }
+                  }}
+                  disabled={createSkillMutation.isPending}
+                  data-testid="button-create-skill"
+                >
+                  <Plus className="w-4 h-4 mr-1" /> Add Skill
+                </Button>
+              </div>
+            </div>
             <Popover>
               <PopoverTrigger asChild>
                 <Button
@@ -266,6 +321,7 @@ export default function AdminDirectoryPage() {
                   aria-labelledby="admin-skills-label"
                   data-testid="combo-admin-skills-trigger"
                   className="w-full justify-between"
+                  disabled={skillsLoading}
                 >
                   {newSkills.length > 0 ? `${newSkills.length} selected` : "Select skills"}
                 </Button>
@@ -276,18 +332,31 @@ export default function AdminDirectoryPage() {
                   <CommandList>
                   <CommandEmpty>No skills found.</CommandEmpty>
                   <CommandGroup>
-                    {ALL_SKILLS.map((s) => {
-                      const selected = newSkills.includes(s);
+                    {skills.map((skill) => {
+                      const selected = newSkills.includes(skill.name);
                       return (
                         <CommandItem
-                          key={s}
-                          value={s}
-                          onSelect={() => toggleSkill(s)}
-                          data-testid={`combo-admin-skills-item-${s}`}
+                          key={skill.id}
+                          value={skill.name}
+                          onSelect={() => toggleSkill(skill.name)}
+                          data-testid={`combo-admin-skills-item-${skill.name}`}
                           aria-selected={selected}
                         >
                           <Check className={`mr-2 h-4 w-4 ${selected ? "opacity-100" : "opacity-0"}`} />
-                          <span>{s}</span>
+                          <span className="flex-1">{skill.name}</span>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 ml-2"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSkillToDelete(skill);
+                              setDeleteSkillDialogOpen(true);
+                            }}
+                            data-testid={`button-delete-skill-${skill.id}`}
+                          >
+                            <Trash2 className="w-3 h-3 text-destructive" />
+                          </Button>
                         </CommandItem>
                       );
                     })}
@@ -487,10 +556,29 @@ export default function AdminDirectoryPage() {
                         </div>
                       </div>
                       <div className="space-y-2">
-                        <Label id={`edit-skills-label-${p.id}`}>Skills (up to 3) <span className="text-red-600">*</span></Label>
+                        <div className="flex items-center justify-between">
+                          <Label id={`edit-skills-label-${p.id}`}>Skills (up to 3) <span className="text-red-600">*</span></Label>
+                          <div className="flex gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                const name = prompt("Enter new skill name:");
+                                if (name && name.trim()) {
+                                  createSkillMutation.mutate({ name: name.trim() });
+                                }
+                              }}
+                              disabled={createSkillMutation.isPending}
+                              data-testid={`button-create-skill-edit-${p.id}`}
+                            >
+                              <Plus className="w-4 h-4 mr-1" /> Add Skill
+                            </Button>
+                          </div>
+                        </div>
                         <Popover>
                           <PopoverTrigger asChild>
-                            <Button variant="outline" role="combobox" aria-haspopup="listbox" aria-labelledby={`edit-skills-label-${p.id}`} className="w-full justify-between">
+                            <Button variant="outline" role="combobox" aria-haspopup="listbox" aria-labelledby={`edit-skills-label-${p.id}`} className="w-full justify-between" disabled={skillsLoading}>
                               {editSkills.length > 0 ? `${editSkills.length} selected` : "Select skills"}
                             </Button>
                           </PopoverTrigger>
@@ -500,12 +588,25 @@ export default function AdminDirectoryPage() {
                               <CommandList>
                               <CommandEmpty>No skills found.</CommandEmpty>
                               <CommandGroup>
-                                {ALL_SKILLS.map((s) => {
-                                  const selected = editSkills.includes(s);
+                                {skills.map((skill) => {
+                                  const selected = editSkills.includes(skill.name);
                                   return (
-                                    <CommandItem key={s} value={s} onSelect={() => toggleEditSkill(s)} aria-selected={selected}>
+                                    <CommandItem key={skill.id} value={skill.name} onSelect={() => toggleEditSkill(skill.name)} aria-selected={selected}>
                                       <Check className={`mr-2 h-4 w-4 ${selected ? "opacity-100" : "opacity-0"}`} />
-                                      <span>{s}</span>
+                                      <span className="flex-1">{skill.name}</span>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-6 w-6 ml-2"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setSkillToDelete(skill);
+                                          setDeleteSkillDialogOpen(true);
+                                        }}
+                                        data-testid={`button-delete-skill-edit-${skill.id}`}
+                                      >
+                                        <Trash2 className="w-3 h-3 text-destructive" />
+                                      </Button>
                                     </CommandItem>
                                   );
                                 })}
@@ -698,6 +799,49 @@ export default function AdminDirectoryPage() {
               data-testid="button-confirm-delete"
             >
               {deleteMutation.isPending ? "Deleting..." : "Delete Profile"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Skill Confirmation Dialog */}
+      <AlertDialog open={deleteSkillDialogOpen} onOpenChange={setDeleteSkillDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Skill</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-4">
+              <p>
+                Are you sure you want to delete this skill? This action is permanent and cannot be undone.
+              </p>
+              {skillToDelete && (
+                <div className="bg-muted p-3 rounded-md">
+                  <p className="text-sm font-medium">Skill Name:</p>
+                  <p className="text-sm text-muted-foreground">{skillToDelete.name}</p>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Note: This will not remove the skill from existing profiles, but it will no longer be available for new selections.
+                  </p>
+                </div>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => {
+                setDeleteSkillDialogOpen(false);
+                setSkillToDelete(null);
+              }}
+              disabled={deleteSkillMutation.isPending}
+              data-testid="button-cancel-delete-skill"
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => skillToDelete && deleteSkillMutation.mutate(skillToDelete.id)}
+              disabled={deleteSkillMutation.isPending || !skillToDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              data-testid="button-confirm-delete-skill"
+            >
+              {deleteSkillMutation.isPending ? "Deleting..." : "Delete Skill"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

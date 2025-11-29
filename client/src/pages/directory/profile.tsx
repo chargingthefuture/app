@@ -17,7 +17,7 @@ import type { DirectoryProfile } from "@shared/schema";
 import { ExternalLink, Check, X, Copy } from "lucide-react";
 import { COUNTRIES } from "@/lib/countries";
 import { US_STATES } from "@/lib/usStates";
-import { ALL_SKILLS } from "@/lib/skills";
+import type { DirectorySkill } from "@shared/schema";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useExternalLink } from "@/hooks/useExternalLink";
 import { VerifiedBadge } from "@/components/verified-badge";
@@ -33,6 +33,9 @@ export default function DirectoryProfilePage() {
   const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
   const { data: profile, isLoading } = useQuery<DirectoryProfile | null>({
     queryKey: ["/api/directory/profile"],
+  });
+  const { data: availableSkills = [], isLoading: skillsLoading } = useQuery<DirectorySkill[]>({
+    queryKey: ["/api/directory/skills"],
   });
   
   const publicDirectoryUrl = `${window.location.origin}/apps/directory/public`;
@@ -374,6 +377,7 @@ export default function DirectoryProfilePage() {
                   aria-labelledby="skills-label"
                   data-testid="combo-skills-trigger"
                   className="w-full justify-between"
+                  disabled={skillsLoading}
                 >
                   {skills.length > 0 ? `${skills.length} selected` : "Select skills"}
                 </Button>
@@ -384,18 +388,18 @@ export default function DirectoryProfilePage() {
                   <CommandList>
                   <CommandEmpty>No skills found.</CommandEmpty>
                   <CommandGroup>
-                    {ALL_SKILLS.map((s) => {
-                      const selected = skills.includes(s);
+                    {availableSkills.map((skill) => {
+                      const selected = skills.includes(skill.name);
                       return (
                         <CommandItem
-                          key={s}
-                          value={s}
-                          onSelect={() => toggleSkill(s)}
-                          data-testid={`combo-skills-item-${s}`}
+                          key={skill.id}
+                          value={skill.name}
+                          onSelect={() => toggleSkill(skill.name)}
+                          data-testid={`combo-skills-item-${skill.name}`}
                           aria-selected={selected}
                         >
                           <Check className={`mr-2 h-4 w-4 ${selected ? "opacity-100" : "opacity-0"}`} />
-                          <span>{s}</span>
+                          <span>{skill.name}</span>
                         </CommandItem>
                       );
                     })}

@@ -851,6 +851,23 @@ export const insertDirectoryAnnouncementSchema = createInsertSchema(directoryAnn
 export type InsertDirectoryAnnouncement = z.infer<typeof insertDirectoryAnnouncementSchema>;
 export type DirectoryAnnouncement = typeof directoryAnnouncements.$inferSelect;
 
+// Directory Skills - Admin-managed tags/skills for directory profiles
+export const directorySkills = pgTable("directory_skills", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name", { length: 100 }).notNull().unique(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertDirectorySkillSchema = createInsertSchema(directorySkills).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertDirectorySkill = z.infer<typeof insertDirectorySkillSchema>;
+export type DirectorySkill = typeof directorySkills.$inferSelect;
+
 // ========================================
 // CHAT GROUPS APP TABLES
 // ========================================

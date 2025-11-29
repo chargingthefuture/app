@@ -21,8 +21,11 @@ import {
   socketrelayAnnouncements,
   directoryProfiles,
   directoryAnnouncements,
+  directorySkills,
   type DirectoryProfile,
   type InsertDirectoryProfile,
+  type DirectorySkill,
+  type InsertDirectorySkill,
   chatGroups,
   chatgroupsAnnouncements,
   type ChatGroup,
@@ -408,6 +411,11 @@ export interface IStorage {
   getAllDirectoryAnnouncements(): Promise<DirectoryAnnouncement[]>;
   updateDirectoryAnnouncement(id: string, announcement: Partial<InsertDirectoryAnnouncement>): Promise<DirectoryAnnouncement>;
   deactivateDirectoryAnnouncement(id: string): Promise<DirectoryAnnouncement>;
+
+  // Directory Skills operations (admin only)
+  getAllDirectorySkills(): Promise<DirectorySkill[]>;
+  createDirectorySkill(skill: InsertDirectorySkill): Promise<DirectorySkill>;
+  deleteDirectorySkill(id: string): Promise<void>;
 
   // Chat Groups operations
   getAllChatGroups(): Promise<ChatGroup[]>;
@@ -3098,6 +3106,28 @@ export class DatabaseStorage implements IStorage {
       .where(eq(directoryAnnouncements.id, id))
       .returning();
     return announcement;
+  }
+
+  // Directory Skills operations
+  async getAllDirectorySkills(): Promise<DirectorySkill[]> {
+    return await db
+      .select()
+      .from(directorySkills)
+      .orderBy(asc(directorySkills.name));
+  }
+  
+  async createDirectorySkill(skillData: InsertDirectorySkill): Promise<DirectorySkill> {
+    const [skill] = await db
+      .insert(directorySkills)
+      .values(skillData)
+      .returning();
+    return skill;
+  }
+  
+  async deleteDirectorySkill(id: string): Promise<void> {
+    await db
+      .delete(directorySkills)
+      .where(eq(directorySkills.id, id));
   }
 
   // ========================================

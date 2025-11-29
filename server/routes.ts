@@ -27,6 +27,7 @@ import {
   insertSocketrelayAnnouncementSchema,
   insertDirectoryProfileSchema,
   insertDirectoryAnnouncementSchema,
+  insertDirectorySkillSchema,
   insertChatGroupSchema,
   insertChatgroupsAnnouncementSchema,
   insertTrusttransportProfileSchema,
@@ -751,6 +752,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ message: "Directory profile deleted successfully" });
   }));
 
+  // Public skills endpoint (for authenticated users to view available skills)
+  app.get('/api/directory/skills', isAuthenticated, asyncHandler(async (_req, res) => {
+    const skills = await withDatabaseErrorHandling(
+      () => storage.getAllDirectorySkills(),
+      'getAllDirectorySkills'
+    );
+    res.json(skills);
+  }));
+
   // Public routes (with rate limiting to prevent scraping)
   app.get('/api/directory/public/:id', publicItemLimiter, asyncHandler(async (req, res) => {
     const profile = await withDatabaseErrorHandling(
@@ -991,6 +1001,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
     
     res.json({ message: 'Profile deleted successfully' });
+  }));
+
+  // Admin routes for Directory Skills (admin only)
+  app.get('/api/directory/admin/skills', isAuthenticated, isAdmin, asyncHandler(async (_req, res) => {
+    const skills = await withDatabaseErrorHandling(
+      () => storage.getAllDirectorySkills(),
+      'getAllDirectorySkills'
+    );
+    res.json(skills);
+  }));
+
+  app.post('/api/directory/admin/skills', isAuthenticated, ...isAdminWithCsrf, asyncHandler(async (req: any, res) => {
+    const adminId = getUserId(req);
+    const validated = validateWithZod(insertDirectorySkillSchema, req.body, 'Invalid skill data');
+    const skill = await withDatabaseErrorHandling(
+      () => storage.createDirectorySkill(validated),
+      'createDirectorySkill'
+    );
+    await logAdminAction(adminId, 'create_directory_skill', 'directory_skill', skill.id, { name: skill.name });
+    res.json(skill);
+  }));
+
+  app.delete('/api/directory/admin/skills/:id', isAuthenticated, ...isAdminWithCsrf, asyncHandler(async (req: any, res) => {
+    const adminId = getUserId(req);
+    const skillId = req.params.id;
+    
+    // Get skill first to log the name
+    const skill = await withDatabaseErrorHandling(
+      () => storage.getAllDirectorySkills().then(skills => skills.find(s => s.id === skillId)),
+      'getAllDirectorySkills'
+    );
+    
+    if (!skill) {
+      return res.status(404).json({ message: 'Skill not found' });
+    }
+    
+    await withDatabaseErrorHandling(
+      () => storage.deleteDirectorySkill(skillId),
+      'deleteDirectorySkill'
+    );
+    
+    await logAdminAction(adminId, 'delete_directory_skill', 'directory_skill', skillId, { name: skill.name });
+    res.json({ message: 'Skill deleted successfully' });
   }));
 
   // ========================================
