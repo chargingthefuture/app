@@ -6,6 +6,7 @@ import { validateCsrfToken, generateCsrfTokenForAdmin } from "./csrf";
 import { publicListingLimiter, publicItemLimiter } from "./rateLimiter";
 import { fingerprintRequests, getSuspiciousPatterns, getSuspiciousPatternsForIP, clearSuspiciousPatterns } from "./antiScraping";
 import { rotateDisplayOrder, addAntiScrapingDelay, isLikelyBot } from "./dataObfuscation";
+import { readSkillsFromFile, addSkillToFile, removeSkillFromFile, getSkillsAsDirectorySkills } from "./skillsFileManager";
 import { 
   insertPaymentSchema,
   insertPricingTierSchema,
@@ -754,11 +755,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Public skills endpoint (for authenticated users to view available skills)
   app.get('/api/directory/skills', isAuthenticated, asyncHandler(async (_req, res) => {
-    const skills = await withDatabaseErrorHandling(
-      () => storage.getAllDirectorySkills(),
-      'getAllDirectorySkills'
-    );
-    res.json(skills);
+    try {
+      const skills = getSkillsAsDirectorySkills();
+      res.json(skills);
+    } catch (error) {
+      console.error('Error reading skills from file:', error);
+      res.status(500).json({ message: 'Failed to read skills' });
+    }
   }));
 
   // Public routes (with rate limiting to prevent scraping)
@@ -1005,45 +1008,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Admin routes for Directory Skills (admin only)
   app.get('/api/directory/admin/skills', isAuthenticated, isAdmin, asyncHandler(async (_req, res) => {
-    const skills = await withDatabaseErrorHandling(
-      () => storage.getAllDirectorySkills(),
-      'getAllDirectorySkills'
-    );
-    res.json(skills);
+    try {
+      const skills = getSkillsAsDirectorySkills();
+      res.json(skills);
+    } catch (error) {
+      console.error('Error reading skills from file:', error);
+      res.status(500).json({ message: 'Failed to read skills' });
+    }
   }));
 
   app.post('/api/directory/admin/skills', isAuthenticated, ...isAdminWithCsrf, asyncHandler(async (req: any, res) => {
     const adminId = getUserId(req);
     const validated = validateWithZod(insertDirectorySkillSchema, req.body, 'Invalid skill data');
-    const skill = await withDatabaseErrorHandling(
-      () => storage.createDirectorySkill(validated),
-      'createDirectorySkill'
-    );
-    await logAdminAction(adminId, 'create_directory_skill', 'directory_skill', skill.id, { name: skill.name });
-    res.json(skill);
+    
+    try {
+      addSkillToFile(validated.name);
+      const skill = { name: validated.name };
+      
+      await logAdminAction(adminId, 'create_directory_skill', 'skill_file', validated.name, { name: validated.name });
+      res.json(skill);
+    } catch (error: any) {
+      console.error('Error adding skill to file:', error);
+      if (error.message?.includes('already exists')) {
+        res.status(409).json({ message: error.message });
+      } else {
+        res.status(500).json({ message: error.message || 'Failed to add skill' });
+      }
+    }
   }));
 
-  app.delete('/api/directory/admin/skills/:id', isAuthenticated, ...isAdminWithCsrf, asyncHandler(async (req: any, res) => {
+  app.delete('/api/directory/admin/skills/:name', isAuthenticated, ...isAdminWithCsrf, asyncHandler(async (req: any, res) => {
     const adminId = getUserId(req);
-    const skillId = req.params.id;
+    const skillName = decodeURIComponent(req.params.name);
     
-    // Get skill first to log the name
-    const skill = await withDatabaseErrorHandling(
-      () => storage.getAllDirectorySkills().then(skills => skills.find(s => s.id === skillId)),
-      'getAllDirectorySkills'
-    );
-    
-    if (!skill) {
-      return res.status(404).json({ message: 'Skill not found' });
+    try {
+      // Verify skill exists before deleting
+      const skills = readSkillsFromFile();
+      const skillExists = skills.some(s => s.toLowerCase() === skillName.toLowerCase());
+      
+      if (!skillExists) {
+        return res.status(404).json({ message: 'Skill not found' });
+      }
+      
+      removeSkillFromFile(skillName);
+      
+      await logAdminAction(adminId, 'delete_directory_skill', 'skill_file', skillName, { name: skillName });
+      res.json({ message: 'Skill deleted successfully' });
+    } catch (error: any) {
+      console.error('Error removing skill from file:', error);
+      if (error.message?.includes('not found')) {
+        res.status(404).json({ message: error.message });
+      } else {
+        res.status(500).json({ message: error.message || 'Failed to delete skill' });
+      }
     }
-    
-    await withDatabaseErrorHandling(
-      () => storage.deleteDirectorySkill(skillId),
-      'deleteDirectorySkill'
-    );
-    
-    await logAdminAction(adminId, 'delete_directory_skill', 'directory_skill', skillId, { name: skill.name });
-    res.json({ message: 'Skill deleted successfully' });
   }));
 
   // ========================================

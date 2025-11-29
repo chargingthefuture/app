@@ -1,5 +1,6 @@
 import { db } from "../server/db";
-import { directoryProfiles, users, directoryAnnouncements, type InsertDirectoryProfile } from "../shared/schema";
+import { directoryProfiles, users, directoryAnnouncements, directorySkills, type InsertDirectoryProfile, type InsertDirectorySkill } from "../shared/schema";
+import { ALL_SKILLS } from "../client/src/lib/skills";
 
 async function seedDirectory() {
   console.log("Seeding Directory app profiles...");
@@ -7,9 +8,22 @@ async function seedDirectory() {
   const countries = [
     "United States","United Kingdom","Canada","Australia","Germany","France","India","Brazil","Japan","Kenya"
   ];
-  const skillsPool = [
-    "Cooking","Tutoring","Childcare","Counseling","Job Search Help","Resume Writing","Ride Sharing","Language Exchange","Art & Crafts","Tech Support"
-  ];
+  // Use ALL_SKILLS from client/src/lib/skills.ts (manually maintained list)
+  const skillsPool = ALL_SKILLS;
+
+  // Seed directory_skills table (REQUIRED for admin dropdown)
+  console.log("Seeding directory skills...");
+  for (const skillName of skillsPool) {
+    try {
+      await db.insert(directorySkills).values({
+        name: skillName,
+      } as InsertDirectorySkill);
+      console.log(`Created skill: ${skillName}`);
+    } catch (error) {
+      // Skill may already exist (unique constraint), skip
+      console.log(`Skill "${skillName}" may already exist, skipping...`);
+    }
+  }
 
   const pickSkills = () => {
     const shuffled = [...skillsPool].sort(() => Math.random() - 0.5);
@@ -92,6 +106,7 @@ async function seedDirectory() {
   }
 
   console.log("Directory seed complete.");
+  console.log(`- ${skillsPool.length} skills available (from ALL_SKILLS)`);
   console.log(`- ${count} profiles created`);
   console.log(`- ${announcementsData.length} announcements created`);
   process.exit(0);

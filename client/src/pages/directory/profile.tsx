@@ -392,7 +392,7 @@ export default function DirectoryProfilePage() {
                       const selected = skills.includes(skill.name);
                       return (
                         <CommandItem
-                          key={skill.id}
+                          key={skill.name}
                           value={skill.name}
                           onSelect={() => toggleSkill(skill.name)}
                           data-testid={`combo-skills-item-${skill.name}`}

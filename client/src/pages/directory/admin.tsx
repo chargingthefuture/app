@@ -215,7 +215,11 @@ export default function AdminDirectoryPage() {
   });
 
   const deleteSkillMutation = useMutation({
-    mutationFn: async (id: string) => apiRequest("DELETE", `/api/directory/admin/skills/${id}`),
+    mutationFn: async (skillName: string) => {
+      // Encode the skill name for URL safety
+      const encodedName = encodeURIComponent(skillName);
+      return apiRequest("DELETE", `/api/directory/admin/skills/${encodedName}`);
+    },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["/api/directory/admin/skills"] });
       setDeleteSkillDialogOpen(false);
@@ -336,7 +340,7 @@ export default function AdminDirectoryPage() {
                       const selected = newSkills.includes(skill.name);
                       return (
                         <CommandItem
-                          key={skill.id}
+                          key={skill.name}
                           value={skill.name}
                           onSelect={() => toggleSkill(skill.name)}
                           data-testid={`combo-admin-skills-item-${skill.name}`}
@@ -353,7 +357,7 @@ export default function AdminDirectoryPage() {
                               setSkillToDelete(skill);
                               setDeleteSkillDialogOpen(true);
                             }}
-                            data-testid={`button-delete-skill-${skill.id}`}
+                            data-testid={`button-delete-skill-${skill.name}`}
                           >
                             <Trash2 className="w-3 h-3 text-destructive" />
                           </Button>
@@ -591,7 +595,7 @@ export default function AdminDirectoryPage() {
                                 {skills.map((skill) => {
                                   const selected = editSkills.includes(skill.name);
                                   return (
-                                    <CommandItem key={skill.id} value={skill.name} onSelect={() => toggleEditSkill(skill.name)} aria-selected={selected}>
+                                    <CommandItem key={skill.name} value={skill.name} onSelect={() => toggleEditSkill(skill.name)} aria-selected={selected}>
                                       <Check className={`mr-2 h-4 w-4 ${selected ? "opacity-100" : "opacity-0"}`} />
                                       <span className="flex-1">{skill.name}</span>
                                       <Button
@@ -603,7 +607,7 @@ export default function AdminDirectoryPage() {
                                           setSkillToDelete(skill);
                                           setDeleteSkillDialogOpen(true);
                                         }}
-                                        data-testid={`button-delete-skill-edit-${skill.id}`}
+                                        data-testid={`button-delete-skill-edit-${skill.name}`}
                                       >
                                         <Trash2 className="w-3 h-3 text-destructive" />
                                       </Button>
@@ -836,7 +840,7 @@ export default function AdminDirectoryPage() {
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => skillToDelete && deleteSkillMutation.mutate(skillToDelete.id)}
+              onClick={() => skillToDelete && deleteSkillMutation.mutate(skillToDelete.name)}
               disabled={deleteSkillMutation.isPending || !skillToDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               data-testid="button-confirm-delete-skill"
