@@ -112,6 +112,7 @@ import ChymeProfile from "@/pages/chyme/profile";
 import ChymeRoom from "@/pages/chyme/room";
 import ChymeAdmin from "@/pages/chyme/admin";
 import ChymeAdminAnnouncements from "@/pages/chyme/admin-announcements";
+import ChymeAdminRoomForm from "@/pages/chyme/admin-room-form";
 import { GentlePulseBottomNav } from "@/components/gentlepulse/bottom-nav";
 import { SupportMatchBottomNav } from "@/components/supportmatch/bottom-nav";
 import { LighthouseBottomNav } from "@/components/lighthouse/bottom-nav";
@@ -929,6 +930,16 @@ function Router() {
       <Route path="/apps/chyme/admin/announcements">
         <ProtectedRoute>
           <ChymeAdminAnnouncements />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/chyme/admin/rooms/new">
+        <ProtectedRoute>
+          <ChymeAdminRoomForm />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/chyme/admin/rooms/:id/edit">
+        <ProtectedRoute>
+          <ChymeAdminRoomForm />
         </ProtectedRoute>
       </Route>
       

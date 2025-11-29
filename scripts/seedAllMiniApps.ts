@@ -76,6 +76,11 @@ const seedScripts = [
     description: "GentlePulse - Meditation library",
   },
   {
+    name: "Chyme",
+    script: "seedChyme.ts",
+    description: "Chyme - Social audio platform",
+  },
+  {
     name: "Payment Tracking",
     script: "seedPaymentTracking.ts",
     description: "Payment Tracking - Payment tracking and delinquent user features",

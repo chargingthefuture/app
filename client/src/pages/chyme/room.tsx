@@ -13,6 +13,7 @@ import { useState, useEffect, useRef } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { MiniAppBackButton } from "@/components/mini-app-back-button";
 import { ChymeSurveyDialog } from "@/components/chyme-survey-dialog";
+import { useChymeAudio } from "@/hooks/useChymeAudio";
 
 export default function ChymeRoom() {
   const [, params] = useRoute("/apps/chyme/room/:id");
@@ -21,7 +22,6 @@ export default function ChymeRoom() {
   const { toast } = useToast();
   const [newMessage, setNewMessage] = useState("");
   const [isJoined, setIsJoined] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [clientId] = useState(() => {
     // Generate or retrieve client ID for anonymous survey
@@ -45,6 +45,20 @@ export default function ChymeRoom() {
     queryKey: ['/api/chyme/rooms', roomId, 'participants'],
     enabled: !!roomId && isJoined,
     refetchInterval: 5000, // Poll every 5 seconds
+  });
+
+  // WebRTC audio functionality
+  const audio = useChymeAudio({
+    roomId: roomId || '',
+    userId: user?.id || '',
+    enabled: isJoined && canSpeak,
+    onError: (error) => {
+      toast({
+        title: "Audio Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
   });
 
   const { data: messagesData, refetch: refetchMessages } = useQuery<{ messages: ChymeMessage[]; total: number }>({
@@ -141,6 +155,10 @@ export default function ChymeRoom() {
   };
 
   const handleLeave = () => {
+    // Disconnect audio before leaving
+    if (audio.isConnected) {
+      audio.disconnect();
+    }
     leaveRoomMutation.mutate();
   };
 
@@ -174,7 +192,7 @@ export default function ChymeRoom() {
   }
 
   const canChat = room.roomType === 'public' || (room.roomType === 'private' && isJoined);
-  const canSpeak = room.roomType === 'private' && isJoined;
+  const canSpeak = room.roomType === 'private' && isJoined && profile !== null;
 
   return (
     <div className="h-[calc(100vh-4rem)] flex flex-col">
@@ -223,12 +241,15 @@ export default function ChymeRoom() {
               <>
                 {canSpeak && (
                   <Button
-                    variant={isMuted ? "outline" : "default"}
-                    onClick={() => setIsMuted(!isMuted)}
+                    variant={audio.isMuted ? "outline" : "default"}
+                    onClick={audio.toggleMute}
                     data-testid="button-toggle-mute"
                   >
-                    {isMuted ? <MicOff className="w-4 h-4 mr-2" /> : <Mic className="w-4 h-4 mr-2" />}
-                    {isMuted ? "Unmute" : "Mute"}
+                    {audio.isMuted ? <MicOff className="w-4 h-4 mr-2" /> : <Mic className="w-4 h-4 mr-2" />}
+                    {audio.isMuted ? "Unmute" : "Mute"}
+                    {audio.isSpeaking && !audio.isMuted && (
+                      <span className="ml-2 w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                    )}
                   </Button>
                 )}
                 <Button
@@ -246,29 +267,57 @@ export default function ChymeRoom() {
         </div>
       </div>
 
+      {/* Hidden audio elements for remote streams */}
+      {isJoined && Array.from(audio.remoteStreams.entries()).map(([userId, stream]) => (
+        <audio
+          key={userId}
+          ref={(el) => {
+            if (el && stream) {
+              el.srcObject = stream;
+              el.play().catch(() => {
+                // Auto-play may be blocked, user will need to interact
+              });
+            }
+          }}
+          autoPlay
+          playsInline
+        />
+      ))}
+
       <div className="flex-1 flex overflow-hidden">
         {/* Participants sidebar */}
         {isJoined && (
           <div className="w-64 border-r bg-muted/50 p-4 overflow-y-auto">
             <h3 className="font-semibold mb-4">Participants ({participants.length})</h3>
             <div className="space-y-2">
-              {participants.map((participant) => (
-                <div key={participant.id} className="flex items-center gap-2 text-sm">
-                  <div className="flex-1">
-                    <div className="font-medium">
-                      {participant.userId === user?.id ? "You" : "Anonymous"}
+              {participants.map((participant) => {
+                const isRemoteParticipant = participant.userId !== user?.id;
+                const hasRemoteAudio = isRemoteParticipant && audio.remoteStreams.has(participant.userId);
+                
+                return (
+                  <div key={participant.id} className="flex items-center gap-2 text-sm">
+                    <div className="flex-1">
+                      <div className="font-medium">
+                        {participant.userId === user?.id ? "You" : "Anonymous"}
+                      </div>
+                      {participant.isSpeaking && (
+                        <Badge variant="outline" className="text-xs mt-1 flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
+                          Speaking
+                        </Badge>
+                      )}
+                      {hasRemoteAudio && (
+                        <Badge variant="outline" className="text-xs mt-1">
+                          Audio Connected
+                        </Badge>
+                      )}
                     </div>
-                    {participant.isSpeaking && (
-                      <Badge variant="outline" className="text-xs mt-1">
-                        Speaking
-                      </Badge>
+                    {participant.isMuted && (
+                      <MicOff className="w-4 h-4 text-muted-foreground" />
                     )}
                   </div>
-                  {participant.isMuted && (
-                    <MicOff className="w-4 h-4 text-muted-foreground" />
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
