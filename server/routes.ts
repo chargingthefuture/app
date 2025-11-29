@@ -545,6 +545,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // User route - Update own Quora profile URL
+  app.put('/api/user/quora-profile-url', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const { quoraProfileUrl } = req.body;
+      const user = await storage.updateUserQuoraProfileUrl(userId, quoraProfileUrl || null);
+      res.json(user);
+    } catch (error: any) {
+      console.error("Error updating Quora profile URL:", error);
+      res.status(400).json({ message: error.message || "Failed to update Quora profile URL" });
+    }
+  });
+
   // Admin routes - Payments
   app.get('/api/admin/payments', isAuthenticated, isAdmin, asyncHandler(async (_req, res) => {
     const payments = await withDatabaseErrorHandling(

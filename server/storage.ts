@@ -196,6 +196,7 @@ export interface IStorage {
   updateUserVerification(userId: string, isVerified: boolean): Promise<User>;
   updateUserApproval(userId: string, isApproved: boolean): Promise<User>;
   updateTermsAcceptance(userId: string): Promise<User>;
+  updateUserQuoraProfileUrl(userId: string, quoraProfileUrl: string | null): Promise<User>;
   
   // Pricing tier operations
   getCurrentPricingTier(): Promise<PricingTier | undefined>;
@@ -822,6 +823,19 @@ export class DatabaseStorage implements IStorage {
       .update(users)
       .set({
         termsAcceptedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userId))
+      .returning();
+    return user;
+  }
+
+  // Update user Quora profile URL
+  async updateUserQuoraProfileUrl(userId: string, quoraProfileUrl: string | null): Promise<User> {
+    const [user] = await db
+      .update(users)
+      .set({
+        quoraProfileUrl: quoraProfileUrl || null,
         updatedAt: new Date(),
       })
       .where(eq(users.id, userId))

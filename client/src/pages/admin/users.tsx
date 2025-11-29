@@ -15,10 +15,13 @@ import { PrivacyField } from "@/components/ui/privacy-field";
 import { VerifiedBadge } from "@/components/verified-badge";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useExternalLink } from "@/hooks/useExternalLink";
+import { ExternalLink } from "lucide-react";
 import type { User } from "@shared/schema";
 
 export default function AdminUsers() {
   const { toast } = useToast();
+  const { openExternal, ExternalLinkDialog } = useExternalLink();
   const { data: users, isLoading, error } = useQuery<User[]>({
     queryKey: ["/api/admin/users"],
   });
@@ -141,6 +144,7 @@ export default function AdminUsers() {
                       <TableHead>User</TableHead>
                       <TableHead>Email</TableHead>
                       <TableHead>Verification</TableHead>
+                      <TableHead>Quora Profile</TableHead>
                       <TableHead>Pricing Tier</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Role</TableHead>
@@ -174,6 +178,20 @@ export default function AdminUsers() {
                         </TableCell>
                         <TableCell>
                           <VerifiedBadge isVerified={user.isVerified ?? false} testId={`badge-verified-${user.id}`} />
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {user.quoraProfileUrl ? (
+                            <button
+                              onClick={() => openExternal(user.quoraProfileUrl!)}
+                              className="flex items-center gap-1 text-primary hover:underline"
+                              data-testid={`link-quora-${user.id}`}
+                            >
+                              <span className="truncate max-w-[200px]">{user.quoraProfileUrl}</span>
+                              <ExternalLink className="w-3 h-3 flex-shrink-0" />
+                            </button>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
                         </TableCell>
                         <TableCell className="font-mono">${user.pricingTier}/mo</TableCell>
                         <TableCell>{getStatusBadge(user.subscriptionStatus)}</TableCell>
@@ -261,6 +279,23 @@ export default function AdminUsers() {
                           </div>
                         </div>
                         <div>
+                          <span className="text-muted-foreground text-sm">Quora Profile</span>
+                          <div className="mt-1">
+                            {user.quoraProfileUrl ? (
+                              <button
+                                onClick={() => openExternal(user.quoraProfileUrl!)}
+                                className="flex items-center gap-1 text-primary hover:underline text-sm"
+                                data-testid={`link-quora-mobile-${user.id}`}
+                              >
+                                <span className="truncate">{user.quoraProfileUrl}</span>
+                                <ExternalLink className="w-3 h-3 flex-shrink-0" />
+                              </button>
+                            ) : (
+                              <span className="text-muted-foreground text-sm">—</span>
+                            )}
+                          </div>
+                        </div>
+                        <div>
                           <span className="text-muted-foreground text-sm">Approval</span>
                           <div className="mt-1">
                             {user.isApproved ? (
@@ -331,6 +366,7 @@ export default function AdminUsers() {
           )}
         </CardContent>
       </Card>
+      <ExternalLinkDialog />
     </div>
   );
 }
