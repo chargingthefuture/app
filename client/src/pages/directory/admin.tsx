@@ -216,9 +216,8 @@ export default function AdminDirectoryPage() {
 
   const deleteSkillMutation = useMutation({
     mutationFn: async (skillName: string) => {
-      // Encode the skill name for URL safety
-      const encodedName = encodeURIComponent(skillName);
-      return apiRequest("DELETE", `/api/directory/admin/skills/${encodedName}`);
+      // Send skill name in request body to avoid URL encoding issues
+      return apiRequest("DELETE", "/api/directory/admin/skills", { name: skillName });
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["/api/directory/admin/skills"] });

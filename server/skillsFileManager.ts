@@ -30,7 +30,11 @@ export function readSkillsFromFile(): string[] {
     const skills: string[] = [];
     
     for (const match of skillMatches) {
-      skills.push(match[1]);
+      // Trim each skill name to remove any whitespace
+      const skillName = match[1].trim();
+      if (skillName) {
+        skills.push(skillName);
+      }
     }
     
     return skills.sort(); // Return sorted for consistency

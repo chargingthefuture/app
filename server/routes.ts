@@ -1037,22 +1037,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   }));
 
-  app.delete('/api/directory/admin/skills/:name', isAuthenticated, ...isAdminWithCsrf, asyncHandler(async (req: any, res) => {
+  app.delete('/api/directory/admin/skills', isAuthenticated, ...isAdminWithCsrf, asyncHandler(async (req: any, res) => {
     const adminId = getUserId(req);
-    const skillName = decodeURIComponent(req.params.name);
+    const { name: skillNameParam } = req.body;
+    
+    if (!skillNameParam || typeof skillNameParam !== 'string') {
+      return res.status(400).json({ message: 'Skill name is required in request body' });
+    }
+    
+    const trimmedName = skillNameParam.trim();
     
     try {
-      // Verify skill exists before deleting
+      // Get all skills and find the exact match (case-insensitive)
       const skills = readSkillsFromFile();
-      const skillExists = skills.some(s => s.toLowerCase() === skillName.toLowerCase());
+      const skillLower = trimmedName.toLowerCase();
+      const exactSkill = skills.find(s => s.trim().toLowerCase() === skillLower);
       
-      if (!skillExists) {
-        return res.status(404).json({ message: 'Skill not found' });
+      if (!exactSkill) {
+        console.error(`Skill not found: "${trimmedName}"`);
+        console.error(`Searching for (lowercase): "${skillLower}"`);
+        console.error(`Total skills in file: ${skills.length}`);
+        console.error(`Sample skills:`, skills.slice(0, 10).map(s => `"${s}"`));
+        return res.status(404).json({ message: `Skill "${trimmedName}" not found` });
       }
       
-      removeSkillFromFile(skillName);
+      // Use the exact skill name from the file for deletion
+      removeSkillFromFile(exactSkill);
       
-      await logAdminAction(adminId, 'delete_directory_skill', 'skill_file', skillName, { name: skillName });
+      await logAdminAction(adminId, 'delete_directory_skill', 'skill_file', exactSkill, { name: exactSkill });
       res.json({ message: 'Skill deleted successfully' });
     } catch (error: any) {
       console.error('Error removing skill from file:', error);
