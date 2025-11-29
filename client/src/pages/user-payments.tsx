@@ -20,6 +20,7 @@ import { DollarSign, Calendar, CheckCircle, Mail, CreditCard, Copy, Check, Alert
 import { useToast } from "@/hooks/use-toast";
 import { PrivacyField } from "@/components/ui/privacy-field";
 import type { Payment } from "@shared/schema";
+import { formatCurrency } from "@/lib/utils";
 
 const PAYMENT_ACKNOWLEDGMENT_KEY = "payment-person-acknowledged";
 
@@ -156,7 +157,7 @@ export default function UserPayments() {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold tabular-nums" data-testid="text-monthly-rate">
-              ${user?.pricingTier}
+              {formatCurrency(user?.pricingTier || 0)}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               Per month (your forever pricing)
@@ -195,7 +196,7 @@ export default function UserPayments() {
                         : `${paymentStatus.missingMonths.length} months`}
                     </p>
                     <div className="text-xs text-amber-700 dark:text-amber-300 space-y-1">
-                      <div>Amount owed: ${parseFloat(paymentStatus.amountOwed).toFixed(2)}</div>
+                      <div>Amount owed: {formatCurrency(paymentStatus.amountOwed)}</div>
                       {paymentStatus.nextBillingDate && (
                         <div>Next billing: {new Date(paymentStatus.nextBillingDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</div>
                       )}
@@ -570,7 +571,7 @@ export default function UserPayments() {
                   {payments.map((payment) => (
                     <TableRow key={payment.id} data-testid={`row-payment-${payment.id}`}>
                       <TableCell className="font-mono font-semibold">
-                        ${parseFloat(payment.amount).toFixed(2)}
+                        {formatCurrency(payment.amount)}
                       </TableCell>
                       <TableCell>
                         <span className="capitalize">{payment.billingPeriod || 'monthly'}</span>

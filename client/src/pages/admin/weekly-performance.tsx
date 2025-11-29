@@ -10,6 +10,7 @@ import { Users, DollarSign, TrendingUp, TrendingDown, Calendar, Target, Activity
 import { format, startOfWeek, addDays, parseISO } from "date-fns";
 import { apiRequest } from "@/lib/queryClient";
 import { PrivacyField } from "@/components/ui/privacy-field";
+import { formatCurrency } from "@/lib/utils";
 
 interface WeeklyPerformanceData {
   currentWeek: {
@@ -100,9 +101,6 @@ export default function WeeklyPerformanceReview() {
     return `${sign}${value.toFixed(1)}%`;
   };
 
-  const formatCurrency = (value: number) => {
-    return `$${value.toFixed(2)}`;
-  };
 
 
   // Calculate total DAU for both weeks

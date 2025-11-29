@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Link } from "wouter";
 import { Plus, FileText, Bookmark, Clock, TrendingUp } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
@@ -31,7 +32,12 @@ export default function ResearchDashboard() {
     <div className="p-4 sm:p-6 md:p-8 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-semibold mb-2">Research Dashboard</h1>
+          <div className="flex items-center gap-2 mb-2">
+            <h1 className="text-2xl sm:text-3xl font-semibold">CompareNotes Dashboard</h1>
+            <Badge variant="outline" className="text-xs">
+              Beta
+            </Badge>
+          </div>
           <p className="text-muted-foreground">
             Collaborative research questions and answers
           </p>

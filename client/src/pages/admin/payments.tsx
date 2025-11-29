@@ -47,7 +47,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { PrivacyField } from "@/components/ui/privacy-field";
 import type { User, Payment } from "@shared/schema";
 import { DollarSign, Check, ChevronsUpDown, AlertCircle, Clock } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 
 export default function AdminPayments() {
   const { toast } = useToast();
@@ -316,7 +316,7 @@ export default function AdminPayments() {
                           </div>
                         </TableCell>
                         <TableCell className="font-mono font-semibold text-amber-700 whitespace-nowrap">
-                          ${parseFloat(user.amountOwed).toFixed(2)}
+                          {formatCurrency(user.amountOwed)}
                         </TableCell>
                         <TableCell className="text-muted-foreground whitespace-nowrap">
                           {user.lastPaymentDate
@@ -341,7 +341,7 @@ export default function AdminPayments() {
                               : "User"}
                           </span>
                           <span className="font-mono font-semibold text-amber-700 shrink-0">
-                            ${parseFloat(user.amountOwed).toFixed(2)}
+                            {formatCurrency(user.amountOwed)}
                           </span>
                         </div>
                         <PrivacyField 
@@ -427,7 +427,7 @@ export default function AdminPayments() {
                           </div>
                         </TableCell>
                         <TableCell className="font-mono whitespace-nowrap">
-                          ${parseFloat(payment.amount).toFixed(2)}
+                          {formatCurrency(payment.amount)}
                         </TableCell>
                         <TableCell className="whitespace-nowrap">
                           <span className="capitalize">{payment.billingPeriod || 'monthly'}</span>
@@ -465,7 +465,7 @@ export default function AdminPayments() {
                           <span className="font-medium break-words flex-1 min-w-0">{getUserDisplayName(payment.userId)}</span>
                           <div className="text-right shrink-0">
                             <span className="font-mono font-semibold">
-                              ${parseFloat(payment.amount).toFixed(2)}
+                              {formatCurrency(payment.amount)}
                             </span>
                             <span className="ml-2 text-xs text-muted-foreground capitalize">
                               {payment.billingPeriod || 'monthly'}

@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Wallet, Clock, X, ChevronDown, ChevronUp, HelpCircle } from "lucide-react";
 import { Link } from "wouter";
-import { cn } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 import { useExternalLink } from "@/hooks/useExternalLink";
 
 interface PaymentStatus {
@@ -91,7 +91,7 @@ export function PaymentReminderBanner({ className }: PaymentReminderBannerProps)
               <div className="flex flex-wrap items-center gap-4 text-xs text-amber-700 dark:text-amber-300">
                 <div className="flex items-center gap-1">
                   <Clock className="w-3 h-3" />
-                  <span>Amount: ${parseFloat(paymentStatus.amountOwed).toFixed(2)}</span>
+                  <span>Amount: {formatCurrency(paymentStatus.amountOwed)}</span>
                 </div>
                 {paymentStatus.nextBillingDate && (
                   <div>

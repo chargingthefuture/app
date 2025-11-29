@@ -35,6 +35,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/hooks/useTheme";
 import { useExternalLink } from "@/hooks/useExternalLink";
@@ -120,7 +121,7 @@ const baseAdminMenuItems = [
     testId: "link-lostmail-admin",
   },
   {
-    title: "Research Admin",
+    title: "CompareNotes Admin",
     url: "/apps/research/admin",
     icon: Search,
     testId: "link-research-admin",
@@ -218,10 +219,11 @@ const miniAppMenuItems = [
     testId: "link-mechanicmatch",
   },
   {
-    title: "Research",
+    title: "CompareNotes",
     url: "/apps/research",
     icon: Search,
     testId: "link-research",
+    showBeta: true,
   },
   {
     title: "SocketRelay",
@@ -312,6 +314,11 @@ export function AppSidebar() {
                       <Link href={item.url} onClick={handleNavClick}>
                         <item.icon className="w-5 h-5" />
                         <span>{item.title}</span>
+                        {(item as any).showBeta && (
+                          <Badge variant="outline" className="ml-2 text-xs">
+                            Beta
+                          </Badge>
+                        )}
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -330,12 +337,18 @@ export function AppSidebar() {
               <SidebarMenu>
                 {adminMenuItems.map((item) => {
                   const isActive = location === item.url;
+                  const isCompareNotes = item.title === "CompareNotes Admin";
                   return (
                     <SidebarMenuItem key={item.title}>
                       <SidebarMenuButton asChild isActive={isActive} data-testid={item.testId}>
                         <Link href={item.url} onClick={handleNavClick}>
                           <item.icon className="w-5 h-5" />
                           <span>{item.title}</span>
+                          {isCompareNotes && (
+                            <Badge variant="outline" className="ml-2 text-xs">
+                              Beta
+                            </Badge>
+                          )}
                         </Link>
                       </SidebarMenuButton>
                     </SidebarMenuItem>

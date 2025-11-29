@@ -22,6 +22,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { PricingTier } from "@shared/schema";
 import { format } from "date-fns";
 import { DollarSign, Plus, Check, Calendar } from "lucide-react";
+import { formatCurrency } from "@/lib/utils";
 
 const pricingTierFormSchema = z.object({
   amount: z.string().min(1, "Amount is required").refine((val) => !isNaN(parseFloat(val)) && parseFloat(val) > 0, {
@@ -139,7 +140,7 @@ export default function PricingTiers() {
             </div>
             <div>
               <p className="text-3xl font-semibold" data-testid="text-current-price">
-                ${currentTier?.amount || '1.00'}<span className="text-lg text-muted-foreground">/month</span>
+                {formatCurrency(currentTier?.amount || '1.00')}<span className="text-lg text-muted-foreground">/month</span>
               </p>
               {currentTier && (
                 <p className="text-sm text-muted-foreground">
@@ -285,7 +286,7 @@ export default function PricingTiers() {
                       <div>
                         <div className="flex items-center gap-2">
                           <p className="text-2xl font-semibold" data-testid={`text-price-${tier.id}`}>
-                            ${tier.amount}
+                            {formatCurrency(tier.amount)}
                             <span className="text-sm text-muted-foreground">/month</span>
                           </p>
                           {tier.isCurrentTier && (

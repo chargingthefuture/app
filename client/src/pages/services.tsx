@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Link } from "wouter";
 import { UserCheck, Building2, ArrowRight, MessageCircle, Wrench, Mail, Search, HeartPulse, Radio, Car} from "lucide-react";
 
@@ -54,7 +55,7 @@ const services = [
     testId: "card-service-mechanicmatch",
   },
   {
-    title: "Research",
+    title: "CompareNotes",
     description: "Post research questions, receive sourced answers, and collaboratively surface the most relevant, accurate responses with voting and tagging.",
     icon: Search,
     href: "/apps/research",
@@ -102,7 +103,14 @@ export default function Services() {
               <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4">
                 <service.icon className="w-6 h-6 text-primary" />
               </div>
-              <CardTitle>{service.title}</CardTitle>
+              <div className="flex items-center gap-2">
+                <CardTitle>{service.title}</CardTitle>
+                {service.title === "CompareNotes" && (
+                  <Badge variant="outline" className="text-xs">
+                    Beta
+                  </Badge>
+                )}
+              </div>
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm text-muted-foreground">
