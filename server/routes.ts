@@ -4874,7 +4874,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Chyme Room routes (public listing, admin creation)
   app.get('/api/chyme/rooms', isAuthenticated, asyncHandler(async (req: any, res) => {
     const roomType = req.query.roomType as string | undefined;
-    const isActive = req.query.isActive !== undefined ? req.query.isActive === 'true' : undefined;
+    const showAll = req.query.showAll === 'true';
+    // Default to showing only active rooms for user-facing endpoint
+    // If showAll=true, don't filter by isActive (show all rooms)
+    const isActive = showAll ? undefined : (req.query.isActive !== undefined ? req.query.isActive === 'true' : true);
     const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 50;
     const offset = req.query.offset ? parseInt(req.query.offset as string, 10) : 0;
 

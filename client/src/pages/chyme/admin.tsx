@@ -25,7 +25,7 @@ export default function ChymeAdmin() {
   const limit = 50;
 
   const { data: roomsData, isLoading: roomsLoading } = useQuery<{ rooms: ChymeRoom[]; total: number }>({
-    queryKey: [`/api/chyme/rooms?limit=${limit}&offset=${page * limit}`],
+    queryKey: [`/api/chyme/rooms?showAll=true&limit=${limit}&offset=${page * limit}`],
   });
 
   const rooms = roomsData?.rooms || [];
