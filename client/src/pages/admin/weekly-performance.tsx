@@ -1,16 +1,15 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import html2canvas from "html2canvas";
-import { Camera, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { Users, DollarSign, TrendingUp, TrendingDown, Calendar, Target, Activity, Zap, Heart } from "lucide-react";
+import { Users, DollarSign, TrendingUp, TrendingDown, Calendar, Target, Activity, Zap, Heart, MessageSquare } from "lucide-react";
 import { format, startOfWeek, addDays, parseISO } from "date-fns";
 import { apiRequest } from "@/lib/queryClient";
+import { PrivacyField } from "@/components/ui/privacy-field";
 
 interface WeeklyPerformanceData {
   currentWeek: {
@@ -59,13 +58,14 @@ interface WeeklyPerformanceData {
     averageMood: number;
     moodChange: number;
     moodResponses: number;
+    chymeValuablePercentage: number;
+    chymeValuableChange: number;
+    chymeSurveyResponses: number;
   };
 }
 
 export default function WeeklyPerformanceReview() {
   const { toast } = useToast();
-  const dashboardRef = useRef<HTMLDivElement>(null);
-  const [isCapturing, setIsCapturing] = useState(false);
   
   const [selectedWeek, setSelectedWeek] = useState<string>(() => {
     // Default to current week start (Saturday)
@@ -141,230 +141,8 @@ export default function WeeklyPerformanceReview() {
     }
   };
 
-  const captureScreenshot = async () => {
-    const element = dashboardRef.current;
-    if (!element) {
-      toast({
-        title: "Error",
-        description: "Dashboard element not found",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsCapturing(true);
-    
-    try {
-      // Store scroll positions
-      const scrollY = window.scrollY;
-      const elementScrollTop = element.scrollTop;
-      
-      // Ensure element is fully visible and scrolled to top
-      element.scrollTop = 0;
-      window.scrollTo(0, 0);
-      
-      // Wait for any animations or charts to fully render
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Force a reflow to ensure all content is rendered
-      void element.offsetHeight;
-
-      // Hide the week selector buttons temporarily for a cleaner screenshot
-      const buttonsToHide = Array.from(element.querySelectorAll('button'))
-        .filter(btn => btn.getAttribute('data-testid') !== 'button-capture-screenshot');
-      const originalStyles: Array<{ element: HTMLElement; display: string }> = [];
-      
-      buttonsToHide.forEach(button => {
-        const htmlButton = button as HTMLElement;
-        originalStyles.push({ element: htmlButton, display: htmlButton.style.display });
-        htmlButton.style.display = 'none';
-      });
-
-      // Capture the screenshot with full page support
-      // Get the full dimensions of the element (including scrollable content)
-      const fullWidth = Math.max(
-        element.scrollWidth,
-        element.offsetWidth,
-        element.clientWidth,
-        window.innerWidth
-      );
-      const fullHeight = Math.max(
-        element.scrollHeight,
-        element.offsetHeight,
-        element.clientHeight
-      );
-      
-      // Capture the screenshot with full page dimensions
-      // We'll convert CSS variables to computed values in the onclone callback
-      const canvas = await html2canvas(element, {
-        backgroundColor: '#ffffff',
-        scale: window.devicePixelRatio || 2, // Use device pixel ratio for better quality
-        logging: false,
-        useCORS: true,
-        allowTaint: true,
-        foreignObjectRendering: false,
-        removeContainer: false,
-        imageTimeout: 30000,
-        cssImageTimeout: 0, // Don't wait for CSS images
-        width: fullWidth,
-        height: fullHeight,
-        x: 0,
-        y: 0,
-        scrollX: 0,
-        scrollY: 0,
-        onclone: (clonedDoc, clonedElement) => {
-          // Convert CSS variables and modern CSS features to static computed values
-          // by applying computed styles as inline styles to avoid CSS parsing issues
-          const originalRoot = dashboardRef.current;
-          if (!originalRoot) return;
-
-          // Helper to recursively get all elements in document order
-          const getAllElements = (root: Element): Element[] => {
-            const elements: Element[] = [root];
-            const children = Array.from(root.children);
-            children.forEach(child => {
-              elements.push(...getAllElements(child));
-            });
-            return elements;
-          };
-
-          const originalElements = getAllElements(originalRoot);
-          const clonedElements = getAllElements(clonedElement as Element);
-
-          // Process each element pair to convert CSS variables to computed values
-          // Use the minimum length to avoid index out of bounds
-          const minLength = Math.min(originalElements.length, clonedElements.length);
-          for (let index = 0; index < minLength; index++) {
-            const originalEl = originalElements[index];
-            const clonedEl = clonedElements[index] as HTMLElement;
-            if (!originalEl || !clonedEl) continue;
-
-            try {
-              const computedStyle = window.getComputedStyle(originalEl);
-
-              // Convert color-related properties (these often use CSS variables)
-              // Using getPropertyValue ensures we get the computed value, not the CSS variable
-              const colorProperties = [
-                'color',
-                'backgroundColor',
-                'borderColor',
-                'borderTopColor',
-                'borderRightColor',
-                'borderBottomColor',
-                'borderLeftColor',
-                'outlineColor',
-              ];
-
-              colorProperties.forEach(prop => {
-                try {
-                  const value = computedStyle.getPropertyValue(prop);
-                  // Only apply if value exists and is not transparent
-                  if (value && value.trim() && 
-                      value !== 'rgba(0, 0, 0, 0)' && 
-                      value !== 'transparent') {
-                    clonedEl.style.setProperty(prop, value, 'important');
-                  }
-                } catch (e) {
-                  // Ignore errors for individual properties
-                }
-              });
-
-              // Convert background color separately (skip images/gradients)
-              try {
-                const bgColor = computedStyle.backgroundColor;
-                if (bgColor && bgColor !== 'rgba(0, 0, 0, 0)' && bgColor !== 'transparent') {
-                  clonedEl.style.setProperty('backgroundColor', bgColor, 'important');
-                }
-              } catch (e) {
-                // Ignore background color errors
-              }
-
-              // Convert border styles
-              try {
-                const borderWidth = computedStyle.borderWidth;
-                const borderStyle = computedStyle.borderStyle;
-                if (borderWidth && borderWidth !== '0px') {
-                  clonedEl.style.borderWidth = borderWidth;
-                  if (borderStyle && borderStyle !== 'none') {
-                    clonedEl.style.borderStyle = borderStyle;
-                  }
-                }
-              } catch (e) {
-                // Ignore border errors
-              }
-            } catch (e) {
-              // If we can't get computed styles for this element, skip it
-              console.warn('Failed to process element for screenshot:', e);
-            }
-          }
-        },
-      });
-
-      // Restore scroll positions
-      element.scrollTop = elementScrollTop;
-      window.scrollTo(0, scrollY);
-      
-      // Restore button visibility
-      originalStyles.forEach(({ element, display }) => {
-        element.style.display = display;
-      });
-
-      // Verify canvas was created
-      if (!canvas || canvas.width === 0 || canvas.height === 0) {
-        throw new Error("Canvas creation failed - empty canvas");
-      }
-
-      // Create download link
-      const link = document.createElement('a');
-      const weekLabel = data 
-        ? `${format(parseISO(data.currentWeek.startDate), "MMM-d")}-to-${format(parseISO(data.currentWeek.endDate), "MMM-d-yyyy")}`
-        : 'weekly-performance';
-      link.download = `weekly-performance-${weekLabel}.png`;
-      link.href = canvas.toDataURL('image/png');
-      
-      // Trigger download
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
-      toast({
-        title: "Screenshot captured",
-        description: "Image saved successfully!",
-      });
-    } catch (error) {
-      console.error("Error capturing screenshot:", error);
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-      
-      // Handle specific CSS color() function error
-      if (errorMessage.includes("color function") || errorMessage.includes("color()")) {
-        toast({
-          title: "CSS Compatibility Issue",
-          description: isMobile 
-            ? "Use your browser's built-in full-page screenshot feature (usually available in the share menu)."
-            : "The page uses CSS features not supported by the screenshot tool. Try using your browser's built-in screenshot feature (Ctrl+Shift+S or Cmd+Shift+S).",
-          variant: "destructive",
-          duration: 8000,
-        });
-      } else {
-        const suggestion = isMobile
-          ? " On mobile, try using your browser's built-in full-page screenshot feature from the share menu."
-          : " Try using your browser's built-in screenshot feature (Ctrl+Shift+S or Cmd+Shift+S) for full-page capture.";
-        
-        toast({
-          title: "Screenshot Failed",
-          description: `Failed to capture screenshot: ${errorMessage}.${suggestion}`,
-          variant: "destructive",
-          duration: 8000,
-        });
-      }
-    } finally {
-      setIsCapturing(false);
-    }
-  };
-
   return (
-    <div ref={dashboardRef} className="p-4 sm:p-6 md:p-8 space-y-6">
+    <div className="p-4 sm:p-6 md:p-8 space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-2">
@@ -411,26 +189,6 @@ export default function WeeklyPerformanceReview() {
             }
           >
             Next →
-          </Button>
-          <Button
-            variant="default"
-            size="sm"
-            onClick={captureScreenshot}
-            disabled={isCapturing || !data}
-            data-testid="button-capture-screenshot"
-            className="gap-2"
-          >
-            {isCapturing ? (
-              <>
-                <Camera className="w-4 h-4 animate-pulse" />
-                Capturing...
-              </>
-            ) : (
-              <>
-                <Camera className="w-4 h-4" />
-                Screenshot
-              </>
-            )}
           </Button>
         </div>
       </div>
@@ -590,7 +348,14 @@ export default function WeeklyPerformanceReview() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div>
                     <div className="text-sm font-medium text-muted-foreground mb-1">Monthly Recurring Revenue (MRR)</div>
-                    <div className="text-2xl font-bold tabular-nums">{formatCurrency(data.metrics?.mrr ?? 0)}</div>
+                    <div className="text-2xl font-bold tabular-nums">
+                      <PrivacyField
+                        value={formatCurrency(data.metrics?.mrr ?? 0)}
+                        type="text"
+                        testId="privacy-mrr"
+                        className="text-2xl"
+                      />
+                    </div>
                     <div className="flex items-center gap-2 mt-2">
                       <Badge
                         variant={(data.metrics?.mrrGrowth ?? 0) >= 0 ? "default" : "destructive"}
@@ -603,7 +368,14 @@ export default function WeeklyPerformanceReview() {
                   </div>
                   <div>
                     <div className="text-sm font-medium text-muted-foreground mb-1">Annual Recurring Revenue (ARR)</div>
-                    <div className="text-2xl font-bold tabular-nums">{formatCurrency(data.metrics?.arr ?? 0)}</div>
+                    <div className="text-2xl font-bold tabular-nums">
+                      <PrivacyField
+                        value={formatCurrency(data.metrics?.arr ?? 0)}
+                        type="text"
+                        testId="privacy-arr"
+                        className="text-2xl"
+                      />
+                    </div>
                     <p className="text-xs text-muted-foreground mt-2">MRR × 12 + yearly payments</p>
                   </div>
                   <div>
@@ -671,7 +443,14 @@ export default function WeeklyPerformanceReview() {
                   </div>
                   <div>
                     <div className="text-sm font-medium text-muted-foreground mb-1">Customer Lifetime Value (CLV)</div>
-                    <div className="text-2xl font-bold tabular-nums">{formatCurrency(data.metrics?.clv ?? 0)}</div>
+                    <div className="text-2xl font-bold tabular-nums">
+                      <PrivacyField
+                        value={formatCurrency(data.metrics?.clv ?? 0)}
+                        type="text"
+                        testId="privacy-clv"
+                        className="text-2xl"
+                      />
+                    </div>
                     <p className="text-xs text-muted-foreground mt-2">Average revenue per customer</p>
                   </div>
                 </div>
@@ -948,6 +727,80 @@ export default function WeeklyPerformanceReview() {
               </CardContent>
             </Card>
 
+            {/* Chyme Survey Metrics */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MessageSquare className="w-5 h-5" />
+                  Chyme Audio Room Feedback
+                </CardTitle>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Percentage of users who found audio rooms valuable (anonymous survey data)
+                </p>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div>
+                    <div className="text-sm font-medium text-muted-foreground mb-1">Current Week</div>
+                    <div className="text-3xl font-bold tabular-nums">
+                      {data.metrics?.chymeValuablePercentage ?? 0}%
+                    </div>
+                    <div className="flex items-center gap-2 mt-2">
+                      <Badge
+                        variant={
+                          (data.metrics?.chymeValuablePercentage ?? 0) >= 70
+                            ? "default"
+                            : (data.metrics?.chymeValuablePercentage ?? 0) >= 50
+                            ? "secondary"
+                            : "destructive"
+                        }
+                        className="text-xs"
+                      >
+                        {(data.metrics?.chymeValuablePercentage ?? 0) >= 70
+                          ? "High Value"
+                          : (data.metrics?.chymeValuablePercentage ?? 0) >= 50
+                          ? "Moderate"
+                          : "Needs Improvement"}
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Found audio rooms valuable
+                    </p>
+                  </div>
+                  <div>
+                    <div className="text-sm font-medium text-muted-foreground mb-1">Week-over-Week Change</div>
+                    <div className={`text-2xl font-bold tabular-nums ${
+                      (data.metrics?.chymeValuableChange ?? 0) > 0
+                        ? "text-green-600"
+                        : (data.metrics?.chymeValuableChange ?? 0) < 0
+                        ? "text-red-600"
+                        : ""
+                    }`}>
+                      {(data.metrics?.chymeValuableChange ?? 0) > 0 ? "+" : ""}
+                      {data.metrics?.chymeValuableChange ?? 0}%
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Change from previous week
+                    </p>
+                  </div>
+                  <div>
+                    <div className="text-sm font-medium text-muted-foreground mb-1">Total Responses</div>
+                    <div className="text-2xl font-bold tabular-nums">{data.metrics?.chymeSurveyResponses ?? 0}</div>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Survey responses this week
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-4 pt-4 border-t">
+                  <p className="text-xs text-muted-foreground">
+                    <strong>Privacy Note:</strong> All survey responses are collected anonymously using client IDs. 
+                    Individual responses cannot be traced back to users, maintaining complete anonymity while 
+                    providing valuable aggregated insights into the value of audio rooms.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Daily Active Users (DAU) */}
             <Card>
               <CardHeader>
@@ -1014,7 +867,12 @@ export default function WeeklyPerformanceReview() {
                   <div>
                     <div className="text-sm font-medium text-muted-foreground mb-1">Current Week</div>
                     <div className="text-3xl font-bold tabular-nums">
-                      {formatCurrency(data?.currentWeek.revenue ?? 0)}
+                      <PrivacyField
+                        value={formatCurrency(data?.currentWeek.revenue ?? 0)}
+                        type="text"
+                        testId="privacy-revenue-current"
+                        className="text-3xl"
+                      />
                     </div>
                     <p className="text-xs text-muted-foreground mt-2">
                       Total revenue this week
@@ -1023,7 +881,12 @@ export default function WeeklyPerformanceReview() {
                   <div>
                     <div className="text-sm font-medium text-muted-foreground mb-1">Previous Week</div>
                     <div className="text-2xl font-bold tabular-nums text-muted-foreground">
-                      {formatCurrency(data?.previousWeek.revenue ?? 0)}
+                      <PrivacyField
+                        value={formatCurrency(data?.previousWeek.revenue ?? 0)}
+                        type="text"
+                        testId="privacy-revenue-previous"
+                        className="text-2xl"
+                      />
                     </div>
                     <p className="text-xs text-muted-foreground mt-2">
                       Total revenue last week
@@ -1109,10 +972,24 @@ export default function WeeklyPerformanceReview() {
                     <tr className="border-b">
                       <td className="py-2 px-4 font-medium">Total Revenue</td>
                       <td className="text-right py-2 px-4" data-testid="table-revenue-current">
-                        {formatCurrency(data?.currentWeek.revenue ?? 0)}
+                        <div className="flex items-center justify-end gap-2">
+                          <PrivacyField
+                            value={formatCurrency(data?.currentWeek.revenue ?? 0)}
+                            type="text"
+                            testId="privacy-table-revenue-current"
+                            className="text-sm"
+                          />
+                        </div>
                       </td>
                       <td className="text-right py-2 px-4" data-testid="table-revenue-previous">
-                        {formatCurrency(data?.previousWeek.revenue ?? 0)}
+                        <div className="flex items-center justify-end gap-2">
+                          <PrivacyField
+                            value={formatCurrency(data?.previousWeek.revenue ?? 0)}
+                            type="text"
+                            testId="privacy-table-revenue-previous"
+                            className="text-sm"
+                          />
+                        </div>
                       </td>
                       <td className="text-right py-2 px-4">
                         <Badge

@@ -132,6 +132,12 @@ const baseAdminMenuItems = [
     testId: "link-gentlepulse-admin",
   },
   {
+    title: "Chyme Admin",
+    url: "/apps/chyme/admin",
+    icon: Radio,
+    testId: "link-chyme-admin",
+  },
+  {
     title: "Video to GIF",
     url: "/admin/video-to-gif",
     icon: Video,
@@ -186,6 +192,12 @@ const miniAppMenuItems = [
     url: "/apps/gentlepulse",
     icon: HeartPulse,
     testId: "link-gentlepulse",
+  },
+  {
+    title: "Chyme",
+    url: "/apps/chyme",
+    icon: Radio,
+    testId: "link-chyme",
   },
   {
     title: "LightHouse",

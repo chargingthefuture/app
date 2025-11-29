@@ -161,6 +161,24 @@ import {
   type InsertGentlepulseFavorite,
   type GentlepulseAnnouncement,
   type InsertGentlepulseAnnouncement,
+  chymeProfiles,
+  chymeRooms,
+  chymeRoomParticipants,
+  chymeMessages,
+  chymeSurveyResponses,
+  chymeAnnouncements,
+  type ChymeProfile,
+  type InsertChymeProfile,
+  type ChymeRoom,
+  type InsertChymeRoom,
+  type ChymeRoomParticipant,
+  type InsertChymeRoomParticipant,
+  type ChymeMessage,
+  type InsertChymeMessage,
+  type ChymeSurveyResponse,
+  type InsertChymeSurveyResponse,
+  type ChymeAnnouncement,
+  type InsertChymeAnnouncement,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, asc, sql, or, inArray, gte, lte } from "drizzle-orm";
@@ -648,6 +666,52 @@ export interface IStorage {
   getAllGentlepulseAnnouncements(): Promise<GentlepulseAnnouncement[]>;
   updateGentlepulseAnnouncement(id: string, announcement: Partial<InsertGentlepulseAnnouncement>): Promise<GentlepulseAnnouncement>;
   deactivateGentlepulseAnnouncement(id: string): Promise<GentlepulseAnnouncement>;
+
+  // ========================================
+  // CHYME OPERATIONS
+  // ========================================
+
+  // Chyme Profile operations
+  getChymeProfile(userId: string): Promise<ChymeProfile | undefined>;
+  createChymeProfile(profile: InsertChymeProfile): Promise<ChymeProfile>;
+  updateChymeProfile(userId: string, profile: Partial<InsertChymeProfile>): Promise<ChymeProfile>;
+  deleteChymeProfile(userId: string, reason?: string): Promise<void>;
+
+  // Chyme Room operations
+  createChymeRoom(room: InsertChymeRoom): Promise<ChymeRoom>;
+  getChymeRoomById(id: string): Promise<ChymeRoom | undefined>;
+  getAllChymeRooms(filters?: {
+    roomType?: 'private' | 'public';
+    isActive?: boolean;
+    limit?: number;
+    offset?: number;
+  }): Promise<{ rooms: ChymeRoom[]; total: number }>;
+  updateChymeRoom(id: string, room: Partial<InsertChymeRoom>): Promise<ChymeRoom>;
+  deleteChymeRoom(id: string): Promise<void>;
+  incrementChymeRoomParticipants(roomId: string): Promise<void>;
+  decrementChymeRoomParticipants(roomId: string): Promise<void>;
+
+  // Chyme Room Participant operations
+  addChymeRoomParticipant(participant: InsertChymeRoomParticipant): Promise<ChymeRoomParticipant>;
+  removeChymeRoomParticipant(roomId: string, userId: string): Promise<void>;
+  getChymeRoomParticipants(roomId: string): Promise<ChymeRoomParticipant[]>;
+  getChymeUserRooms(userId: string): Promise<ChymeRoom[]>;
+
+  // Chyme Message operations
+  createChymeMessage(message: InsertChymeMessage): Promise<ChymeMessage>;
+  getChymeMessagesByRoom(roomId: string, limit?: number, offset?: number): Promise<{ messages: ChymeMessage[]; total: number }>;
+
+  // Chyme Survey operations
+  createChymeSurveyResponse(response: InsertChymeSurveyResponse): Promise<ChymeSurveyResponse>;
+  getChymeSurveyResponsesByDateRange(startDate: Date, endDate: Date): Promise<ChymeSurveyResponse[]>;
+  getChymeSurveyResponsesByClientId(clientId: string, days?: number): Promise<ChymeSurveyResponse[]>;
+
+  // Chyme Announcement operations
+  createChymeAnnouncement(announcement: InsertChymeAnnouncement): Promise<ChymeAnnouncement>;
+  getActiveChymeAnnouncements(): Promise<ChymeAnnouncement[]>;
+  getAllChymeAnnouncements(): Promise<ChymeAnnouncement[]>;
+  updateChymeAnnouncement(id: string, announcement: Partial<InsertChymeAnnouncement>): Promise<ChymeAnnouncement>;
+  deactivateChymeAnnouncement(id: string): Promise<ChymeAnnouncement>;
 
   // Profile deletion operations with cascade anonymization
   deleteSupportMatchProfile(userId: string, reason?: string): Promise<void>;
@@ -1161,6 +1225,9 @@ export class DatabaseStorage implements IStorage {
         averageMood: number;
         moodChange: number;
         moodResponses: number;
+        chymeValuablePercentage: number;
+        chymeValuableChange: number;
+        chymeSurveyResponses: number;
       };
   }> {
     // Calculate current week boundaries (Saturday to Friday)
@@ -1592,6 +1659,51 @@ export class DatabaseStorage implements IStorage {
       console.error("Error calculating mood statistics:", error);
     }
 
+    // Calculate Chyme Survey statistics (valuable percentage)
+    let chymeValuablePercentage = 0;
+    let chymeValuableChange = 0;
+    let chymeSurveyResponsesCount = 0;
+    
+    try {
+      // Get survey responses for current week (using date field, not createdAt)
+      const currentWeekChymeSurveys = await db
+        .select()
+        .from(chymeSurveyResponses)
+        .where(
+          and(
+            gte(chymeSurveyResponses.date, currentWeekStart.toISOString().split('T')[0]),
+            lte(chymeSurveyResponses.date, currentWeekEnd.toISOString().split('T')[0])
+          )
+        );
+      
+      // Get survey responses for previous week
+      const previousWeekChymeSurveys = await db
+        .select()
+        .from(chymeSurveyResponses)
+        .where(
+          and(
+            gte(chymeSurveyResponses.date, previousWeekStart.toISOString().split('T')[0]),
+            lte(chymeSurveyResponses.date, previousWeekEnd.toISOString().split('T')[0])
+          )
+        );
+      
+      if (currentWeekChymeSurveys.length > 0) {
+        const valuableCount = currentWeekChymeSurveys.filter(s => s.foundValuable === true).length;
+        chymeValuablePercentage = parseFloat(((valuableCount / currentWeekChymeSurveys.length) * 100).toFixed(2));
+        chymeSurveyResponsesCount = currentWeekChymeSurveys.length;
+      }
+      
+      if (previousWeekChymeSurveys.length > 0 && currentWeekChymeSurveys.length > 0) {
+        const prevValuableCount = previousWeekChymeSurveys.filter(s => s.foundValuable === true).length;
+        const prevValuablePercentage = parseFloat(((prevValuableCount / previousWeekChymeSurveys.length) * 100).toFixed(2));
+        chymeValuableChange = parseFloat((chymeValuablePercentage - prevValuablePercentage).toFixed(2));
+      } else if (previousWeekChymeSurveys.length === 0 && currentWeekChymeSurveys.length > 0) {
+        chymeValuableChange = chymeValuablePercentage;
+      }
+    } catch (error) {
+      console.error("Error calculating Chyme survey statistics:", error);
+    }
+
     // Calculate User Statistics (Total, Verified, Approved)
     // Variables are already declared above, now we populate them
     try {
@@ -1689,6 +1801,9 @@ export class DatabaseStorage implements IStorage {
         averageMood: averageMood,
         moodChange: moodChange,
         moodResponses: moodResponsesCount,
+        chymeValuablePercentage: chymeValuablePercentage,
+        chymeValuableChange: chymeValuableChange,
+        chymeSurveyResponses: chymeSurveyResponsesCount,
       },
     };
     
@@ -5371,6 +5486,339 @@ export class DatabaseStorage implements IStorage {
     return announcement;
   }
 
+  // ========================================
+  // CHYME IMPLEMENTATIONS
+  // ========================================
+
+  // Chyme Profile operations
+  async getChymeProfile(userId: string): Promise<ChymeProfile | undefined> {
+    const [profile] = await db
+      .select()
+      .from(chymeProfiles)
+      .where(eq(chymeProfiles.userId, userId));
+    return profile;
+  }
+
+  async createChymeProfile(profileData: InsertChymeProfile): Promise<ChymeProfile> {
+    const [profile] = await db
+      .insert(chymeProfiles)
+      .values(profileData)
+      .returning();
+    return profile;
+  }
+
+  async updateChymeProfile(userId: string, profileData: Partial<InsertChymeProfile>): Promise<ChymeProfile> {
+    const [updated] = await db
+      .update(chymeProfiles)
+      .set({ ...profileData, updatedAt: new Date() })
+      .where(eq(chymeProfiles.userId, userId))
+      .returning();
+    return updated;
+  }
+
+  async deleteChymeProfile(userId: string, reason?: string): Promise<void> {
+    const profile = await this.getChymeProfile(userId);
+    if (!profile) {
+      throw new Error("Chyme profile not found");
+    }
+
+    const anonymizedUserId = this.generateAnonymizedUserId();
+
+    // Anonymize related data
+    try {
+      // Anonymize messages
+      await db
+        .update(chymeMessages)
+        .set({ userId: anonymizedUserId })
+        .where(eq(chymeMessages.userId, userId));
+      
+      // Anonymize room participants
+      await db
+        .update(chymeRoomParticipants)
+        .set({ userId: anonymizedUserId })
+        .where(eq(chymeRoomParticipants.userId, userId));
+      
+      // Anonymize rooms created by user
+      await db
+        .update(chymeRooms)
+        .set({ createdBy: anonymizedUserId })
+        .where(eq(chymeRooms.createdBy, userId));
+    } catch (error: any) {
+      console.warn(`Failed to anonymize Chyme related data: ${error.message}`);
+    }
+
+    // Delete the profile
+    await db.delete(chymeProfiles).where(eq(chymeProfiles.userId, userId));
+
+    // Log the deletion
+    await this.logProfileDeletion(userId, "chyme", reason);
+  }
+
+  // Chyme Room operations
+  async createChymeRoom(roomData: InsertChymeRoom): Promise<ChymeRoom> {
+    const [room] = await db
+      .insert(chymeRooms)
+      .values(roomData)
+      .returning();
+    return room;
+  }
+
+  async getChymeRoomById(id: string): Promise<ChymeRoom | undefined> {
+    const [room] = await db
+      .select()
+      .from(chymeRooms)
+      .where(eq(chymeRooms.id, id));
+    return room;
+  }
+
+  async getAllChymeRooms(filters?: {
+    roomType?: 'private' | 'public';
+    isActive?: boolean;
+    limit?: number;
+    offset?: number;
+  }): Promise<{ rooms: ChymeRoom[]; total: number }> {
+    const conditions = [];
+    if (filters?.roomType) {
+      conditions.push(eq(chymeRooms.roomType, filters.roomType));
+    }
+    if (filters?.isActive !== undefined) {
+      conditions.push(eq(chymeRooms.isActive, filters.isActive));
+    }
+
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+    const rooms = await db
+      .select()
+      .from(chymeRooms)
+      .where(whereClause)
+      .orderBy(desc(chymeRooms.createdAt))
+      .limit(filters?.limit || 100)
+      .offset(filters?.offset || 0);
+
+    const totalResult = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(chymeRooms)
+      .where(whereClause);
+    
+    const total = Number(totalResult[0]?.count || 0);
+
+    return { rooms, total };
+  }
+
+  async updateChymeRoom(id: string, roomData: Partial<InsertChymeRoom>): Promise<ChymeRoom> {
+    const [updated] = await db
+      .update(chymeRooms)
+      .set({ ...roomData, updatedAt: new Date() })
+      .where(eq(chymeRooms.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteChymeRoom(id: string): Promise<void> {
+    // Cascade delete will handle participants and messages
+    await db.delete(chymeRooms).where(eq(chymeRooms.id, id));
+  }
+
+  async incrementChymeRoomParticipants(roomId: string): Promise<void> {
+    await db
+      .update(chymeRooms)
+      .set({ 
+        currentParticipants: sql`${chymeRooms.currentParticipants} + 1`,
+        updatedAt: new Date()
+      })
+      .where(eq(chymeRooms.id, roomId));
+  }
+
+  async decrementChymeRoomParticipants(roomId: string): Promise<void> {
+    await db
+      .update(chymeRooms)
+      .set({ 
+        currentParticipants: sql`GREATEST(${chymeRooms.currentParticipants} - 1, 0)`,
+        updatedAt: new Date()
+      })
+      .where(eq(chymeRooms.id, roomId));
+  }
+
+  // Chyme Room Participant operations
+  async addChymeRoomParticipant(participantData: InsertChymeRoomParticipant): Promise<ChymeRoomParticipant> {
+    const [participant] = await db
+      .insert(chymeRoomParticipants)
+      .values(participantData)
+      .returning();
+    await this.incrementChymeRoomParticipants(participantData.roomId);
+    return participant;
+  }
+
+  async removeChymeRoomParticipant(roomId: string, userId: string): Promise<void> {
+    await db
+      .update(chymeRoomParticipants)
+      .set({ leftAt: new Date() })
+      .where(
+        and(
+          eq(chymeRoomParticipants.roomId, roomId),
+          eq(chymeRoomParticipants.userId, userId),
+          sql`${chymeRoomParticipants.leftAt} IS NULL`
+        )
+      );
+    await this.decrementChymeRoomParticipants(roomId);
+  }
+
+  async getChymeRoomParticipants(roomId: string): Promise<ChymeRoomParticipant[]> {
+    return await db
+      .select()
+      .from(chymeRoomParticipants)
+      .where(
+        and(
+          eq(chymeRoomParticipants.roomId, roomId),
+          sql`${chymeRoomParticipants.leftAt} IS NULL`
+        )
+      );
+  }
+
+  async getChymeUserRooms(userId: string): Promise<ChymeRoom[]> {
+    const participants = await db
+      .select()
+      .from(chymeRoomParticipants)
+      .where(
+        and(
+          eq(chymeRoomParticipants.userId, userId),
+          sql`${chymeRoomParticipants.leftAt} IS NULL`
+        )
+      );
+    
+    if (participants.length === 0) {
+      return [];
+    }
+
+    const roomIds = participants.map(p => p.roomId);
+    return await db
+      .select()
+      .from(chymeRooms)
+      .where(inArray(chymeRooms.id, roomIds));
+  }
+
+  // Chyme Message operations
+  async createChymeMessage(messageData: InsertChymeMessage): Promise<ChymeMessage> {
+    const [message] = await db
+      .insert(chymeMessages)
+      .values(messageData)
+      .returning();
+    return message;
+  }
+
+  async getChymeMessagesByRoom(roomId: string, limit = 50, offset = 0): Promise<{ messages: ChymeMessage[]; total: number }> {
+    const messages = await db
+      .select()
+      .from(chymeMessages)
+      .where(eq(chymeMessages.roomId, roomId))
+      .orderBy(desc(chymeMessages.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    const totalResult = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(chymeMessages)
+      .where(eq(chymeMessages.roomId, roomId));
+    
+    const total = Number(totalResult[0]?.count || 0);
+
+    return { messages, total };
+  }
+
+  // Chyme Survey operations
+  async createChymeSurveyResponse(responseData: InsertChymeSurveyResponse): Promise<ChymeSurveyResponse> {
+    const [response] = await db
+      .insert(chymeSurveyResponses)
+      .values(responseData)
+      .returning();
+    return response;
+  }
+
+  async getChymeSurveyResponsesByDateRange(startDate: Date, endDate: Date): Promise<ChymeSurveyResponse[]> {
+    return await db
+      .select()
+      .from(chymeSurveyResponses)
+      .where(
+        and(
+          gte(chymeSurveyResponses.date, startDate.toISOString().split('T')[0]),
+          lte(chymeSurveyResponses.date, endDate.toISOString().split('T')[0])
+        )
+      );
+  }
+
+  async getChymeSurveyResponsesByClientId(clientId: string, days = 7): Promise<ChymeSurveyResponse[]> {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - days);
+    
+    return await db
+      .select()
+      .from(chymeSurveyResponses)
+      .where(
+        and(
+          eq(chymeSurveyResponses.clientId, clientId),
+          gte(chymeSurveyResponses.date, cutoffDate.toISOString().split('T')[0])
+        )
+      )
+      .orderBy(desc(chymeSurveyResponses.createdAt));
+  }
+
+  // Chyme Announcement operations
+  async createChymeAnnouncement(announcementData: InsertChymeAnnouncement): Promise<ChymeAnnouncement> {
+    const [announcement] = await db
+      .insert(chymeAnnouncements)
+      .values(announcementData)
+      .returning();
+    return announcement;
+  }
+
+  async getActiveChymeAnnouncements(): Promise<ChymeAnnouncement[]> {
+    const now = new Date();
+    return await db
+      .select()
+      .from(chymeAnnouncements)
+      .where(
+        and(
+          eq(chymeAnnouncements.isActive, true),
+          or(
+            sql`${chymeAnnouncements.expiresAt} IS NULL`,
+            gte(chymeAnnouncements.expiresAt, now)
+          )
+        )
+      )
+      .orderBy(desc(chymeAnnouncements.createdAt));
+  }
+
+  async getAllChymeAnnouncements(): Promise<ChymeAnnouncement[]> {
+    return await db
+      .select()
+      .from(chymeAnnouncements)
+      .orderBy(desc(chymeAnnouncements.createdAt));
+  }
+
+  async updateChymeAnnouncement(id: string, announcementData: Partial<InsertChymeAnnouncement>): Promise<ChymeAnnouncement> {
+    const [announcement] = await db
+      .update(chymeAnnouncements)
+      .set({
+        ...announcementData,
+        updatedAt: new Date(),
+      })
+      .where(eq(chymeAnnouncements.id, id))
+      .returning();
+    return announcement;
+  }
+
+  async deactivateChymeAnnouncement(id: string): Promise<ChymeAnnouncement> {
+    const [announcement] = await db
+      .update(chymeAnnouncements)
+      .set({
+        isActive: false,
+        updatedAt: new Date(),
+      })
+      .where(eq(chymeAnnouncements.id, id))
+      .returning();
+    return announcement;
+  }
+
   /**
    * Deletes a Directory profile with cascade handling (Directory has no relational data to anonymize)
    */
@@ -5489,6 +5937,7 @@ export class DatabaseStorage implements IStorage {
         { name: "Directory", deleteFn: () => this.deleteDirectoryProfileWithCascade(userId, reason).catch(err => console.warn(`Failed to delete Directory profile: ${err.message}`)) },
         { name: "TrustTransport", deleteFn: () => this.deleteTrusttransportProfile(userId, reason).catch(err => console.warn(`Failed to delete TrustTransport profile: ${err.message}`)) },
         { name: "MechanicMatch", deleteFn: () => this.deleteMechanicmatchProfile(userId, reason).catch(err => console.warn(`Failed to delete MechanicMatch profile: ${err.message}`)) },
+        { name: "Chyme", deleteFn: () => this.deleteChymeProfile(userId, reason).catch(err => console.warn(`Failed to delete Chyme profile: ${err.message}`)) },
       ];
 
       for (const { name, deleteFn } of profileDeletions) {

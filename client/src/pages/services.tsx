@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
-import { UserCheck, Building2, ArrowRight, MessageCircle, Wrench, Mail, Search, HeartPulse} from "lucide-react";
+import { UserCheck, Building2, ArrowRight, MessageCircle, Wrench, Mail, Search, HeartPulse, Radio} from "lucide-react";
 
 const services = [
   {
@@ -66,6 +66,13 @@ const services = [
     icon: HeartPulse,
     href: "/apps/gentlepulse",
     testId: "card-service-gentlepulse",
+  },
+  {
+    title: "Chyme",
+    description: "Join private or public audio rooms for voice conversations. Secure, encrypted, and designed with privacy and trauma-informed care in mind.",
+    icon: Radio,
+    href: "/apps/chyme",
+    testId: "card-service-chyme",
   },
 ];
 
