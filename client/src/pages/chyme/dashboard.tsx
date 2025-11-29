@@ -41,7 +41,12 @@ export default function ChymeDashboard() {
     <div className="p-4 sm:p-6 md:p-8 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-semibold mb-2">Chyme Audio Rooms</h1>
+          <div className="flex items-center gap-2 mb-2">
+            <h1 className="text-2xl sm:text-3xl font-semibold">Chyme Audio Rooms</h1>
+            <Badge variant="outline" className="text-xs">
+              Beta
+            </Badge>
+          </div>
           <p className="text-muted-foreground">
             Join private or public audio rooms for voice conversations
           </p>

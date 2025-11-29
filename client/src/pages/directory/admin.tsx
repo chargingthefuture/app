@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { DirectoryProfile, User } from "@shared/schema";
-import { Plus, X, ExternalLink, Edit, Trash2 } from "lucide-react";
+import { Plus, X, ExternalLink, Edit, Trash2, Search } from "lucide-react";
 import { VerifiedBadge } from "@/components/verified-badge";
 import { Textarea } from "@/components/ui/textarea";
 import { COUNTRIES } from "@/lib/countries";
@@ -20,6 +20,8 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Check } from "lucide-react";
 import { useExternalLink } from "@/hooks/useExternalLink";
 import { Link } from "wouter";
+import { PaginationControls } from "@/components/pagination-controls";
+import { useFuzzySearch } from "@/hooks/useFuzzySearch";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,9 +36,28 @@ import {
 export default function AdminDirectoryPage() {
   const { toast } = useToast();
   const { openExternal, ExternalLinkDialog } = useExternalLink();
+  const [page, setPage] = useState(0);
+  const [searchTerm, setSearchTerm] = useState("");
+  const limit = 50; // Admin lists use 50 items per page
+  
   const { data: profiles = [], isLoading } = useQuery<DirectoryProfile[]>({
     queryKey: ["/api/directory/admin/profiles"],
   });
+  
+  // Client-side fuzzy search on all profiles
+  const filteredProfiles = useFuzzySearch(profiles, searchTerm, {
+    searchFields: ["description", "firstName", "city", "state", "country"],
+    threshold: 0.3,
+  });
+  
+  // Client-side pagination on filtered results
+  const total = filteredProfiles.length;
+  const paginatedProfiles = useMemo(() => {
+    const start = page * limit;
+    const end = start + limit;
+    return filteredProfiles.slice(start, end);
+  }, [filteredProfiles, page, limit]);
+  
   const { data: users = [] } = useQuery<User[]>({ queryKey: ["/api/admin/users"] });
   const { data: skills = [], isLoading: skillsLoading } = useQuery<DirectorySkill[]>({
     queryKey: ["/api/directory/admin/skills"],
@@ -81,7 +102,11 @@ export default function AdminDirectoryPage() {
       return await res.json();
     },
     onSuccess: async (data) => {
-      await queryClient.invalidateQueries({ queryKey: ["/api/directory/admin/profiles"] });
+      await queryClient.invalidateQueries({
+        predicate: (query) =>
+          typeof query.queryKey[0] === "string" &&
+          query.queryKey[0].startsWith("/api/directory/admin/profiles"),
+      });
       const profileId = data?.id;
       const wasPublic = newPublic;
       setNewDescription(""); setNewFirstName(""); setNewSignalUrl(""); setNewQuoraUrl(""); setNewCity(""); setNewState(""); setNewSkills([]); setNewPublic(false); setNewCountry("");
@@ -101,7 +126,11 @@ export default function AdminDirectoryPage() {
   const assignMutation = useMutation({
     mutationFn: async ({ id, userId }: { id: string; userId: string }) => apiRequest("PUT", `/api/directory/admin/profiles/${id}/assign`, { userId }),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["/api/directory/admin/profiles"] });
+      await queryClient.invalidateQueries({
+        predicate: (query) =>
+          typeof query.queryKey[0] === "string" &&
+          query.queryKey[0].startsWith("/api/directory/admin/profiles"),
+      });
       toast({ title: "Assigned", description: "Profile assigned to user" });
     },
     onError: (e: any) => toast({ title: "Error", description: e.message || "Failed to assign", variant: "destructive" })
@@ -113,7 +142,11 @@ export default function AdminDirectoryPage() {
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => apiRequest("DELETE", `/api/directory/admin/profiles/${id}`),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["/api/directory/admin/profiles"] });
+      await queryClient.invalidateQueries({
+        predicate: (query) =>
+          typeof query.queryKey[0] === "string" &&
+          query.queryKey[0].startsWith("/api/directory/admin/profiles"),
+      });
       setDeleteDialogOpen(false);
       setProfileToDelete(null);
       toast({ title: "Deleted", description: "Unclaimed profile deleted successfully" });
@@ -146,7 +179,11 @@ export default function AdminDirectoryPage() {
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: any }) => apiRequest("PUT", `/api/directory/admin/profiles/${id}`, data),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["/api/directory/admin/profiles"] });
+      await queryClient.invalidateQueries({
+        predicate: (query) =>
+          typeof query.queryKey[0] === "string" &&
+          query.queryKey[0].startsWith("/api/directory/admin/profiles"),
+      });
       setEditingId(null);
       toast({ title: "Updated", description: "Profile updated" });
     },
@@ -486,13 +523,36 @@ export default function AdminDirectoryPage() {
           <CardTitle className="text-lg sm:text-xl">Profiles</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
+          {/* Search box */}
+          <div className="space-y-2">
+            <Label htmlFor="search-profiles">Search Profiles</Label>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+              <Input
+                id="search-profiles"
+                type="text"
+                placeholder="Search by description, name, city, state, or country..."
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setPage(0); // Reset to first page when searching
+                }}
+                className="pl-10"
+                data-testid="input-search-profiles"
+              />
+            </div>
+          </div>
+          
           {isLoading ? (
             <div className="text-muted-foreground py-6 text-center">Loading…</div>
-          ) : profiles.length === 0 ? (
-            <div className="text-muted-foreground py-6 text-center">No profiles</div>
+          ) : filteredProfiles.length === 0 ? (
+            <div className="text-muted-foreground py-6 text-center">
+              {searchTerm ? "No profiles match your search" : "No profiles"}
+            </div>
           ) : (
-            <div className="space-y-3">
-              {profiles.map((p) => {
+            <>
+              <div className="space-y-3">
+                {paginatedProfiles.map((p) => {
                 const profileUser = p.userId ? users.find(u => u.id === p.userId) : null;
                 const isVerified = profileUser?.isVerified || false;
                 
@@ -754,7 +814,19 @@ export default function AdminDirectoryPage() {
                   </div>
                 );
               })}
-            </div>
+              </div>
+              
+              {/* Pagination Controls - only show if there are more items than per page */}
+              {total > limit && (
+                <PaginationControls
+                  currentPage={page}
+                  totalItems={total}
+                  itemsPerPage={limit}
+                  onPageChange={setPage}
+                  className="mt-6"
+                />
+              )}
+            </>
           )}
         </CardContent>
       </Card>

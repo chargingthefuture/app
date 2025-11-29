@@ -199,6 +199,7 @@ const miniAppMenuItems = [
     url: "/apps/chyme",
     icon: Radio,
     testId: "link-chyme",
+    showBeta: true,
   },
   {
     title: "LightHouse",

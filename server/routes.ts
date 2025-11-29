@@ -914,11 +914,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }));
 
   // Admin routes for Directory
-  app.get('/api/directory/admin/profiles', isAuthenticated, isAdmin, asyncHandler(async (_req, res) => {
-    // Reuse public list for now; could add full list later
+  app.get('/api/directory/admin/profiles', isAuthenticated, isAdmin, asyncHandler(async (req, res) => {
+    // For admin, return all profiles (no pagination on server)
+    // Client-side pagination and search provides better UX for admins
     const profiles = await withDatabaseErrorHandling(
-      () => storage.listPublicDirectoryProfiles(),
-      'listPublicDirectoryProfiles'
+      () => storage.listAllDirectoryProfiles(),
+      'listAllDirectoryProfiles'
     );
     res.json(profiles);
   }));
