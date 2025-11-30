@@ -137,7 +137,6 @@ export function useChymeAudio({
         }
         reconnectTimeoutRef.current = setTimeout(() => {
           // Reconnection logic would go here
-          console.log(`Attempting to reconnect to ${remoteUserId}`);
         }, 3000);
       } else if (state === 'connected') {
         if (reconnectTimeoutRef.current) {

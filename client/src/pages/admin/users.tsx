@@ -26,18 +26,6 @@ export default function AdminUsers() {
     queryKey: ["/api/admin/users"],
   });
 
-  // Debug logging
-  if (users !== undefined) {
-    console.log(`[Admin Users] Received ${users.length} users from API`);
-    if (users.length > 0) {
-      console.log(`[Admin Users] Sample user data:`, users.slice(0, 3).map(u => ({ 
-        id: u.id, 
-        idType: typeof u.id, 
-        email: u.email,
-        firstName: u.firstName 
-      })));
-    }
-  }
 
   // Filter out deleted users (identified by ID starting with "deleted_user_")
   // Also handle cases where ID might be null, undefined, or not a string
