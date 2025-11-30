@@ -168,10 +168,28 @@ export function handleDatabaseError(error: any, context?: string): DatabaseError
       );
 
     case PG_ERROR_CODES.NOT_NULL_VIOLATION:
-      const column = constraint || 'field';
+      // Try to extract column name from error detail or use constraint/column field
+      let columnName = 'field';
+      if (error.column) {
+        columnName = error.column;
+      } else if (constraint) {
+        // Try to extract column from constraint name (e.g., "mechanicmatch_profiles_display_name_not_null" -> "display_name")
+        const match = constraint.match(/_([a-z_]+)_not_null$/i) || constraint.match(/_([a-z_]+)$/i);
+        if (match) {
+          columnName = match[1].replace(/_/g, ' ');
+        } else {
+          columnName = constraint;
+        }
+      } else if (detail) {
+        // Try to extract column from detail message
+        const detailMatch = detail.match(/column "([^"]+)"/i);
+        if (detailMatch) {
+          columnName = detailMatch[1];
+        }
+      }
       return new ValidationError(
-        `Required field '${column}' cannot be empty`,
-        { constraint, detail }
+        `Required field '${columnName}' cannot be empty`,
+        { constraint, detail, column: error.column }
       );
 
     case PG_ERROR_CODES.CHECK_VIOLATION:

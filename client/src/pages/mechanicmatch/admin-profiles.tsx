@@ -615,14 +615,19 @@ function transformProfilePayload(values: AdminProfileFormValues) {
     throw new Error("Display name is required");
   }
   
+  // Explicitly set all fields to ensure defaults are applied and undefined values are handled
   return {
-    ...values,
     displayName,
+    isCarOwner: values.isCarOwner ?? false,
+    isMechanic: values.isMechanic ?? false,
     city: values.city?.trim() || null,
     state: values.state?.trim() || null,
     country: values.country?.trim() || null,
     phoneNumber: values.phoneNumber?.trim() || null,
     signalUrl: values.signalUrl?.trim() || null,
+    // Explicitly set defaults for fields that have NOT NULL constraints
+    isMobileMechanic: false,
+    isClaimed: false,
   };
 }
 
