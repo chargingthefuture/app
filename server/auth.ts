@@ -156,19 +156,29 @@ export async function syncClerkUserToDatabase(userId: string, sessionClaims?: an
           }
           
           // Try to create user with retry logic
-          await retryWithBackoff(
+          // Use the returned user directly to avoid replication lag issues
+          const jwtUserData = {
+            ...minimalUser,
+            pricingTier,
+            isApproved: false, // New users must be approved by admin
+          };
+          
+          const jwtUserResult = await retryWithBackoff(
             () => withDatabaseErrorHandling(
-              () => storage.upsertUser({
-                ...minimalUser,
-                pricingTier,
-              }),
+              () => storage.upsertUser(jwtUserData),
               'upsertUserFromJWTClaims'
             ),
             2, // 2 retries for database operations
             500 // 500ms base delay
           );
           
-          // Try to get the created user with retry logic
+          if (jwtUserResult) {
+            // Use the result directly instead of querying again
+            // This avoids replication lag issues and is more reliable
+            return jwtUserResult;
+          }
+          
+          // Fallback: If result is null/undefined, try to get user (shouldn't happen)
           const createdUser = await retryWithBackoff(
             () => withDatabaseErrorHandling(
               () => storage.getUser(userId),
