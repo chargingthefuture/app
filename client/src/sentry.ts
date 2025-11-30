@@ -20,7 +20,8 @@ export { Sentry };
  * Must be called before React app initialization
  */
 export function initSentry() {
-  const dsn = import.meta.env.VITE_SENTRY_DSN;
+  // Use environment variable if set, otherwise use default DSN
+  const dsn = import.meta.env.VITE_SENTRY_DSN || 'https://cb4b56fb7ca8bdfa89e4880a46555ee9@o4510455625482240.ingest.us.sentry.io/4510455626596352';
   const environment = import.meta.env.MODE || 'development';
   const release = import.meta.env.VITE_SENTRY_RELEASE || undefined;
   const tracesSampleRate = environment === 'production' ? 0.1 : 1.0; // 10% in prod, 100% in dev
@@ -40,6 +41,8 @@ export function initSentry() {
     integrations: [
       // Browser tracing integration
       Sentry.browserTracingIntegration(),
+      // Session Replay integration
+      Sentry.replayIntegration(),
       // Console integration to capture console logs
       Sentry.consoleIntegration({
         levels: ['error', 'warn', 'log', 'info', 'debug'],
@@ -54,6 +57,12 @@ export function initSentry() {
     // Traces sampling
     tracesSampleRate,
 
+    // Session Replay sampling
+    // Sample 10% of all sessions in production, 100% in development
+    replaysSessionSampleRate: environment === 'production' ? 0.1 : 1.0,
+    // Always record sessions where errors occur (100% sample rate)
+    replaysOnErrorSampleRate: 1.0,
+
     // Metrics are automatically enabled in Sentry.init()
     // Use Sentry.metrics API to emit metrics:
     // - Sentry.metrics.count('metric_name', value)
@@ -65,7 +74,9 @@ export function initSentry() {
     captureUncaughtException: true,
 
     // Send default PII (Personally Identifiable Information)
-    sendDefaultPii: false, // Set to true if you need user email/username in Sentry
+    // Setting this to true will send default PII data to Sentry
+    // For example, automatic IP address collection on events
+    sendDefaultPii: true,
 
     // Filter out health check endpoints
     beforeSend(event, hint) {
