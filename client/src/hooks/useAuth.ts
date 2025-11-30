@@ -85,7 +85,18 @@ export function useAuth() {
 
   const { data: dbUser, isLoading: dbLoading, error: dbError, isFetching } = useQuery<DbUser | null>({
     queryKey: ["/api/auth/user"],
-    retry: 2, // Retry up to 2 times on failure
+    retry: (failureCount, error: any) => {
+      // Don't retry on 500 errors from sync failures - these need user action
+      // Only retry on network errors or transient failures
+      const errorMessage = error?.message || '';
+      if (errorMessage.includes('500:') || 
+          errorMessage.includes('Failed to sync user') ||
+          errorMessage.includes('User sync failed')) {
+        return false;
+      }
+      // Retry up to 2 times for other errors (network issues, etc.)
+      return failureCount < 2;
+    },
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 3000), // Exponential backoff
     enabled: clerkLoaded && isSignedIn,
   });
@@ -108,7 +119,8 @@ export function useAuth() {
     }
 
     // If user loads successfully, reset tracking
-    if (dbUser !== null) {
+    // Handle both null and undefined (null from API, undefined from error)
+    if (dbUser !== null && dbUser !== undefined) {
       hasLoggedNullErrorRef.current = false;
       if (nullResponseTimeoutRef.current) {
         clearTimeout(nullResponseTimeoutRef.current);
@@ -120,8 +132,8 @@ export function useAuth() {
     // Only log null response error if:
     // 1. Clerk is loaded and user is signed in
     // 2. Query has finished loading (not loading, not fetching)
-    // 3. Result is null
-    // 4. No error occurred
+    // 3. Result is null or undefined (but not due to an error)
+    // 4. No error occurred (if error, it's handled above)
     // 5. We haven't already logged this error
     // 6. We wait a bit to allow for async sync to complete
     if (
@@ -129,7 +141,7 @@ export function useAuth() {
       isSignedIn &&
       !dbLoading &&
       !isFetching &&
-      dbUser === null &&
+      (dbUser === null || dbUser === undefined) &&
       !dbError &&
       !hasLoggedNullErrorRef.current &&
       !nullResponseTimeoutRef.current
@@ -139,7 +151,7 @@ export function useAuth() {
       nullResponseTimeoutRef.current = setTimeout(() => {
         // Double-check conditions before logging (user might have loaded during the delay)
         // Use the latest values by checking the query state again
-        if (clerkLoaded && isSignedIn && dbUser === null && !dbError) {
+        if (clerkLoaded && isSignedIn && (dbUser === null || dbUser === undefined) && !dbError) {
           console.error("User authenticated with Clerk but database returned null. This may indicate a sync failure.", {
             clerkUserId: clerkUser?.id,
             clerkEmail: clerkUser?.primaryEmailAddress?.emailAddress,
