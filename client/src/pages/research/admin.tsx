@@ -1,6 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Link } from "wouter";
 import { MessageSquare, FileText, AlertTriangle } from "lucide-react";
 
@@ -8,12 +7,7 @@ export default function ResearchAdmin() {
   return (
     <div className="p-4 sm:p-6 md:p-8 space-y-6">
       <div>
-        <div className="flex items-center gap-2 mb-2">
-          <h1 className="text-2xl sm:text-3xl font-semibold">CompareNotes Administration</h1>
-          <Badge variant="outline" className="text-xs">
-            Beta
-          </Badge>
-        </div>
+        <h1 className="text-2xl sm:text-3xl font-semibold mb-2">CompareNotes Administration</h1>
         <p className="text-muted-foreground">
           Manage research items, reports, and announcements
         </p>
