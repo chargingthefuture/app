@@ -160,7 +160,10 @@ export async function syncClerkUserToDatabase(userId: string, sessionClaims?: an
           const jwtUserData = {
             ...minimalUser,
             pricingTier,
+            isAdmin: false,
+            isVerified: false,
             isApproved: false, // New users must be approved by admin
+            subscriptionStatus: 'active',
           };
           
           const jwtUserResult = await retryWithBackoff(
@@ -229,6 +232,11 @@ export async function syncClerkUserToDatabase(userId: string, sessionClaims?: an
         error: upsertError.message,
         stack: upsertError.stack,
         code: upsertError.code,
+        errno: upsertError.errno,
+        sqlState: upsertError.sqlState,
+        constraint: upsertError.constraint,
+        detail: upsertError.detail,
+        name: upsertError.name,
       });
       throw new Error(`Failed to sync user to database: ${upsertError.message || 'Unknown error'}`);
     }
@@ -338,6 +346,10 @@ async function upsertUser(clerkUser: any) {
         lastName: mappedUser.last_name,
         profileImageUrl: mappedUser.profile_image_url,
         pricingTier,
+        isAdmin: false,
+        isVerified: false,
+        isApproved: false, // New users must be approved by admin
+        subscriptionStatus: 'active',
       }),
       'upsertNewUser'
     );
