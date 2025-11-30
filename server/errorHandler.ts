@@ -23,8 +23,8 @@ export function errorHandler(
   // Normalize error to AppError
   const error = normalizeError(err);
 
-  // Send to Sentry (only for non-operational errors or all errors in production)
-  if (process.env.SENTRY_DSN && (!error.isOperational || process.env.NODE_ENV === 'production')) {
+  // Send to Sentry (always if DSN is configured)
+  if (process.env.SENTRY_DSN) {
     Sentry.captureException(error, {
       tags: {
         errorCode: error.code,
@@ -35,10 +35,22 @@ export function errorHandler(
         details: error.details,
         path: req.path,
         method: req.method,
+        query: req.query,
+        params: req.params,
       },
       user: {
-        id: (req as any).user?.id,
+        id: (req as any).auth?.userId || (req as any).user?.id,
         email: (req as any).user?.email,
+      },
+      contexts: {
+        request: {
+          method: req.method,
+          url: req.url,
+          headers: {
+            'user-agent': req.headers['user-agent'],
+            'referer': req.headers['referer'],
+          },
+        },
       },
     });
   }

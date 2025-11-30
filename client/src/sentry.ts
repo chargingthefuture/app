@@ -1,0 +1,162 @@
+/**
+ * Sentry Configuration for Client-Side Error Tracking
+ * 
+ * Initializes Sentry for comprehensive error tracking, logging, and monitoring.
+ * Captures all errors, console logs, and unhandled exceptions in the browser.
+ */
+
+import * as Sentry from '@sentry/react';
+
+/**
+ * Initialize Sentry for client-side error tracking
+ * Must be called before React app initialization
+ */
+export function initSentry() {
+  const dsn = import.meta.env.VITE_SENTRY_DSN;
+  const environment = import.meta.env.MODE || 'development';
+  const release = import.meta.env.VITE_SENTRY_RELEASE || undefined;
+  const tracesSampleRate = environment === 'production' ? 0.1 : 1.0; // 10% in prod, 100% in dev
+  const profilesSampleRate = environment === 'production' ? 0.1 : 1.0;
+
+  if (!dsn) {
+    console.warn('VITE_SENTRY_DSN not set - Sentry error tracking is disabled');
+    return;
+  }
+
+  Sentry.init({
+    dsn,
+    environment,
+    release,
+
+    // Performance monitoring
+    integrations: [
+      // Browser tracing integration
+      Sentry.browserTracingIntegration(),
+      // Console integration to capture console logs
+      Sentry.consoleIntegration({
+        levels: ['error', 'warn', 'log', 'info', 'debug'],
+      }),
+      // Capture fetch requests
+      Sentry.httpClientIntegration({
+        failedRequestStatusCodes: [[400, 599]], // Capture 4xx and 5xx errors
+        failedRequestTargets: [/.*/], // Capture all failed requests
+      }),
+    ],
+
+    // Traces sampling
+    tracesSampleRate,
+
+    // Capture unhandled exceptions and rejections
+    captureUnhandledRejections: true,
+    captureUncaughtException: true,
+
+    // Send default PII (Personally Identifiable Information)
+    sendDefaultPii: false, // Set to true if you need user email/username in Sentry
+
+    // Filter out health check endpoints
+    beforeSend(event, hint) {
+      // Don't send events for health checks
+      if (event.request?.url?.includes('/health') || event.request?.url?.includes('/ping')) {
+        return null;
+      }
+      return event;
+    },
+
+    // Ignore specific errors
+    ignoreErrors: [
+      // Network errors that are expected
+      'NetworkError',
+      'Failed to fetch',
+      'Network request failed',
+      // Browser extension errors
+      'ResizeObserver loop limit exceeded',
+      'Non-Error promise rejection captured',
+      // Clerk errors that are handled gracefully
+      'Clerk',
+    ],
+
+    // Additional options
+    maxBreadcrumbs: 100, // Increase breadcrumb limit for better debugging
+  });
+
+  console.log(`Sentry initialized for ${environment} environment`);
+}
+
+/**
+ * Capture console logs and send to Sentry
+ * This is a wrapper around console methods to send logs to Sentry
+ */
+export function setupConsoleLogging() {
+  if (!import.meta.env.VITE_SENTRY_DSN) {
+    return; // Sentry not configured
+  }
+
+  // Store original console methods
+  const originalConsole = {
+    error: console.error,
+    warn: console.warn,
+    log: console.log,
+    info: console.info,
+    debug: console.debug,
+  };
+
+  // Override console.error to send to Sentry
+  console.error = (...args: any[]) => {
+    originalConsole.error(...args);
+    const message = args.map(arg => 
+      typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
+    ).join(' ');
+    Sentry.captureMessage(message, {
+      level: 'error',
+    });
+  };
+
+  // Override console.warn to send to Sentry
+  console.warn = (...args: any[]) => {
+    originalConsole.warn(...args);
+    const message = args.map(arg => 
+      typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
+    ).join(' ');
+    Sentry.captureMessage(message, {
+      level: 'warning',
+    });
+  };
+
+  // Override console.log/info/debug to send as breadcrumbs
+  console.log = (...args: any[]) => {
+    originalConsole.log(...args);
+    const message = args.map(arg => 
+      typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
+    ).join(' ');
+    Sentry.addBreadcrumb({
+      message,
+      level: 'info',
+      category: 'console',
+    });
+  };
+
+  console.info = (...args: any[]) => {
+    originalConsole.info(...args);
+    const message = args.map(arg => 
+      typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
+    ).join(' ');
+    Sentry.addBreadcrumb({
+      message,
+      level: 'info',
+      category: 'console',
+    });
+  };
+
+  console.debug = (...args: any[]) => {
+    originalConsole.debug(...args);
+    const message = args.map(arg => 
+      typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
+    ).join(' ');
+    Sentry.addBreadcrumb({
+      message,
+      level: 'debug',
+      category: 'console',
+    });
+  };
+}
+

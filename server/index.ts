@@ -5,25 +5,10 @@ import { resolve } from "path";
 config({ path: resolve(process.cwd(), ".env.local") });
 config({ path: resolve(process.cwd(), ".env") }); // Fallback to .env
 
-// Initialize Sentry before any other imports
-import * as Sentry from "@sentry/node";
-if (process.env.SENTRY_DSN) {
-  Sentry.init({
-    dsn: process.env.SENTRY_DSN,
-    // Setting this option to true will send default PII data to Sentry.
-    sendDefaultPii: true,
-    integrations: [
-      Sentry.httpIntegration(),
-      Sentry.expressIntegration(),
-    ],
-    // Tracing
-    tracesSampleRate: process.env.NODE_ENV === "production" ? 0.1 : 1.0, // 10% in production, 100% in development
-    // Environment detection
-    environment: process.env.NODE_ENV || "development",
-    // Enable logs to be sent to Sentry
-    enableLogs: true,
-  });
-}
+// Initialize Sentry BEFORE any other imports that might throw errors
+import { initSentry, setupConsoleLogging } from "./sentry";
+initSentry();
+setupConsoleLogging();
 
 import express, { type Request, Response, NextFunction } from "express";
 import cookieParser from "cookie-parser";
@@ -33,9 +18,6 @@ import { setupVite, serveStatic, log } from "./vite";
 import { errorHandler, notFoundHandler } from "./errorHandler";
 
 const app = express();
-
-// Sentry expressIntegration() automatically handles request and tracing middleware
-// No need to manually add requestHandler() or tracingHandler() in v8+
 
 // Trust proxy for rate limiting IP detection (important for production behind load balancers)
 app.set('trust proxy', 1);
@@ -66,12 +48,12 @@ app.use((req, res, next) => {
   // Prevents XSS attacks by controlling what resources can be loaded
   const cspDirectives = [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.clerk.accounts.dev https://*.clerk.com https://clerk.app.chargingthefuture.com https://*.app.chargingthefuture.com https://*.the-comic.com https://*.sentry.io https://*.ingest.us.sentry.io", // Clerk CDN + custom domains + staging + Sentry
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.clerk.accounts.dev https://*.clerk.com https://clerk.app.chargingthefuture.com https://*.app.chargingthefuture.com https://*.the-comic.com", // Clerk CDN + custom domains + staging
     "worker-src 'self' blob:", // Allow blob: URLs for Clerk workers
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://*.clerk.accounts.dev https://*.clerk.com https://clerk.app.chargingthefuture.com https://*.app.chargingthefuture.com https://*.the-comic.com", // Clerk styles + OpenDyslexic font
     "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net https://*.clerk.accounts.dev https://*.clerk.com https://clerk.app.chargingthefuture.com https://*.app.chargingthefuture.com https://*.the-comic.com", // Clerk fonts + OpenDyslexic font files
     "img-src 'self' data: https:",
-    "connect-src 'self' wss: ws: https://*.clerk.accounts.dev https://*.clerk.com https://clerk.app.chargingthefuture.com https://*.app.chargingthefuture.com https://*.the-comic.com https://*.sentry.io https://*.ingest.us.sentry.io", // Clerk API calls + Sentry
+    "connect-src 'self' wss: ws: https://*.clerk.accounts.dev https://*.clerk.com https://clerk.app.chargingthefuture.com https://*.app.chargingthefuture.com https://*.the-comic.com", // Clerk API calls
     "frame-src 'self' https://*.clerk.accounts.dev https://*.clerk.com https://clerk.app.chargingthefuture.com https://*.app.chargingthefuture.com https://*.the-comic.com", // Clerk iframes for auth
     "frame-ancestors 'none'", // Prevents clickjacking
   ].join('; ');
@@ -149,8 +131,6 @@ app.use((req, res, next) => {
   });
 
   // Error handler - must be last
-  // Note: Sentry error capture is handled in the custom errorHandler middleware
-  // The expressIntegration() already handles request/tracing automatically
   app.use(errorHandler);
 
   // ALWAYS serve the app on the port specified in the environment variable PORT

@@ -72,6 +72,7 @@ import { asyncHandler } from "./errorHandler";
 import { validateWithZod } from "./validationErrorFormatter";
 import { withDatabaseErrorHandling } from "./databaseErrorHandler";
 import { NotFoundError, ForbiddenError, ValidationError, UnauthorizedError } from "./errors";
+import * as Sentry from '@sentry/node';
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -155,15 +156,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auth routes
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = getUserId(req);
+      // Log request details for debugging
+      const requestInfo = {
+        hasAuth: !!req.auth,
+        authUserId: req.auth?.userId,
+        path: req.path,
+        method: req.method,
+        timestamp: new Date().toISOString(),
+      };
+      
+      let userId: string;
+      try {
+        userId = getUserId(req);
+      } catch (getUserIdError: any) {
+        console.error("Error getting userId from request:", {
+          ...requestInfo,
+          error: getUserIdError.message,
+          stack: getUserIdError.stack,
+        });
+        return res.status(401).json({ 
+          message: "Authentication failed: Unable to extract user ID. Please try signing in again." 
+        });
+      }
       
       // Validate userId is present
       if (!userId || userId.trim() === "") {
-        console.error("Error: userId is missing or empty", {
-          hasAuth: !!req.auth,
-          authUserId: req.auth?.userId,
-          authSessionId: req.auth?.sessionId,
-        });
+        console.error("Error: userId is missing or empty", requestInfo);
         return res.status(401).json({ 
           message: "Authentication failed: User ID not found. Please try signing in again." 
         });
@@ -352,17 +370,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json(user);
     } catch (error: any) {
-      // Catch any unexpected errors
-      console.error("Unexpected error fetching user:", {
+      // Catch any unexpected errors that bypassed inner error handlers
+      const errorDetails = {
         error: error.message,
         stack: error.stack,
         userId: req.auth?.userId,
         hasAuth: !!req.auth,
         name: error.name,
         code: error.code,
-      });
+        errno: error.errno,
+        sqlState: error.sqlState,
+        statusCode: error.statusCode,
+        // Environment checks
+        hasDatabaseUrl: !!process.env.DATABASE_URL,
+        hasClerkSecretKey: !!process.env.CLERK_SECRET_KEY,
+        nodeEnv: process.env.NODE_ENV,
+        timestamp: new Date().toISOString(),
+        // Request details
+        path: req.path,
+        method: req.method,
+      };
+      
+      console.error("Unexpected error fetching user (outer catch):", errorDetails);
+      
+      // Send to Sentry
+      if (process.env.SENTRY_DSN) {
+        Sentry.captureException(error, {
+          tags: {
+            endpoint: '/api/auth/user',
+            errorType: 'unexpected',
+          },
+          extra: errorDetails,
+          user: {
+            id: req.auth?.userId,
+          },
+        });
+      }
+      
+      // Provide more helpful error message based on error type
+      let errorMessage = "Failed to fetch user";
+      if (error.message?.includes("DATABASE_URL")) {
+        errorMessage = "Database configuration error. Please contact support.";
+      } else if (error.message?.includes("CLERK_SECRET_KEY")) {
+        errorMessage = "Authentication service configuration error. Please contact support.";
+      } else if (error.code === "ECONNREFUSED" || error.code === "ETIMEDOUT") {
+        errorMessage = "Database connection failed. Please try again in a moment.";
+      }
+      
       res.status(500).json({ 
-        message: "Failed to fetch user",
+        message: errorMessage,
         error: process.env.NODE_ENV === 'development' ? error.message : undefined
       });
     }

@@ -6,6 +6,7 @@
  */
 
 import { Request } from 'express';
+import * as Sentry from '@sentry/node';
 import { AppError, isAppError, normalizeError } from './errors';
 
 export interface ErrorLogContext {
@@ -156,10 +157,17 @@ export function logError(
     console.error('=================\n');
   }
 
-  // TODO: In production, send to external logging service (e.g., Sentry, LogRocket)
-  // if (process.env.NODE_ENV === 'production' && process.env.SENTRY_DSN) {
-  //   Sentry.captureException(error, { extra: logEntry.context });
-  // }
+  // Send to Sentry if configured
+  if (process.env.SENTRY_DSN) {
+    Sentry.captureException(error, {
+      level: level === 'warn' ? 'warning' : 'error',
+      extra: logEntry.context,
+      tags: {
+        logLevel: level,
+        environment: logEntry.environment,
+      },
+    });
+  }
 }
 
 /**
