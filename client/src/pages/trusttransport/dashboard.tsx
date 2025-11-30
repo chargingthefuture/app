@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -137,10 +137,12 @@ export default function TrustTransportDashboard() {
   const showTabs = isDriver && isRider;
   
   // Set initial tab based on available roles
-  if (!showTabs) {
-    if (isDriver) setActiveTab("driver");
-    if (isRider) setActiveTab("rider");
-  }
+  useEffect(() => {
+    if (!showTabs) {
+      if (isDriver) setActiveTab("driver");
+      if (isRider) setActiveTab("rider");
+    }
+  }, [showTabs, isDriver, isRider]);
 
   const roleLabel = [];
   if (isDriver) roleLabel.push("Driver");

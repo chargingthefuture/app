@@ -3,9 +3,17 @@
  * 
  * Initializes Sentry for comprehensive error tracking, logging, and monitoring.
  * Captures all errors, console logs, and unhandled exceptions in the browser.
+ * 
+ * Metrics are automatically enabled and can be used via Sentry.metrics API:
+ * - Sentry.metrics.count('metric_name', value)
+ * - Sentry.metrics.gauge('metric_name', value)
+ * - Sentry.metrics.distribution('metric_name', value)
  */
 
 import * as Sentry from '@sentry/react';
+
+// Export Sentry for use throughout the app (e.g., for metrics)
+export { Sentry };
 
 /**
  * Initialize Sentry for client-side error tracking
@@ -45,6 +53,12 @@ export function initSentry() {
 
     // Traces sampling
     tracesSampleRate,
+
+    // Metrics are automatically enabled in Sentry.init()
+    // Use Sentry.metrics API to emit metrics:
+    // - Sentry.metrics.count('metric_name', value)
+    // - Sentry.metrics.gauge('metric_name', value)
+    // - Sentry.metrics.distribution('metric_name', value)
 
     // Capture unhandled exceptions and rejections
     captureUnhandledRejections: true,
