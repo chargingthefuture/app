@@ -287,6 +287,7 @@ async function upsertUser(clerkUser: any) {
         firstName: mappedUser.first_name,
         lastName: mappedUser.last_name,
         profileImageUrl: mappedUser.profile_image_url,
+        quoraProfileUrl: existingUser.quoraProfileUrl, // Preserve Quora profile URL
         pricingTier: existingUser.pricingTier, // Preserve existing pricing tier (grandfathered)
         isAdmin: existingUser.isAdmin, // Preserve admin status
         isApproved: existingUser.isApproved, // Preserve approval status
