@@ -206,36 +206,46 @@ export async function syncClerkUserToDatabase(userId: string, sessionClaims?: an
     }
     
     // Upsert user in our database with retry logic
-    await retryWithBackoff(
-      () => upsertUser(clerkUser),
-      2, // 2 retries for database operations
-      500 // 500ms base delay
-    );
-    
-    // Return the synced user with retry logic
-    const syncedUser = await retryWithBackoff(
-      () => withDatabaseErrorHandling(
-        () => storage.getUser(userId),
-        'getUserAfterSync'
-      ),
-      2,
-      500
-    );
-    
-    if (!syncedUser) {
-      console.error(`User synced but not found after sync for ${userId}. This indicates a database sync issue.`);
-      // Try one more time to get the user
-      const retryUser = await withDatabaseErrorHandling(
-        () => storage.getUser(userId),
-        'getUserAfterSyncRetry'
+    // upsertUser returns the user directly, so we can use that instead of calling getUser again
+    let upsertedUser: any;
+    try {
+      upsertedUser = await retryWithBackoff(
+        () => upsertUser(clerkUser),
+        2, // 2 retries for database operations
+        500 // 500ms base delay
       );
-      if (!retryUser) {
-        throw new Error("User synced but not found. Please try again.");
-      }
-      return retryUser;
+    } catch (upsertError: any) {
+      console.error(`Failed to upsert user ${userId}:`, {
+        error: upsertError.message,
+        stack: upsertError.stack,
+        code: upsertError.code,
+      });
+      throw new Error(`Failed to sync user to database: ${upsertError.message || 'Unknown error'}`);
     }
     
-    return syncedUser;
+    // Verify the upserted user exists and has required fields
+    if (!upsertedUser || !upsertedUser.id) {
+      console.error(`Upsert returned invalid user for ${userId}:`, {
+        upsertedUser,
+        hasId: !!upsertedUser?.id,
+      });
+      // Try to get user from database as fallback
+      const fallbackUser = await retryWithBackoff(
+        () => withDatabaseErrorHandling(
+          () => storage.getUser(userId),
+          'getUserAfterUpsertFailure'
+        ),
+        2,
+        500
+      );
+      if (!fallbackUser) {
+        throw new Error("User upserted but not found. Please try again.");
+      }
+      return fallbackUser;
+    }
+    
+    // Return the upserted user directly (more reliable than calling getUser again)
+    return upsertedUser;
   } catch (error: any) {
     console.error("Error syncing Clerk user to database:", {
       userId,
@@ -280,7 +290,7 @@ async function upsertUser(clerkUser: any) {
     // For existing users, only update profile information, preserve pricing tier
     // Preserve approval status and admin status
     
-    await withDatabaseErrorHandling(
+    const updatedUser = await withDatabaseErrorHandling(
       () => storage.upsertUser({
         id: mappedUser.sub,
         email: mappedUser.email,
@@ -295,6 +305,7 @@ async function upsertUser(clerkUser: any) {
       }),
       'upsertExistingUser'
     );
+    return updatedUser;
   } else {
     // For new users, get current pricing tier
     let pricingTier = '1.00';
@@ -309,7 +320,7 @@ async function upsertUser(clerkUser: any) {
       // Use default pricing tier if database is unavailable
     }
 
-    await withDatabaseErrorHandling(
+    const newUser = await withDatabaseErrorHandling(
       () => storage.upsertUser({
         id: mappedUser.sub,
         email: mappedUser.email,
@@ -320,6 +331,7 @@ async function upsertUser(clerkUser: any) {
       }),
       'upsertNewUser'
     );
+    return newUser;
   }
 }
 
@@ -337,16 +349,31 @@ export async function setupAuth(app: Express) {
         const sessionClaims = (req.auth as any)?.sessionClaims;
         await syncClerkUserToDatabase(req.auth.userId, sessionClaims);
       } catch (error: any) {
-        console.error("Error syncing Clerk user to database:", error);
+        // Log sync failures with detailed context for debugging
+        console.error("Error syncing Clerk user to database in middleware:", {
+          userId: req.auth.userId,
+          error: error.message,
+          stack: error.stack,
+          code: error.code,
+          name: error.name,
+          timestamp: new Date().toISOString(),
+          path: req.path,
+        });
+        
         // If it's a deleted user error, block the request
         if (error.message?.includes("deleted")) {
           return res.status(403).json({ 
             message: error.message || "This account has been deleted. Please contact support if you believe this is an error." 
           });
         }
+        
         // For other sync failures, log but don't block - let the route handlers deal with it
         // This prevents empty responses that cause JSON parsing errors
-        // The /api/auth/user endpoint will handle sync failures gracefully
+        // The /api/auth/user endpoint will handle sync failures gracefully with retry logic
+        // However, we should still log prominently so admins can see sync issues
+        if (process.env.NODE_ENV === 'production') {
+          console.error(`[SYNC FAILURE] User ${req.auth.userId} sync failed in middleware. Route handlers will attempt fallback sync.`);
+        }
       }
     }
     next();

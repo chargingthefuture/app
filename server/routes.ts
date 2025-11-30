@@ -241,16 +241,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
             });
           }
           
-          // For other errors, return null to allow frontend to handle gracefully
-          // This prevents the app from completely breaking
-          // But log extensively for production debugging
-          console.error(`Both database query and sync failed for user ${userId}, returning null.`, {
+          // For other errors, return 500 error instead of null
+          // Never return null for authenticated users - this causes sync failure errors in frontend
+          console.error(`Both database query and sync failed for user ${userId}, returning error.`, {
             environment: process.env.NODE_ENV,
             timestamp: new Date().toISOString(),
             dbErrorType: dbError.constructor?.name,
             syncErrorType: syncError.constructor?.name,
+            dbErrorMessage: dbError.message,
+            syncErrorMessage: syncError.message,
           });
-          return res.json(null);
+          return res.status(500).json({ 
+            message: "Failed to sync user. Please try refreshing the page.",
+            error: process.env.NODE_ENV === 'development' ? `Database error: ${dbError.message}. Sync error: ${syncError.message}` : undefined
+          });
         }
       }
       
