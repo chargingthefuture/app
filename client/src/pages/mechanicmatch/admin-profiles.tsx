@@ -609,8 +609,15 @@ export default function MechanicMatchAdminProfiles() {
 }
 
 function transformProfilePayload(values: AdminProfileFormValues) {
+  // Ensure displayName is always a non-empty string
+  const displayName = values.displayName?.trim();
+  if (!displayName || displayName.length === 0) {
+    throw new Error("Display name is required");
+  }
+  
   return {
     ...values,
+    displayName,
     city: values.city?.trim() || null,
     state: values.state?.trim() || null,
     country: values.country?.trim() || null,
