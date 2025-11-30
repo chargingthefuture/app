@@ -123,21 +123,25 @@ async function runSeedScript(scriptPath: string, name: string): Promise<void> {
     console.log(`✅ ${name} seeding completed successfully\n`);
   } catch (error: any) {
     // Check if it's a non-zero exit code (which is expected for some scripts)
-    if (error.code === 0 || error.stdout) {
+    if (error.code === 0 || (error.stdout && !error.stderr?.match(/Error|error|failed|Failed/i))) {
       // Script ran but may have exited with code 0 after process.exit(0)
+      // Or stdout exists without error indicators in stderr
       if (error.stdout) {
         console.log(error.stdout);
       }
       console.log(`✅ ${name} seeding completed\n`);
     } else {
-      console.error(`❌ Error seeding ${name}:`, error.message);
+      // Script failed - report the error
+      console.error(`❌ Error seeding ${name}:`, error.message || "Unknown error");
       if (error.stdout) {
         console.error("Output:", error.stdout);
       }
       if (error.stderr) {
         console.error("Errors:", error.stderr);
       }
-      throw error;
+      // Extract error message from stderr if available for better reporting
+      const errorMessage = error.stderr || error.message || "Unknown error";
+      throw new Error(`${name}: ${errorMessage}`);
     }
   }
 }
@@ -163,7 +167,25 @@ async function seedAllMiniApps() {
       await runSeedScript(seedScript.script, seedScript.name);
       results.push({ name: seedScript.name, success: true });
     } catch (error: any) {
-      const errorMessage = error.message || String(error);
+      // Extract comprehensive error message
+      let errorMessage = error.message || String(error);
+      
+      // If error has stderr, include it in the message
+      if (error.stderr) {
+        // Extract the actual error from stderr (skip dotenv warnings)
+        const errorLines = error.stderr.split('\n').filter((line: string) => 
+          line.trim() && 
+          !line.includes('dotenv') && 
+          !line.includes('injecting env') &&
+          (line.includes('Error') || line.includes('error') || line.includes('failed') || line.includes('Failed'))
+        );
+        if (errorLines.length > 0) {
+          errorMessage = errorLines.join('; ');
+        } else {
+          errorMessage = error.stderr.substring(0, 200); // Limit length
+        }
+      }
+      
       results.push({
         name: seedScript.name,
         success: false,
