@@ -254,9 +254,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      // If user doesn't exist in our database, try to sync from Clerk
+      // If user doesn't exist in our database after middleware sync, try one more time
+      // This handles edge cases where sync might have failed in middleware
       if (!user) {
-        console.log(`User not found in database, attempting to sync from Clerk: ${userId}`, {
+        console.log(`User not found in database after middleware sync, attempting fallback sync: ${userId}`, {
           hasSessionClaims: !!(req.auth as any)?.sessionClaims,
           environment: process.env.NODE_ENV,
           timestamp: new Date().toISOString(),
@@ -268,24 +269,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
           user = await syncClerkUserToDatabase(userId, sessionClaims);
           const syncDuration = Date.now() - syncStartTime;
           
-          // If sync succeeded but user is still null, log warning
+          // If sync succeeded but user is still null, log warning and try one more fetch
           if (!user) {
             console.error(`Sync completed but user is still null for ${userId}. This should not happen.`, {
               syncDuration,
               environment: process.env.NODE_ENV,
               timestamp: new Date().toISOString(),
             });
-            // Try one more time to get the user
+            // Try one more time to get the user (might be a timing issue)
             try {
+              // Wait a bit for database to catch up
+              await new Promise(resolve => setTimeout(resolve, 100));
               user = await storage.getUser(userId);
               if (user) {
                 console.log(`User found on retry for ${userId}`);
+              } else {
+                console.error(`User still not found after retry for ${userId}. This indicates a sync failure.`);
+                return res.status(500).json({ 
+                  message: "User sync failed. Please try refreshing the page." 
+                });
               }
             } catch (retryError: any) {
               console.error(`Retry getUser also failed for ${userId}:`, retryError.message);
+              return res.status(500).json({ 
+                message: "Failed to retrieve user after sync. Please try refreshing the page." 
+              });
             }
           } else {
-            console.log(`Successfully synced user ${userId} in ${syncDuration}ms`);
+            console.log(`Successfully synced user ${userId} in ${syncDuration}ms (fallback sync)`);
           }
         } catch (syncError: any) {
           const errorDetails = {
@@ -301,7 +312,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             timestamp: new Date().toISOString(),
           };
           
-          console.error("Error syncing user from Clerk:", errorDetails);
+          console.error("Error syncing user from Clerk (fallback):", errorDetails);
           
           // If sync fails (e.g., deleted user), return appropriate error
           if (syncError.message?.includes("deleted")) {
@@ -319,26 +330,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             });
           }
           
-          // If Clerk API call failed but we have partial data, log and return null
-          // The user will be created on the next successful sync
-          if (syncError.message?.includes("Failed to fetch user from Clerk")) {
-            console.warn(`Clerk API unavailable for user ${userId}, returning null. User will be synced on next request.`, {
-              environment: process.env.NODE_ENV,
-              timestamp: new Date().toISOString(),
-            });
-            return res.json(null);
-          }
-          
-          // For other sync errors, return null (user will be created on next request)
-          // Don't return 500 - this allows the frontend to handle gracefully
-          // But log extensively for production debugging
-          console.error(`Sync failed for user ${userId}, returning null. Error: ${syncError.message}`, {
-            environment: process.env.NODE_ENV,
-            timestamp: new Date().toISOString(),
-            errorType: syncError.constructor?.name,
-            ...errorDetails,
+          // For other sync errors, return 500 with helpful message
+          // Don't return null - this causes confusion in the frontend
+          return res.status(500).json({ 
+            message: "Failed to sync user. Please try refreshing the page.",
+            error: process.env.NODE_ENV === 'development' ? syncError.message : undefined
           });
-          return res.json(null);
         }
       }
       
