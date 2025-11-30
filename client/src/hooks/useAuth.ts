@@ -1,7 +1,7 @@
 import { useUser as useClerkUser, useAuth as useClerkAuth } from "@clerk/clerk-react";
 import { useQuery } from "@tanstack/react-query";
 import type { User as DbUser } from "@shared/schema";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 
 /**
  * useAuth
@@ -83,28 +83,82 @@ export function useAuth() {
     }
   }, [clerkLoaded, clerkError]);
 
-  const { data: dbUser, isLoading: dbLoading, error: dbError } = useQuery<DbUser | null>({
+  const { data: dbUser, isLoading: dbLoading, error: dbError, isFetching } = useQuery<DbUser | null>({
     queryKey: ["/api/auth/user"],
     retry: 2, // Retry up to 2 times on failure
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 3000), // Exponential backoff
     enabled: clerkLoaded && isSignedIn,
   });
 
+  // Track null responses to avoid false positive error logs during sync
+  const nullResponseTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const hasLoggedNullErrorRef = useRef(false);
+
   // Log errors and null responses for debugging
   useEffect(() => {
     if (dbError) {
       console.error("Error fetching user from database:", dbError);
+      // Reset null error tracking on actual error
+      hasLoggedNullErrorRef.current = false;
+      if (nullResponseTimeoutRef.current) {
+        clearTimeout(nullResponseTimeoutRef.current);
+        nullResponseTimeoutRef.current = null;
+      }
+      return;
     }
-    // Log when we get null response but user is authenticated with Clerk
-    // This indicates a sync failure that needs investigation
-    if (clerkLoaded && isSignedIn && !dbLoading && dbUser === null && !dbError) {
-      console.error("User authenticated with Clerk but database returned null. This may indicate a sync failure.", {
-        clerkUserId: clerkUser?.id,
-        clerkEmail: clerkUser?.primaryEmailAddress?.emailAddress,
-        timestamp: new Date().toISOString(),
-      });
+
+    // If user loads successfully, reset tracking
+    if (dbUser !== null) {
+      hasLoggedNullErrorRef.current = false;
+      if (nullResponseTimeoutRef.current) {
+        clearTimeout(nullResponseTimeoutRef.current);
+        nullResponseTimeoutRef.current = null;
+      }
+      return;
     }
-  }, [dbError, dbUser, clerkLoaded, isSignedIn, dbLoading, clerkUser]);
+
+    // Only log null response error if:
+    // 1. Clerk is loaded and user is signed in
+    // 2. Query has finished loading (not loading, not fetching)
+    // 3. Result is null
+    // 4. No error occurred
+    // 5. We haven't already logged this error
+    // 6. We wait a bit to allow for async sync to complete
+    if (
+      clerkLoaded &&
+      isSignedIn &&
+      !dbLoading &&
+      !isFetching &&
+      dbUser === null &&
+      !dbError &&
+      !hasLoggedNullErrorRef.current &&
+      !nullResponseTimeoutRef.current
+    ) {
+      // Wait 3 seconds before logging to allow for async sync operations
+      // This prevents false positives when the endpoint is still syncing the user
+      nullResponseTimeoutRef.current = setTimeout(() => {
+        // Double-check conditions before logging (user might have loaded during the delay)
+        // Use the latest values by checking the query state again
+        if (clerkLoaded && isSignedIn && dbUser === null && !dbError) {
+          console.error("User authenticated with Clerk but database returned null. This may indicate a sync failure.", {
+            clerkUserId: clerkUser?.id,
+            clerkEmail: clerkUser?.primaryEmailAddress?.emailAddress,
+            timestamp: new Date().toISOString(),
+          });
+          hasLoggedNullErrorRef.current = true;
+        }
+        nullResponseTimeoutRef.current = null;
+      }, 3000); // 3 second delay to allow sync to complete
+    }
+
+    // Cleanup timeout on unmount or when conditions change
+    return () => {
+      if (nullResponseTimeoutRef.current) {
+        clearTimeout(nullResponseTimeoutRef.current);
+        nullResponseTimeoutRef.current = null;
+      }
+    };
+  }, [dbError, dbUser, clerkLoaded, isSignedIn, dbLoading, isFetching, clerkUser]);
 
   // isLoading: true when:
   // - Clerk is not loaded yet (and not timed out), OR
