@@ -132,6 +132,14 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const needsTermsAcceptance = useTermsAcceptanceCheck();
   const [termsDialogOpen, setTermsDialogOpen] = React.useState(false);
 
+  // Show terms acceptance dialog if needed (block access until accepted)
+  // MUST be called before any early returns to follow React hooks rules
+  React.useEffect(() => {
+    if (!isLoading && user && needsTermsAcceptance) {
+      setTermsDialogOpen(true);
+    }
+  }, [isLoading, user, needsTermsAcceptance]);
+
   // If Clerk is still loading, show loading indicator
   if (!_clerk.clerkLoaded) {
     return (
@@ -153,13 +161,6 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   if (needsApproval) {
     return <PendingApproval />;
   }
-
-  // Show terms acceptance dialog if needed (block access until accepted)
-  React.useEffect(() => {
-    if (!isLoading && user && needsTermsAcceptance) {
-      setTermsDialogOpen(true);
-    }
-  }, [isLoading, user, needsTermsAcceptance]);
 
   // Block access if terms need to be accepted
   if (needsTermsAcceptance && !isLoading && user) {
@@ -195,6 +196,14 @@ function RootRoute() {
   const needsTermsAcceptance = useTermsAcceptanceCheck();
   const [termsDialogOpen, setTermsDialogOpen] = React.useState(false);
 
+  // Show terms acceptance dialog if needed (block access until accepted)
+  // MUST be called before any early returns to follow React hooks rules
+  React.useEffect(() => {
+    if (!isLoading && user && needsTermsAcceptance) {
+      setTermsDialogOpen(true);
+    }
+  }, [isLoading, user, needsTermsAcceptance]);
+
   // If Clerk is still loading, show loading indicator
   if (!_clerk.clerkLoaded) {
     return (
@@ -225,13 +234,6 @@ function RootRoute() {
     if (needsApproval) {
       return <PendingApproval />;
     }
-
-    // Show terms acceptance dialog if needed (block access until accepted)
-    React.useEffect(() => {
-      if (!isLoading && user && needsTermsAcceptance) {
-        setTermsDialogOpen(true);
-      }
-    }, [isLoading, user, needsTermsAcceptance]);
 
     // Block access if terms need to be accepted
     if (needsTermsAcceptance && !isLoading && user) {
