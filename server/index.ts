@@ -34,11 +34,8 @@ import { errorHandler, notFoundHandler } from "./errorHandler";
 
 const app = express();
 
-// Sentry request handler must be the first middleware
-if (process.env.SENTRY_DSN) {
-  app.use(Sentry.Handlers.requestHandler());
-  app.use(Sentry.Handlers.tracingHandler());
-}
+// Sentry expressIntegration() automatically handles request and tracing middleware
+// No need to manually add requestHandler() or tracingHandler() in v8+
 
 // Trust proxy for rate limiting IP detection (important for production behind load balancers)
 app.set('trust proxy', 1);
@@ -151,12 +148,9 @@ app.use((req, res, next) => {
     return;
   });
 
-  // Sentry error handler must be before the final error handler
-  if (process.env.SENTRY_DSN) {
-    app.use(Sentry.Handlers.errorHandler());
-  }
-
   // Error handler - must be last
+  // Note: Sentry error capture is handled in the custom errorHandler middleware
+  // The expressIntegration() already handles request/tracing automatically
   app.use(errorHandler);
 
   // ALWAYS serve the app on the port specified in the environment variable PORT

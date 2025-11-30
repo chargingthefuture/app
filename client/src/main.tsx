@@ -13,23 +13,36 @@ if (sentryDsn) {
     // For example, automatic IP address collection on events
     sendDefaultPii: true,
     integrations: [
+      // Performance Monitoring: Automatically instruments browser performance
+      // Tracks page loads, navigation, and user interactions
       Sentry.browserTracingIntegration(),
+      // Session Replay: Records user sessions for debugging
       Sentry.replayIntegration(),
     ],
-    // Tracing
+    // Performance Tracing Configuration
+    // Set tracesSampleRate to 1.0 to capture 100% of transactions for performance monitoring
+    // We recommend adjusting this value in production to reduce data volume
     tracesSampleRate: import.meta.env.PROD ? 0.1 : 1.0, // 10% in production, 100% in development
-    // Set 'tracePropagationTargets' to control for which URLs distributed tracing should be enabled
+    
+    // Distributed Tracing: Enable trace propagation for API calls
+    // This allows you to trace requests from frontend to backend
+    // Set `tracePropagationTargets` to control for which URLs distributed tracing should be enabled
     tracePropagationTargets: [
       "localhost",
-      /^https:\/\/.*\.railway\.app/,
-      /^https:\/\/.*\.the-comic\.com/,
-      /^https:\/\/app\.chargingthefuture\.com/,
+      /^https?:\/\/.*\.railway\.app/, // Railway deployments
+      /^https?:\/\/.*\.the-comic\.com/, // Production domain
+      /^https?:\/\/app\.chargingthefuture\.com/, // Staging domain
+      // Include all API routes for distributed tracing
+      /^https?:\/\/.*\/api\//, // All API endpoints
     ],
-    // Session Replay
+    
+    // Session Replay Configuration
     replaysSessionSampleRate: import.meta.env.PROD ? 0.1 : 1.0, // 10% in production, 100% in development
-    replaysOnErrorSampleRate: 1.0, // If you're not already sampling the entire session, change the sample rate to 100% when sampling sessions where errors occur.
+    replaysOnErrorSampleRate: 1.0, // 100% of sessions with errors are recorded
+    
     // Environment detection
     environment: import.meta.env.MODE || "development",
+    
     // Enable logs to be sent to Sentry
     enableLogs: true,
   });
