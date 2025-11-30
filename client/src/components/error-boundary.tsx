@@ -6,6 +6,7 @@
  */
 
 import React, { Component, ErrorInfo, ReactNode } from 'react';
+import * as Sentry from '@sentry/react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -47,15 +48,22 @@ export class ErrorBoundary extends Component<Props, State> {
       console.error('Error caught by boundary:', error, errorInfo);
     }
 
+    // Send to Sentry
+    Sentry.captureException(error, {
+      contexts: {
+        react: {
+          componentStack: errorInfo.componentStack,
+        },
+      },
+      extra: {
+        errorInfo,
+      },
+    });
+
     // Call custom error handler if provided
     if (this.props.onError) {
       this.props.onError(error, errorInfo);
     }
-
-    // TODO: Send to error reporting service (e.g., Sentry) in production
-    // if (process.env.NODE_ENV === 'production') {
-    //   Sentry.captureException(error, { extra: errorInfo });
-    // }
 
     this.setState({
       errorInfo,

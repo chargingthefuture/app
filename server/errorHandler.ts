@@ -6,6 +6,7 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
+import * as Sentry from '@sentry/node';
 import { AppError, normalizeError, isAppError, ErrorCode } from './errors';
 import { logError } from './errorLogger';
 
@@ -21,6 +22,26 @@ export function errorHandler(
 ): void {
   // Normalize error to AppError
   const error = normalizeError(err);
+
+  // Send to Sentry (only for non-operational errors or all errors in production)
+  if (process.env.SENTRY_DSN && (!error.isOperational || process.env.NODE_ENV === 'production')) {
+    Sentry.captureException(error, {
+      tags: {
+        errorCode: error.code,
+        isOperational: error.isOperational,
+      },
+      extra: {
+        statusCode: error.statusCode,
+        details: error.details,
+        path: req.path,
+        method: req.method,
+      },
+      user: {
+        id: (req as any).user?.id,
+        email: (req as any).user?.email,
+      },
+    });
+  }
 
   // Log error with request context
   logError(error, req);
