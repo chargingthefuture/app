@@ -38,6 +38,7 @@ const BLOCKED_PATH_PATTERNS = [
   /^\/package\.json$/,    // Expose package info (block it)
   /^\/package-lock\.json$/, // Expose package info (block it)
   /^\/yarn\.lock$/,       // Expose package info (block it)
+  /^\/admin\//,           // Legit admin route
 ];
 
 /**
