@@ -889,6 +889,87 @@ CREATE TABLE IF NOT EXISTS chyme_announcements (
 );
 
 -- ========================================
+-- WORKFORCE RECRUITER APP TABLES
+-- ========================================
+
+CREATE TABLE IF NOT EXISTS workforce_recruiter_profiles (
+  id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id VARCHAR NOT NULL UNIQUE REFERENCES users(id),
+  display_name VARCHAR(120) NOT NULL,
+  headline VARCHAR(200),
+  summary TEXT,
+  availability_status VARCHAR(40) NOT NULL DEFAULT 'immediately_available',
+  preferred_work_setting VARCHAR(20) NOT NULL DEFAULT 'remote',
+  preferred_role_types TEXT,
+  years_experience INTEGER,
+  primary_skills TEXT,
+  support_needs TEXT,
+  focus_areas TEXT,
+  languages TEXT,
+  city VARCHAR(120),
+  state VARCHAR(120),
+  country VARCHAR(120),
+  timezone VARCHAR(100),
+  open_to_remote BOOLEAN NOT NULL DEFAULT true,
+  open_to_relocation BOOLEAN NOT NULL DEFAULT false,
+  profile_visibility BOOLEAN NOT NULL DEFAULT true,
+  highlighted_industries TEXT,
+  resume_url TEXT,
+  portfolio_url TEXT,
+  signal_url TEXT,
+  safety_notes TEXT,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS workforce_recruiter_config (
+  id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+  is_portal_open BOOLEAN NOT NULL DEFAULT true,
+  max_active_applications INTEGER NOT NULL DEFAULT 3,
+  highlight_message TEXT,
+  support_email VARCHAR(200),
+  emergency_signal_number VARCHAR(50),
+  application_guidelines TEXT,
+  featured_regions TEXT,
+  training_partners TEXT,
+  auto_share_profile_with_allies BOOLEAN NOT NULL DEFAULT false,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS workforce_recruiter_occupations (
+  id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+  title VARCHAR(150) NOT NULL,
+  category VARCHAR(100) NOT NULL,
+  description TEXT,
+  demand_level VARCHAR(20) NOT NULL DEFAULT 'medium',
+  required_skills TEXT,
+  support_provided TEXT,
+  training_duration_weeks INTEGER,
+  open_roles INTEGER NOT NULL DEFAULT 0,
+  candidates_ready INTEGER NOT NULL DEFAULT 0,
+  avg_hourly_rate DECIMAL(10, 2),
+  region_focus VARCHAR(120),
+  application_url TEXT,
+  is_priority_role BOOLEAN NOT NULL DEFAULT false,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS workforce_recruiter_announcements (
+  id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+  title VARCHAR(200) NOT NULL,
+  content TEXT NOT NULL,
+  type VARCHAR(50) NOT NULL DEFAULT 'info',
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  target_audience VARCHAR(50) NOT NULL DEFAULT 'all',
+  expires_at TIMESTAMP,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+-- ========================================
 -- ADD FOREIGN KEY CONSTRAINTS (after all tables are created)
 -- ========================================
 
