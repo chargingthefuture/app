@@ -440,6 +440,7 @@ export const lighthouseProfiles = pgTable("lighthouse_profiles", {
   moveInDate: timestamp("move_in_date"),
   budgetMin: decimal("budget_min", { precision: 10, scale: 2 }),
   budgetMax: decimal("budget_max", { precision: 10, scale: 2 }),
+  desiredCountry: varchar("desired_country", { length: 100 }), // Country where they want housing
   
   // For hosts
   hasProperty: boolean("has_property").default(false),

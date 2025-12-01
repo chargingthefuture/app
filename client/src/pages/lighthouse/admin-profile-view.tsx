@@ -192,6 +192,13 @@ export default function LighthouseAdminProfileView() {
                   </p>
                 </div>
               )}
+
+              {profile.desiredCountry && (
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Desired Country</label>
+                  <p className="text-base">{profile.desiredCountry}</p>
+                </div>
+              )}
             </>
           )}
 

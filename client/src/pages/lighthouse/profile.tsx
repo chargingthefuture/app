@@ -12,18 +12,22 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { insertLighthouseProfileSchema, type LighthouseProfile } from "@shared/schema";
 import { useEffect, useState } from "react";
-import { Home, ExternalLink } from "lucide-react";
+import { Home, ExternalLink, Check as CheckIcon } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { DeleteProfileDialog } from "@/components/delete-profile-dialog";
 import { useLocation } from "wouter";
 import { useExternalLink } from "@/hooks/useExternalLink";
 import { MiniAppBackButton } from "@/components/mini-app-back-button";
+import { COUNTRIES } from "@/lib/countries";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
 
 export default function LighthouseProfilePage() {
   const { toast } = useToast();
   const { isAdmin } = useAuth();
   const [, setLocation] = useLocation();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [desiredCountryOpen, setDesiredCountryOpen] = useState(false);
   const { openExternal, ExternalLinkDialog } = useExternalLink();
   const { data: profile, isLoading } = useQuery<LighthouseProfile | null>({
     queryKey: ["/api/lighthouse/profile"],
@@ -37,6 +41,7 @@ export default function LighthouseProfilePage() {
           moveInDate: insertLighthouseProfileSchema.shape.moveInDate.optional().nullable(),
           budgetMin: insertLighthouseProfileSchema.shape.budgetMin.optional().nullable(),
           budgetMax: insertLighthouseProfileSchema.shape.budgetMax.optional().nullable(),
+          desiredCountry: insertLighthouseProfileSchema.shape.desiredCountry.optional().nullable(),
         })
     ),
     defaultValues: {
@@ -49,6 +54,7 @@ export default function LighthouseProfilePage() {
       moveInDate: null,
       budgetMin: null,
       budgetMax: null,
+      desiredCountry: null,
       hasProperty: false,
       isActive: true,
     },
@@ -67,6 +73,7 @@ export default function LighthouseProfilePage() {
         moveInDate: profile.moveInDate ? new Date(profile.moveInDate) : null,
         budgetMin: profile.budgetMin ?? null,
         budgetMax: profile.budgetMax ?? null,
+        desiredCountry: profile.desiredCountry || null,
         hasProperty: profile.hasProperty || false,
         isActive: profile.isActive,
       } as any);
@@ -140,6 +147,7 @@ export default function LighthouseProfilePage() {
       ...data,
       signalUrl: data.signalUrl === "" ? null : data.signalUrl,
       phoneNumber: data.phoneNumber === "" ? null : data.phoneNumber,
+      desiredCountry: data.desiredCountry === "" ? null : data.desiredCountry,
     };
     
     if (profile) {
@@ -345,6 +353,54 @@ export default function LighthouseProfilePage() {
                             data-testid="input-moveInDate"
                           />
                         </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="desiredCountry"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Desired Country (Optional)</FormLabel>
+                        <Popover open={desiredCountryOpen} onOpenChange={setDesiredCountryOpen}>
+                          <PopoverTrigger asChild>
+                            <FormControl>
+                              <Button
+                                variant="outline"
+                                role="combobox"
+                                className="w-full justify-between"
+                                data-testid="select-desiredCountry"
+                              >
+                                {field.value || "Select country"}
+                                <CheckIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                              </Button>
+                            </FormControl>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-full p-0" align="start">
+                            <Command shouldFilter>
+                              <CommandInput placeholder="Search countries…" />
+                              <CommandEmpty>No countries found.</CommandEmpty>
+                              <CommandGroup>
+                                {COUNTRIES.map((country) => (
+                                  <CommandItem
+                                    key={country}
+                                    value={country}
+                                    onSelect={() => {
+                                      field.onChange(country);
+                                      setDesiredCountryOpen(false);
+                                    }}
+                                    data-testid={`combo-desiredCountry-item-${country}`}
+                                  >
+                                    <CheckIcon className={`mr-2 h-4 w-4 ${field.value === country ? "opacity-100" : "opacity-0"}`} />
+                                    <span>{country}</span>
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
                         <FormMessage />
                       </FormItem>
                     )}

@@ -173,6 +173,7 @@ CREATE TABLE IF NOT EXISTS lighthouse_profiles (
   move_in_date TIMESTAMP,
   budget_min DECIMAL(10, 2),
   budget_max DECIMAL(10, 2),
+  desired_country VARCHAR(100),
   has_property BOOLEAN DEFAULT false,
   is_verified BOOLEAN DEFAULT false NOT NULL,
   is_active BOOLEAN DEFAULT true NOT NULL,
