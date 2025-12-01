@@ -930,19 +930,6 @@ function AppContent() {
   const { user, isAuthenticated, isLoading } = useAuth();
   const needsApproval = user && !user.isApproved && !user.isAdmin;
 
-  // Update Sentry user context when authentication state changes
-  // This enables tracking of user adoption metrics (crash-free rate, release adoption)
-  React.useEffect(() => {
-    if (user) {
-      setSentryUser({
-        id: user.id,
-        email: user.email || null,
-      });
-    } else {
-      setSentryUser(null);
-    }
-  }, [user]);
-
   // Sidebar width customization for better content display
   const style = {
     "--sidebar-width": "16rem",
