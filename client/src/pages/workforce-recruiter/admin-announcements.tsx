@@ -25,9 +25,9 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { ChymeAnnouncement } from "@shared/schema";
+import type { WorkforceRecruiterAnnouncement } from "@shared/schema";
 import { format } from "date-fns";
-import { AlertCircle, Info, Wrench, Bell, Megaphone, Plus, Trash2, ArrowLeft } from "lucide-react";
+import { AlertCircle, Info, Wrench, Bell, Megaphone, Trash2, ArrowLeft } from "lucide-react";
 import { Link } from "wouter";
 import { MiniAppBackButton } from "@/components/mini-app-back-button";
 import { AnnouncementDisplay } from "@/components/announcement-display";
@@ -41,12 +41,12 @@ const announcementFormSchema = z.object({
 
 type AnnouncementFormValues = z.infer<typeof announcementFormSchema>;
 
-export default function ChymeAdminAnnouncements() {
+export default function WorkforceRecruiterAdminAnnouncements() {
   const { toast } = useToast();
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  const { data: announcements, isLoading } = useQuery<ChymeAnnouncement[]>({
-    queryKey: ["/api/chyme/admin/announcements"],
+  const { data: announcements, isLoading } = useQuery<WorkforceRecruiterAnnouncement[]>({
+    queryKey: ["/api/workforce-recruiter/admin/announcements"],
   });
 
   const form = useForm<AnnouncementFormValues>({
@@ -65,11 +65,11 @@ export default function ChymeAdminAnnouncements() {
         ...data,
         expiresAt: data.expiresAt ? new Date(data.expiresAt) : undefined,
       };
-      return apiRequest("POST", "/api/chyme/admin/announcements", payload);
+      return apiRequest("POST", "/api/workforce-recruiter/admin/announcements", payload);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/chyme/admin/announcements"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/chyme/announcements"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/workforce-recruiter/admin/announcements"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/workforce-recruiter/announcements"] });
       form.reset();
       toast({
         title: "Success",
@@ -91,11 +91,11 @@ export default function ChymeAdminAnnouncements() {
         ...data,
         expiresAt: data.expiresAt ? new Date(data.expiresAt) : undefined,
       };
-      return apiRequest("PUT", `/api/chyme/admin/announcements/${id}`, payload);
+      return apiRequest("PUT", `/api/workforce-recruiter/admin/announcements/${id}`, payload);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/chyme/admin/announcements"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/chyme/announcements"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/workforce-recruiter/admin/announcements"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/workforce-recruiter/announcements"] });
       form.reset();
       setEditingId(null);
       toast({
@@ -114,11 +114,11 @@ export default function ChymeAdminAnnouncements() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      return apiRequest("DELETE", `/api/chyme/admin/announcements/${id}`);
+      return apiRequest("DELETE", `/api/workforce-recruiter/admin/announcements/${id}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/chyme/admin/announcements"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/chyme/announcements"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/workforce-recruiter/admin/announcements"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/workforce-recruiter/announcements"] });
       toast({
         title: "Success",
         description: "Announcement deleted successfully",
@@ -133,7 +133,7 @@ export default function ChymeAdminAnnouncements() {
     },
   });
 
-  const handleEdit = (announcement: ChymeAnnouncement) => {
+  const handleEdit = (announcement: WorkforceRecruiterAnnouncement) => {
     setEditingId(announcement.id);
     form.reset({
       title: announcement.title,
@@ -182,11 +182,11 @@ export default function ChymeAdminAnnouncements() {
   return (
     <div className="p-6 md:p-8 space-y-8">
       <div className="flex items-center gap-4">
-        <MiniAppBackButton href="/apps/chyme/admin" />
+        <MiniAppBackButton href="/apps/workforce-recruiter/admin" />
         <div>
           <h1 className="text-3xl md:text-4xl font-semibold">Manage Announcements</h1>
           <p className="text-muted-foreground">
-            Create and manage Chyme announcements
+            Create and manage Workforce Recruiter Tracker announcements
           </p>
         </div>
       </div>
@@ -356,27 +356,6 @@ export default function ChymeAdminAnnouncements() {
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

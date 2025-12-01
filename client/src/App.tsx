@@ -115,6 +115,13 @@ import ChymeRoom from "@/pages/chyme/room";
 import ChymeAdmin from "@/pages/chyme/admin";
 import ChymeAdminAnnouncements from "@/pages/chyme/admin-announcements";
 import ChymeAdminRoomForm from "@/pages/chyme/admin-room-form";
+import WorkforceRecruiterDashboard from "@/pages/workforce-recruiter/dashboard";
+import WorkforceRecruiterProfile from "@/pages/workforce-recruiter/profile";
+import WorkforceRecruiterOccupations from "@/pages/workforce-recruiter/occupations";
+import WorkforceRecruiterOccupationDetail from "@/pages/workforce-recruiter/occupation-detail";
+import WorkforceRecruiterReports from "@/pages/workforce-recruiter/reports";
+import WorkforceRecruiterAdmin from "@/pages/workforce-recruiter/admin";
+import WorkforceRecruiterAdminAnnouncements from "@/pages/workforce-recruiter/admin-announcements";
 import { GentlePulseBottomNav } from "@/components/gentlepulse/bottom-nav";
 import { SupportMatchBottomNav } from "@/components/supportmatch/bottom-nav";
 import { LighthouseBottomNav } from "@/components/lighthouse/bottom-nav";
@@ -918,6 +925,43 @@ function Router() {
       <Route path="/apps/chyme/admin/rooms/:id/edit">
         <ProtectedRoute>
           <ChymeAdminRoomForm />
+        </ProtectedRoute>
+      </Route>
+
+      {/* Workforce Recruiter Tracker Routes */}
+      <Route path="/apps/workforce-recruiter">
+        <ProtectedRoute>
+          <WorkforceRecruiterDashboard />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/workforce-recruiter/profile">
+        <ProtectedRoute>
+          <WorkforceRecruiterProfile />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/workforce-recruiter/occupations">
+        <ProtectedRoute>
+          <WorkforceRecruiterOccupations />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/workforce-recruiter/occupations/:id">
+        <ProtectedRoute>
+          <WorkforceRecruiterOccupationDetail />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/workforce-recruiter/reports">
+        <ProtectedRoute>
+          <WorkforceRecruiterReports />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/workforce-recruiter/admin">
+        <ProtectedRoute>
+          <WorkforceRecruiterAdmin />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/workforce-recruiter/admin/announcements">
+        <ProtectedRoute>
+          <WorkforceRecruiterAdminAnnouncements />
         </ProtectedRoute>
       </Route>
       

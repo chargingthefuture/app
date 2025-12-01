@@ -18,7 +18,8 @@ import {
   Mail,
   Search,
   HeartPulse,
-  Video
+  Video,
+  Briefcase
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useClerk } from "@clerk/clerk-react";
@@ -139,6 +140,12 @@ const baseAdminMenuItems = [
     testId: "link-chyme-admin",
   },
   {
+    title: "Workforce Recruiter Tracker Admin",
+    url: "/apps/workforce-recruiter/admin",
+    icon: Briefcase,
+    testId: "link-workforce-recruiter-admin",
+  },
+  {
     title: "Video to GIF",
     url: "/admin/video-to-gif",
     icon: Video,
@@ -200,6 +207,12 @@ const miniAppMenuItems = [
     icon: Radio,
     testId: "link-chyme",
     showBeta: true,
+  },
+  {
+    title: "Workforce Recruiter Tracker",
+    url: "/apps/workforce-recruiter",
+    icon: Briefcase,
+    testId: "link-workforce-recruiter",
   },
   {
     title: "LightHouse",

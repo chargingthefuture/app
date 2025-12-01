@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "wouter";
-import { UserCheck, Building2, ArrowRight, MessageCircle, Wrench, Mail, Search, HeartPulse, Radio, Car} from "lucide-react";
+import { UserCheck, Building2, ArrowRight, MessageCircle, Wrench, Mail, Search, HeartPulse, Radio, Car, Briefcase} from "lucide-react";
 
 const services = [
   {
@@ -18,6 +18,13 @@ const services = [
     icon: Radio,
     href: "/apps/chyme",
     testId: "card-service-chyme",
+  },
+  {
+    title: "Workforce Recruiter Tracker",
+    description: "Track recruitment and distribution of workforce for the community. Monitor occupations, skill levels, and annual training capacity targets.",
+    icon: Briefcase,
+    href: "/apps/workforce-recruiter",
+    testId: "card-service-workforce-recruiter",
   },
   {
     title: "Directory",

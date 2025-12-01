@@ -172,6 +172,21 @@ import {
   chymeAnnouncements,
   type ChymeProfile,
   type InsertChymeProfile,
+  workforceRecruiterProfiles,
+  workforceRecruiterConfig,
+  workforceRecruiterOccupations,
+  workforceRecruiterRecruitmentEvents,
+  workforceRecruiterAnnouncements,
+  type WorkforceRecruiterProfile,
+  type InsertWorkforceRecruiterProfile,
+  type WorkforceRecruiterConfig,
+  type InsertWorkforceRecruiterConfig,
+  type WorkforceRecruiterOccupation,
+  type InsertWorkforceRecruiterOccupation,
+  type WorkforceRecruiterRecruitmentEvent,
+  type InsertWorkforceRecruiterRecruitmentEvent,
+  type WorkforceRecruiterAnnouncement,
+  type InsertWorkforceRecruiterAnnouncement,
   type ChymeRoom,
   type InsertChymeRoom,
   type ChymeRoomParticipant,
@@ -722,12 +737,67 @@ export interface IStorage {
   updateChymeAnnouncement(id: string, announcement: Partial<InsertChymeAnnouncement>): Promise<ChymeAnnouncement>;
   deactivateChymeAnnouncement(id: string): Promise<ChymeAnnouncement>;
 
+  // ========================================
+  // WORKFORCE RECRUITER TRACKER OPERATIONS
+  // ========================================
+
+  // Workforce Recruiter Tracker Profile operations
+  getWorkforceRecruiterProfile(userId: string): Promise<WorkforceRecruiterProfile | undefined>;
+  createWorkforceRecruiterProfile(profile: InsertWorkforceRecruiterProfile): Promise<WorkforceRecruiterProfile>;
+  updateWorkforceRecruiterProfile(userId: string, profile: Partial<InsertWorkforceRecruiterProfile>): Promise<WorkforceRecruiterProfile>;
+  deleteWorkforceRecruiterProfile(userId: string, reason?: string): Promise<void>;
+
+  // Workforce Recruiter Tracker Config operations
+  getWorkforceRecruiterConfig(): Promise<WorkforceRecruiterConfig | undefined>;
+  updateWorkforceRecruiterConfig(config: Partial<InsertWorkforceRecruiterConfig>): Promise<WorkforceRecruiterConfig>;
+  createWorkforceRecruiterConfig(config: InsertWorkforceRecruiterConfig): Promise<WorkforceRecruiterConfig>;
+
+  // Workforce Recruiter Tracker Occupation operations
+  getWorkforceRecruiterOccupation(id: string): Promise<WorkforceRecruiterOccupation | undefined>;
+  getAllWorkforceRecruiterOccupations(filters?: {
+    sector?: string;
+    skillLevel?: 'Low' | 'Medium' | 'High';
+    limit?: number;
+    offset?: number;
+  }): Promise<{ occupations: WorkforceRecruiterOccupation[]; total: number }>;
+  createWorkforceRecruiterOccupation(occupation: InsertWorkforceRecruiterOccupation): Promise<WorkforceRecruiterOccupation>;
+  updateWorkforceRecruiterOccupation(id: string, occupation: Partial<InsertWorkforceRecruiterOccupation>): Promise<WorkforceRecruiterOccupation>;
+  deleteWorkforceRecruiterOccupation(id: string): Promise<void>;
+
+  // Workforce Recruiter Tracker Recruitment Event operations
+  createWorkforceRecruiterRecruitmentEvent(event: InsertWorkforceRecruiterRecruitmentEvent): Promise<WorkforceRecruiterRecruitmentEvent>;
+  getWorkforceRecruiterRecruitmentEvents(filters?: {
+    occupationId?: string;
+    startDate?: Date;
+    endDate?: Date;
+    limit?: number;
+    offset?: number;
+  }): Promise<{ events: WorkforceRecruiterRecruitmentEvent[]; total: number }>;
+
+  // Workforce Recruiter Tracker Reports
+  getWorkforceRecruiterSummaryReport(): Promise<{
+    totalWorkforceTarget: number;
+    totalCurrentRecruited: number;
+    percentRecruited: number;
+    sectorBreakdown: Array<{ sector: string; target: number; recruited: number; percent: number }>;
+    skillLevelBreakdown: Array<{ skillLevel: string; target: number; recruited: number; percent: number }>;
+    annualTrainingGap: Array<{ occupationId: string; occupationTitle: string; sector: string; target: number; actual: number; gap: number }>;
+  }>;
+
+  // Workforce Recruiter Tracker Announcement operations
+  createWorkforceRecruiterAnnouncement(announcement: InsertWorkforceRecruiterAnnouncement): Promise<WorkforceRecruiterAnnouncement>;
+  getActiveWorkforceRecruiterAnnouncements(): Promise<WorkforceRecruiterAnnouncement[]>;
+  getAllWorkforceRecruiterAnnouncements(): Promise<WorkforceRecruiterAnnouncement[]>;
+  updateWorkforceRecruiterAnnouncement(id: string, announcement: Partial<InsertWorkforceRecruiterAnnouncement>): Promise<WorkforceRecruiterAnnouncement>;
+  deactivateWorkforceRecruiterAnnouncement(id: string): Promise<WorkforceRecruiterAnnouncement>;
+
   // Profile deletion operations with cascade anonymization
   deleteSupportMatchProfile(userId: string, reason?: string): Promise<void>;
   deleteLighthouseProfile(userId: string, reason?: string): Promise<void>;
   deleteSocketrelayProfile(userId: string, reason?: string): Promise<void>;
   deleteDirectoryProfileWithCascade(userId: string, reason?: string): Promise<void>;
   deleteTrusttransportProfile(userId: string, reason?: string): Promise<void>;
+  deleteWorkforceRecruiterProfile(userId: string, reason?: string): Promise<void>;
   logProfileDeletion(userId: string, appName: string, reason?: string): Promise<ProfileDeletionLog>;
   
   // Complete account deletion - deletes user from all mini-apps and anonymizes all data
@@ -5863,6 +5933,373 @@ export class DatabaseStorage implements IStorage {
     return announcement;
   }
 
+  // ========================================
+  // WORKFORCE RECRUITER TRACKER IMPLEMENTATIONS
+  // ========================================
+
+  async getWorkforceRecruiterProfile(userId: string): Promise<WorkforceRecruiterProfile | undefined> {
+    const [profile] = await db
+      .select()
+      .from(workforceRecruiterProfiles)
+      .where(eq(workforceRecruiterProfiles.userId, userId));
+    return profile;
+  }
+
+  async createWorkforceRecruiterProfile(profileData: InsertWorkforceRecruiterProfile): Promise<WorkforceRecruiterProfile> {
+    const [profile] = await db
+      .insert(workforceRecruiterProfiles)
+      .values(profileData)
+      .returning();
+    return profile;
+  }
+
+  async updateWorkforceRecruiterProfile(userId: string, profileData: Partial<InsertWorkforceRecruiterProfile>): Promise<WorkforceRecruiterProfile> {
+    const [updated] = await db
+      .update(workforceRecruiterProfiles)
+      .set({ ...profileData, updatedAt: new Date() })
+      .where(eq(workforceRecruiterProfiles.userId, userId))
+      .returning();
+    return updated;
+  }
+
+  async deleteWorkforceRecruiterProfile(userId: string, reason?: string): Promise<void> {
+    const profile = await this.getWorkforceRecruiterProfile(userId);
+    if (!profile) {
+      throw new Error("Workforce Recruiter Tracker profile not found");
+    }
+
+    const anonymizedUserId = this.generateAnonymizedUserId();
+
+    // Anonymize related data (recruitment events created by user)
+    try {
+      await db
+        .update(workforceRecruiterRecruitmentEvents)
+        .set({ createdBy: anonymizedUserId })
+        .where(eq(workforceRecruiterRecruitmentEvents.createdBy, userId));
+    } catch (error: any) {
+      console.warn(`Failed to anonymize Workforce Recruiter Tracker related data: ${error.message}`);
+    }
+
+    // Delete the profile
+    await db.delete(workforceRecruiterProfiles).where(eq(workforceRecruiterProfiles.userId, userId));
+
+    // Log the deletion
+    await this.logProfileDeletion(userId, "workforce_recruiter", reason);
+  }
+
+  async getWorkforceRecruiterConfig(): Promise<WorkforceRecruiterConfig | undefined> {
+    const [config] = await db.select().from(workforceRecruiterConfig).limit(1);
+    return config;
+  }
+
+  async createWorkforceRecruiterConfig(configData: InsertWorkforceRecruiterConfig): Promise<WorkforceRecruiterConfig> {
+    const [config] = await db
+      .insert(workforceRecruiterConfig)
+      .values(configData)
+      .returning();
+    return config;
+  }
+
+  async updateWorkforceRecruiterConfig(configData: Partial<InsertWorkforceRecruiterConfig>): Promise<WorkforceRecruiterConfig> {
+    const existing = await this.getWorkforceRecruiterConfig();
+    if (!existing) {
+      // Create if doesn't exist
+      return await this.createWorkforceRecruiterConfig({
+        population: configData.population ?? 5000000,
+        workforceParticipationRate: configData.workforceParticipationRate ?? '0.5',
+        minRecruitable: configData.minRecruitable ?? 2000000,
+        maxRecruitable: configData.maxRecruitable ?? 5000000,
+      });
+    }
+    const [updated] = await db
+      .update(workforceRecruiterConfig)
+      .set({ ...configData, updatedAt: new Date() })
+      .where(eq(workforceRecruiterConfig.id, existing.id))
+      .returning();
+    return updated;
+  }
+
+  async getWorkforceRecruiterOccupation(id: string): Promise<WorkforceRecruiterOccupation | undefined> {
+    const [occupation] = await db
+      .select()
+      .from(workforceRecruiterOccupations)
+      .where(eq(workforceRecruiterOccupations.id, id));
+    return occupation;
+  }
+
+  async getAllWorkforceRecruiterOccupations(filters?: {
+    sector?: string;
+    skillLevel?: 'Low' | 'Medium' | 'High';
+    limit?: number;
+    offset?: number;
+  }): Promise<{ occupations: WorkforceRecruiterOccupation[]; total: number }> {
+    let query = db.select().from(workforceRecruiterOccupations);
+
+    const conditions = [];
+    if (filters?.sector) {
+      conditions.push(eq(workforceRecruiterOccupations.sector, filters.sector));
+    }
+    if (filters?.skillLevel) {
+      conditions.push(eq(workforceRecruiterOccupations.skillLevel, filters.skillLevel));
+    }
+
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as any;
+    }
+
+    const allOccupations = await query;
+    const total = allOccupations.length;
+
+    // Apply pagination
+    const limit = filters?.limit ?? 50;
+    const offset = filters?.offset ?? 0;
+    const occupations = allOccupations.slice(offset, offset + limit);
+
+    return { occupations, total };
+  }
+
+  async createWorkforceRecruiterOccupation(occupationData: InsertWorkforceRecruiterOccupation): Promise<WorkforceRecruiterOccupation> {
+    const [occupation] = await db
+      .insert(workforceRecruiterOccupations)
+      .values(occupationData)
+      .returning();
+    return occupation;
+  }
+
+  async updateWorkforceRecruiterOccupation(id: string, occupationData: Partial<InsertWorkforceRecruiterOccupation>): Promise<WorkforceRecruiterOccupation> {
+    const [updated] = await db
+      .update(workforceRecruiterOccupations)
+      .set({ ...occupationData, updatedAt: new Date() })
+      .where(eq(workforceRecruiterOccupations.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteWorkforceRecruiterOccupation(id: string): Promise<void> {
+    await db.delete(workforceRecruiterOccupations).where(eq(workforceRecruiterOccupations.id, id));
+  }
+
+  async createWorkforceRecruiterRecruitmentEvent(eventData: InsertWorkforceRecruiterRecruitmentEvent): Promise<WorkforceRecruiterRecruitmentEvent> {
+    // Use transaction to atomically update occupation and create event
+    return await db.transaction(async (tx) => {
+      // Create the event
+      const [event] = await tx
+        .insert(workforceRecruiterRecruitmentEvents)
+        .values(eventData)
+        .returning();
+
+      // Update occupation's currentRecruited count
+      const occupation = await tx
+        .select()
+        .from(workforceRecruiterOccupations)
+        .where(eq(workforceRecruiterOccupations.id, eventData.occupationId))
+        .limit(1);
+
+      if (occupation.length === 0) {
+        throw new Error("Occupation not found");
+      }
+
+      const newCount = occupation[0].currentRecruited + eventData.count;
+      
+      // Validate that new count doesn't exceed target (unless negative, which is allowed for attrition)
+      if (newCount > occupation[0].headcountTarget && eventData.count > 0) {
+        throw new Error(`Recruitment would exceed headcount target. Current: ${occupation[0].currentRecruited}, Target: ${occupation[0].headcountTarget}, Attempted: ${eventData.count}`);
+      }
+
+      // Prevent negative recruited count
+      if (newCount < 0) {
+        throw new Error("Recruited count cannot be negative");
+      }
+
+      await tx
+        .update(workforceRecruiterOccupations)
+        .set({ 
+          currentRecruited: newCount,
+          updatedAt: new Date(),
+        })
+        .where(eq(workforceRecruiterOccupations.id, eventData.occupationId));
+
+      return event;
+    });
+  }
+
+  async getWorkforceRecruiterRecruitmentEvents(filters?: {
+    occupationId?: string;
+    startDate?: Date;
+    endDate?: Date;
+    limit?: number;
+    offset?: number;
+  }): Promise<{ events: WorkforceRecruiterRecruitmentEvent[]; total: number }> {
+    let query = db.select().from(workforceRecruiterRecruitmentEvents);
+
+    const conditions = [];
+    if (filters?.occupationId) {
+      conditions.push(eq(workforceRecruiterRecruitmentEvents.occupationId, filters.occupationId));
+    }
+    if (filters?.startDate) {
+      conditions.push(gte(workforceRecruiterRecruitmentEvents.date, filters.startDate));
+    }
+    if (filters?.endDate) {
+      conditions.push(lte(workforceRecruiterRecruitmentEvents.date, filters.endDate));
+    }
+
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as any;
+    }
+
+    query = query.orderBy(desc(workforceRecruiterRecruitmentEvents.date)) as any;
+
+    const allEvents = await query;
+    const total = allEvents.length;
+
+    // Apply pagination
+    const limit = filters?.limit ?? 50;
+    const offset = filters?.offset ?? 0;
+    const events = allEvents.slice(offset, offset + limit);
+
+    return { events, total };
+  }
+
+  async getWorkforceRecruiterSummaryReport(): Promise<{
+    totalWorkforceTarget: number;
+    totalCurrentRecruited: number;
+    percentRecruited: number;
+    sectorBreakdown: Array<{ sector: string; target: number; recruited: number; percent: number }>;
+    skillLevelBreakdown: Array<{ skillLevel: string; target: number; recruited: number; percent: number }>;
+    annualTrainingGap: Array<{ occupationId: string; occupationTitle: string; sector: string; target: number; actual: number; gap: number }>;
+  }> {
+    const occupations = await db.select().from(workforceRecruiterOccupations);
+
+    const totalWorkforceTarget = occupations.reduce((sum, occ) => sum + occ.headcountTarget, 0);
+    const totalCurrentRecruited = occupations.reduce((sum, occ) => sum + occ.currentRecruited, 0);
+    const percentRecruited = totalWorkforceTarget > 0 ? (totalCurrentRecruited / totalWorkforceTarget) * 100 : 0;
+
+    // Sector breakdown
+    const sectorMap = new Map<string, { target: number; recruited: number }>();
+    occupations.forEach(occ => {
+      const existing = sectorMap.get(occ.sector) || { target: 0, recruited: 0 };
+      sectorMap.set(occ.sector, {
+        target: existing.target + occ.headcountTarget,
+        recruited: existing.recruited + occ.currentRecruited,
+      });
+    });
+    const sectorBreakdown = Array.from(sectorMap.entries()).map(([sector, data]) => ({
+      sector,
+      target: data.target,
+      recruited: data.recruited,
+      percent: data.target > 0 ? (data.recruited / data.target) * 100 : 0,
+    }));
+
+    // Skill level breakdown
+    const skillMap = new Map<string, { target: number; recruited: number }>();
+    occupations.forEach(occ => {
+      const existing = skillMap.get(occ.skillLevel) || { target: 0, recruited: 0 };
+      skillMap.set(occ.skillLevel, {
+        target: existing.target + occ.headcountTarget,
+        recruited: existing.recruited + occ.currentRecruited,
+      });
+    });
+    const skillLevelBreakdown = Array.from(skillMap.entries()).map(([skillLevel, data]) => ({
+      skillLevel,
+      target: data.target,
+      recruited: data.recruited,
+      percent: data.target > 0 ? (data.recruited / data.target) * 100 : 0,
+    }));
+
+    // Annual training gap (last 12 months)
+    const twelveMonthsAgo = new Date();
+    twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
+    const recentEvents = await db
+      .select()
+      .from(workforceRecruiterRecruitmentEvents)
+      .where(gte(workforceRecruiterRecruitmentEvents.date, twelveMonthsAgo));
+
+    const trainingByOccupation = new Map<string, number>();
+    recentEvents.forEach(event => {
+      if (event.count > 0) { // Only count positive recruitment (hires/graduates)
+        const existing = trainingByOccupation.get(event.occupationId) || 0;
+        trainingByOccupation.set(event.occupationId, existing + event.count);
+      }
+    });
+
+    const annualTrainingGap = occupations.map(occ => {
+      const actual = trainingByOccupation.get(occ.id) || 0;
+      return {
+        occupationId: occ.id,
+        occupationTitle: occ.occupationTitle,
+        sector: occ.sector,
+        target: occ.annualTrainingTarget,
+        actual,
+        gap: occ.annualTrainingTarget - actual,
+      };
+    }).filter(item => item.gap > 0).sort((a, b) => b.gap - a.gap).slice(0, 10); // Top 10 gaps
+
+    return {
+      totalWorkforceTarget,
+      totalCurrentRecruited,
+      percentRecruited,
+      sectorBreakdown,
+      skillLevelBreakdown,
+      annualTrainingGap,
+    };
+  }
+
+  async createWorkforceRecruiterAnnouncement(announcementData: InsertWorkforceRecruiterAnnouncement): Promise<WorkforceRecruiterAnnouncement> {
+    const [announcement] = await db
+      .insert(workforceRecruiterAnnouncements)
+      .values(announcementData)
+      .returning();
+    return announcement;
+  }
+
+  async getActiveWorkforceRecruiterAnnouncements(): Promise<WorkforceRecruiterAnnouncement[]> {
+    const now = new Date();
+    return await db
+      .select()
+      .from(workforceRecruiterAnnouncements)
+      .where(
+        and(
+          eq(workforceRecruiterAnnouncements.isActive, true),
+          or(
+            sql`${workforceRecruiterAnnouncements.expiresAt} IS NULL`,
+            gte(workforceRecruiterAnnouncements.expiresAt, now)
+          )
+        )
+      )
+      .orderBy(desc(workforceRecruiterAnnouncements.createdAt));
+  }
+
+  async getAllWorkforceRecruiterAnnouncements(): Promise<WorkforceRecruiterAnnouncement[]> {
+    return await db
+      .select()
+      .from(workforceRecruiterAnnouncements)
+      .orderBy(desc(workforceRecruiterAnnouncements.createdAt));
+  }
+
+  async updateWorkforceRecruiterAnnouncement(id: string, announcementData: Partial<InsertWorkforceRecruiterAnnouncement>): Promise<WorkforceRecruiterAnnouncement> {
+    const [announcement] = await db
+      .update(workforceRecruiterAnnouncements)
+      .set({
+        ...announcementData,
+        updatedAt: new Date(),
+      })
+      .where(eq(workforceRecruiterAnnouncements.id, id))
+      .returning();
+    return announcement;
+  }
+
+  async deactivateWorkforceRecruiterAnnouncement(id: string): Promise<WorkforceRecruiterAnnouncement> {
+    const [announcement] = await db
+      .update(workforceRecruiterAnnouncements)
+      .set({
+        isActive: false,
+        updatedAt: new Date(),
+      })
+      .where(eq(workforceRecruiterAnnouncements.id, id))
+      .returning();
+    return announcement;
+  }
+
   /**
    * Deletes a Directory profile with cascade handling (Directory has no relational data to anonymize)
    */
@@ -5982,6 +6419,7 @@ export class DatabaseStorage implements IStorage {
         { name: "TrustTransport", deleteFn: () => this.deleteTrusttransportProfile(userId, reason).catch(err => console.warn(`Failed to delete TrustTransport profile: ${err.message}`)) },
         { name: "MechanicMatch", deleteFn: () => this.deleteMechanicmatchProfile(userId, reason).catch(err => console.warn(`Failed to delete MechanicMatch profile: ${err.message}`)) },
         { name: "Chyme", deleteFn: () => this.deleteChymeProfile(userId, reason).catch(err => console.warn(`Failed to delete Chyme profile: ${err.message}`)) },
+        { name: "WorkforceRecruiter", deleteFn: () => this.deleteWorkforceRecruiterProfile(userId, reason).catch(err => console.warn(`Failed to delete WorkforceRecruiter profile: ${err.message}`)) },
       ];
 
       for (const { name, deleteFn } of profileDeletions) {

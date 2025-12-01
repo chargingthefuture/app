@@ -5,66 +5,74 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { insertChymeProfileSchema, type ChymeProfile } from "@shared/schema";
+import { insertWorkforceRecruiterProfileSchema, type WorkforceRecruiterProfile } from "@shared/schema";
 import { z } from "zod";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { DeleteProfileDialog } from "@/components/delete-profile-dialog";
 import { useLocation } from "wouter";
 import { MiniAppBackButton } from "@/components/mini-app-back-button";
 
-const profileFormSchema = insertChymeProfileSchema.omit({ userId: true }).extend({
-  displayName: z.string().max(100).optional().nullable(),
-});
+const profileFormSchema = insertWorkforceRecruiterProfileSchema.omit({ userId: true });
 
 type ProfileFormData = z.infer<typeof profileFormSchema>;
 
-export default function ChymeProfile() {
+export default function WorkforceRecruiterProfile() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
-  const { data: profile, isLoading } = useQuery<ChymeProfile | null>({
-    queryKey: ["/api/chyme/profile"],
+  const { data: profile, isLoading } = useQuery<WorkforceRecruiterProfile | null>({
+    queryKey: ["/api/workforce-recruiter/profile"],
   });
 
   const form = useForm<ProfileFormData>({
     resolver: zodResolver(profileFormSchema),
     defaultValues: {
       displayName: "",
-      isAnonymous: true,
+      notes: "",
     },
   });
 
+  // Update form when profile loads
+  useEffect(() => {
+    if (profile) {
+      form.reset({
+        displayName: profile.displayName || "",
+        notes: profile.notes || "",
+      });
+    }
+  }, [profile, form]);
+
   const updateMutation = useMutation({
     mutationFn: (data: ProfileFormData) =>
-      apiRequest("PUT", "/api/chyme/profile", data),
+      apiRequest("PUT", "/api/workforce-recruiter/profile", data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/chyme/profile"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/workforce-recruiter/profile"] });
       toast({ title: "Profile Updated", description: "Your profile has been updated successfully." });
     },
   });
 
   const createMutation = useMutation({
     mutationFn: (data: ProfileFormData) =>
-      apiRequest("POST", "/api/chyme/profile", data),
+      apiRequest("POST", "/api/workforce-recruiter/profile", data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/chyme/profile"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/workforce-recruiter/profile"] });
       toast({ title: "Profile Created", description: "Your profile has been created successfully." });
-      setLocation("/apps/chyme");
+      setLocation("/apps/workforce-recruiter");
     },
   });
 
   const deleteMutation = useMutation({
     mutationFn: (reason?: string) =>
-      apiRequest("DELETE", "/api/chyme/profile", { reason }),
+      apiRequest("DELETE", "/api/workforce-recruiter/profile", { reason }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/chyme/profile"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/workforce-recruiter/profile"] });
       setDeleteDialogOpen(false);
       toast({ title: "Profile Deleted", description: "Your profile has been deleted successfully." });
-      setLocation("/apps/chyme");
+      setLocation("/apps/workforce-recruiter");
     },
     onError: (error: any) => {
       toast({ title: "Error", description: error.message || "Failed to delete profile", variant: "destructive" });
@@ -83,7 +91,7 @@ export default function ChymeProfile() {
 
   return (
     <div className="p-4 sm:p-6 md:p-8 space-y-6">
-      <MiniAppBackButton href="/apps/chyme" />
+      <MiniAppBackButton href="/apps/workforce-recruiter" />
       
       <h1 className="text-2xl sm:text-3xl font-semibold mb-2">
         {profile ? "Edit Profile" : "Create Profile"}
@@ -111,7 +119,7 @@ export default function ChymeProfile() {
                       />
                     </FormControl>
                     <FormDescription>
-                      This name will be shown to other participants. Leave empty to remain anonymous.
+                      Optional display name for your profile
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -120,22 +128,22 @@ export default function ChymeProfile() {
 
               <FormField
                 control={form.control}
-                name="isAnonymous"
+                name="notes"
                 render={({ field }) => (
-                  <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                  <FormItem>
+                    <FormLabel>Notes (Optional)</FormLabel>
                     <FormControl>
-                      <Checkbox
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                        data-testid="checkbox-anonymous"
+                      <Textarea
+                        {...field}
+                        placeholder="Additional notes about your profile"
+                        value={field.value || ""}
+                        data-testid="textarea-notes"
                       />
                     </FormControl>
-                    <div className="space-y-1 leading-none">
-                      <FormLabel>Remain Anonymous</FormLabel>
-                      <FormDescription>
-                        When enabled, your messages and participation will be anonymous to other users.
-                      </FormDescription>
-                    </div>
+                    <FormDescription>
+                      Optional notes or comments about your profile
+                    </FormDescription>
+                    <FormMessage />
                   </FormItem>
                 )}
               />
@@ -146,7 +154,7 @@ export default function ChymeProfile() {
                 </Button>
                 {profile && (
                   <>
-                    <Button type="button" variant="outline" onClick={() => setLocation("/apps/chyme")}>
+                    <Button type="button" variant="outline" onClick={() => setLocation("/apps/workforce-recruiter")}>
                       Cancel
                     </Button>
                     <Button
@@ -170,36 +178,11 @@ export default function ChymeProfile() {
           open={deleteDialogOpen}
           onOpenChange={setDeleteDialogOpen}
           onConfirm={(reason) => deleteMutation.mutate(reason)}
-          appName="Chyme"
+          appName="Workforce Recruiter Tracker"
           isDeleting={deleteMutation.isPending}
         />
       )}
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
