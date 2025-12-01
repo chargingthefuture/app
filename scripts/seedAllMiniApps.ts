@@ -61,6 +61,11 @@ const seedScripts = [
     description: "MechanicMatch - Vehicle repair services",
   },
   {
+    name: "Workforce Recruiter",
+    script: "seedWorkforceRecruiter.ts",
+    description: "Workforce Recruiter - recruiter onboarding and occupations",
+  },
+  {
     name: "LostMail",
     script: "seedLostMail.ts",
     description: "LostMail - Mail incident reporting",

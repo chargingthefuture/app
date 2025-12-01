@@ -89,6 +89,10 @@ import MechanicMatchAvailability from "@/pages/mechanicmatch/availability";
 import MechanicMatchAdmin from "@/pages/mechanicmatch/admin";
 import MechanicMatchAdminProfiles from "@/pages/mechanicmatch/admin-profiles";
 import MechanicMatchAdminAnnouncements from "@/pages/mechanicmatch/admin-announcements";
+import WorkforceRecruiterDashboard from "@/pages/workforce-recruiter/dashboard";
+import WorkforceRecruiterProfile from "@/pages/workforce-recruiter/profile";
+import WorkforceRecruiterAdmin from "@/pages/workforce-recruiter/admin";
+import WorkforceRecruiterAdminAnnouncements from "@/pages/workforce-recruiter/admin-announcements";
 import LostMailDashboard from "@/pages/lostmail/dashboard";
 import LostMailReport from "@/pages/lostmail/report";
 import LostMailIncidentDetail from "@/pages/lostmail/incident-detail";
@@ -747,6 +751,26 @@ function Router() {
       <Route path="/apps/mechanicmatch/admin/announcements">
         <ProtectedRoute>
           <MechanicMatchAdminAnnouncements />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/workforce-recruiter">
+        <ProtectedRoute>
+          <WorkforceRecruiterDashboard />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/workforce-recruiter/profile">
+        <ProtectedRoute>
+          <WorkforceRecruiterProfile />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/workforce-recruiter/admin">
+        <ProtectedRoute>
+          <WorkforceRecruiterAdmin />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/workforce-recruiter/admin/announcements">
+        <ProtectedRoute>
+          <WorkforceRecruiterAdminAnnouncements />
         </ProtectedRoute>
       </Route>
       <Route path="/apps/lostmail">

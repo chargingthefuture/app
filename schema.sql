@@ -889,6 +889,80 @@ CREATE TABLE IF NOT EXISTS chyme_announcements (
 );
 
 -- ========================================
+-- WORKFORCE RECRUITER APP TABLES
+-- ========================================
+
+CREATE TABLE IF NOT EXISTS workforce_recruiter_profiles (
+  id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id VARCHAR NOT NULL UNIQUE REFERENCES users(id),
+  full_name VARCHAR(150) NOT NULL,
+  organization VARCHAR(150) NOT NULL,
+  role VARCHAR(150) NOT NULL,
+  mission_focus TEXT,
+  focus_regions TEXT,
+  focus_industries TEXT,
+  country VARCHAR(100),
+  state VARCHAR(100),
+  city VARCHAR(100),
+  timezone VARCHAR(100),
+  contact_email VARCHAR(200) NOT NULL,
+  contact_phone VARCHAR(30),
+  signal_handle VARCHAR(200),
+  preferred_contact_method VARCHAR(50) NOT NULL DEFAULT 'signal',
+  capacity INTEGER NOT NULL DEFAULT 5,
+  availability_status VARCHAR(50) NOT NULL DEFAULT 'open',
+  accepts_international BOOLEAN NOT NULL DEFAULT false,
+  languages TEXT,
+  linkedin_url VARCHAR(300),
+  website_url VARCHAR(300),
+  notes TEXT,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS workforce_recruiter_config (
+  id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+  intake_status VARCHAR(50) NOT NULL DEFAULT 'open',
+  highlight_message TEXT,
+  support_email VARCHAR(200) NOT NULL,
+  support_signal VARCHAR(200),
+  support_phone VARCHAR(30),
+  application_link VARCHAR(300),
+  resources_link VARCHAR(300),
+  max_active_recruiters INTEGER NOT NULL DEFAULT 50,
+  placements_goal_monthly INTEGER NOT NULL DEFAULT 25,
+  enable_waitlist BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS workforce_recruiter_announcements (
+  id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+  title VARCHAR(200) NOT NULL,
+  content TEXT NOT NULL,
+  type VARCHAR(50) NOT NULL DEFAULT 'info',
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  expires_at TIMESTAMP,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS workforce_recruiter_occupations (
+  id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+  occupation_name VARCHAR(150) NOT NULL,
+  region_focus VARCHAR(150),
+  priority_level VARCHAR(50) NOT NULL DEFAULT 'standard',
+  talent_pool_size INTEGER NOT NULL DEFAULT 0,
+  urgent_openings INTEGER NOT NULL DEFAULT 0,
+  placements_last_30_days INTEGER NOT NULL DEFAULT 0,
+  avg_time_to_fill_days INTEGER NOT NULL DEFAULT 30,
+  support_needed TEXT,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+-- ========================================
 -- ADD FOREIGN KEY CONSTRAINTS (after all tables are created)
 -- ========================================
 
