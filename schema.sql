@@ -889,6 +889,68 @@ CREATE TABLE IF NOT EXISTS chyme_announcements (
 );
 
 -- ========================================
+-- WORKFORCE RECRUITER APP TABLES
+-- ========================================
+
+-- Workforce Recruiter Config
+CREATE TABLE IF NOT EXISTS workforce_recruiter_config (
+  id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+  hero_title VARCHAR(200) NOT NULL,
+  hero_subtitle TEXT,
+  hero_cta_label VARCHAR(150),
+  hero_cta_link VARCHAR(500),
+  intake_form_url VARCHAR(500),
+  handbook_url VARCHAR(500),
+  support_email VARCHAR(200),
+  support_phone VARCHAR(50),
+  is_accepting_applications BOOLEAN NOT NULL DEFAULT true,
+  highlighted_stat_label VARCHAR(150),
+  highlighted_stat_value VARCHAR(100),
+  published_at TIMESTAMP,
+  updated_by VARCHAR REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+-- Workforce Recruiter Occupations
+CREATE TABLE IF NOT EXISTS workforce_recruiter_occupations (
+  id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+  title VARCHAR(200) NOT NULL,
+  category VARCHAR(100) NOT NULL,
+  description TEXT,
+  required_skills TEXT,
+  preferred_experience TEXT,
+  certifications TEXT,
+  openings INTEGER NOT NULL DEFAULT 0,
+  applicants INTEGER NOT NULL DEFAULT 0,
+  placements INTEGER NOT NULL DEFAULT 0,
+  avg_placement_time_days INTEGER NOT NULL DEFAULT 0,
+  demand_level VARCHAR(50) NOT NULL DEFAULT 'medium',
+  pay_range VARCHAR(100),
+  region VARCHAR(150),
+  is_remote_friendly BOOLEAN NOT NULL DEFAULT false,
+  is_priority_role BOOLEAN NOT NULL DEFAULT false,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  priority_rank INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+-- Workforce Recruiter Announcements
+CREATE TABLE IF NOT EXISTS workforce_recruiter_announcements (
+  id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+  title VARCHAR(200) NOT NULL,
+  content TEXT NOT NULL,
+  type VARCHAR(50) NOT NULL DEFAULT 'info',
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  target_role VARCHAR(150),
+  audience VARCHAR(50) DEFAULT 'general',
+  expires_at TIMESTAMP,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+-- ========================================
 -- ADD FOREIGN KEY CONSTRAINTS (after all tables are created)
 -- ========================================
 

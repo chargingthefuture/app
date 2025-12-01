@@ -2322,3 +2322,106 @@ export const insertChymeAnnouncementSchema = createInsertSchema(chymeAnnouncemen
 
 export type InsertChymeAnnouncement = z.infer<typeof insertChymeAnnouncementSchema>;
 export type ChymeAnnouncement = typeof chymeAnnouncements.$inferSelect;
+
+// ========================================
+// WORKFORCE RECRUITER APP TABLES
+// ========================================
+
+// Workforce Recruiter Config
+export const workforceRecruiterConfig = pgTable("workforce_recruiter_config", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  heroTitle: varchar("hero_title", { length: 200 }).notNull(),
+  heroSubtitle: text("hero_subtitle"),
+  heroCtaLabel: varchar("hero_cta_label", { length: 150 }),
+  heroCtaLink: varchar("hero_cta_link", { length: 500 }),
+  intakeFormUrl: varchar("intake_form_url", { length: 500 }),
+  handbookUrl: varchar("handbook_url", { length: 500 }),
+  supportEmail: varchar("support_email", { length: 200 }),
+  supportPhone: varchar("support_phone", { length: 50 }),
+  isAcceptingApplications: boolean("is_accepting_applications").notNull().default(true),
+  highlightedStatLabel: varchar("highlighted_stat_label", { length: 150 }),
+  highlightedStatValue: varchar("highlighted_stat_value", { length: 100 }),
+  publishedAt: timestamp("published_at"),
+  updatedBy: varchar("updated_by").references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertWorkforceRecruiterConfigSchema = createInsertSchema(workforceRecruiterConfig).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  publishedAt: z.coerce.date().optional().nullable(),
+});
+
+export type InsertWorkforceRecruiterConfig = z.infer<typeof insertWorkforceRecruiterConfigSchema>;
+export type WorkforceRecruiterConfig = typeof workforceRecruiterConfig.$inferSelect;
+
+// Workforce Recruiter Occupations
+export const workforceRecruiterOccupations = pgTable("workforce_recruiter_occupations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: varchar("title", { length: 200 }).notNull(),
+  category: varchar("category", { length: 100 }).notNull(),
+  description: text("description"),
+  requiredSkills: text("required_skills"),
+  preferredExperience: text("preferred_experience"),
+  certifications: text("certifications"),
+  openings: integer("openings").notNull().default(0),
+  applicants: integer("applicants").notNull().default(0),
+  placements: integer("placements").notNull().default(0),
+  avgPlacementTimeDays: integer("avg_placement_time_days").notNull().default(0),
+  demandLevel: varchar("demand_level", { length: 50 }).notNull().default('medium'),
+  payRange: varchar("pay_range", { length: 100 }),
+  region: varchar("region", { length: 150 }),
+  isRemoteFriendly: boolean("is_remote_friendly").notNull().default(false),
+  isPriorityRole: boolean("is_priority_role").notNull().default(false),
+  isActive: boolean("is_active").notNull().default(true),
+  priorityRank: integer("priority_rank").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertWorkforceRecruiterOccupationSchema = createInsertSchema(
+  workforceRecruiterOccupations
+).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  openings: z.number().int().min(0).optional(),
+  applicants: z.number().int().min(0).optional(),
+  placements: z.number().int().min(0).optional(),
+  avgPlacementTimeDays: z.number().int().min(0).optional(),
+  priorityRank: z.number().int().min(0).optional(),
+});
+
+export type InsertWorkforceRecruiterOccupation = z.infer<typeof insertWorkforceRecruiterOccupationSchema>;
+export type WorkforceRecruiterOccupation = typeof workforceRecruiterOccupations.$inferSelect;
+
+// Workforce Recruiter Announcements
+export const workforceRecruiterAnnouncements = pgTable("workforce_recruiter_announcements", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: varchar("title", { length: 200 }).notNull(),
+  content: text("content").notNull(),
+  type: varchar("type", { length: 50 }).notNull().default('info'),
+  isActive: boolean("is_active").notNull().default(true),
+  targetRole: varchar("target_role", { length: 150 }),
+  audience: varchar("audience", { length: 50 }).default('general'), // general, recruiters, candidates
+  expiresAt: timestamp("expires_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertWorkforceRecruiterAnnouncementSchema = createInsertSchema(
+  workforceRecruiterAnnouncements
+).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  expiresAt: z.coerce.date().optional().nullable(),
+});
+
+export type InsertWorkforceRecruiterAnnouncement = z.infer<typeof insertWorkforceRecruiterAnnouncementSchema>;
+export type WorkforceRecruiterAnnouncement = typeof workforceRecruiterAnnouncements.$inferSelect;
