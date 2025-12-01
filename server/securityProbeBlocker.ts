@@ -23,7 +23,6 @@ const BLOCKED_PATH_PATTERNS = [
   /^\/wp-content\//,      // WordPress content
   /^\/wp-includes\//,     // WordPress includes
   /^\/phpmyadmin\//,      // phpMyAdmin
-  /^\/admin\//,           // Generic admin paths (unless you have a legit /admin route)
   /^\/\.well-known\/security\.txt$/,  // Allow security.txt
   /^\/\.well-known\/change-password$/, // Allow change-password
   /^\/\.well-known\/(?!security\.txt|change-password)/, // Block other .well-known except allowed
