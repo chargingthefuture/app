@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "wouter";
-import { UserCheck, Building2, ArrowRight, MessageCircle, Wrench, Mail, Search, HeartPulse, Radio, Car} from "lucide-react";
+import { UserCheck, Building2, ArrowRight, MessageCircle, Wrench, Mail, Search, HeartPulse, Radio, Car, Briefcase } from "lucide-react";
 
 const services = [
   {
@@ -32,6 +32,13 @@ const services = [
     icon: HeartPulse,
     href: "/apps/gentlepulse",
     testId: "card-service-gentlepulse",
+  },
+  {
+    title: "Workforce Recruiter",
+    description: "Get matched with trauma-informed employers, paid training, and wraparound job placement support.",
+    icon: Briefcase,
+    href: "/apps/workforce-recruiter",
+    testId: "card-service-workforce",
   },
   {
     title: "LightHouse",

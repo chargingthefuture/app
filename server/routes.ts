@@ -44,6 +44,10 @@ import {
   insertMechanicmatchReviewSchema,
   insertMechanicmatchMessageSchema,
   insertMechanicmatchAnnouncementSchema,
+  insertWorkforceRecruiterProfileSchema,
+  insertWorkforceRecruiterAnnouncementSchema,
+  insertWorkforceRecruiterOccupationSchema,
+  insertWorkforceRecruiterConfigSchema,
   type InsertMechanicmatchProfile,
   insertLostmailIncidentSchema,
   insertLostmailAnnouncementSchema,
@@ -3665,6 +3669,278 @@ export async function registerRoutes(app: Express): Promise<Server> {
     );
 
     res.json(announcement);
+  }));
+
+  // Workforce Recruiter Profile routes
+  app.get('/api/workforce-recruiter/profile', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const profile = await withDatabaseErrorHandling(
+      () => storage.getWorkforceRecruiterProfile(userId),
+      'getWorkforceRecruiterProfile'
+    );
+    res.json(profile || null);
+  }));
+
+  app.post('/api/workforce-recruiter/profile', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const existing = await withDatabaseErrorHandling(
+      () => storage.getWorkforceRecruiterProfile(userId),
+      'getWorkforceRecruiterProfile'
+    );
+    if (existing) {
+      throw new ValidationError("Workforce Recruiter profile already exists");
+    }
+    const validatedData = validateWithZod(
+      insertWorkforceRecruiterProfileSchema,
+      { ...req.body, userId },
+      "Invalid profile data"
+    );
+    const profile = await withDatabaseErrorHandling(
+      () => storage.createWorkforceRecruiterProfile(validatedData),
+      'createWorkforceRecruiterProfile'
+    );
+    res.json(profile);
+  }));
+
+  app.put('/api/workforce-recruiter/profile', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const validatedData = validateWithZod(
+      insertWorkforceRecruiterProfileSchema.omit({ userId: true }).partial(),
+      req.body,
+      "Invalid profile data"
+    );
+    const profile = await withDatabaseErrorHandling(
+      () => storage.updateWorkforceRecruiterProfile(userId, validatedData),
+      'updateWorkforceRecruiterProfile'
+    );
+    res.json(profile);
+  }));
+
+  app.delete('/api/workforce-recruiter/profile', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const { reason } = req.body || {};
+    await withDatabaseErrorHandling(
+      () => storage.deleteWorkforceRecruiterProfile(userId, reason),
+      'deleteWorkforceRecruiterProfile'
+    );
+    res.json({ message: "Workforce Recruiter profile deleted successfully" });
+  }));
+
+  // Workforce Recruiter Config routes
+  app.get('/api/workforce-recruiter/config', isAuthenticated, asyncHandler(async (_req, res) => {
+    const config = await withDatabaseErrorHandling(
+      () => storage.getWorkforceRecruiterConfig(),
+      'getWorkforceRecruiterConfig'
+    );
+    res.json(config);
+  }));
+
+  app.put('/api/workforce-recruiter/admin/config', isAuthenticated, isAdmin, validateCsrfToken, asyncHandler(async (req: any, res) => {
+    const adminId = getUserId(req);
+    const validatedData = validateWithZod(
+      insertWorkforceRecruiterConfigSchema.partial(),
+      req.body,
+      "Invalid configuration data"
+    );
+    const config = await withDatabaseErrorHandling(
+      () => storage.updateWorkforceRecruiterConfig({ ...validatedData, updatedBy: adminId }),
+      'updateWorkforceRecruiterConfig'
+    );
+
+    await logAdminAction(
+      adminId,
+      "update_workforce_recruiter_config",
+      "workforce_recruiter_config",
+      config.id
+    );
+
+    res.json(config);
+  }));
+
+  // Workforce Recruiter Announcement routes
+  app.get('/api/workforce-recruiter/announcements', isAuthenticated, asyncHandler(async (_req, res) => {
+    const announcements = await withDatabaseErrorHandling(
+      () => storage.getActiveWorkforceRecruiterAnnouncements(),
+      'getActiveWorkforceRecruiterAnnouncements'
+    );
+    res.json(announcements);
+  }));
+
+  app.get('/api/workforce-recruiter/admin/announcements', isAuthenticated, isAdmin, asyncHandler(async (_req, res) => {
+    const announcements = await withDatabaseErrorHandling(
+      () => storage.getAllWorkforceRecruiterAnnouncements(),
+      'getAllWorkforceRecruiterAnnouncements'
+    );
+    res.json(announcements);
+  }));
+
+  app.post('/api/workforce-recruiter/admin/announcements', isAuthenticated, isAdmin, validateCsrfToken, asyncHandler(async (req: any, res) => {
+    const adminId = getUserId(req);
+    const validatedData = validateWithZod(
+      insertWorkforceRecruiterAnnouncementSchema,
+      req.body,
+      "Invalid announcement data"
+    );
+    const announcement = await withDatabaseErrorHandling(
+      () => storage.createWorkforceRecruiterAnnouncement(validatedData),
+      'createWorkforceRecruiterAnnouncement'
+    );
+
+    await logAdminAction(
+      adminId,
+      "create_workforce_recruiter_announcement",
+      "workforce_recruiter_announcement",
+      announcement.id,
+      { title: announcement.title, type: announcement.type }
+    );
+
+    res.json(announcement);
+  }));
+
+  app.put('/api/workforce-recruiter/admin/announcements/:id', isAuthenticated, isAdmin, validateCsrfToken, asyncHandler(async (req: any, res) => {
+    const adminId = getUserId(req);
+    const validatedData = validateWithZod(
+      insertWorkforceRecruiterAnnouncementSchema.partial(),
+      req.body,
+      "Invalid announcement data"
+    );
+    const announcement = await withDatabaseErrorHandling(
+      () => storage.updateWorkforceRecruiterAnnouncement(req.params.id, validatedData),
+      'updateWorkforceRecruiterAnnouncement'
+    );
+
+    await logAdminAction(
+      adminId,
+      "update_workforce_recruiter_announcement",
+      "workforce_recruiter_announcement",
+      announcement.id,
+      { title: announcement.title }
+    );
+
+    res.json(announcement);
+  }));
+
+  app.delete('/api/workforce-recruiter/admin/announcements/:id', isAuthenticated, isAdmin, validateCsrfToken, asyncHandler(async (req: any, res) => {
+    const adminId = getUserId(req);
+    const announcement = await withDatabaseErrorHandling(
+      () => storage.deactivateWorkforceRecruiterAnnouncement(req.params.id),
+      'deactivateWorkforceRecruiterAnnouncement'
+    );
+
+    await logAdminAction(
+      adminId,
+      "deactivate_workforce_recruiter_announcement",
+      "workforce_recruiter_announcement",
+      announcement.id,
+      { title: announcement.title }
+    );
+
+    res.json(announcement);
+  }));
+
+  // Workforce Recruiter Occupation routes
+  app.get('/api/workforce-recruiter/occupations', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
+    const offset = Math.max(parseInt(req.query.offset as string) || 0, 0);
+    const search = typeof req.query.search === 'string' ? req.query.search.trim() : undefined;
+    const result = await withDatabaseErrorHandling(
+      () => storage.listWorkforceRecruiterOccupations({
+        limit,
+        offset,
+        search,
+        onlyActive: true,
+      }),
+      'listWorkforceRecruiterOccupations'
+    );
+    res.json(result);
+  }));
+
+  app.get('/api/workforce-recruiter/admin/occupations', isAuthenticated, isAdmin, asyncHandler(async (req: any, res) => {
+    const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
+    const offset = Math.max(parseInt(req.query.offset as string) || 0, 0);
+    const includeInactive = req.query.includeInactive === 'true';
+    const search = typeof req.query.search === 'string' ? req.query.search.trim() : undefined;
+    const result = await withDatabaseErrorHandling(
+      () => storage.listWorkforceRecruiterOccupations({
+        limit,
+        offset,
+        search,
+        onlyActive: !includeInactive,
+      }),
+      'listWorkforceRecruiterOccupations'
+    );
+    res.json(result);
+  }));
+
+  app.post('/api/workforce-recruiter/admin/occupations', isAuthenticated, isAdmin, validateCsrfToken, asyncHandler(async (req: any, res) => {
+    const adminId = getUserId(req);
+    const validatedData = validateWithZod(
+      insertWorkforceRecruiterOccupationSchema,
+      req.body,
+      "Invalid occupation data"
+    );
+    const occupation = await withDatabaseErrorHandling(
+      () => storage.createWorkforceRecruiterOccupation({ ...validatedData, createdBy: adminId }),
+      'createWorkforceRecruiterOccupation'
+    );
+
+    await logAdminAction(
+      adminId,
+      "create_workforce_recruiter_occupation",
+      "workforce_recruiter_occupation",
+      occupation.id,
+      { title: occupation.title, sector: occupation.sector }
+    );
+
+    res.json(occupation);
+  }));
+
+  app.put('/api/workforce-recruiter/admin/occupations/:id', isAuthenticated, isAdmin, validateCsrfToken, asyncHandler(async (req: any, res) => {
+    const adminId = getUserId(req);
+    const validatedData = validateWithZod(
+      insertWorkforceRecruiterOccupationSchema.partial(),
+      req.body,
+      "Invalid occupation data"
+    );
+    const occupation = await withDatabaseErrorHandling(
+      () => storage.updateWorkforceRecruiterOccupation(req.params.id, validatedData),
+      'updateWorkforceRecruiterOccupation'
+    );
+
+    await logAdminAction(
+      adminId,
+      "update_workforce_recruiter_occupation",
+      "workforce_recruiter_occupation",
+      occupation.id,
+      { title: occupation.title }
+    );
+
+    res.json(occupation);
+  }));
+
+  app.delete('/api/workforce-recruiter/admin/occupations/:id', isAuthenticated, isAdmin, validateCsrfToken, asyncHandler(async (req: any, res) => {
+    const adminId = getUserId(req);
+    await withDatabaseErrorHandling(
+      () => storage.deleteWorkforceRecruiterOccupation(req.params.id),
+      'deleteWorkforceRecruiterOccupation'
+    );
+
+    await logAdminAction(
+      adminId,
+      "delete_workforce_recruiter_occupation",
+      "workforce_recruiter_occupation",
+      req.params.id
+    );
+
+    res.json({ message: "Occupation removed" });
+  }));
+
+  app.get('/api/workforce-recruiter/reports/summary', isAuthenticated, isAdmin, asyncHandler(async (_req, res) => {
+    const summary = await withDatabaseErrorHandling(
+      () => storage.getWorkforceRecruiterSummaryReport(),
+      'getWorkforceRecruiterSummaryReport'
+    );
+    res.json(summary);
   }));
 
   // ========================================

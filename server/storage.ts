@@ -113,6 +113,18 @@ import {
   type InsertMechanicmatchMessage,
   type MechanicmatchAnnouncement,
   type InsertMechanicmatchAnnouncement,
+  workforceRecruiterProfiles,
+  workforceRecruiterConfig,
+  workforceRecruiterAnnouncements,
+  workforceRecruiterOccupations,
+  type WorkforceRecruiterProfile,
+  type InsertWorkforceRecruiterProfile,
+  type WorkforceRecruiterConfig,
+  type InsertWorkforceRecruiterConfig,
+  type WorkforceRecruiterAnnouncement,
+  type InsertWorkforceRecruiterAnnouncement,
+  type WorkforceRecruiterOccupation,
+  type InsertWorkforceRecruiterOccupation,
   lostmailIncidents,
   lostmailAuditTrail,
   lostmailAnnouncements,
@@ -536,6 +548,42 @@ export interface IStorage {
   getAllMechanicmatchAnnouncements(): Promise<MechanicmatchAnnouncement[]>;
   updateMechanicmatchAnnouncement(id: string, announcement: Partial<InsertMechanicmatchAnnouncement>): Promise<MechanicmatchAnnouncement>;
   deactivateMechanicmatchAnnouncement(id: string): Promise<MechanicmatchAnnouncement>;
+
+  // Workforce Recruiter Profile operations
+  getWorkforceRecruiterProfile(userId: string): Promise<WorkforceRecruiterProfile | undefined>;
+  createWorkforceRecruiterProfile(profile: InsertWorkforceRecruiterProfile): Promise<WorkforceRecruiterProfile>;
+  updateWorkforceRecruiterProfile(userId: string, profile: Partial<InsertWorkforceRecruiterProfile>): Promise<WorkforceRecruiterProfile>;
+  deleteWorkforceRecruiterProfile(userId: string, reason?: string): Promise<void>;
+
+  // Workforce Recruiter Config operations
+  getWorkforceRecruiterConfig(): Promise<WorkforceRecruiterConfig>;
+  updateWorkforceRecruiterConfig(config: Partial<InsertWorkforceRecruiterConfig> & { updatedBy?: string | null }): Promise<WorkforceRecruiterConfig>;
+
+  // Workforce Recruiter Announcement operations
+  createWorkforceRecruiterAnnouncement(announcement: InsertWorkforceRecruiterAnnouncement): Promise<WorkforceRecruiterAnnouncement>;
+  getActiveWorkforceRecruiterAnnouncements(): Promise<WorkforceRecruiterAnnouncement[]>;
+  getAllWorkforceRecruiterAnnouncements(): Promise<WorkforceRecruiterAnnouncement[]>;
+  updateWorkforceRecruiterAnnouncement(id: string, announcement: Partial<InsertWorkforceRecruiterAnnouncement>): Promise<WorkforceRecruiterAnnouncement>;
+  deactivateWorkforceRecruiterAnnouncement(id: string): Promise<WorkforceRecruiterAnnouncement>;
+
+  // Workforce Recruiter Occupation operations
+  listWorkforceRecruiterOccupations(params: {
+    limit: number;
+    offset: number;
+    search?: string;
+    onlyActive?: boolean;
+  }): Promise<{ items: WorkforceRecruiterOccupation[]; total: number }>;
+  createWorkforceRecruiterOccupation(occupation: InsertWorkforceRecruiterOccupation): Promise<WorkforceRecruiterOccupation>;
+  updateWorkforceRecruiterOccupation(id: string, occupation: Partial<InsertWorkforceRecruiterOccupation>): Promise<WorkforceRecruiterOccupation>;
+  deleteWorkforceRecruiterOccupation(id: string): Promise<void>;
+
+  getWorkforceRecruiterSummaryReport(): Promise<{
+    totalOccupations: number;
+    activeOccupations: number;
+    remoteFriendly: number;
+    urgentDemand: number;
+    openRoles: number;
+  }>;
 
   // LostMail Incident operations
   createLostmailIncident(incident: InsertLostmailIncident): Promise<LostmailIncident>;
@@ -4363,6 +4411,280 @@ export class DatabaseStorage implements IStorage {
     return announcement;
   }
 
+  // Workforce Recruiter Profile operations
+  async getWorkforceRecruiterProfile(userId: string): Promise<WorkforceRecruiterProfile | undefined> {
+    const [profile] = await db
+      .select()
+      .from(workforceRecruiterProfiles)
+      .where(eq(workforceRecruiterProfiles.userId, userId));
+    return profile;
+  }
+
+  async createWorkforceRecruiterProfile(profileData: InsertWorkforceRecruiterProfile): Promise<WorkforceRecruiterProfile> {
+    const [profile] = await db
+      .insert(workforceRecruiterProfiles)
+      .values(profileData)
+      .returning();
+    return profile;
+  }
+
+  async updateWorkforceRecruiterProfile(userId: string, profileData: Partial<InsertWorkforceRecruiterProfile>): Promise<WorkforceRecruiterProfile> {
+    const [profile] = await db
+      .update(workforceRecruiterProfiles)
+      .set({ ...profileData, updatedAt: new Date() })
+      .where(eq(workforceRecruiterProfiles.userId, userId))
+      .returning();
+    return profile;
+  }
+
+  async deleteWorkforceRecruiterProfile(userId: string, reason?: string): Promise<void> {
+    const profile = await this.getWorkforceRecruiterProfile(userId);
+    if (!profile) {
+      throw new Error("Workforce Recruiter profile not found");
+    }
+
+    const anonymizedUserId = this.generateAnonymizedUserId();
+
+    await db
+      .update(workforceRecruiterOccupations)
+      .set({ createdBy: anonymizedUserId })
+      .where(eq(workforceRecruiterOccupations.createdBy, userId));
+
+    await db
+      .update(workforceRecruiterConfig)
+      .set({ updatedBy: anonymizedUserId })
+      .where(eq(workforceRecruiterConfig.updatedBy, userId));
+
+    await db.delete(workforceRecruiterProfiles).where(eq(workforceRecruiterProfiles.userId, userId));
+
+    await this.logProfileDeletion(userId, "workforce_recruiter", reason);
+  }
+
+  // Workforce Recruiter Config operations
+  async getWorkforceRecruiterConfig(): Promise<WorkforceRecruiterConfig> {
+    const existing = await db.select().from(workforceRecruiterConfig).limit(1);
+    if (existing.length > 0) {
+      return existing[0];
+    }
+
+    const [config] = await db
+      .insert(workforceRecruiterConfig)
+      .values({
+        applicationStatus: "open",
+        maxActiveCandidates: 25,
+        featuredSectors: "Agriculture | Skilled Trades | Remote Operations",
+        priorityRegions: "Global safe corridors focus",
+        contactEmail: "workforce@chargingthefuture.com",
+        intakeNotes: "Default configuration generated automatically",
+        allowSelfReferral: true,
+        requireProfileReview: true,
+      })
+      .returning();
+    return config;
+  }
+
+  async updateWorkforceRecruiterConfig(
+    configData: Partial<InsertWorkforceRecruiterConfig> & { updatedBy?: string | null }
+  ): Promise<WorkforceRecruiterConfig> {
+    const currentConfig = await this.getWorkforceRecruiterConfig();
+    const updatePayload: Record<string, any> = {
+      updatedAt: new Date(),
+    };
+
+    for (const [key, value] of Object.entries(configData)) {
+      if (value !== undefined) {
+        updatePayload[key] = value;
+      }
+    }
+
+    const [config] = await db
+      .update(workforceRecruiterConfig)
+      .set(updatePayload)
+      .where(eq(workforceRecruiterConfig.id, currentConfig.id))
+      .returning();
+    return config;
+  }
+
+  // Workforce Recruiter Announcement operations
+  async createWorkforceRecruiterAnnouncement(
+    announcementData: InsertWorkforceRecruiterAnnouncement
+  ): Promise<WorkforceRecruiterAnnouncement> {
+    const [announcement] = await db
+      .insert(workforceRecruiterAnnouncements)
+      .values(announcementData)
+      .returning();
+    return announcement;
+  }
+
+  async getActiveWorkforceRecruiterAnnouncements(): Promise<WorkforceRecruiterAnnouncement[]> {
+    const now = new Date();
+    return await db
+      .select()
+      .from(workforceRecruiterAnnouncements)
+      .where(
+        and(
+          eq(workforceRecruiterAnnouncements.isActive, true),
+          or(
+            sql`${workforceRecruiterAnnouncements.expiresAt} IS NULL`,
+            gte(workforceRecruiterAnnouncements.expiresAt, now)
+          )
+        )
+      )
+      .orderBy(desc(workforceRecruiterAnnouncements.createdAt));
+  }
+
+  async getAllWorkforceRecruiterAnnouncements(): Promise<WorkforceRecruiterAnnouncement[]> {
+    return await db
+      .select()
+      .from(workforceRecruiterAnnouncements)
+      .orderBy(desc(workforceRecruiterAnnouncements.createdAt));
+  }
+
+  async updateWorkforceRecruiterAnnouncement(
+    id: string,
+    announcementData: Partial<InsertWorkforceRecruiterAnnouncement>
+  ): Promise<WorkforceRecruiterAnnouncement> {
+    const [announcement] = await db
+      .update(workforceRecruiterAnnouncements)
+      .set({
+        ...announcementData,
+        updatedAt: new Date(),
+      })
+      .where(eq(workforceRecruiterAnnouncements.id, id))
+      .returning();
+    return announcement;
+  }
+
+  async deactivateWorkforceRecruiterAnnouncement(id: string): Promise<WorkforceRecruiterAnnouncement> {
+    const [announcement] = await db
+      .update(workforceRecruiterAnnouncements)
+      .set({
+        isActive: false,
+        updatedAt: new Date(),
+      })
+      .where(eq(workforceRecruiterAnnouncements.id, id))
+      .returning();
+    return announcement;
+  }
+
+  // Workforce Recruiter Occupation operations
+  async listWorkforceRecruiterOccupations({
+    limit,
+    offset,
+    search,
+    onlyActive = true,
+  }: {
+    limit: number;
+    offset: number;
+    search?: string;
+    onlyActive?: boolean;
+  }): Promise<{ items: WorkforceRecruiterOccupation[]; total: number }> {
+    const conditions: any[] = [];
+
+    if (onlyActive) {
+      conditions.push(eq(workforceRecruiterOccupations.isActive, true));
+    }
+
+    if (search) {
+      const searchTerm = `%${search}%`;
+      conditions.push(
+        or(
+          sql`${workforceRecruiterOccupations.title} ILIKE ${searchTerm}`,
+          sql`${workforceRecruiterOccupations.sector} ILIKE ${searchTerm}`,
+          sql`${workforceRecruiterOccupations.description} ILIKE ${searchTerm}`
+        )
+      );
+    }
+
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+    const totalResult = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(workforceRecruiterOccupations)
+      .where(whereClause);
+    const total = Number(totalResult[0]?.count || 0);
+
+    const occupations = await db
+      .select()
+      .from(workforceRecruiterOccupations)
+      .where(whereClause)
+      .orderBy(desc(workforceRecruiterOccupations.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    return { items: occupations, total };
+  }
+
+  async createWorkforceRecruiterOccupation(
+    occupationData: InsertWorkforceRecruiterOccupation
+  ): Promise<WorkforceRecruiterOccupation> {
+    const [occupation] = await db
+      .insert(workforceRecruiterOccupations)
+      .values(occupationData)
+      .returning();
+    return occupation;
+  }
+
+  async updateWorkforceRecruiterOccupation(
+    id: string,
+    occupationData: Partial<InsertWorkforceRecruiterOccupation>
+  ): Promise<WorkforceRecruiterOccupation> {
+    const [occupation] = await db
+      .update(workforceRecruiterOccupations)
+      .set({
+        ...occupationData,
+        updatedAt: new Date(),
+      })
+      .where(eq(workforceRecruiterOccupations.id, id))
+      .returning();
+    return occupation;
+  }
+
+  async deleteWorkforceRecruiterOccupation(id: string): Promise<void> {
+    await db.delete(workforceRecruiterOccupations).where(eq(workforceRecruiterOccupations.id, id));
+  }
+
+  async getWorkforceRecruiterSummaryReport(): Promise<{
+    totalOccupations: number;
+    activeOccupations: number;
+    remoteFriendly: number;
+    urgentDemand: number;
+    openRoles: number;
+  }> {
+    const [
+      totalResult,
+      activeResult,
+      remoteResult,
+      urgentResult,
+      openRolesResult,
+    ] = await Promise.all([
+      db.select({ count: sql<number>`count(*)` }).from(workforceRecruiterOccupations),
+      db
+        .select({ count: sql<number>`count(*)` })
+        .from(workforceRecruiterOccupations)
+        .where(eq(workforceRecruiterOccupations.isActive, true)),
+      db
+        .select({ count: sql<number>`count(*)` })
+        .from(workforceRecruiterOccupations)
+        .where(eq(workforceRecruiterOccupations.isRemoteFriendly, true)),
+      db
+        .select({ count: sql<number>`count(*)` })
+        .from(workforceRecruiterOccupations)
+        .where(eq(workforceRecruiterOccupations.demandLevel, 'urgent')),
+      db
+        .select({ sum: sql<number>`COALESCE(SUM(${workforceRecruiterOccupations.openRoles}), 0)` })
+        .from(workforceRecruiterOccupations),
+    ]);
+
+    return {
+      totalOccupations: Number(totalResult[0]?.count || 0),
+      activeOccupations: Number(activeResult[0]?.count || 0),
+      remoteFriendly: Number(remoteResult[0]?.count || 0),
+      urgentDemand: Number(urgentResult[0]?.count || 0),
+      openRoles: Number(openRolesResult[0]?.sum || 0),
+    };
+  }
+
   // ========================================
   // LOSTMAIL OPERATIONS
   // ========================================
@@ -5981,6 +6303,7 @@ export class DatabaseStorage implements IStorage {
         { name: "Directory", deleteFn: () => this.deleteDirectoryProfileWithCascade(userId, reason).catch(err => console.warn(`Failed to delete Directory profile: ${err.message}`)) },
         { name: "TrustTransport", deleteFn: () => this.deleteTrusttransportProfile(userId, reason).catch(err => console.warn(`Failed to delete TrustTransport profile: ${err.message}`)) },
         { name: "MechanicMatch", deleteFn: () => this.deleteMechanicmatchProfile(userId, reason).catch(err => console.warn(`Failed to delete MechanicMatch profile: ${err.message}`)) },
+        { name: "Workforce Recruiter", deleteFn: () => this.deleteWorkforceRecruiterProfile(userId, reason).catch(err => console.warn(`Failed to delete Workforce Recruiter profile: ${err.message}`)) },
         { name: "Chyme", deleteFn: () => this.deleteChymeProfile(userId, reason).catch(err => console.warn(`Failed to delete Chyme profile: ${err.message}`)) },
       ];
 
