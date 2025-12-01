@@ -16,6 +16,7 @@ import { clerkMiddleware } from "@clerk/express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { errorHandler, notFoundHandler } from "./errorHandler";
+import { blockSecurityProbes } from "./securityProbeBlocker";
 
 const app = express();
 
@@ -106,6 +107,10 @@ app.use((req, res, next) => {
 
 (async () => {
   const server = await registerRoutes(app);
+
+  // Block security probe paths before serving static files
+  // This prevents requests to /.git/*, /.env, etc. from being served
+  app.use(blockSecurityProbes);
 
   // importantly only setup vite in development and after
   // setting up all the other routes so the catch-all route

@@ -152,6 +152,22 @@ export function serveStatic(app: Express) {
     
     res.sendFile(indexPath, (err) => {
       if (err) {
+        // Check if error is due to client disconnection (ECONNABORTED, EPIPE, etc.)
+        // These are not server errors and should not be sent to Sentry
+        const isClientDisconnection = 
+          err.code === 'ECONNABORTED' || 
+          err.code === 'EPIPE' || 
+          err.code === 'ECONNRESET' ||
+          err.message?.includes('Request aborted');
+        
+        if (isClientDisconnection) {
+          // Client disconnected - this is normal behavior, just log and don't call next()
+          // Don't treat this as an error that needs to go to Sentry
+          console.log("Client disconnected while sending index.html:", err.code);
+          return;
+        }
+        
+        // For actual server errors, log and pass to error handler
         console.error("Error sending index.html:", err);
         next(err);
       }
