@@ -889,6 +889,83 @@ CREATE TABLE IF NOT EXISTS chyme_announcements (
 );
 
 -- ========================================
+-- WORKFORCE RECRUITER APP TABLES
+-- ========================================
+
+CREATE TABLE IF NOT EXISTS workforce_recruiter_profiles (
+  id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id VARCHAR NOT NULL UNIQUE REFERENCES users(id),
+  preferred_name VARCHAR(120),
+  city VARCHAR(120),
+  state VARCHAR(120),
+  country VARCHAR(120),
+  preferred_industry VARCHAR(120),
+  preferred_role VARCHAR(150),
+  experience_level VARCHAR(50) NOT NULL DEFAULT 'entry',
+  work_preference VARCHAR(50) NOT NULL DEFAULT 'remote',
+  availability_status VARCHAR(50) NOT NULL DEFAULT 'open',
+  support_needs TEXT,
+  certifications TEXT,
+  languages TEXT,
+  relocation_ready BOOLEAN NOT NULL DEFAULT false,
+  has_remote_setup BOOLEAN NOT NULL DEFAULT false,
+  mentorship_interest BOOLEAN NOT NULL DEFAULT false,
+  summary TEXT,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS workforce_recruiter_config (
+  id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+  hero_title VARCHAR(200) NOT NULL,
+  hero_subtitle TEXT,
+  intake_status VARCHAR(50) NOT NULL DEFAULT 'open',
+  max_active_candidates INTEGER NOT NULL DEFAULT 25,
+  highlight_one_label VARCHAR(150),
+  highlight_one_value VARCHAR(50),
+  highlight_two_label VARCHAR(150),
+  highlight_two_value VARCHAR(50),
+  highlight_three_label VARCHAR(150),
+  highlight_three_value VARCHAR(50),
+  contact_email VARCHAR(150),
+  contact_phone VARCHAR(50),
+  resource_link_label VARCHAR(150),
+  resource_link_url VARCHAR(300),
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS workforce_recruiter_occupations (
+  id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+  title VARCHAR(150) NOT NULL,
+  sector VARCHAR(120) NOT NULL,
+  description TEXT,
+  demand_level VARCHAR(50) NOT NULL DEFAULT 'growing',
+  salary_range VARCHAR(120),
+  is_remote_friendly BOOLEAN NOT NULL DEFAULT true,
+  training_provided BOOLEAN NOT NULL DEFAULT false,
+  openings INTEGER NOT NULL DEFAULT 0,
+  priority_rank INTEGER NOT NULL DEFAULT 1,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS workforce_recruiter_announcements (
+  id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+  title VARCHAR(200) NOT NULL,
+  content TEXT NOT NULL,
+  type VARCHAR(50) NOT NULL DEFAULT 'info',
+  audience VARCHAR(50) DEFAULT 'applicants',
+  cta_label VARCHAR(100),
+  cta_url VARCHAR(300),
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  expires_at TIMESTAMP,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+-- ========================================
 -- ADD FOREIGN KEY CONSTRAINTS (after all tables are created)
 -- ========================================
 

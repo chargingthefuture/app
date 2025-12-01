@@ -81,6 +81,11 @@ const seedScripts = [
     description: "Chyme - Social audio platform",
   },
   {
+    name: "Workforce Recruiter",
+    script: "seedWorkforceRecruiter.ts",
+    description: "Workforce Recruiter - job readiness & employer config",
+  },
+  {
     name: "Payment Tracking",
     script: "seedPaymentTracking.ts",
     description: "Payment Tracking - Payment tracking and delinquent user features",
