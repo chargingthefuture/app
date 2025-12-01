@@ -889,6 +889,74 @@ CREATE TABLE IF NOT EXISTS chyme_announcements (
 );
 
 -- ========================================
+-- WORKFORCE RECRUITER APP TABLES
+-- ========================================
+
+CREATE TABLE IF NOT EXISTS workforce_recruiter_profiles (
+  id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id VARCHAR NOT NULL UNIQUE REFERENCES users(id),
+  organization_name VARCHAR(150) NOT NULL,
+  recruiter_name VARCHAR(150) NOT NULL,
+  contact_email VARCHAR(200) NOT NULL,
+  contact_phone VARCHAR(50),
+  focus_industries TEXT,
+  service_regions TEXT,
+  remote_expertise TEXT,
+  candidate_capacity INTEGER NOT NULL DEFAULT 0,
+  placements_completed INTEGER NOT NULL DEFAULT 0,
+  is_accepting_candidates BOOLEAN NOT NULL DEFAULT true,
+  preferred_roles TEXT,
+  languages_supported TEXT,
+  notes TEXT,
+  verification_status VARCHAR(50) NOT NULL DEFAULT 'pending',
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS workforce_recruiter_announcements (
+  id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+  title VARCHAR(200) NOT NULL,
+  content TEXT NOT NULL,
+  type VARCHAR(50) NOT NULL DEFAULT 'info',
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  expires_at TIMESTAMP,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS workforce_recruiter_config (
+  id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+  mission_statement TEXT,
+  candidate_eligibility TEXT,
+  employer_expectations TEXT,
+  escalation_email VARCHAR(200),
+  escalation_phone VARCHAR(50),
+  office_hours VARCHAR(200),
+  support_channel VARCHAR(200),
+  priority_industries TEXT,
+  last_updated_by VARCHAR REFERENCES users(id),
+  last_reviewed_at TIMESTAMP DEFAULT NOW(),
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS workforce_recruiter_occupations (
+  id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+  title VARCHAR(200) NOT NULL,
+  category VARCHAR(120),
+  description TEXT,
+  demand_level VARCHAR(50) NOT NULL DEFAULT 'moderate',
+  open_roles INTEGER NOT NULL DEFAULT 0,
+  priority_level INTEGER NOT NULL DEFAULT 3,
+  remote_friendly BOOLEAN NOT NULL DEFAULT false,
+  requires_certification BOOLEAN NOT NULL DEFAULT false,
+  avg_placement_time_days INTEGER DEFAULT 30,
+  last_reviewed_at TIMESTAMP DEFAULT NOW(),
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+-- ========================================
 -- ADD FOREIGN KEY CONSTRAINTS (after all tables are created)
 -- ========================================
 

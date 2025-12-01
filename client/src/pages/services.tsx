@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "wouter";
-import { UserCheck, Building2, ArrowRight, MessageCircle, Wrench, Mail, Search, HeartPulse, Radio, Car} from "lucide-react";
+import { UserCheck, Building2, ArrowRight, MessageCircle, Wrench, Mail, Search, HeartPulse, Radio, Car, Briefcase} from "lucide-react";
 
 const services = [
   {
@@ -81,6 +81,13 @@ const services = [
     icon: Car,
     href: "/apps/trusttransport",
     testId: "card-service-trusttransport",
+  },
+  {
+    title: "Workforce Recruiter",
+    description: "Partner-facing hub to coordinate trauma-informed recruiters, share vetted roles, and log ethical commitments.",
+    icon: Briefcase,
+    href: "/apps/workforce-recruiter",
+    testId: "card-service-workforce-recruiter",
   },
 ];
 

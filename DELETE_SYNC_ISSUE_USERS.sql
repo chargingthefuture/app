@@ -89,6 +89,10 @@ DELETE FROM socketrelay_profiles WHERE user_id = '49006997';
 -- Directory
 DELETE FROM directory_profiles WHERE user_id = '49006997';
 
+-- Workforce Recruiter
+UPDATE workforce_recruiter_config SET last_updated_by = NULL WHERE last_updated_by = '49006997';
+DELETE FROM workforce_recruiter_profiles WHERE user_id = '49006997';
+
 -- TrustTransport - rider_id references users.id directly (not through profiles)
 DELETE FROM trusttransport_ride_requests WHERE rider_id = '49006997';
 DELETE FROM trusttransport_profiles WHERE user_id = '49006997';
@@ -219,6 +223,10 @@ DELETE FROM socketrelay_profiles WHERE user_id = '48981890';
 
 -- Directory
 DELETE FROM directory_profiles WHERE user_id = '48981890';
+
+-- Workforce Recruiter
+UPDATE workforce_recruiter_config SET last_updated_by = NULL WHERE last_updated_by = '48981890';
+DELETE FROM workforce_recruiter_profiles WHERE user_id = '48981890';
 
 -- TrustTransport - rider_id references users.id directly (not through profiles)
 DELETE FROM trusttransport_ride_requests WHERE rider_id = '48981890';

@@ -1,6 +1,7 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, RenderOptions } from '@testing-library/react';
-import { ReactElement } from 'react';
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { render, RenderOptions } from "@testing-library/react";
+import { ReactElement } from "react";
+import { getQueryFn } from "@/lib/queryClient";
 
 /**
  * Test helpers for React components
@@ -14,6 +15,7 @@ export function createTestQueryClient() {
     defaultOptions: {
       queries: {
         retry: false,
+        queryFn: getQueryFn({ on401: "returnNull" }),
       },
       mutations: {
         retry: false,

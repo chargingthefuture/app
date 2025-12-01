@@ -107,6 +107,7 @@ export const createMockRequest = (userId?: string, isAdmin = false) => ({
         claims: { sub: userId },
         expires_at: Math.floor(Date.now() / 1000) + 3600,
         refresh_token: 'test-refresh-token',
+        isAdmin,
       }
     : null,
   isAuthenticated: () => !!userId,
