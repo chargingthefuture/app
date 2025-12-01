@@ -889,6 +889,58 @@ CREATE TABLE IF NOT EXISTS chyme_announcements (
 );
 
 -- ========================================
+-- WORKFORCE RECRUITER TABLES
+-- ========================================
+
+CREATE TABLE IF NOT EXISTS workforce_recruiter_config (
+  id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+  slug VARCHAR(64) NOT NULL UNIQUE,
+  hero_title VARCHAR(200) NOT NULL,
+  hero_subtitle TEXT,
+  primary_cta_label VARCHAR(100),
+  primary_cta_url VARCHAR(500),
+  support_email VARCHAR(200),
+  support_phone VARCHAR(50),
+  application_form_url VARCHAR(500),
+  highlighted_stats JSONB NOT NULL DEFAULT '[]'::jsonb,
+  industries JSONB NOT NULL DEFAULT '[]'::jsonb,
+  support_channels JSONB NOT NULL DEFAULT '[]'::jsonb,
+  created_by VARCHAR REFERENCES users(id),
+  updated_by VARCHAR REFERENCES users(id),
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS workforce_recruiter_announcements (
+  id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+  title VARCHAR(200) NOT NULL,
+  content TEXT NOT NULL,
+  type VARCHAR(50) NOT NULL DEFAULT 'info',
+  priority_level VARCHAR(20) NOT NULL DEFAULT 'normal',
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  expires_at TIMESTAMP,
+  created_by VARCHAR REFERENCES users(id),
+  updated_by VARCHAR REFERENCES users(id),
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS workforce_recruiter_occupations (
+  id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+  occupation_name VARCHAR(200) NOT NULL,
+  region VARCHAR(100),
+  category VARCHAR(100),
+  open_roles INTEGER NOT NULL DEFAULT 0,
+  active_candidates INTEGER NOT NULL DEFAULT 0,
+  placements_last_30_days INTEGER NOT NULL DEFAULT 0,
+  avg_time_to_fill_days INTEGER NOT NULL DEFAULT 0,
+  is_priority BOOLEAN NOT NULL DEFAULT false,
+  spotlight_message TEXT,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+-- ========================================
 -- ADD FOREIGN KEY CONSTRAINTS (after all tables are created)
 -- ========================================
 

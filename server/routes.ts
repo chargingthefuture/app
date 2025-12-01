@@ -67,6 +67,9 @@ import {
   insertChymeMessageSchema,
   insertChymeSurveyResponseSchema,
   insertChymeAnnouncementSchema,
+  insertWorkforceRecruiterConfigSchema,
+  insertWorkforceRecruiterAnnouncementSchema,
+  insertWorkforceRecruiterOccupationSchema,
 } from "@shared/schema";
 import { asyncHandler } from "./errorHandler";
 import { validateWithZod } from "./validationErrorFormatter";
@@ -5263,6 +5266,228 @@ export async function registerRoutes(app: Express): Promise<Server> {
       userId,
       "deactivate_chyme_announcement",
       "announcement",
+      announcement.id,
+      { title: announcement.title }
+    );
+
+    res.json(announcement);
+  }));
+
+  // ========================================
+  // WORKFORCE RECRUITER ROUTES
+  // ========================================
+  const defaultWorkforceRecruiterConfig = {
+    slug: "primary",
+    heroTitle: "Rapid Workforce Recruiter",
+    heroSubtitle: "Deploy vetted responders for shelters, survivor care teams, and investigations in under 48 hours.",
+    primaryCtaLabel: "Request Critical Talent",
+    primaryCtaUrl: "https://the-comic.com/forms/workforce-support",
+    supportEmail: "ops@the-comic.com",
+    supportPhone: "+1-415-555-0118",
+    applicationFormUrl: "https://the-comic.com/forms/workforce-recruiter",
+    highlightedStats: [
+      { label: "Ready-to-Deploy Specialists", value: "180 candidates" },
+      { label: "Average Deployment Time", value: "36 hours" },
+      { label: "Critical Placements (Q3)", value: "42 teams" },
+    ],
+    industries: [
+      "Shelter Operations",
+      "Hotline & Digital Intake",
+      "Investigations",
+      "Transportation & Logistics",
+      "Peer Support"
+    ],
+    supportChannels: [
+      { label: "Operations Email", value: "ops@the-comic.com" },
+      { label: "Signal (24/7)", value: "+1-415-555-0180" },
+    ],
+  };
+
+  const getOrCreateWorkforceRecruiterConfig = async (userId?: string) => {
+    let config = await withDatabaseErrorHandling(
+      () => storage.getWorkforceRecruiterConfig(),
+      'getWorkforceRecruiterConfig'
+    );
+
+    if (!config) {
+      config = await withDatabaseErrorHandling(
+        () => storage.upsertWorkforceRecruiterConfig({
+          ...defaultWorkforceRecruiterConfig,
+          createdBy: userId ?? null,
+          updatedBy: userId ?? null,
+        }),
+        'upsertWorkforceRecruiterConfig'
+      );
+    }
+
+    return config;
+  };
+
+  app.get('/api/workforce-recruiter/config', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const config = await getOrCreateWorkforceRecruiterConfig(userId);
+    res.json(config);
+  }));
+
+  app.put('/api/workforce-recruiter/admin/config', isAuthenticated, ...isAdminWithCsrf, asyncHandler(async (req: any, res) => {
+    const adminId = getUserId(req);
+    const validatedData = validateWithZod(insertWorkforceRecruiterConfigSchema, req.body, 'Invalid configuration data');
+
+    const config = await withDatabaseErrorHandling(
+      () => storage.upsertWorkforceRecruiterConfig({
+        ...validatedData,
+        createdBy: adminId,
+        updatedBy: adminId,
+      }),
+      'upsertWorkforceRecruiterConfig'
+    );
+
+    await logAdminAction(
+      adminId,
+      "update_workforce_recruiter_config",
+      "workforce_recruiter_config",
+      config.id,
+      { slug: config.slug }
+    );
+
+    res.json(config);
+  }));
+
+  app.get('/api/workforce-recruiter/reports/summary', isAuthenticated, asyncHandler(async (_req, res) => {
+    const summary = await withDatabaseErrorHandling(
+      () => storage.getWorkforceRecruiterSummaryReport(),
+      'getWorkforceRecruiterSummaryReport'
+    );
+    res.json(summary);
+  }));
+
+  app.get('/api/workforce-recruiter/occupations', isAuthenticated, asyncHandler(async (_req, res) => {
+    const occupations = await withDatabaseErrorHandling(
+      () => storage.listWorkforceRecruiterOccupations(),
+      'listWorkforceRecruiterOccupations'
+    );
+    res.json(occupations);
+  }));
+
+  app.get('/api/workforce-recruiter/announcements', isAuthenticated, asyncHandler(async (_req, res) => {
+    const announcements = await withDatabaseErrorHandling(
+      () => storage.getActiveWorkforceRecruiterAnnouncements(),
+      'getActiveWorkforceRecruiterAnnouncements'
+    );
+    res.json(announcements);
+  }));
+
+  // Admin - occupations
+  app.get('/api/workforce-recruiter/admin/occupations', isAuthenticated, isAdmin, asyncHandler(async (_req, res) => {
+    const occupations = await withDatabaseErrorHandling(
+      () => storage.listWorkforceRecruiterOccupations(),
+      'listWorkforceRecruiterOccupations'
+    );
+    res.json(occupations);
+  }));
+
+  app.post('/api/workforce-recruiter/admin/occupations', isAuthenticated, ...isAdminWithCsrf, asyncHandler(async (req: any, res) => {
+    const adminId = getUserId(req);
+    const validatedData = validateWithZod(insertWorkforceRecruiterOccupationSchema, req.body, 'Invalid occupation data');
+
+    const occupation = await withDatabaseErrorHandling(
+      () => storage.upsertWorkforceRecruiterOccupation(validatedData),
+      'upsertWorkforceRecruiterOccupation'
+    );
+
+    await logAdminAction(
+      adminId,
+      "create_workforce_recruiter_occupation",
+      "workforce_recruiter_occupation",
+      occupation.id,
+      { occupation: occupation.occupationName }
+    );
+
+    res.json(occupation);
+  }));
+
+  app.put('/api/workforce-recruiter/admin/occupations/:id', isAuthenticated, ...isAdminWithCsrf, asyncHandler(async (req: any, res) => {
+    const adminId = getUserId(req);
+    const validatedData = validateWithZod(
+      insertWorkforceRecruiterOccupationSchema.partial() as any,
+      req.body,
+      'Invalid occupation update'
+    );
+
+    const occupation = await withDatabaseErrorHandling(
+      () => storage.upsertWorkforceRecruiterOccupation({ ...validatedData, id: req.params.id }),
+      'upsertWorkforceRecruiterOccupation'
+    );
+
+    await logAdminAction(
+      adminId,
+      "update_workforce_recruiter_occupation",
+      "workforce_recruiter_occupation",
+      occupation.id,
+      { occupation: occupation.occupationName }
+    );
+
+    res.json(occupation);
+  }));
+
+  // Admin - announcements
+  app.get('/api/workforce-recruiter/admin/announcements', isAuthenticated, isAdmin, asyncHandler(async (_req, res) => {
+    const announcements = await withDatabaseErrorHandling(
+      () => storage.getAllWorkforceRecruiterAnnouncements(),
+      'getAllWorkforceRecruiterAnnouncements'
+    );
+    res.json(announcements);
+  }));
+
+  app.post('/api/workforce-recruiter/admin/announcements', isAuthenticated, ...isAdminWithCsrf, asyncHandler(async (req: any, res) => {
+    const adminId = getUserId(req);
+    const validatedData = validateWithZod(insertWorkforceRecruiterAnnouncementSchema, req.body, 'Invalid announcement data');
+
+    const announcement = await withDatabaseErrorHandling(
+      () => storage.createWorkforceRecruiterAnnouncement(validatedData),
+      'createWorkforceRecruiterAnnouncement'
+    );
+
+    await logAdminAction(
+      adminId,
+      "create_workforce_recruiter_announcement",
+      "workforce_recruiter_announcement",
+      announcement.id,
+      { title: announcement.title, type: announcement.type }
+    );
+
+    res.json(announcement);
+  }));
+
+  app.put('/api/workforce-recruiter/admin/announcements/:id', isAuthenticated, ...isAdminWithCsrf, asyncHandler(async (req: any, res) => {
+    const adminId = getUserId(req);
+    const announcement = await withDatabaseErrorHandling(
+      () => storage.updateWorkforceRecruiterAnnouncement(req.params.id, req.body),
+      'updateWorkforceRecruiterAnnouncement'
+    );
+
+    await logAdminAction(
+      adminId,
+      "update_workforce_recruiter_announcement",
+      "workforce_recruiter_announcement",
+      announcement.id,
+      { title: announcement.title }
+    );
+
+    res.json(announcement);
+  }));
+
+  app.delete('/api/workforce-recruiter/admin/announcements/:id', isAuthenticated, ...isAdminWithCsrf, asyncHandler(async (req: any, res) => {
+    const adminId = getUserId(req);
+    const announcement = await withDatabaseErrorHandling(
+      () => storage.deactivateWorkforceRecruiterAnnouncement(req.params.id),
+      'deactivateWorkforceRecruiterAnnouncement'
+    );
+
+    await logAdminAction(
+      adminId,
+      "deactivate_workforce_recruiter_announcement",
+      "workforce_recruiter_announcement",
       announcement.id,
       { title: announcement.title }
     );

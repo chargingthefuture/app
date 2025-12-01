@@ -2322,3 +2322,140 @@ export const insertChymeAnnouncementSchema = createInsertSchema(chymeAnnouncemen
 
 export type InsertChymeAnnouncement = z.infer<typeof insertChymeAnnouncementSchema>;
 export type ChymeAnnouncement = typeof chymeAnnouncements.$inferSelect;
+
+// ========================================
+// WORKFORCE RECRUITER APP TABLES
+// ========================================
+
+export type WorkforceRecruiterStat = {
+  label: string;
+  value: string;
+  trend?: string;
+};
+
+export type WorkforceRecruiterSupportChannel = {
+  label: string;
+  value: string;
+};
+
+export const workforceRecruiterConfig = pgTable("workforce_recruiter_config", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  slug: varchar("slug", { length: 64 }).notNull().unique().default("primary"),
+  heroTitle: varchar("hero_title", { length: 200 }).notNull(),
+  heroSubtitle: text("hero_subtitle"),
+  primaryCtaLabel: varchar("primary_cta_label", { length: 100 }),
+  primaryCtaUrl: varchar("primary_cta_url", { length: 500 }),
+  supportEmail: varchar("support_email", { length: 200 }),
+  supportPhone: varchar("support_phone", { length: 50 }),
+  applicationFormUrl: varchar("application_form_url", { length: 500 }),
+  highlightedStats: jsonb("highlighted_stats")
+    .$type<WorkforceRecruiterStat[]>()
+    .notNull()
+    .default(sql`'[]'::jsonb`),
+  industries: jsonb("industries")
+    .$type<string[]>()
+    .notNull()
+    .default(sql`'[]'::jsonb`),
+  supportChannels: jsonb("support_channels")
+    .$type<WorkforceRecruiterSupportChannel[]>()
+    .notNull()
+    .default(sql`'[]'::jsonb`),
+  createdBy: varchar("created_by").references(() => users.id),
+  updatedBy: varchar("updated_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertWorkforceRecruiterConfigSchema = createInsertSchema(workforceRecruiterConfig).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  createdBy: true,
+  updatedBy: true,
+}).extend({
+  slug: z.string().min(2).max(64).optional(),
+  heroTitle: z.string().min(1, "Hero title is required"),
+  highlightedStats: z.array(
+    z.object({
+      label: z.string().min(1),
+      value: z.string().min(1),
+      trend: z.string().optional(),
+    })
+  ).optional().default([]),
+  industries: z.array(z.string().min(1)).optional().default([]),
+  supportChannels: z.array(
+    z.object({
+      label: z.string().min(1),
+      value: z.string().min(1),
+    })
+  ).optional().default([]),
+  applicationFormUrl: z.string().url().optional().nullable(),
+  primaryCtaUrl: z.string().url().optional().nullable(),
+  supportEmail: z.string().email().optional().nullable(),
+});
+
+export type InsertWorkforceRecruiterConfig = z.infer<typeof insertWorkforceRecruiterConfigSchema>;
+export type WorkforceRecruiterConfig = typeof workforceRecruiterConfig.$inferSelect;
+
+export const workforceRecruiterAnnouncements = pgTable("workforce_recruiter_announcements", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: varchar("title", { length: 200 }).notNull(),
+  content: text("content").notNull(),
+  type: varchar("type", { length: 50 }).notNull().default('info'),
+  priorityLevel: varchar("priority_level", { length: 20 }).notNull().default('normal'),
+  isActive: boolean("is_active").notNull().default(true),
+  expiresAt: timestamp("expires_at"),
+  createdBy: varchar("created_by").references(() => users.id),
+  updatedBy: varchar("updated_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertWorkforceRecruiterAnnouncementSchema = createInsertSchema(workforceRecruiterAnnouncements).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  createdBy: true,
+  updatedBy: true,
+}).extend({
+  expiresAt: z.coerce.date().optional().nullable(),
+  priorityLevel: z.enum(["low", "normal", "high", "critical"]).default("normal"),
+  type: z.enum(["info", "warning", "maintenance", "update", "promotion"]).default("info"),
+});
+
+export type InsertWorkforceRecruiterAnnouncement = z.infer<typeof insertWorkforceRecruiterAnnouncementSchema>;
+export type WorkforceRecruiterAnnouncement = typeof workforceRecruiterAnnouncements.$inferSelect;
+
+export const workforceRecruiterOccupations = pgTable("workforce_recruiter_occupations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  occupationName: varchar("occupation_name", { length: 200 }).notNull(),
+  region: varchar("region", { length: 100 }),
+  category: varchar("category", { length: 100 }),
+  openRoles: integer("open_roles").notNull().default(0),
+  activeCandidates: integer("active_candidates").notNull().default(0),
+  placementsLast30Days: integer("placements_last_30_days").notNull().default(0),
+  avgTimeToFillDays: integer("avg_time_to_fill_days").notNull().default(0),
+  isPriority: boolean("is_priority").notNull().default(false),
+  spotlightMessage: text("spotlight_message"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertWorkforceRecruiterOccupationSchema = createInsertSchema(workforceRecruiterOccupations).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  occupationName: z.string().min(1, "Occupation name is required"),
+  region: z.string().max(100).optional().nullable(),
+  category: z.string().max(100).optional().nullable(),
+  openRoles: z.number().int().min(0).default(0),
+  activeCandidates: z.number().int().min(0).default(0),
+  placementsLast30Days: z.number().int().min(0).default(0),
+  avgTimeToFillDays: z.number().int().min(0).default(0),
+  isPriority: z.boolean().optional(),
+  spotlightMessage: z.string().optional().nullable(),
+});
+
+export type InsertWorkforceRecruiterOccupation = z.infer<typeof insertWorkforceRecruiterOccupationSchema>;
+export type WorkforceRecruiterOccupation = typeof workforceRecruiterOccupations.$inferSelect;

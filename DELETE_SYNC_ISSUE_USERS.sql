@@ -31,6 +31,10 @@ DELETE FROM payments WHERE recorded_by = '49006997';
 -- Admin action logs (admin_id references users.id directly)
 DELETE FROM admin_action_logs WHERE admin_id = '49006997';
 
+-- Workforce Recruiter references
+DELETE FROM workforce_recruiter_config WHERE created_by = '49006997' OR updated_by = '49006997';
+DELETE FROM workforce_recruiter_announcements WHERE created_by = '49006997' OR updated_by = '49006997';
+
 -- SupportMatch - Delete related data first
 -- Messages: sender_id references support_match_profiles.user_id (not profile id)
 -- Must delete messages BEFORE deleting profiles (foreign key constraint)
@@ -161,6 +165,10 @@ DELETE FROM payments WHERE recorded_by = '48981890';
 
 -- Admin action logs (admin_id references users.id directly)
 DELETE FROM admin_action_logs WHERE admin_id = '48981890';
+
+-- Workforce Recruiter references
+DELETE FROM workforce_recruiter_config WHERE created_by = '48981890' OR updated_by = '48981890';
+DELETE FROM workforce_recruiter_announcements WHERE created_by = '48981890' OR updated_by = '48981890';
 
 -- SupportMatch - Delete related data first
 -- Messages: sender_id references support_match_profiles.user_id (not profile id)
