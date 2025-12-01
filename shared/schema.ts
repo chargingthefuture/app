@@ -2322,3 +2322,96 @@ export const insertChymeAnnouncementSchema = createInsertSchema(chymeAnnouncemen
 
 export type InsertChymeAnnouncement = z.infer<typeof insertChymeAnnouncementSchema>;
 export type ChymeAnnouncement = typeof chymeAnnouncements.$inferSelect;
+
+// ========================================
+// WORKFORCE RECRUITER APP TABLES
+// ========================================
+
+export const workforceRecruiterOccupations = pgTable("workforce_recruiter_occupations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  slug: varchar("slug", { length: 160 }).notNull().unique(),
+  title: varchar("title", { length: 200 }).notNull(),
+  shortDescription: varchar("short_description", { length: 280 }).notNull(),
+  fullDescription: text("full_description"),
+  sector: varchar("sector", { length: 120 }).notNull(),
+  category: varchar("category", { length: 120 }),
+  employmentType: varchar("employment_type", { length: 50 }).notNull().default("full_time"),
+  experienceLevel: varchar("experience_level", { length: 80 }).notNull().default("entry"),
+  educationRequirement: varchar("education_requirement", { length: 160 }),
+  salaryRangeMin: decimal("salary_range_min", { precision: 10, scale: 2 }),
+  salaryRangeMax: decimal("salary_range_max", { precision: 10, scale: 2 }),
+  currency: varchar("currency", { length: 6 }).notNull().default("USD"),
+  coreSkills: text("core_skills"),
+  preferredSkills: text("preferred_skills"),
+  certifications: text("certifications"),
+  traumaInformedSupport: text("trauma_informed_support"),
+  remoteFriendly: boolean("remote_friendly").notNull().default(true),
+  requiresBackgroundCheck: boolean("requires_background_check").notNull().default(false),
+  offersApprenticeship: boolean("offers_apprenticeship").notNull().default(false),
+  relocationSupport: boolean("relocation_support").notNull().default(false),
+  applicationUrl: text("application_url"),
+  contactEmail: varchar("contact_email", { length: 200 }),
+  languageRequirement: varchar("language_requirement", { length: 120 }),
+  priorityRank: integer("priority_rank").notNull().default(100),
+  tags: text("tags"),
+  resources: text("resources"),
+  isActive: boolean("is_active").notNull().default(true),
+  publishedAt: timestamp("published_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+const stringArrayField = () =>
+  z
+    .array(z.string().min(1))
+    .optional()
+    .nullable()
+    .transform((value) => (value && value.length > 0 ? JSON.stringify(value) : null));
+
+export const insertWorkforceRecruiterOccupationSchema = createInsertSchema(workforceRecruiterOccupations)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+    publishedAt: true,
+  })
+  .extend({
+    slug: z.string().min(1, "Slug is required").max(160),
+    title: z.string().min(3, "Title must be at least 3 characters").max(200),
+    shortDescription: z.string().min(1, "Short description is required").max(280),
+    sector: z.string().min(2, "Sector is required").max(120),
+    category: z.string().max(120).optional().nullable(),
+    employmentType: z
+      .enum(["full_time", "part_time", "contract", "gig", "seasonal", "apprenticeship"])
+      .default("full_time"),
+    experienceLevel: z.enum(["entry", "mid", "senior", "director"]).default("entry"),
+    educationRequirement: z.string().max(160).optional().nullable(),
+    salaryRangeMin: z.coerce.number().min(0).max(1000000).optional().nullable(),
+    salaryRangeMax: z.coerce.number().min(0).max(1000000).optional().nullable(),
+    currency: z.string().min(3).max(6).default("USD"),
+    remoteFriendly: z.boolean().default(true),
+    requiresBackgroundCheck: z.boolean().default(false),
+    offersApprenticeship: z.boolean().default(false),
+    relocationSupport: z.boolean().default(false),
+    coreSkills: stringArrayField(),
+    preferredSkills: stringArrayField(),
+    certifications: stringArrayField(),
+    tags: stringArrayField(),
+    resources: stringArrayField(),
+    traumaInformedSupport: z.string().optional().nullable(),
+    applicationUrl: z
+      .string()
+      .url("Application URL must be a valid URL")
+      .optional()
+      .nullable(),
+    contactEmail: z
+      .string()
+      .email("Contact email must be valid")
+      .optional()
+      .nullable(),
+    languageRequirement: z.string().max(120).optional().nullable(),
+    priorityRank: z.number().int().min(1).max(999).default(100),
+  });
+
+export type InsertWorkforceRecruiterOccupation = z.infer<typeof insertWorkforceRecruiterOccupationSchema>;
+export type WorkforceRecruiterOccupation = typeof workforceRecruiterOccupations.$inferSelect;

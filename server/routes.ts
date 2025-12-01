@@ -67,6 +67,7 @@ import {
   insertChymeMessageSchema,
   insertChymeSurveyResponseSchema,
   insertChymeAnnouncementSchema,
+  insertWorkforceRecruiterOccupationSchema,
 } from "@shared/schema";
 import { asyncHandler } from "./errorHandler";
 import { validateWithZod } from "./validationErrorFormatter";
@@ -5268,6 +5269,121 @@ export async function registerRoutes(app: Express): Promise<Server> {
     );
 
     res.json(announcement);
+  }));
+
+  // ========================================
+  // Workforce Recruiter Routes
+  // ========================================
+
+  app.get('/api/workforce-recruiter/occupations', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string, 10) || 20));
+    const offset = Math.max(0, parseInt(req.query.offset as string, 10) || 0);
+    const search = typeof req.query.search === "string" ? req.query.search : undefined;
+    const sector = typeof req.query.sector === "string" ? req.query.sector : undefined;
+    const remoteFriendly = typeof req.query.remoteFriendly === "string"
+      ? req.query.remoteFriendly === "true"
+      : undefined;
+
+    const occupations = await withDatabaseErrorHandling(
+      () => storage.getWorkforceRecruiterOccupations({
+        search,
+        sector,
+        remoteFriendly,
+        limit,
+        offset,
+      }),
+      'getAllWorkforceRecruiterOccupations'
+    );
+
+    res.json(occupations);
+  }));
+
+  // Admin listing with ability to view inactive rows
+  app.get('/api/workforce-recruiter/admin/occupations', isAuthenticated, isAdmin, asyncHandler(async (req, res) => {
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string, 10) || 50));
+    const offset = Math.max(0, parseInt(req.query.offset as string, 10) || 0);
+    const includeInactive = req.query.includeInactive === "true";
+    const search = typeof req.query.search === "string" ? req.query.search : undefined;
+    const sector = typeof req.query.sector === "string" ? req.query.sector : undefined;
+    const remoteFriendly = typeof req.query.remoteFriendly === "string"
+      ? req.query.remoteFriendly === "true"
+      : undefined;
+
+    const occupations = await withDatabaseErrorHandling(
+      () => storage.getWorkforceRecruiterOccupations({
+        search,
+        sector,
+        remoteFriendly,
+        includeInactive,
+        limit,
+        offset,
+      }),
+      'getAllWorkforceRecruiterOccupations'
+    );
+
+    res.json(occupations);
+  }));
+
+  app.post('/api/workforce-recruiter/admin/occupations', isAuthenticated, ...isAdminWithCsrf, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const validatedData = validateWithZod(insertWorkforceRecruiterOccupationSchema, req.body, 'Invalid occupation data');
+
+    const occupation = await withDatabaseErrorHandling(
+      () => storage.createWorkforceRecruiterOccupation(validatedData),
+      'createWorkforceRecruiterOccupation'
+    );
+
+    await logAdminAction(
+      userId,
+      "create_workforce_recruiter_occupation",
+      "workforce_recruiter_occupation",
+      occupation.id,
+      { title: occupation.title, sector: occupation.sector }
+    );
+
+    res.json(occupation);
+  }));
+
+  app.put('/api/workforce-recruiter/admin/occupations/:id', isAuthenticated, ...isAdminWithCsrf, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const validatedData = validateWithZod(
+      insertWorkforceRecruiterOccupationSchema.partial(),
+      req.body,
+      'Invalid occupation data'
+    );
+
+    const occupation = await withDatabaseErrorHandling(
+      () => storage.updateWorkforceRecruiterOccupation(req.params.id, validatedData),
+      'updateWorkforceRecruiterOccupation'
+    );
+
+    await logAdminAction(
+      userId,
+      "update_workforce_recruiter_occupation",
+      "workforce_recruiter_occupation",
+      occupation.id,
+      { title: occupation.title }
+    );
+
+    res.json(occupation);
+  }));
+
+  app.delete('/api/workforce-recruiter/admin/occupations/:id', isAuthenticated, ...isAdminWithCsrf, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const occupation = await withDatabaseErrorHandling(
+      () => storage.deactivateWorkforceRecruiterOccupation(req.params.id),
+      'deactivateWorkforceRecruiterOccupation'
+    );
+
+    await logAdminAction(
+      userId,
+      "deactivate_workforce_recruiter_occupation",
+      "workforce_recruiter_occupation",
+      occupation.id,
+      { title: occupation.title }
+    );
+
+    res.json(occupation);
   }));
 
   const httpServer = createServer(app);

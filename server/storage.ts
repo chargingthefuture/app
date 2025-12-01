@@ -182,6 +182,9 @@ import {
   type InsertChymeSurveyResponse,
   type ChymeAnnouncement,
   type InsertChymeAnnouncement,
+  workforceRecruiterOccupations,
+  type WorkforceRecruiterOccupation,
+  type InsertWorkforceRecruiterOccupation,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, asc, sql, or, inArray, gte, lte } from "drizzle-orm";
@@ -732,6 +735,24 @@ export interface IStorage {
   
   // Complete account deletion - deletes user from all mini-apps and anonymizes all data
   deleteUserAccount(userId: string, reason?: string): Promise<void>;
+  
+  // Workforce Recruiter Occupation operations
+  getWorkforceRecruiterOccupations(filters?: {
+    search?: string;
+    sector?: string;
+    remoteFriendly?: boolean;
+    includeInactive?: boolean;
+    limit?: number;
+    offset?: number;
+  }): Promise<{ items: WorkforceRecruiterOccupation[]; total: number }>;
+  createWorkforceRecruiterOccupation(
+    data: InsertWorkforceRecruiterOccupation
+  ): Promise<WorkforceRecruiterOccupation>;
+  updateWorkforceRecruiterOccupation(
+    id: string,
+    data: Partial<InsertWorkforceRecruiterOccupation>
+  ): Promise<WorkforceRecruiterOccupation>;
+  deactivateWorkforceRecruiterOccupation(id: string): Promise<WorkforceRecruiterOccupation>;
   
   // NPS (Net Promoter Score) operations
   createNpsResponse(response: InsertNpsResponse): Promise<NpsResponse>;
@@ -3524,6 +3545,38 @@ export class DatabaseStorage implements IStorage {
   }
 
   /**
+   * Normalizes Workforce Recruiter array/string fields into JSON strings
+   */
+  private normalizeWorkforceRecruiterArrays(
+    data: Partial<InsertWorkforceRecruiterOccupation>
+  ): Partial<InsertWorkforceRecruiterOccupation> {
+    const normalize = (value: any) => {
+      if (value === undefined) {
+        return undefined;
+      }
+      if (value === null) {
+        return null;
+      }
+      if (Array.isArray(value)) {
+        return value.length > 0 ? JSON.stringify(value) : null;
+      }
+      if (typeof value === "string" && value.trim() === "") {
+        return null;
+      }
+      return value;
+    };
+
+    return {
+      ...data,
+      coreSkills: normalize(data.coreSkills),
+      preferredSkills: normalize(data.preferredSkills),
+      certifications: normalize(data.certifications),
+      tags: normalize(data.tags),
+      resources: normalize(data.resources),
+    };
+  }
+
+  /**
    * Logs a profile deletion for auditing purposes
    */
   async logProfileDeletion(userId: string, appName: string, reason?: string): Promise<ProfileDeletionLog> {
@@ -6098,6 +6151,106 @@ export class DatabaseStorage implements IStorage {
       console.error(`[deleteUserAccount] Error: Failed to delete user account: ${error.message}`);
       throw new Error(`Failed to delete user account: ${error.message || "Unknown error"}`);
     }
+  }
+
+  // ========================================
+  // WORKFORCE RECRUITER OPERATIONS
+  // ========================================
+
+  async getWorkforceRecruiterOccupations(filters?: {
+    search?: string;
+    sector?: string;
+    remoteFriendly?: boolean;
+    includeInactive?: boolean;
+    limit?: number;
+    offset?: number;
+  }): Promise<{ items: WorkforceRecruiterOccupation[]; total: number }> {
+    const limit = Math.min(100, Math.max(1, filters?.limit ?? 20));
+    const offset = Math.max(0, filters?.offset ?? 0);
+    const conditions: any[] = [];
+
+    if (!filters?.includeInactive) {
+      conditions.push(eq(workforceRecruiterOccupations.isActive, true));
+    }
+
+    if (filters?.sector) {
+      conditions.push(eq(workforceRecruiterOccupations.sector, filters.sector));
+    }
+
+    if (typeof filters?.remoteFriendly === "boolean") {
+      conditions.push(eq(workforceRecruiterOccupations.remoteFriendly, filters.remoteFriendly));
+    }
+
+    if (filters?.search) {
+      const likeValue = `%${filters.search}%`;
+      conditions.push(
+        or(
+          sql`${workforceRecruiterOccupations.title} ILIKE ${likeValue}`,
+          sql`${workforceRecruiterOccupations.shortDescription} ILIKE ${likeValue}`,
+          sql`${workforceRecruiterOccupations.tags} ILIKE ${likeValue}`
+        )
+      );
+    }
+
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+    const totalResult = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(workforceRecruiterOccupations)
+      .where(whereClause);
+    const total = Number(totalResult[0]?.count || 0);
+
+    const items = await db
+      .select()
+      .from(workforceRecruiterOccupations)
+      .where(whereClause)
+      .orderBy(
+        asc(workforceRecruiterOccupations.priorityRank),
+        desc(workforceRecruiterOccupations.updatedAt)
+      )
+      .limit(limit)
+      .offset(offset);
+
+    return { items, total };
+  }
+
+  async createWorkforceRecruiterOccupation(
+    data: InsertWorkforceRecruiterOccupation
+  ): Promise<WorkforceRecruiterOccupation> {
+    const payload = this.normalizeWorkforceRecruiterArrays(data);
+    const [occupation] = await db
+      .insert(workforceRecruiterOccupations)
+      .values(payload)
+      .returning();
+    return occupation;
+  }
+
+  async updateWorkforceRecruiterOccupation(
+    id: string,
+    data: Partial<InsertWorkforceRecruiterOccupation>
+  ): Promise<WorkforceRecruiterOccupation> {
+    const payload = this.normalizeWorkforceRecruiterArrays(data);
+    const [occupation] = await db
+      .update(workforceRecruiterOccupations)
+      .set({
+        ...payload,
+        updatedAt: new Date(),
+      })
+      .where(eq(workforceRecruiterOccupations.id, id))
+      .returning();
+    return occupation;
+  }
+
+  async deactivateWorkforceRecruiterOccupation(id: string): Promise<WorkforceRecruiterOccupation> {
+    const [occupation] = await db
+      .update(workforceRecruiterOccupations)
+      .set({
+        isActive: false,
+        updatedAt: new Date(),
+      })
+      .where(eq(workforceRecruiterOccupations.id, id))
+      .returning();
+    return occupation;
   }
 
   // NPS (Net Promoter Score) operations

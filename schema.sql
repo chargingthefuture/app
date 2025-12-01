@@ -889,6 +889,44 @@ CREATE TABLE IF NOT EXISTS chyme_announcements (
 );
 
 -- ========================================
+-- WORKFORCE RECRUITER APP TABLES
+-- ========================================
+
+CREATE TABLE IF NOT EXISTS workforce_recruiter_occupations (
+  id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+  slug VARCHAR(160) NOT NULL UNIQUE,
+  title VARCHAR(200) NOT NULL,
+  short_description VARCHAR(280) NOT NULL,
+  full_description TEXT,
+  sector VARCHAR(120) NOT NULL,
+  category VARCHAR(120),
+  employment_type VARCHAR(50) NOT NULL DEFAULT 'full_time',
+  experience_level VARCHAR(80) NOT NULL DEFAULT 'entry',
+  education_requirement VARCHAR(160),
+  salary_range_min DECIMAL(10, 2),
+  salary_range_max DECIMAL(10, 2),
+  currency VARCHAR(6) NOT NULL DEFAULT 'USD',
+  core_skills TEXT,
+  preferred_skills TEXT,
+  certifications TEXT,
+  trauma_informed_support TEXT,
+  remote_friendly BOOLEAN NOT NULL DEFAULT true,
+  requires_background_check BOOLEAN NOT NULL DEFAULT false,
+  offers_apprenticeship BOOLEAN NOT NULL DEFAULT false,
+  relocation_support BOOLEAN NOT NULL DEFAULT false,
+  application_url TEXT,
+  contact_email VARCHAR(200),
+  language_requirement VARCHAR(120),
+  priority_rank INTEGER NOT NULL DEFAULT 100,
+  tags TEXT,
+  resources TEXT,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  published_at TIMESTAMP DEFAULT NOW(),
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+-- ========================================
 -- ADD FOREIGN KEY CONSTRAINTS (after all tables are created)
 -- ========================================
 
