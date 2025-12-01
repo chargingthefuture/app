@@ -889,6 +889,61 @@ CREATE TABLE IF NOT EXISTS chyme_announcements (
 );
 
 -- ========================================
+-- WORKFORCE RECRUITER TABLES
+-- ========================================
+
+CREATE TABLE IF NOT EXISTS workforce_recruiter_config (
+  id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_name VARCHAR(200) NOT NULL DEFAULT 'Workforce Recruiter Program',
+  intake_email VARCHAR(255) NOT NULL DEFAULT 'support@the-comic.com',
+  intake_signal_number VARCHAR(100),
+  reporting_timezone VARCHAR(100) NOT NULL DEFAULT 'UTC',
+  minimum_safety_score INTEGER NOT NULL DEFAULT 3,
+  refresh_cadence_days INTEGER NOT NULL DEFAULT 7,
+  auto_alert_threshold INTEGER NOT NULL DEFAULT 25,
+  priority_regions TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
+  priority_industries TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
+  last_synced_at TIMESTAMP,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS workforce_recruiter_occupations (
+  id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+  occupation_name VARCHAR(200) NOT NULL,
+  region VARCHAR(100) NOT NULL,
+  sector VARCHAR(100),
+  priority_level VARCHAR(20) NOT NULL DEFAULT 'normal',
+  demand_level VARCHAR(20) NOT NULL DEFAULT 'steady',
+  safety_rating INTEGER NOT NULL DEFAULT 3,
+  total_positions INTEGER NOT NULL DEFAULT 0,
+  open_positions INTEGER NOT NULL DEFAULT 0,
+  filled_positions INTEGER NOT NULL DEFAULT 0,
+  placements_this_month INTEGER NOT NULL DEFAULT 0,
+  candidates_in_pipeline INTEGER NOT NULL DEFAULT 0,
+  avg_placement_time_days INTEGER NOT NULL DEFAULT 0,
+  salary_min DECIMAL(10, 2),
+  salary_max DECIMAL(10, 2),
+  remote_friendly BOOLEAN NOT NULL DEFAULT false,
+  union_required BOOLEAN NOT NULL DEFAULT false,
+  notes TEXT,
+  last_updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS workforce_recruiter_announcements (
+  id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+  title VARCHAR(200) NOT NULL,
+  content TEXT NOT NULL,
+  type VARCHAR(50) NOT NULL DEFAULT 'info',
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  expires_at TIMESTAMP,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+-- ========================================
 -- ADD FOREIGN KEY CONSTRAINTS (after all tables are created)
 -- ========================================
 
