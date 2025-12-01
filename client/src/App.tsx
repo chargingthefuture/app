@@ -125,6 +125,12 @@ import { TrustTransportBottomNav } from "@/components/trusttransport/bottom-nav"
 import { MechanicMatchBottomNav } from "@/components/mechanicmatch/bottom-nav";
 import { LostMailBottomNav } from "@/components/lostmail/bottom-nav";
 import { ResearchBottomNav } from "@/components/research/bottom-nav";
+import WorkforceRecruiterDashboard from "@/pages/workforce-recruiter/dashboard";
+import WorkforceRecruiterProfile from "@/pages/workforce-recruiter/profile";
+import WorkforceRecruiterAnnouncements from "@/pages/workforce-recruiter/announcements";
+import WorkforceRecruiterAdmin from "@/pages/workforce-recruiter/admin";
+import WorkforceRecruiterAdminAnnouncements from "@/pages/workforce-recruiter/admin-announcements";
+import { WorkforceRecruiterBottomNav } from "@/components/workforce-recruiter/bottom-nav";
 
 // Protected route wrapper that redirects unauthenticated users
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -918,6 +924,41 @@ function Router() {
       <Route path="/apps/chyme/admin/rooms/:id/edit">
         <ProtectedRoute>
           <ChymeAdminRoomForm />
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/apps/workforce-recruiter">
+        <ProtectedRoute>
+          <>
+            <WorkforceRecruiterDashboard />
+            <WorkforceRecruiterBottomNav />
+          </>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/workforce-recruiter/profile">
+        <ProtectedRoute>
+          <>
+            <WorkforceRecruiterProfile />
+            <WorkforceRecruiterBottomNav />
+          </>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/workforce-recruiter/announcements">
+        <ProtectedRoute>
+          <>
+            <WorkforceRecruiterAnnouncements />
+            <WorkforceRecruiterBottomNav />
+          </>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/workforce-recruiter/admin">
+        <ProtectedRoute>
+          <WorkforceRecruiterAdmin />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/workforce-recruiter/admin/announcements">
+        <ProtectedRoute>
+          <WorkforceRecruiterAdminAnnouncements />
         </ProtectedRoute>
       </Route>
       

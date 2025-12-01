@@ -889,6 +889,78 @@ CREATE TABLE IF NOT EXISTS chyme_announcements (
 );
 
 -- ========================================
+-- WORKFORCE RECRUITER APP TABLES
+-- ========================================
+
+CREATE TABLE IF NOT EXISTS workforce_recruiter_profiles (
+  id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id VARCHAR NOT NULL UNIQUE REFERENCES users(id),
+  organization_name VARCHAR(200) NOT NULL,
+  organization_type VARCHAR(50) NOT NULL DEFAULT 'nonprofit',
+  mission_statement TEXT,
+  primary_industries TEXT,
+  regions_served TEXT,
+  country VARCHAR(100),
+  city VARCHAR(120),
+  talent_needs TEXT,
+  support_needed TEXT,
+  partnership_preferences TEXT,
+  contact_email VARCHAR(200),
+  contact_signal VARCHAR(200),
+  website VARCHAR(300),
+  intake_capacity INTEGER DEFAULT 0,
+  preferred_communication VARCHAR(50) NOT NULL DEFAULT 'signal',
+  is_accepting_candidates BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS workforce_recruiter_config (
+  id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+  intake_status VARCHAR(30) NOT NULL DEFAULT 'open',
+  primary_contact_email VARCHAR(200) NOT NULL,
+  review_cadence_days INTEGER NOT NULL DEFAULT 14,
+  highlighted_industries JSONB DEFAULT '[]'::jsonb,
+  application_form_url VARCHAR(500),
+  routing_inbox VARCHAR(200),
+  notes TEXT,
+  last_updated_by VARCHAR REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS workforce_recruiter_occupations (
+  id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+  title VARCHAR(200) NOT NULL,
+  description TEXT,
+  priority_level VARCHAR(20) NOT NULL DEFAULT 'normal',
+  region_focus VARCHAR(150),
+  talent_pool_size INTEGER NOT NULL DEFAULT 0,
+  active_opportunities INTEGER NOT NULL DEFAULT 0,
+  preferred_skills TEXT,
+  support_needed TEXT,
+  last_placement_at TIMESTAMP,
+  created_by VARCHAR REFERENCES users(id) ON DELETE SET NULL,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS workforce_recruiter_announcements (
+  id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+  title VARCHAR(200) NOT NULL,
+  content TEXT NOT NULL,
+  type VARCHAR(50) NOT NULL DEFAULT 'info',
+  audience VARCHAR(30) NOT NULL DEFAULT 'general',
+  cta_text VARCHAR(80),
+  cta_url VARCHAR(500),
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  expires_at TIMESTAMP,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+-- ========================================
 -- ADD FOREIGN KEY CONSTRAINTS (after all tables are created)
 -- ========================================
 

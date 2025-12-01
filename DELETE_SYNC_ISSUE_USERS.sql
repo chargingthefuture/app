@@ -108,6 +108,11 @@ DELETE FROM mechanicmatch_vehicles WHERE owner_id = '49006997';
 -- Finally delete the profile
 DELETE FROM mechanicmatch_profiles WHERE user_id = '49006997';
 
+-- Workforce Recruiter
+UPDATE workforce_recruiter_occupations SET created_by = NULL WHERE created_by = '49006997';
+UPDATE workforce_recruiter_config SET last_updated_by = NULL WHERE last_updated_by = '49006997';
+DELETE FROM workforce_recruiter_profiles WHERE user_id = '49006997';
+
 -- NPS Responses (user_id references users.id directly)
 DELETE FROM nps_responses WHERE user_id = '49006997';
 
@@ -238,6 +243,11 @@ DELETE FROM mechanicmatch_service_requests WHERE owner_id = '48981890';
 DELETE FROM mechanicmatch_vehicles WHERE owner_id = '48981890';
 -- Finally delete the profile
 DELETE FROM mechanicmatch_profiles WHERE user_id = '48981890';
+
+-- Workforce Recruiter
+UPDATE workforce_recruiter_occupations SET created_by = NULL WHERE created_by = '48981890';
+UPDATE workforce_recruiter_config SET last_updated_by = NULL WHERE last_updated_by = '48981890';
+DELETE FROM workforce_recruiter_profiles WHERE user_id = '48981890';
 
 -- NPS Responses (user_id references users.id directly)
 DELETE FROM nps_responses WHERE user_id = '48981890';

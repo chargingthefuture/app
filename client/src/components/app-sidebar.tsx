@@ -18,7 +18,8 @@ import {
   Mail,
   Search,
   HeartPulse,
-  Video
+  Video,
+  Briefcase,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useClerk } from "@clerk/clerk-react";
@@ -113,6 +114,12 @@ const baseAdminMenuItems = [
     url: "/apps/mechanicmatch/admin",
     icon: Wrench,
     testId: "link-mechanicmatch-admin",
+  },
+  {
+    title: "Workforce Recruiter Admin",
+    url: "/apps/workforce-recruiter/admin",
+    icon: Briefcase,
+    testId: "link-workforce-recruiter-admin",
   },
   {
     title: "LostMail Admin",
@@ -243,6 +250,12 @@ const miniAppMenuItems = [
     url: "/apps/trusttransport",
     icon: Car,
     testId: "link-trusttransport",
+  },
+  {
+    title: "Workforce Recruiter",
+    url: "/apps/workforce-recruiter",
+    icon: Briefcase,
+    testId: "link-workforce-recruiter",
   },
 ];
 
