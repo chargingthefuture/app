@@ -64,9 +64,9 @@ export default function LighthouseAdminProfileView() {
     );
   }
 
-  const userName = profile.user
-    ? [profile.user.firstName, profile.user.lastName].filter(Boolean).join(' ') || profile.user.email || 'User'
-    : 'Unknown User';
+  const fullName = profile.user
+    ? [profile.user.firstName, profile.user.lastName].filter(Boolean).join(' ') || null
+    : null;
 
   return (
     <div className="p-6 md:p-8 space-y-6">
@@ -89,9 +89,19 @@ export default function LighthouseAdminProfileView() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
-            <label className="text-sm font-medium text-muted-foreground">Name</label>
-            <p className="text-base font-medium">{userName}</p>
+            <label className="text-sm font-medium text-muted-foreground">First Name</label>
+            <p className="text-base font-medium">{profile.user?.firstName || <span className="text-muted-foreground">—</span>}</p>
           </div>
+          <div>
+            <label className="text-sm font-medium text-muted-foreground">Last Name</label>
+            <p className="text-base font-medium">{profile.user?.lastName || <span className="text-muted-foreground">—</span>}</p>
+          </div>
+          {fullName && (
+            <div>
+              <label className="text-sm font-medium text-muted-foreground">Full Name</label>
+              <p className="text-base font-medium">{fullName}</p>
+            </div>
+          )}
           <div>
             <label className="text-sm font-medium text-muted-foreground">Email</label>
             <div className="mt-1">

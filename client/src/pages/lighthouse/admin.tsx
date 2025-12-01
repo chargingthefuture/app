@@ -250,7 +250,7 @@ export default function LighthouseAdminPage() {
                     <TableBody>
                       {seekers.map((seeker) => {
                         const userName = seeker.user
-                          ? [seeker.user.firstName, seeker.user.lastName].filter(Boolean).join(' ') || seeker.user.email || 'User'
+                          ? [seeker.user.firstName, seeker.user.lastName].filter(Boolean).join(' ') || 'User'
                           : 'Unknown User';
                         const budgetRange = seeker.budgetMin && seeker.budgetMax
                           ? `$${seeker.budgetMin} - $${seeker.budgetMax}`
@@ -360,7 +360,7 @@ export default function LighthouseAdminPage() {
                     <TableBody>
                       {hosts.map((host) => {
                         const userName = host.user
-                          ? [host.user.firstName, host.user.lastName].filter(Boolean).join(' ') || host.user.email || 'User'
+                          ? [host.user.firstName, host.user.lastName].filter(Boolean).join(' ') || 'User'
                           : 'Unknown User';
                         const hostProfileUrl = `${window.location.origin}/apps/lighthouse/admin/profile/${host.id}`;
 
