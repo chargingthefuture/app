@@ -42,14 +42,22 @@ export function initSentry() {
       Sentry.httpIntegration({
         tracing: true,
       }),
-      // Console integration to capture console logs
-      Sentry.consoleIntegration({
-        levels: ['error', 'warn', 'log', 'info', 'debug'],
-      }),
+      // Console logging integration to send console.log, console.warn, and console.error calls as logs to Sentry
+      Sentry.consoleLoggingIntegration({ levels: ['log', 'warn', 'error'] }),
     ],
 
     // Traces sampling
     tracesSampleRate,
+
+    // Set profilesSampleRate to profile transactions
+    // Since profilesSampleRate is relative to tracesSampleRate,
+    // the final profiling rate can be computed as tracesSampleRate * profilesSampleRate
+    // For example, a tracesSampleRate of 0.5 and profilesSampleRate of 0.5 would
+    // results in 25% of transactions being profiled (0.5*0.5=0.25)
+    profilesSampleRate,
+
+    // Enable logs to be sent to Sentry
+    enableLogs: true,
 
     // Metrics are automatically enabled in Sentry.init()
     // Use Sentry.metrics API to emit metrics:

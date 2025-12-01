@@ -8,6 +8,10 @@
  * - Sentry.metrics.count('metric_name', value)
  * - Sentry.metrics.gauge('metric_name', value)
  * - Sentry.metrics.distribution('metric_name', value)
+ * 
+ * User identification is set up to track user adoption metrics such as:
+ * - Crash-free rate percentage per user
+ * - Number of users that have adopted a specific release
  */
 
 import * as Sentry from '@sentry/react';
@@ -41,12 +45,12 @@ export function initSentry() {
     integrations: [
       // Browser tracing integration
       Sentry.browserTracingIntegration(),
+      // Browser profiling integration
+      Sentry.browserProfilingIntegration(),
       // Session Replay integration
       Sentry.replayIntegration(),
-      // Console integration to capture console logs
-      Sentry.consoleIntegration({
-        levels: ['error', 'warn', 'log', 'info', 'debug'],
-      }),
+      // Console logging integration to send console.log, console.warn, and console.error calls as logs to Sentry
+      Sentry.consoleLoggingIntegration({ levels: ['log', 'warn', 'error'] }),
       // Capture fetch requests
       Sentry.httpClientIntegration({
         failedRequestStatusCodes: [[400, 599]], // Capture 4xx and 5xx errors
@@ -56,6 +60,19 @@ export function initSentry() {
 
     // Traces sampling
     tracesSampleRate,
+
+    // Set 'tracePropagationTargets' to control for which URLs distributed tracing should be enabled
+    tracePropagationTargets: ['localhost', /\/api/],
+
+    // Set profilesSampleRate to profile transactions
+    // Since profilesSampleRate is relative to tracesSampleRate,
+    // the final profiling rate can be computed as tracesSampleRate * profilesSampleRate
+    // For example, a tracesSampleRate of 0.5 and profilesSampleRate of 0.5 would
+    // results in 25% of transactions being profiled (0.5*0.5=0.25)
+    profilesSampleRate,
+
+    // Enable logs to be sent to Sentry
+    enableLogs: true,
 
     // Session Replay sampling
     // Sample 10% of all sessions in production, 100% in development
@@ -77,6 +94,13 @@ export function initSentry() {
     // Setting this to true will send default PII data to Sentry
     // For example, automatic IP address collection on events
     sendDefaultPii: true,
+
+    // Set user in initialScope to track user adoption metrics
+    // This enables tracking of crash-free rate percentage and release adoption
+    initialScope: (scope) => {
+      // User will be set later via setSentryUser() when authentication completes
+      return scope;
+    },
 
     // Filter out health check endpoints
     beforeSend(event, hint) {
@@ -105,6 +129,28 @@ export function initSentry() {
   });
 
   console.log(`Sentry initialized for ${environment} environment`);
+}
+
+/**
+ * Set the user in Sentry scope for tracking user adoption metrics
+ * This enables tracking of:
+ * - Crash-free rate percentage per user
+ * - Number of users that have adopted a specific release
+ * 
+ * Call this function when user authentication state changes
+ * 
+ * @param user - User object with id and optional email, or null to clear user
+ */
+export function setSentryUser(user: { id: string; email?: string | null } | null) {
+  if (user) {
+    Sentry.setUser({
+      id: user.id,
+      email: user.email || undefined,
+    });
+  } else {
+    // Clear user when logged out
+    Sentry.setUser(null);
+  }
 }
 
 /**
