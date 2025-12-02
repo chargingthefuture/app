@@ -22,7 +22,7 @@ export default function WorkforceRecruiterAdmin() {
             <p className="text-sm text-muted-foreground">
               View and manage all occupations in the workforce tracker.
             </p>
-            <Link href="/apps/workforce-recruiter/occupations">
+            <Link href="/apps/workforce-recruiter/admin/occupations">
               <Button className="w-full" data-testid="button-manage-occupations">
                 <Briefcase className="w-4 h-4 mr-2" />
                 Manage Occupations
@@ -68,6 +68,7 @@ export default function WorkforceRecruiterAdmin() {
     </div>
   );
 }
+
 
 
 

@@ -5481,6 +5481,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(report);
   }));
 
+  // Workforce Recruiter Tracker Export route
+  app.get('/api/workforce-recruiter/export', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const format = (req.query.format as string) || 'csv';
+    
+    const [report, occupationsResult] = await Promise.all([
+      withDatabaseErrorHandling(
+        () => storage.getWorkforceRecruiterSummaryReport(),
+        'getWorkforceRecruiterSummaryReport'
+      ),
+      withDatabaseErrorHandling(
+        () => storage.getAllWorkforceRecruiterOccupations({ limit: 10000, offset: 0 }),
+        'getAllWorkforceRecruiterOccupations'
+      ),
+    ]);
+
+    const occupations = occupationsResult.occupations;
+
+    if (format === 'json') {
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Content-Disposition', `attachment; filename="workforce-recruiter-export-${new Date().toISOString().split('T')[0]}.json"`);
+      res.json({
+        summary: report,
+        occupations,
+        exportedAt: new Date().toISOString(),
+      });
+    } else {
+      // CSV export
+      const csvRows: string[] = [];
+      
+      // Summary section
+      csvRows.push('Summary');
+      csvRows.push(`Total Workforce Target,${report.totalWorkforceTarget}`);
+      csvRows.push(`Total Current Recruited,${report.totalCurrentRecruited}`);
+      csvRows.push(`Percent Recruited,${report.percentRecruited.toFixed(2)}%`);
+      csvRows.push('');
+      
+      // Sector breakdown
+      csvRows.push('Sector Breakdown');
+      csvRows.push('Sector,Target,Recruited,Percent');
+      report.sectorBreakdown.forEach(sector => {
+        csvRows.push(`${sector.sector},${sector.target},${sector.recruited},${sector.percent.toFixed(2)}%`);
+      });
+      csvRows.push('');
+      
+      // Skill level breakdown
+      csvRows.push('Skill Level Breakdown');
+      csvRows.push('Skill Level,Target,Recruited,Percent');
+      report.skillLevelBreakdown.forEach(skill => {
+        csvRows.push(`${skill.skillLevel},${skill.target},${skill.recruited},${skill.percent.toFixed(2)}%`);
+      });
+      csvRows.push('');
+      
+      // Occupations
+      csvRows.push('Occupations');
+      csvRows.push('Sector,Occupation Title,Headcount Target,Current Recruited,Skill Level,Annual Training Target,Notes');
+      occupations.forEach(occ => {
+        const notes = (occ.notes || '').replace(/,/g, ';').replace(/\n/g, ' ');
+        csvRows.push(`${occ.sector},${occ.occupationTitle},${occ.headcountTarget},${occ.currentRecruited},${occ.skillLevel},${occ.annualTrainingTarget},"${notes}"`);
+      });
+      
+      const csv = csvRows.join('\n');
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename="workforce-recruiter-export-${new Date().toISOString().split('T')[0]}.csv"`);
+      res.send(csv);
+    }
+  }));
+
   // Workforce Recruiter Tracker Admin Announcement routes
   app.get('/api/workforce-recruiter/admin/announcements', isAuthenticated, isAdmin, asyncHandler(async (req, res) => {
     const announcements = await withDatabaseErrorHandling(

@@ -122,6 +122,8 @@ import WorkforceRecruiterOccupationDetail from "@/pages/workforce-recruiter/occu
 import WorkforceRecruiterReports from "@/pages/workforce-recruiter/reports";
 import WorkforceRecruiterAdmin from "@/pages/workforce-recruiter/admin";
 import WorkforceRecruiterAdminAnnouncements from "@/pages/workforce-recruiter/admin-announcements";
+import WorkforceRecruiterConfig from "@/pages/workforce-recruiter/config";
+import WorkforceRecruiterAdminOccupations from "@/pages/workforce-recruiter/admin-occupations";
 import { GentlePulseBottomNav } from "@/components/gentlepulse/bottom-nav";
 import { SupportMatchBottomNav } from "@/components/supportmatch/bottom-nav";
 import { LighthouseBottomNav } from "@/components/lighthouse/bottom-nav";
@@ -962,6 +964,16 @@ function Router() {
       <Route path="/apps/workforce-recruiter/admin/announcements">
         <ProtectedRoute>
           <WorkforceRecruiterAdminAnnouncements />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/workforce-recruiter/config">
+        <ProtectedRoute>
+          <WorkforceRecruiterConfig />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/workforce-recruiter/admin/occupations">
+        <ProtectedRoute>
+          <WorkforceRecruiterAdminOccupations />
         </ProtectedRoute>
       </Route>
       
