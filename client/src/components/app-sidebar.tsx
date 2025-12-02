@@ -140,7 +140,7 @@ const baseAdminMenuItems = [
     testId: "link-chyme-admin",
   },
   {
-    title: "Workforce Recruiter Tracker Admin",
+    title: "Workforce Admin",
     url: "/apps/workforce-recruiter/admin",
     icon: Briefcase,
     testId: "link-workforce-recruiter-admin",
@@ -209,7 +209,7 @@ const miniAppMenuItems = [
     showBeta: true,
   },
   {
-    title: "Workforce Recruiter Tracker",
+    title: "Workforce Recruiter",
     url: "/apps/workforce-recruiter",
     icon: Briefcase,
     testId: "link-workforce-recruiter",
