@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft, Check, ArrowUp, ArrowDown, Bookmark, Share2 } from "lucide-react";
 import { Link } from "wouter";
 import { format } from "date-fns";
@@ -182,17 +183,20 @@ export default function ResearchItemView() {
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-semibold">{answers.length} Answers</h2>
               <div className="flex gap-2">
-                <select
+                <Select
                   value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value)}
-                  className="px-3 py-1 border rounded"
-                  data-testid="select-sort"
+                  onValueChange={setSortBy}
                 >
-                  <option value="relevance">Relevance</option>
-                  <option value="score">Score</option>
-                  <option value="recent">Recent</option>
-                  <option value="confidence">Confidence</option>
-                </select>
+                  <SelectTrigger className="w-[140px]" data-testid="select-sort">
+                    <SelectValue placeholder="Sort by" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="relevance">Relevance</SelectItem>
+                    <SelectItem value="score">Score</SelectItem>
+                    <SelectItem value="recent">Recent</SelectItem>
+                    <SelectItem value="confidence">Confidence</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 

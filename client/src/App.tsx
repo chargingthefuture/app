@@ -27,6 +27,7 @@ import AdminActivity from "@/pages/admin/activity";
 import AdminPricingTiers from "@/pages/admin/pricing-tiers";
 import AdminWeeklyPerformance from "@/pages/admin/weekly-performance";
 import VideoToGifConverter from "@/pages/admin/video-to-gif";
+import AdminSkills from "@/pages/admin/skills";
 import SupportMatchDashboard from "@/pages/supportmatch/dashboard";
 import SupportMatchProfile from "@/pages/supportmatch/profile";
 import SupportMatchPartnership from "@/pages/supportmatch/partnership";
@@ -315,6 +316,11 @@ function Router() {
       <Route path="/admin/users">
         <ProtectedRoute>
           <AdminUsers />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/skills">
+        <ProtectedRoute>
+          <AdminSkills />
         </ProtectedRoute>
       </Route>
       <Route path="/admin/payments">

@@ -841,10 +841,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
       // Format as DirectorySkill[] for backward compatibility
       const formatted = skills.map(s => ({ id: s.id, name: s.name }));
+      
+      // Log if no skills found (helps debug seeding issues)
+      if (formatted.length === 0) {
+        console.warn('⚠️ No skills found in database. Run seed script: npx tsx scripts/seedSkills.ts');
+      }
+      
       res.json(formatted);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching skills:', error);
-      res.status(500).json({ message: 'Failed to fetch skills' });
+      // Return empty array instead of error to prevent frontend breakage
+      // The frontend will show "No skills found" which is better than an error
+      res.json([]);
     }
   }));
 

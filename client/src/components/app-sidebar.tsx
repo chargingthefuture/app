@@ -50,6 +50,12 @@ const baseAdminMenuItems = [
     testId: "link-admin-users",
   },
   {
+    title: "Skills Database",
+    url: "/admin/skills",
+    icon: Wrench,
+    testId: "link-admin-skills",
+  },
+  {
     title: "Payments",
     url: "/admin/payments",
     icon: DollarSign,
