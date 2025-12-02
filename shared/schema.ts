@@ -2461,11 +2461,15 @@ export const insertWorkforceRecruiterConfigSchema = createInsertSchema(workforce
 export type InsertWorkforceRecruiterConfig = z.infer<typeof insertWorkforceRecruiterConfigSchema>;
 export type WorkforceRecruiterConfig = typeof workforceRecruiterConfig.$inferSelect;
 
-// Occupations
+// Occupations - Now references shared skills database for data consistency
 export const workforceRecruiterOccupations = pgTable("workforce_recruiter_occupations", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  sector: varchar("sector", { length: 100 }).notNull(),
-  occupationTitle: varchar("occupation_title", { length: 200 }).notNull(),
+  // Reference to shared skills database
+  sectorId: varchar("sector_id").references(() => skillsSectors.id, { onDelete: 'restrict' }),
+  jobTitleId: varchar("job_title_id").references(() => skillsJobTitles.id, { onDelete: 'restrict' }),
+  // Legacy fields kept for backward compatibility during migration
+  sector: varchar("sector", { length: 100 }), // Can be null if using sectorId
+  occupationTitle: varchar("occupation_title", { length: 200 }), // Can be null if using jobTitleId
   headcountTarget: integer("headcount_target").notNull(),
   skillLevel: varchar("skill_level", { length: 20 }).notNull(), // 'Low', 'Medium', 'High'
   annualTrainingTarget: integer("annual_training_target").notNull(),
@@ -2481,13 +2485,19 @@ export const insertWorkforceRecruiterOccupationSchema = createInsertSchema(workf
   updatedAt: true,
   currentRecruited: true,
 }).extend({
-  sector: z.string().min(1, "Sector is required").max(100),
-  occupationTitle: z.string().min(1, "Occupation title is required").max(200),
+  // Either use new references OR legacy fields (for migration period)
+  sectorId: z.string().optional().nullable(),
+  jobTitleId: z.string().optional().nullable(),
+  sector: z.string().max(100).optional().nullable(), // Legacy
+  occupationTitle: z.string().max(200).optional().nullable(), // Legacy
   headcountTarget: z.number().int().min(0),
   skillLevel: z.enum(["Low", "Medium", "High"]),
   annualTrainingTarget: z.number().int().min(0),
   notes: z.string().optional().nullable(),
-});
+}).refine(
+  (data) => (data.sectorId && data.jobTitleId) || (data.sector && data.occupationTitle),
+  { message: "Either sectorId/jobTitleId OR sector/occupationTitle must be provided" }
+);
 
 export type InsertWorkforceRecruiterOccupation = z.infer<typeof insertWorkforceRecruiterOccupationSchema>;
 export type WorkforceRecruiterOccupation = typeof workforceRecruiterOccupations.$inferSelect;

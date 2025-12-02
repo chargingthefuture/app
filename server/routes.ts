@@ -29,6 +29,9 @@ import {
   insertDirectoryProfileSchema,
   insertDirectoryAnnouncementSchema,
   insertDirectorySkillSchema,
+  insertSkillsSectorSchema,
+  insertSkillsJobTitleSchema,
+  insertSkillsSkillSchema,
   insertChatGroupSchema,
   insertChatgroupsAnnouncementSchema,
   insertTrusttransportProfileSchema,
@@ -1088,14 +1091,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ message: 'Profile deleted successfully' });
   }));
 
-  // Admin routes for Directory Skills (admin only)
+  // Admin routes for Directory Skills (admin only) - Legacy, now uses hierarchical skills database
   app.get('/api/directory/admin/skills', isAuthenticated, isAdmin, asyncHandler(async (_req, res) => {
     try {
-      const skills = getSkillsAsDirectorySkills();
-      res.json(skills);
+      const skills = await withDatabaseErrorHandling(
+        () => storage.getAllSkillsFlattened(),
+        'getAllSkillsFlattened'
+      );
+      // Format as DirectorySkill[] for backward compatibility
+      const formatted = skills.map(s => ({ id: s.id, name: s.name }));
+      res.json(formatted);
     } catch (error) {
-      console.error('Error reading skills from file:', error);
-      res.status(500).json({ message: 'Failed to read skills' });
+      console.error('Error fetching skills:', error);
+      res.status(500).json({ message: 'Failed to fetch skills' });
     }
   }));
 
