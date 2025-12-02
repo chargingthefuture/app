@@ -100,6 +100,11 @@ const seedScripts = [
     script: "seedWorkforceRecruiter.ts",
     description: "Workforce Recruiter - data for the application",
   },
+  {
+    name: "Skills Data",
+    script: "seedSkills.ts",
+    description: "Skills - Skills data for the application",
+  },
 ];
 
 async function runSeedScript(scriptPath: string, name: string): Promise<void> {
