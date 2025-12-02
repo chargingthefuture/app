@@ -6398,8 +6398,9 @@ export class DatabaseStorage implements IStorage {
     // Sector breakdown
     const sectorMap = new Map<string, { target: number; recruited: number }>();
     occupations.forEach(occ => {
-      const existing = sectorMap.get(occ.sector) || { target: 0, recruited: 0 };
-      sectorMap.set(occ.sector, {
+      const sector = occ.sector || "Unknown";
+      const existing = sectorMap.get(sector) || { target: 0, recruited: 0 };
+      sectorMap.set(sector, {
         target: existing.target + occ.headcountTarget,
         recruited: existing.recruited + occ.currentRecruited,
       });
@@ -6443,17 +6444,21 @@ export class DatabaseStorage implements IStorage {
       }
     });
 
-    const annualTrainingGap = occupations.map(occ => {
-      const actual = trainingByOccupation.get(occ.id) || 0;
-      return {
-        occupationId: occ.id,
-        occupationTitle: occ.occupationTitle,
-        sector: occ.sector,
-        target: occ.annualTrainingTarget,
-        actual,
-        gap: occ.annualTrainingTarget - actual,
-      };
-    }).filter(item => item.gap > 0).sort((a, b) => b.gap - a.gap).slice(0, 10); // Top 10 gaps
+    const annualTrainingGap = occupations
+      .map(occ => {
+        const actual = trainingByOccupation.get(occ.id) || 0;
+        return {
+          occupationId: occ.id,
+          occupationTitle: occ.occupationTitle || "Unknown Occupation",
+          sector: occ.sector || "Unknown Sector",
+          target: occ.annualTrainingTarget,
+          actual,
+          gap: occ.annualTrainingTarget - actual,
+        };
+      })
+      .filter(item => item.target > 0) // Show all occupations with training targets
+      .sort((a, b) => b.gap - a.gap) // Sort by gap descending (largest gaps first)
+      .slice(0, 10); // Top 10
 
     return {
       totalWorkforceTarget,
