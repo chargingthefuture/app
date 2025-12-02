@@ -246,7 +246,7 @@ CREATE TABLE IF NOT EXISTS socketrelay_requests (
   user_id VARCHAR NOT NULL REFERENCES users(id),
   description VARCHAR(140) NOT NULL,
   status VARCHAR(20) NOT NULL DEFAULT 'active',
-  "isPublic" BOOLEAN NOT NULL DEFAULT false,
+  is_public BOOLEAN NOT NULL DEFAULT false,
   expires_at TIMESTAMP NOT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMP NOT NULL DEFAULT NOW()
@@ -335,7 +335,42 @@ CREATE TABLE IF NOT EXISTS directory_announcements (
   updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
--- Directory Skills - Admin-managed tags/skills for directory profiles
+-- ========================================
+-- SHARED SKILLS DATABASE (Used by Directory and Workforce Recruiter)
+-- ========================================
+
+-- Skills Sectors - Top level categorization
+CREATE TABLE IF NOT EXISTS skills_sectors (
+  id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+  name VARCHAR(100) NOT NULL UNIQUE,
+  estimated_workforce_share DECIMAL(5, 2),
+  estimated_workforce_count INTEGER,
+  display_order INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+-- Skills Job Titles - Second level, belongs to a sector
+CREATE TABLE IF NOT EXISTS skills_job_titles (
+  id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+  sector_id VARCHAR NOT NULL REFERENCES skills_sectors(id) ON DELETE CASCADE,
+  name VARCHAR(200) NOT NULL,
+  display_order INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+-- Skills - Third level, belongs to a job title
+CREATE TABLE IF NOT EXISTS skills_skills (
+  id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+  job_title_id VARCHAR NOT NULL REFERENCES skills_job_titles(id) ON DELETE CASCADE,
+  name VARCHAR(200) NOT NULL,
+  display_order INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+-- Legacy: Directory Skills - kept for backward compatibility during migration
 CREATE TABLE IF NOT EXISTS directory_skills (
   id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
   name VARCHAR(100) NOT NULL UNIQUE,
@@ -878,6 +913,70 @@ CREATE TABLE IF NOT EXISTS chyme_survey_responses (
 
 -- Chyme Announcements
 CREATE TABLE IF NOT EXISTS chyme_announcements (
+  id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+  title VARCHAR(200) NOT NULL,
+  content TEXT NOT NULL,
+  type VARCHAR(50) NOT NULL DEFAULT 'info',
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  expires_at TIMESTAMP,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+-- ========================================
+-- WORKFORCE RECRUITER TRACKER APP TABLES
+-- ========================================
+
+-- Workforce Recruiter Tracker user profiles
+CREATE TABLE IF NOT EXISTS workforce_recruiter_profiles (
+  id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id VARCHAR NOT NULL UNIQUE REFERENCES users(id),
+  display_name VARCHAR(100),
+  notes TEXT,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+-- Workforce Recruiter Tracker configuration
+CREATE TABLE IF NOT EXISTS workforce_recruiter_config (
+  id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+  population INTEGER NOT NULL DEFAULT 5000000,
+  workforce_participation_rate DECIMAL(5, 4) NOT NULL DEFAULT '0.5',
+  min_recruitable INTEGER NOT NULL DEFAULT 2000000,
+  max_recruitable INTEGER NOT NULL DEFAULT 5000000,
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+-- Occupations - References shared skills database for data consistency
+CREATE TABLE IF NOT EXISTS workforce_recruiter_occupations (
+  id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+  sector_id VARCHAR REFERENCES skills_sectors(id) ON DELETE RESTRICT,
+  job_title_id VARCHAR REFERENCES skills_job_titles(id) ON DELETE RESTRICT,
+  sector VARCHAR(100),
+  occupation_title VARCHAR(200),
+  headcount_target INTEGER NOT NULL,
+  skill_level VARCHAR(20) NOT NULL,
+  annual_training_target INTEGER NOT NULL,
+  current_recruited INTEGER NOT NULL DEFAULT 0,
+  notes TEXT,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+-- Recruitment Events
+CREATE TABLE IF NOT EXISTS workforce_recruiter_recruitment_events (
+  id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+  occupation_id VARCHAR NOT NULL REFERENCES workforce_recruiter_occupations(id) ON DELETE CASCADE,
+  date DATE NOT NULL,
+  count INTEGER NOT NULL,
+  source VARCHAR(50) NOT NULL,
+  notes TEXT,
+  created_by VARCHAR NOT NULL REFERENCES users(id),
+  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+-- Workforce Recruiter Tracker Announcements
+CREATE TABLE IF NOT EXISTS workforce_recruiter_announcements (
   id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
   title VARCHAR(200) NOT NULL,
   content TEXT NOT NULL,

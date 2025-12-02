@@ -157,27 +157,51 @@ async function seedLighthouse() {
         profilePayload.moveInDate = profileData.moveInDate;
         profilePayload.budgetMin = profileData.budgetMin;
         profilePayload.budgetMax = profileData.budgetMax;
+        // Note: desiredCountry is optional and not included in seed data
+        // If your database schema is out of sync, run: npm run db:push
       } else {
         profilePayload.hasProperty = profileData.hasProperty;
       }
 
-      const [profile] = await db
+      // Insert without .returning() to avoid issues when database schema is out of sync
+      // (e.g., if desired_country column doesn't exist in DB but is in schema)
+      await db
         .insert(lighthouseProfiles)
-        .values(profilePayload)
-        .returning();
+        .values(profilePayload);
 
-      createdProfiles[profileData.email] = profile;
-      console.log(`Created ${profileData.profileType} profile for: ${profileData.email}`);
-    } catch (error) {
-      console.log(`Profile for ${profileData.email} already exists or error:`, error);
-      // Try to get existing profile
-      const [existingProfile] = await db
+      // Query the created profile separately
+      const [profile] = await db
         .select()
         .from(lighthouseProfiles)
         .where(eq(lighthouseProfiles.userId, userIds[profileData.email]));
+
+      if (profile) {
+        createdProfiles[profileData.email] = profile;
+        console.log(`Created ${profileData.profileType} profile for: ${profileData.email}`);
+      }
+    } catch (error: any) {
+      // If insert fails, try to get existing profile
+      // This handles both "already exists" and "schema mismatch" errors
+      if (error?.code === '23505') {
+        // Unique constraint violation - profile already exists
+        console.log(`Profile for ${profileData.email} already exists`);
+      } else {
+        console.log(`Profile for ${profileData.email} error:`, error.message || error);
+      }
       
-      if (existingProfile) {
-        createdProfiles[profileData.email] = existingProfile;
+      try {
+        const [existingProfile] = await db
+          .select()
+          .from(lighthouseProfiles)
+          .where(eq(lighthouseProfiles.userId, userIds[profileData.email]));
+        
+        if (existingProfile) {
+          createdProfiles[profileData.email] = existingProfile;
+        }
+      } catch (selectError: any) {
+        // If select also fails (e.g., due to missing column), log and continue
+        console.log(`Could not query profile for ${profileData.email}:`, selectError.message || selectError);
+        console.log(`⚠️  Database schema may be out of sync. Run: npm run db:push`);
       }
     }
   }

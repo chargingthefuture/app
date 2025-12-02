@@ -611,7 +611,7 @@ export const socketrelayRequests = pgTable("socketrelay_requests", {
   userId: varchar("user_id").notNull().references(() => users.id),
   description: varchar("description", { length: 140 }).notNull(),
   status: varchar("status", { length: 20 }).notNull().default('active'), // active, fulfilled, closed
-  isPublic: boolean("isPublic").notNull().default(false),
+  isPublic: boolean("is_public").notNull().default(false),
   expiresAt: timestamp("expires_at").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -853,7 +853,89 @@ export const insertDirectoryAnnouncementSchema = createInsertSchema(directoryAnn
 export type InsertDirectoryAnnouncement = z.infer<typeof insertDirectoryAnnouncementSchema>;
 export type DirectoryAnnouncement = typeof directoryAnnouncements.$inferSelect;
 
-// Directory Skills - Admin-managed tags/skills for directory profiles
+// ========================================
+// SHARED SKILLS DATABASE (Used by Directory and Workforce Recruiter)
+// ========================================
+
+// Skills Sectors - Top level categorization
+export const skillsSectors = pgTable("skills_sectors", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name", { length: 100 }).notNull().unique(),
+  estimatedWorkforceShare: decimal("estimated_workforce_share", { precision: 5, scale: 2 }), // Percentage
+  estimatedWorkforceCount: integer("estimated_workforce_count"), // Absolute number
+  displayOrder: integer("display_order").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const skillsSectorsRelations = relations(skillsSectors, ({ many }) => ({
+  jobTitles: many(skillsJobTitles),
+}));
+
+export const insertSkillsSectorSchema = createInsertSchema(skillsSectors).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertSkillsSector = z.infer<typeof insertSkillsSectorSchema>;
+export type SkillsSector = typeof skillsSectors.$inferSelect;
+
+// Skills Job Titles - Second level, belongs to a sector
+export const skillsJobTitles = pgTable("skills_job_titles", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sectorId: varchar("sector_id").notNull().references(() => skillsSectors.id, { onDelete: 'cascade' }),
+  name: varchar("name", { length: 200 }).notNull(),
+  displayOrder: integer("display_order").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const skillsJobTitlesRelations = relations(skillsJobTitles, ({ one, many }) => ({
+  sector: one(skillsSectors, {
+    fields: [skillsJobTitles.sectorId],
+    references: [skillsSectors.id],
+  }),
+  skills: many(skillsSkills),
+}));
+
+export const insertSkillsJobTitleSchema = createInsertSchema(skillsJobTitles).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertSkillsJobTitle = z.infer<typeof insertSkillsJobTitleSchema>;
+export type SkillsJobTitle = typeof skillsJobTitles.$inferSelect;
+
+// Skills - Third level, belongs to a job title
+export const skillsSkills = pgTable("skills_skills", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  jobTitleId: varchar("job_title_id").notNull().references(() => skillsJobTitles.id, { onDelete: 'cascade' }),
+  name: varchar("name", { length: 200 }).notNull(),
+  displayOrder: integer("display_order").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const skillsSkillsRelations = relations(skillsSkills, ({ one }) => ({
+  jobTitle: one(skillsJobTitles, {
+    fields: [skillsSkills.jobTitleId],
+    references: [skillsJobTitles.id],
+  }),
+}));
+
+export const insertSkillsSkillSchema = createInsertSchema(skillsSkills).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertSkillsSkill = z.infer<typeof insertSkillsSkillSchema>;
+export type SkillsSkill = typeof skillsSkills.$inferSelect;
+
+// Legacy: Directory Skills - kept for backward compatibility during migration
+// This table will be deprecated in favor of the hierarchical structure above
 export const directorySkills = pgTable("directory_skills", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: varchar("name", { length: 100 }).notNull().unique(),
@@ -2322,3 +2404,161 @@ export const insertChymeAnnouncementSchema = createInsertSchema(chymeAnnouncemen
 
 export type InsertChymeAnnouncement = z.infer<typeof insertChymeAnnouncementSchema>;
 export type ChymeAnnouncement = typeof chymeAnnouncements.$inferSelect;
+
+// ========================================
+// WORKFORCE RECRUITER TRACKER APP TABLES
+// ========================================
+
+// Workforce Recruiter Tracker user profiles
+export const workforceRecruiterProfiles = pgTable("workforce_recruiter_profiles", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().unique().references(() => users.id),
+  displayName: varchar("display_name", { length: 100 }),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const workforceRecruiterProfilesRelations = relations(workforceRecruiterProfiles, ({ one }) => ({
+  user: one(users, {
+    fields: [workforceRecruiterProfiles.userId],
+    references: [users.id],
+  }),
+}));
+
+export const insertWorkforceRecruiterProfileSchema = createInsertSchema(workforceRecruiterProfiles).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  displayName: z.string().max(100).optional().nullable(),
+  notes: z.string().optional().nullable(),
+});
+
+export type InsertWorkforceRecruiterProfile = z.infer<typeof insertWorkforceRecruiterProfileSchema>;
+export type WorkforceRecruiterProfile = typeof workforceRecruiterProfiles.$inferSelect;
+
+// Workforce Recruiter Tracker configuration
+export const workforceRecruiterConfig = pgTable("workforce_recruiter_config", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  population: integer("population").notNull().default(5000000),
+  workforceParticipationRate: decimal("workforce_participation_rate", { precision: 5, scale: 4 }).notNull().default('0.5'),
+  minRecruitable: integer("min_recruitable").notNull().default(2000000),
+  maxRecruitable: integer("max_recruitable").notNull().default(5000000),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertWorkforceRecruiterConfigSchema = createInsertSchema(workforceRecruiterConfig).omit({
+  id: true,
+  updatedAt: true,
+}).extend({
+  population: z.number().int().min(1),
+  workforceParticipationRate: z.coerce.number().min(0).max(1),
+  minRecruitable: z.number().int().min(0),
+  maxRecruitable: z.number().int().min(0),
+});
+
+export type InsertWorkforceRecruiterConfig = z.infer<typeof insertWorkforceRecruiterConfigSchema>;
+export type WorkforceRecruiterConfig = typeof workforceRecruiterConfig.$inferSelect;
+
+// Occupations - Now references shared skills database for data consistency
+export const workforceRecruiterOccupations = pgTable("workforce_recruiter_occupations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  // Reference to shared skills database
+  sectorId: varchar("sector_id").references(() => skillsSectors.id, { onDelete: 'restrict' }),
+  jobTitleId: varchar("job_title_id").references(() => skillsJobTitles.id, { onDelete: 'restrict' }),
+  // Legacy fields kept for backward compatibility during migration
+  sector: varchar("sector", { length: 100 }), // Can be null if using sectorId
+  occupationTitle: varchar("occupation_title", { length: 200 }), // Can be null if using jobTitleId
+  headcountTarget: integer("headcount_target").notNull(),
+  skillLevel: varchar("skill_level", { length: 20 }).notNull(), // 'Low', 'Medium', 'High'
+  annualTrainingTarget: integer("annual_training_target").notNull(),
+  currentRecruited: integer("current_recruited").notNull().default(0),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertWorkforceRecruiterOccupationSchema = createInsertSchema(workforceRecruiterOccupations).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  currentRecruited: true,
+}).extend({
+  // Either use new references OR legacy fields (for migration period)
+  sectorId: z.string().optional().nullable(),
+  jobTitleId: z.string().optional().nullable(),
+  sector: z.string().max(100).optional().nullable(), // Legacy
+  occupationTitle: z.string().max(200).optional().nullable(), // Legacy
+  headcountTarget: z.number().int().min(0),
+  skillLevel: z.enum(["Low", "Medium", "High"]),
+  annualTrainingTarget: z.number().int().min(0),
+  notes: z.string().optional().nullable(),
+}).refine(
+  (data) => (data.sectorId && data.jobTitleId) || (data.sector && data.occupationTitle),
+  { message: "Either sectorId/jobTitleId OR sector/occupationTitle must be provided" }
+);
+
+export type InsertWorkforceRecruiterOccupation = z.infer<typeof insertWorkforceRecruiterOccupationSchema>;
+export type WorkforceRecruiterOccupation = typeof workforceRecruiterOccupations.$inferSelect;
+
+// Recruitment Events
+export const workforceRecruiterRecruitmentEvents = pgTable("workforce_recruiter_recruitment_events", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  occupationId: varchar("occupation_id").notNull().references(() => workforceRecruiterOccupations.id, { onDelete: 'cascade' }),
+  date: date("date").notNull(),
+  count: integer("count").notNull(), // Can be positive (hire/grad) or negative (attrition)
+  source: varchar("source", { length: 50 }).notNull(), // e.g., 'hire', 'grad', 'attrition'
+  notes: text("notes"),
+  createdBy: varchar("created_by").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const workforceRecruiterRecruitmentEventsRelations = relations(workforceRecruiterRecruitmentEvents, ({ one }) => ({
+  occupation: one(workforceRecruiterOccupations, {
+    fields: [workforceRecruiterRecruitmentEvents.occupationId],
+    references: [workforceRecruiterOccupations.id],
+  }),
+  creator: one(users, {
+    fields: [workforceRecruiterRecruitmentEvents.createdBy],
+    references: [users.id],
+  }),
+}));
+
+export const insertWorkforceRecruiterRecruitmentEventSchema = createInsertSchema(workforceRecruiterRecruitmentEvents).omit({
+  id: true,
+  createdAt: true,
+  createdBy: true,
+}).extend({
+  occupationId: z.string().uuid(),
+  date: z.coerce.date(),
+  count: z.number().int(),
+  source: z.string().min(1).max(50),
+  notes: z.string().optional().nullable(),
+});
+
+export type InsertWorkforceRecruiterRecruitmentEvent = z.infer<typeof insertWorkforceRecruiterRecruitmentEventSchema>;
+export type WorkforceRecruiterRecruitmentEvent = typeof workforceRecruiterRecruitmentEvents.$inferSelect;
+
+// Workforce Recruiter Tracker Announcements
+export const workforceRecruiterAnnouncements = pgTable("workforce_recruiter_announcements", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: varchar("title", { length: 200 }).notNull(),
+  content: text("content").notNull(),
+  type: varchar("type", { length: 50 }).notNull().default('info'), // info, warning, maintenance, update, promotion
+  isActive: boolean("is_active").notNull().default(true),
+  expiresAt: timestamp("expires_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertWorkforceRecruiterAnnouncementSchema = createInsertSchema(workforceRecruiterAnnouncements).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  expiresAt: z.coerce.date().optional().nullable(),
+});
+
+export type InsertWorkforceRecruiterAnnouncement = z.infer<typeof insertWorkforceRecruiterAnnouncementSchema>;
+export type WorkforceRecruiterAnnouncement = typeof workforceRecruiterAnnouncements.$inferSelect;

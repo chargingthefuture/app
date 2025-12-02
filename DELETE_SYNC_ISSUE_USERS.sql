@@ -285,7 +285,7 @@ DELETE FROM users WHERE id = '48981890';
 -- ========================================
 -- COMMIT TRANSACTION (uncomment to commit)
 -- ========================================
--- COMMIT;
+COMMIT;
 
 -- ========================================
 -- VERIFICATION QUERIES

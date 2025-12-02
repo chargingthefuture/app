@@ -18,7 +18,8 @@ import {
   Mail,
   Search,
   HeartPulse,
-  Video
+  Video,
+  Briefcase
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useClerk } from "@clerk/clerk-react";
@@ -47,6 +48,12 @@ const baseAdminMenuItems = [
     url: "/admin/users",
     icon: Users,
     testId: "link-admin-users",
+  },
+  {
+    title: "Skills Database",
+    url: "/admin/skills",
+    icon: Wrench,
+    testId: "link-admin-skills",
   },
   {
     title: "Payments",
@@ -139,6 +146,12 @@ const baseAdminMenuItems = [
     testId: "link-chyme-admin",
   },
   {
+    title: "Workforce Admin",
+    url: "/apps/workforce-recruiter/admin",
+    icon: Briefcase,
+    testId: "link-workforce-recruiter-admin",
+  },
+  {
     title: "Video to GIF",
     url: "/admin/video-to-gif",
     icon: Video,
@@ -146,7 +159,7 @@ const baseAdminMenuItems = [
   },
 ];
 
-const pinnedAdminTitles = ["User Management", "Payments", "Pricing", "Video to GIF"];
+const pinnedAdminTitles = ["User Management", "Workforce Admin", "Weekly Performance", "Payments", "Pricing", "Video to GIF"];
 
 const pinnedAdminMenuItems = pinnedAdminTitles
   .map((title) => baseAdminMenuItems.find((item) => item.title === title))
@@ -200,6 +213,12 @@ const miniAppMenuItems = [
     icon: Radio,
     testId: "link-chyme",
     showBeta: true,
+  },
+  {
+    title: "Workforce Recruiter",
+    url: "/apps/workforce-recruiter",
+    icon: Briefcase,
+    testId: "link-workforce-recruiter",
   },
   {
     title: "LightHouse",
@@ -338,18 +357,12 @@ export function AppSidebar() {
               <SidebarMenu>
                 {adminMenuItems.map((item) => {
                   const isActive = location === item.url;
-                  const isCompareNotes = item.title === "CompareNotes Admin";
                   return (
                     <SidebarMenuItem key={item.title}>
                       <SidebarMenuButton asChild isActive={isActive} data-testid={item.testId}>
                         <Link href={item.url} onClick={handleNavClick}>
                           <item.icon className="w-5 h-5" />
                           <span>{item.title}</span>
-                          {isCompareNotes && (
-                            <Badge variant="outline" className="ml-2 text-xs">
-                              Beta
-                            </Badge>
-                          )}
                         </Link>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
