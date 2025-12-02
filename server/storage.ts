@@ -183,7 +183,7 @@ import {
   type ChymeAnnouncement,
   type InsertChymeAnnouncement,
 } from "@shared/schema";
-import { db } from "./db";
+import { db, pool } from "./db";
 import { eq, and, desc, asc, sql, or, inArray, gte, lte } from "drizzle-orm";
 import { randomBytes } from "crypto";
 
@@ -741,6 +741,25 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
+  private socketrelayVisibilityColumnCheck?: Promise<void>;
+
+  private ensureSocketrelayVisibilityColumn(): Promise<void> {
+    if (!this.socketrelayVisibilityColumnCheck) {
+      this.socketrelayVisibilityColumnCheck = (async () => {
+        try {
+          await pool.query(
+            'ALTER TABLE socketrelay_requests ADD COLUMN IF NOT EXISTS "isPublic" BOOLEAN NOT NULL DEFAULT false'
+          );
+        } catch (error) {
+          console.error(
+            "[DatabaseStorage] Failed to ensure socketrelay_requests.isPublic column exists:",
+            error
+          );
+        }
+      })();
+    }
+    return this.socketrelayVisibilityColumnCheck;
+  }
   // User operations (IMPORTANT: mandatory for authentication)
   async getUser(id: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
@@ -2654,6 +2673,7 @@ export class DatabaseStorage implements IStorage {
 
   // SocketRelay Request operations
   async createSocketrelayRequest(userId: string, description: string, isPublic: boolean = false): Promise<SocketrelayRequest> {
+    await this.ensureSocketrelayVisibilityColumn();
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 14); // 14 days from now
 
@@ -2670,6 +2690,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getActiveSocketrelayRequests(): Promise<any[]> {
+    await this.ensureSocketrelayVisibilityColumn();
     const now = new Date();
     const requests = await db
       .select()
@@ -2702,6 +2723,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getSocketrelayRequestById(id: string): Promise<SocketrelayRequest | undefined> {
+    await this.ensureSocketrelayVisibilityColumn();
     const [request] = await db
       .select()
       .from(socketrelayRequests)
@@ -2710,6 +2732,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getPublicSocketrelayRequestById(id: string): Promise<SocketrelayRequest | undefined> {
+    await this.ensureSocketrelayVisibilityColumn();
     const now = new Date();
     const [request] = await db
       .select()
@@ -2726,6 +2749,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async listPublicSocketrelayRequests(): Promise<SocketrelayRequest[]> {
+    await this.ensureSocketrelayVisibilityColumn();
     const now = new Date();
     return await db
       .select()
@@ -2741,6 +2765,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAllSocketrelayRequests(): Promise<any[]> {
+    await this.ensureSocketrelayVisibilityColumn();
     const requests = await db
       .select()
       .from(socketrelayRequests)
@@ -2766,6 +2791,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getSocketrelayRequestsByUser(userId: string): Promise<SocketrelayRequest[]> {
+    await this.ensureSocketrelayVisibilityColumn();
     return await db
       .select()
       .from(socketrelayRequests)
@@ -2774,6 +2800,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateSocketrelayRequestStatus(id: string, status: string): Promise<SocketrelayRequest> {
+    await this.ensureSocketrelayVisibilityColumn();
     const [request] = await db
       .update(socketrelayRequests)
       .set({
@@ -2786,6 +2813,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteSocketrelayRequest(id: string): Promise<void> {
+    await this.ensureSocketrelayVisibilityColumn();
     // First, get all fulfillments for this request
     const fulfillments = await this.getSocketrelayFulfillmentsByRequest(id);
     
