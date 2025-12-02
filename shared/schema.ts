@@ -611,7 +611,7 @@ export const socketrelayRequests = pgTable("socketrelay_requests", {
   userId: varchar("user_id").notNull().references(() => users.id),
   description: varchar("description", { length: 140 }).notNull(),
   status: varchar("status", { length: 20 }).notNull().default('active'), // active, fulfilled, closed
-  isPublic: boolean("isPublic").notNull().default(false),
+  isPublic: boolean("is_public").notNull().default(false),
   expiresAt: timestamp("expires_at").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
