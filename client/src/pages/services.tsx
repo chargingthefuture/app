@@ -1,8 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Link } from "wouter";
-import { UserCheck, Building2, ArrowRight, MessageCircle, Wrench, Mail, Search, HeartPulse, Radio, Car, Briefcase} from "lucide-react";
+import { UserCheck, Building2, ArrowRight, MessageCircle, Wrench, Mail, Search, HeartPulse, Radio} from "lucide-react";
 
 const services = [
   {
@@ -13,20 +12,6 @@ const services = [
     testId: "card-service-chatgroups",
   },
   {
-    title: "Chyme",
-    description: "Join private or public audio rooms for voice conversations. Secure, encrypted, and designed with privacy and trauma-informed care in mind.",
-    icon: Radio,
-    href: "/apps/chyme",
-    testId: "card-service-chyme",
-  },
-  {
-    title: "Workforce Recruiter Tracker",
-    description: "Track recruitment and distribution of workforce for the community. Monitor occupations, skill levels, and annual training capacity targets.",
-    icon: Briefcase,
-    href: "/apps/workforce-recruiter",
-    testId: "card-service-workforce-recruiter",
-  },
-  {
     title: "Directory",
     description: "Find talented individuals to colloborate with.",
     icon: Building2,
@@ -34,39 +19,11 @@ const services = [
     testId: "card-service-directory",
   },
   {
-    title: "GentlePulse",
-    description: "Access guided meditations hosted on Wistia, track your mood, and find supportive resources. Designed with privacy, accessibility, and trauma-informed care in mind.",
-    icon: HeartPulse,
-    href: "/apps/gentlepulse",
-    testId: "card-service-gentlepulse",
-  },
-  {
     title: "LightHouse",
     description: "rovides safe accommodations and support resources for human trafficking survivors, guiding them towards healing and empowerment.",
     icon: Building2,
     href: "/apps/lighthouse",
     testId: "card-service-lighthouse",
-  },
-  {
-    title: "LostMail",
-    description: "Report mail incidents (lost, damaged, tampered, delayed) and track your reports. Admin dashboard available for incident management.",
-    icon: Mail,
-    href: "/apps/lostmail",
-    testId: "card-service-lostmail",
-  },
-  {
-    title: "MechanicMatch",
-    description: "Connect with trusted mechanics for vehicle repair, remote diagnosis, or expert advice. Mechanics can build their profile and help car owners.",
-    icon: Wrench,
-    href: "/apps/mechanicmatch",
-    testId: "card-service-mechanicmatch",
-  },
-  {
-    title: "CompareNotes",
-    description: "Post research questions, receive sourced answers, and collaboratively surface the most relevant, accurate responses with voting and tagging.",
-    icon: Search,
-    href: "/apps/research",
-    testId: "card-service-research",
   },
   {
     title: "SocketRelay",
@@ -83,11 +40,39 @@ const services = [
     testId: "card-service-supportmatch",
   },
   {
-    title: "TrustTransport",
-    description: "Safe ride-sharing service connecting riders with trusted drivers. Request rides or offer transportation support to fellow survivors.",
-    icon: Car,
-    href: "/apps/trusttransport",
-    testId: "card-service-trusttransport",
+    title: "MechanicMatch",
+    description: "Connect with trusted mechanics for vehicle repair, remote diagnosis, or expert advice. Mechanics can build their profile and help car owners.",
+    icon: Wrench,
+    href: "/apps/mechanicmatch",
+    testId: "card-service-mechanicmatch",
+  },
+  {
+    title: "LostMail",
+    description: "Report mail incidents (lost, damaged, tampered, delayed) and track your reports. Admin dashboard available for incident management.",
+    icon: Mail,
+    href: "/apps/lostmail",
+    testId: "card-service-lostmail",
+  },
+  {
+    title: "Research",
+    description: "Post research questions, receive sourced answers, and collaboratively surface the most relevant, accurate responses with voting and tagging.",
+    icon: Search,
+    href: "/apps/research",
+    testId: "card-service-research",
+  },
+  {
+    title: "GentlePulse",
+    description: "Access guided meditations hosted on Wistia, track your mood, and find supportive resources. Designed with privacy, accessibility, and trauma-informed care in mind.",
+    icon: HeartPulse,
+    href: "/apps/gentlepulse",
+    testId: "card-service-gentlepulse",
+  },
+  {
+    title: "Chyme",
+    description: "Join private or public audio rooms for voice conversations. Secure, encrypted, and designed with privacy and trauma-informed care in mind.",
+    icon: Radio,
+    href: "/apps/chyme",
+    testId: "card-service-chyme",
   },
 ];
 
@@ -110,14 +95,7 @@ export default function Services() {
               <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4">
                 <service.icon className="w-6 h-6 text-primary" />
               </div>
-              <div className="flex items-center gap-2">
-                <CardTitle>{service.title}</CardTitle>
-                {service.title === "CompareNotes" && (
-                  <Badge variant="outline" className="text-xs">
-                    Beta
-                  </Badge>
-                )}
-              </div>
+              <CardTitle>{service.title}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm text-muted-foreground">
