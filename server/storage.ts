@@ -26,6 +26,15 @@ import {
   type InsertDirectoryProfile,
   type DirectorySkill,
   type InsertDirectorySkill,
+  skillsSectors,
+  skillsJobTitles,
+  skillsSkills,
+  type SkillsSector,
+  type InsertSkillsSector,
+  type SkillsJobTitle,
+  type InsertSkillsJobTitle,
+  type SkillsSkill,
+  type InsertSkillsSkill,
   chatGroups,
   chatgroupsAnnouncements,
   type ChatGroup,
@@ -428,10 +437,44 @@ export interface IStorage {
   updateDirectoryAnnouncement(id: string, announcement: Partial<InsertDirectoryAnnouncement>): Promise<DirectoryAnnouncement>;
   deactivateDirectoryAnnouncement(id: string): Promise<DirectoryAnnouncement>;
 
-  // Directory Skills operations (admin only)
+  // Directory Skills operations (admin only) - Legacy, kept for backward compatibility
   getAllDirectorySkills(): Promise<DirectorySkill[]>;
   createDirectorySkill(skill: InsertDirectorySkill): Promise<DirectorySkill>;
   deleteDirectorySkill(id: string): Promise<void>;
+
+  // Shared Skills Database operations (Sector → Job Title → Skills)
+  // Sectors
+  getAllSkillsSectors(): Promise<SkillsSector[]>;
+  getSkillsSectorById(id: string): Promise<SkillsSector | undefined>;
+  createSkillsSector(sector: InsertSkillsSector): Promise<SkillsSector>;
+  updateSkillsSector(id: string, sector: Partial<InsertSkillsSector>): Promise<SkillsSector>;
+  deleteSkillsSector(id: string): Promise<void>;
+  
+  // Job Titles
+  getAllSkillsJobTitles(sectorId?: string): Promise<SkillsJobTitle[]>;
+  getSkillsJobTitleById(id: string): Promise<SkillsJobTitle | undefined>;
+  createSkillsJobTitle(jobTitle: InsertSkillsJobTitle): Promise<SkillsJobTitle>;
+  updateSkillsJobTitle(id: string, jobTitle: Partial<InsertSkillsJobTitle>): Promise<SkillsJobTitle>;
+  deleteSkillsJobTitle(id: string): Promise<void>;
+  
+  // Skills
+  getAllSkillsSkills(jobTitleId?: string): Promise<SkillsSkill[]>;
+  getSkillsSkillById(id: string): Promise<SkillsSkill | undefined>;
+  createSkillsSkill(skill: InsertSkillsSkill): Promise<SkillsSkill>;
+  updateSkillsSkill(id: string, skill: Partial<InsertSkillsSkill>): Promise<SkillsSkill>;
+  deleteSkillsSkill(id: string): Promise<void>;
+  
+  // Convenience methods for getting full hierarchy
+  getSkillsHierarchy(): Promise<Array<{
+    sector: SkillsSector;
+    jobTitles: Array<{
+      jobTitle: SkillsJobTitle;
+      skills: SkillsSkill[];
+    }>;
+  }>>;
+  
+  // Get flattened list of all skills (for Directory app compatibility)
+  getAllSkillsFlattened(): Promise<Array<{ id: string; name: string; sector: string; jobTitle: string }>>;
 
   // Chat Groups operations
   getAllChatGroups(): Promise<ChatGroup[]>;

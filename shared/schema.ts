@@ -853,7 +853,89 @@ export const insertDirectoryAnnouncementSchema = createInsertSchema(directoryAnn
 export type InsertDirectoryAnnouncement = z.infer<typeof insertDirectoryAnnouncementSchema>;
 export type DirectoryAnnouncement = typeof directoryAnnouncements.$inferSelect;
 
-// Directory Skills - Admin-managed tags/skills for directory profiles
+// ========================================
+// SHARED SKILLS DATABASE (Used by Directory and Workforce Recruiter)
+// ========================================
+
+// Skills Sectors - Top level categorization
+export const skillsSectors = pgTable("skills_sectors", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name", { length: 100 }).notNull().unique(),
+  estimatedWorkforceShare: decimal("estimated_workforce_share", { precision: 5, scale: 2 }), // Percentage
+  estimatedWorkforceCount: integer("estimated_workforce_count"), // Absolute number
+  displayOrder: integer("display_order").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const skillsSectorsRelations = relations(skillsSectors, ({ many }) => ({
+  jobTitles: many(skillsJobTitles),
+}));
+
+export const insertSkillsSectorSchema = createInsertSchema(skillsSectors).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertSkillsSector = z.infer<typeof insertSkillsSectorSchema>;
+export type SkillsSector = typeof skillsSectors.$inferSelect;
+
+// Skills Job Titles - Second level, belongs to a sector
+export const skillsJobTitles = pgTable("skills_job_titles", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sectorId: varchar("sector_id").notNull().references(() => skillsSectors.id, { onDelete: 'cascade' }),
+  name: varchar("name", { length: 200 }).notNull(),
+  displayOrder: integer("display_order").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const skillsJobTitlesRelations = relations(skillsJobTitles, ({ one, many }) => ({
+  sector: one(skillsSectors, {
+    fields: [skillsJobTitles.sectorId],
+    references: [skillsSectors.id],
+  }),
+  skills: many(skillsSkills),
+}));
+
+export const insertSkillsJobTitleSchema = createInsertSchema(skillsJobTitles).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertSkillsJobTitle = z.infer<typeof insertSkillsJobTitleSchema>;
+export type SkillsJobTitle = typeof skillsJobTitles.$inferSelect;
+
+// Skills - Third level, belongs to a job title
+export const skillsSkills = pgTable("skills_skills", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  jobTitleId: varchar("job_title_id").notNull().references(() => skillsJobTitles.id, { onDelete: 'cascade' }),
+  name: varchar("name", { length: 200 }).notNull(),
+  displayOrder: integer("display_order").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const skillsSkillsRelations = relations(skillsSkills, ({ one }) => ({
+  jobTitle: one(skillsJobTitles, {
+    fields: [skillsSkills.jobTitleId],
+    references: [skillsJobTitles.id],
+  }),
+}));
+
+export const insertSkillsSkillSchema = createInsertSchema(skillsSkills).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertSkillsSkill = z.infer<typeof insertSkillsSkillSchema>;
+export type SkillsSkill = typeof skillsSkills.$inferSelect;
+
+// Legacy: Directory Skills - kept for backward compatibility during migration
+// This table will be deprecated in favor of the hierarchical structure above
 export const directorySkills = pgTable("directory_skills", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: varchar("name", { length: 100 }).notNull().unique(),

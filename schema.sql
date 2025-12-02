@@ -335,7 +335,42 @@ CREATE TABLE IF NOT EXISTS directory_announcements (
   updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
--- Directory Skills - Admin-managed tags/skills for directory profiles
+-- ========================================
+-- SHARED SKILLS DATABASE (Used by Directory and Workforce Recruiter)
+-- ========================================
+
+-- Skills Sectors - Top level categorization
+CREATE TABLE IF NOT EXISTS skills_sectors (
+  id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+  name VARCHAR(100) NOT NULL UNIQUE,
+  estimated_workforce_share DECIMAL(5, 2),
+  estimated_workforce_count INTEGER,
+  display_order INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+-- Skills Job Titles - Second level, belongs to a sector
+CREATE TABLE IF NOT EXISTS skills_job_titles (
+  id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+  sector_id VARCHAR NOT NULL REFERENCES skills_sectors(id) ON DELETE CASCADE,
+  name VARCHAR(200) NOT NULL,
+  display_order INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+-- Skills - Third level, belongs to a job title
+CREATE TABLE IF NOT EXISTS skills_skills (
+  id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+  job_title_id VARCHAR NOT NULL REFERENCES skills_job_titles(id) ON DELETE CASCADE,
+  name VARCHAR(200) NOT NULL,
+  display_order INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+-- Legacy: Directory Skills - kept for backward compatibility during migration
 CREATE TABLE IF NOT EXISTS directory_skills (
   id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
   name VARCHAR(100) NOT NULL UNIQUE,

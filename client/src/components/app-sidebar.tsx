@@ -153,7 +153,7 @@ const baseAdminMenuItems = [
   },
 ];
 
-const pinnedAdminTitles = ["User Management", "Payments", "Pricing", "Video to GIF"];
+const pinnedAdminTitles = ["User Management", "Workforce Recruiter Tracker Admin", "Weekly Performance", "Payments", "Pricing", "Video to GIF"];
 
 const pinnedAdminMenuItems = pinnedAdminTitles
   .map((title) => baseAdminMenuItems.find((item) => item.title === title))
@@ -351,18 +351,12 @@ export function AppSidebar() {
               <SidebarMenu>
                 {adminMenuItems.map((item) => {
                   const isActive = location === item.url;
-                  const isCompareNotes = item.title === "CompareNotes Admin";
                   return (
                     <SidebarMenuItem key={item.title}>
                       <SidebarMenuButton asChild isActive={isActive} data-testid={item.testId}>
                         <Link href={item.url} onClick={handleNavClick}>
                           <item.icon className="w-5 h-5" />
                           <span>{item.title}</span>
-                          {isCompareNotes && (
-                            <Badge variant="outline" className="ml-2 text-xs">
-                              Beta
-                            </Badge>
-                          )}
                         </Link>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
