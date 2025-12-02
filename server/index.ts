@@ -5,6 +5,8 @@ import { resolve } from "path";
 config({ path: resolve(process.cwd(), ".env.local") });
 config({ path: resolve(process.cwd(), ".env") }); // Fallback to .env
 
+import "./init";
+
 // Initialize Sentry BEFORE any other imports that might throw errors
 import { initSentry, setupConsoleLogging } from "./sentry";
 initSentry();
