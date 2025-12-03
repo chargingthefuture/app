@@ -110,6 +110,7 @@ export const createMockRequest = (userId?: string, isAdmin = false) => ({
       }
     : null,
   isAuthenticated: () => !!userId,
+  isAdmin: () => isAdmin,
   body: {},
   params: {},
   query: {},

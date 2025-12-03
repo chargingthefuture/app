@@ -6509,14 +6509,14 @@ export class DatabaseStorage implements IStorage {
         const eventCount = trainingByOccupation.get(occ.id) || 0;
         const directoryCount = directoryProfilesByOccupation.get(occ.id) || 0;
         const actual = eventCount + directoryCount;
-        return {
-          occupationId: occ.id,
+      return {
+        occupationId: occ.id,
           occupationTitle: occ.occupationTitle || "Unknown Occupation",
           sector: occ.sector || "Unknown Sector",
-          target: occ.annualTrainingTarget,
-          actual,
-          gap: occ.annualTrainingTarget - actual,
-        };
+        target: occ.annualTrainingTarget,
+        actual,
+        gap: occ.annualTrainingTarget - actual,
+      };
       })
       .filter(item => item.target > 0) // Show all occupations with training targets
       .sort((a, b) => b.gap - a.gap) // Sort by gap descending (largest gaps first)

@@ -22,8 +22,8 @@ describe('Smoke Tests - Critical Functionality', () => {
     expect(db).toBeDefined();
   });
 
-  it('should validate test fixtures are available', () => {
-    const { generateTestUserId, createTestUser } = require('./fixtures/testData');
+  it('should validate test fixtures are available', async () => {
+    const { generateTestUserId, createTestUser } = await import('./fixtures/testData');
     expect(typeof generateTestUserId).toBe('function');
     expect(typeof createTestUser).toBe('function');
   });

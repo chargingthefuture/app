@@ -22,7 +22,7 @@ const getAccountUrls = () => {
   }
 
   const baseUrl = window.location.origin;
-  const hostname = window.location.hostname;
+  const hostname = window.location.hostname || '';
   const isProduction = hostname.includes('app.chargingthefuture.com');
   const isStaging = hostname.includes('the-comic.com') || hostname.includes('staging');
   
