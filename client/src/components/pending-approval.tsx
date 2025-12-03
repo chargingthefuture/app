@@ -23,7 +23,33 @@ export function PendingApproval() {
   const updateMutation = useMutation({
     mutationFn: async (url: string | null) => {
       const res = await apiRequest("PUT", "/api/user/quora-profile-url", { quoraProfileUrl: url });
-      return await res.json();
+      
+      // Check if response has content before parsing
+      const contentLength = res.headers.get("content-length");
+      if (contentLength === "0") {
+        // Empty response, return default success
+        return { success: true };
+      }
+      
+      // Try to parse JSON, handle empty or invalid responses gracefully
+      try {
+        const text = await res.text();
+        if (!text || text.trim() === "") {
+          // Empty response body
+          return { success: true };
+        }
+        return JSON.parse(text);
+      } catch (error) {
+        // If JSON parsing fails (e.g., "Unexpected end of JSON input"), 
+        // check if the request was successful (status 200-299)
+        if (res.ok) {
+          // Request succeeded but response wasn't valid JSON - treat as success
+          console.warn("Response was successful but not valid JSON, treating as success:", error);
+          return { success: true };
+        }
+        // Request failed, re-throw to trigger onError handler
+        throw error;
+      }
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
