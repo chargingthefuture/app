@@ -37,12 +37,6 @@ This document lists all tests created for the application.
 ### GentlePulse
 - ✅ `test/api/gentlepulse.test.ts` - Meditations, favorites, progress, announcements, admin
 
-### Chyme
-- ✅ `test/api/chyme.test.ts` - Profile CRUD, rooms, messages, announcements, admin
-
-### Workforce Recruiter
-- ✅ `test/api/workforce-recruiter.test.ts` - Profile CRUD, occupations, recruitment events, reports, announcements, admin
-
 ### Admin
 - ✅ `test/api/admin.test.ts` - Stats, users, payments, anti-scraping monitoring, activity logs
 
@@ -80,8 +74,6 @@ This document lists all tests created for the application.
 - ✅ `test/client/pages/directory/profile.test.tsx` - Directory profile page
 - ✅ `test/client/pages/trusttransport/profile.test.tsx` - TrustTransport profile page
 - ✅ `test/client/pages/mechanicmatch/profile.test.tsx` - MechanicMatch profile page
-- ✅ `test/client/pages/chyme/profile.test.tsx` - Chyme profile page
-- ✅ `test/client/pages/workforce-recruiter/profile.test.tsx` - Workforce Recruiter profile page
 
 ### Core Pages
 - ✅ `test/client/pages/home.test.tsx` - Home dashboard page
@@ -93,13 +85,6 @@ This document lists all tests created for the application.
 
 - ✅ `test/e2e/auth.spec.ts` - Authentication flows
 - ✅ `test/e2e/profile-crud.spec.ts` - Profile CRUD operations
-- ✅ `test/e2e/supportmatch.spec.ts` - SupportMatch profile, partnerships, messaging, exclusions
-- ✅ `test/e2e/lighthouse.spec.ts` - LightHouse profile, properties, match requests
-- ✅ `test/e2e/socketrelay.spec.ts` - SocketRelay profile, requests, fulfillments, messaging
-- ✅ `test/e2e/directory.spec.ts` - Directory profile, public listing, admin
-- ✅ `test/e2e/chatgroups.spec.ts` - ChatGroups public listing, admin management
-- ✅ `test/e2e/chyme.spec.ts` - Chyme profile, rooms, messages, admin
-- ✅ `test/e2e/workforce-recruiter.spec.ts` - Workforce Recruiter profile, occupations, reports, admin
 - ✅ `test/e2e/trusttransport.spec.ts` - TrustTransport profile and ride request flows
 - ✅ `test/e2e/mechanicmatch.spec.ts` - MechanicMatch profile, vehicles, and service requests
 - ✅ `test/e2e/lostmail.spec.ts` - LostMail incident reporting flows
@@ -187,37 +172,21 @@ This document lists all tests created for the application.
     - Announcements
     - Admin management
 
-13. **Chyme Mini-App**
-    - Profile CRUD
-    - Audio rooms
-    - Messaging
-    - Room management
-    - Announcements
-    - Admin management
-
-14. **Workforce Recruiter Mini-App**
-    - Profile CRUD
-    - Occupation management
-    - Recruitment events
-    - Reports and exports
-    - Announcements
-    - Admin management
-
-15. **Admin Features**
+13. **Admin Features**
     - Stats dashboard
     - User management (approval/revocation)
     - Payment management
     - Anti-scraping monitoring
     - Activity logs
 
-16. **Core Pages**
+14. **Core Pages**
     - Home dashboard
     - Landing/login page
     - Services listing
     - User payments
     - Account management
 
-17. **Shared Components**
+15. **Shared Components**
     - Announcement banner
     - Pagination controls
     - Login form

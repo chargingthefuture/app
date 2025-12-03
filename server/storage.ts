@@ -861,18 +861,81 @@ export class DatabaseStorage implements IStorage {
   }
 
   async upsertUser(userData: UpsertUser): Promise<User> {
-    const [user] = await db
-      .insert(users)
-      .values(userData)
-      .onConflictDoUpdate({
-        target: users.id,
-        set: {
+    // First, try to find existing user by ID (primary key)
+    let existingUser: User | undefined;
+    
+    if (userData.id) {
+      existingUser = await this.getUser(userData.id);
+    }
+    
+    if (existingUser) {
+      // User exists with same ID - update normally
+      const [updated] = await db
+        .update(users)
+        .set({
           ...userData,
           updatedAt: new Date(),
-        },
-      })
-      .returning();
-    return user;
+        })
+        .where(eq(users.id, existingUser.id))
+        .returning();
+      return updated;
+    }
+    
+    // User doesn't exist by ID - try to insert
+    // If there's a unique constraint violation on email, handle it
+    try {
+      const [inserted] = await db
+        .insert(users)
+        .values(userData)
+        .onConflictDoUpdate({
+          target: users.id,
+          set: {
+            ...userData,
+            updatedAt: new Date(),
+          },
+        })
+        .returning();
+      return inserted;
+    } catch (error: any) {
+      // Handle unique constraint violation on email (PostgreSQL error code 23505)
+      if (error?.code === '23505' && error?.constraint?.includes('email')) {
+        // User exists with same email but different ID
+        // Find the user by email and update them
+        if (userData.email) {
+          const [userByEmail] = await db
+            .select()
+            .from(users)
+            .where(eq(users.email, userData.email));
+          
+          if (userByEmail) {
+            // Update the existing user with the new data
+            // Note: We preserve the existing user's ID since we can't change primary keys
+            // The email will be updated to match (it's the same, so no change)
+            // Other fields (name, profile image, etc.) will be updated
+            const [updated] = await db
+              .update(users)
+              .set({
+                firstName: userData.firstName,
+                lastName: userData.lastName,
+                profileImageUrl: userData.profileImageUrl,
+                quoraProfileUrl: userData.quoraProfileUrl,
+                updatedAt: new Date(),
+                // Preserve existing fields that weren't provided
+                pricingTier: userData.pricingTier ?? userByEmail.pricingTier,
+                isAdmin: userData.isAdmin ?? userByEmail.isAdmin,
+                isVerified: userData.isVerified ?? userByEmail.isVerified,
+                isApproved: userData.isApproved ?? userByEmail.isApproved,
+                subscriptionStatus: userData.subscriptionStatus ?? userByEmail.subscriptionStatus,
+              })
+              .where(eq(users.id, userByEmail.id))
+              .returning();
+            return updated;
+          }
+        }
+      }
+      // Re-throw if it's not a unique email constraint violation
+      throw error;
+    }
   }
 
   async getAllUsers(): Promise<User[]> {

@@ -14,7 +14,19 @@ vi.mock('@clerk/clerk-react', () => ({
 const createWrapper = () => {
   const queryClient = new QueryClient({
     defaultOptions: {
-      queries: { retry: false },
+      queries: { 
+        retry: false,
+        queryFn: async ({ queryKey }) => {
+          const url = queryKey.join("/") as string;
+          const res = await fetch(url, {
+            credentials: "include",
+          });
+          if (!res.ok) {
+            throw new Error(`${res.status}: ${res.statusText}`);
+          }
+          return res.json();
+        },
+      },
       mutations: { retry: false },
     },
   });
@@ -41,7 +53,10 @@ describe('useAuth', () => {
 
     const { result } = renderHook(() => useAuth(), { wrapper: createWrapper() });
 
-    expect(result.current.isLoading).toBe(false);
+    // When Clerk is not loaded and not timed out, isLoading should be true
+    // Based on hook logic: isLoading = (!clerkLoaded && !clerkLoadTimeout) || (clerkLoaded && isSignedIn && dbLoading)
+    // Since clerkLoaded is false and clerkLoadTimeout starts as false, isLoading should be true
+    expect(result.current.isLoading).toBe(true);
     expect(result.current.isAuthenticated).toBe(false);
     expect(result.current.user).toBeNull();
   });
@@ -67,6 +82,8 @@ describe('useAuth', () => {
 
     global.fetch = vi.fn(() =>
       Promise.resolve({
+        ok: true,
+        status: 200,
         json: () => Promise.resolve(mockDbUser),
       } as Response)
     );
@@ -102,6 +119,8 @@ describe('useAuth', () => {
 
     global.fetch = vi.fn(() =>
       Promise.resolve({
+        ok: true,
+        status: 200,
         json: () => Promise.resolve(mockDbUser),
       } as Response)
     );
