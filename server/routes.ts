@@ -1196,7 +1196,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(skills);
   }));
 
-  // Sectors CRUD
+  // Public endpoints for Directory app (sectors and job titles)
+  app.get('/api/directory/sectors', isAuthenticated, asyncHandler(async (_req, res) => {
+    const sectors = await withDatabaseErrorHandling(
+      () => storage.getAllSkillsSectors(),
+      'getAllSkillsSectors'
+    );
+    res.json(sectors);
+  }));
+
+  app.get('/api/directory/job-titles', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const sectorId = req.query.sectorId as string | undefined;
+    const jobTitles = await withDatabaseErrorHandling(
+      () => storage.getAllSkillsJobTitles(sectorId),
+      'getAllSkillsJobTitles'
+    );
+    res.json(jobTitles);
+  }));
+
+  // Sectors CRUD (Admin only)
   app.get('/api/skills/sectors', isAuthenticated, isAdmin, asyncHandler(async (_req, res) => {
     const sectors = await withDatabaseErrorHandling(
       () => storage.getAllSkillsSectors(),

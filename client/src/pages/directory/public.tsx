@@ -133,6 +133,28 @@ export default function PublicDirectoryProfile() {
             </div>
           ) : null}
 
+          {profile.sectors?.length ? (
+            <div>
+              <p className="text-sm text-muted-foreground">Sectors</p>
+              <div className="flex flex-wrap gap-2 mt-1">
+                {profile.sectors.map(s => (
+                  <Badge key={s} variant="secondary">{s}</Badge>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          {profile.jobTitles?.length ? (
+            <div>
+              <p className="text-sm text-muted-foreground">Job Titles</p>
+              <div className="flex flex-wrap gap-2 mt-1">
+                {profile.jobTitles.map(jt => (
+                  <Badge key={jt} variant="secondary">{jt}</Badge>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {/* Intentionally hide Signal link on public profile */}
             <div />

@@ -3209,6 +3209,9 @@ export class DatabaseStorage implements IStorage {
         description: (profileData as any).description ?? "",
         // Enforce max 3 skills at storage layer as defense-in-depth
         skills: (profileData.skills ?? []).slice(0, 3),
+        // Enforce max 3 sectors and job titles at storage layer as defense-in-depth
+        sectors: (profileData.sectors ?? []).slice(0, 3),
+        jobTitles: (profileData.jobTitles ?? []).slice(0, 3),
       })
       .returning();
     return profile;
@@ -3218,6 +3221,8 @@ export class DatabaseStorage implements IStorage {
     const updateData: any = {
       ...profileData,
       skills: profileData.skills ? profileData.skills.slice(0, 3) : undefined,
+      sectors: profileData.sectors ? profileData.sectors.slice(0, 3) : undefined,
+      jobTitles: profileData.jobTitles ? profileData.jobTitles.slice(0, 3) : undefined,
       updatedAt: new Date(),
     };
     // Remove null values that shouldn't be set to null in the DB

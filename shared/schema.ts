@@ -778,6 +778,10 @@ export const directoryProfiles = pgTable("directory_profiles", {
   description: varchar("description", { length: 140 }).notNull(),
   // Up to three skills; stored as text array
   skills: text("skills").array().notNull().default(sql`ARRAY[]::text[]`),
+  // Up to three sectors; stored as text array
+  sectors: text("sectors").array().notNull().default(sql`ARRAY[]::text[]`),
+  // Up to three job titles; stored as text array
+  jobTitles: text("job_titles").array().notNull().default(sql`ARRAY[]::text[]`),
 
   signalUrl: text("signal_url"),
   quoraUrl: text("quora_url"),
@@ -817,6 +821,10 @@ export const insertDirectoryProfileSchema = createInsertSchema(directoryProfiles
   description: z.string().max(140, "Description must be 140 characters or less").optional().nullable(),
   // Require at least one skill, up to 3
   skills: z.array(z.string()).min(1, "Select at least 1 skill").max(3, "Select up to 3 skills"),
+  // Optional sectors, up to 3
+  sectors: z.array(z.string()).max(3, "Select up to 3 sectors").optional(),
+  // Optional job titles, up to 3
+  jobTitles: z.array(z.string()).max(3, "Select up to 3 job titles").optional(),
   signalUrl: z.string().url().optional().nullable(),
   quoraUrl: z.string().url().optional().nullable(),
   // Require country selection per shared standard
@@ -869,6 +877,100 @@ export const insertDirectorySkillSchema = createInsertSchema(directorySkills).om
 
 export type InsertDirectorySkill = z.infer<typeof insertDirectorySkillSchema>;
 export type DirectorySkill = typeof directorySkills.$inferSelect;
+
+// ========================================
+// SHARED SKILLS DATABASE (Used by Directory and Workforce Recruiter)
+// ========================================
+
+// Skills Sectors - Top level categorization
+export const skillsSectors = pgTable("skills_sectors", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name", { length: 100 }).notNull().unique(),
+  estimatedWorkforceShare: decimal("estimated_workforce_share", { precision: 5, scale: 2 }),
+  estimatedWorkforceCount: integer("estimated_workforce_count"),
+  displayOrder: integer("display_order").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const skillsSectorsRelations = relations(skillsSectors, ({ many }) => ({
+  jobTitles: many(skillsJobTitles),
+}));
+
+export const insertSkillsSectorSchema = createInsertSchema(skillsSectors).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  name: z.string().min(1, "Name is required").max(100, "Name must be 100 characters or less"),
+  estimatedWorkforceShare: z.coerce.number().min(0).max(100).optional().nullable(),
+  estimatedWorkforceCount: z.number().int().min(0).optional().nullable(),
+  displayOrder: z.number().int().optional(),
+});
+
+export type InsertSkillsSector = z.infer<typeof insertSkillsSectorSchema>;
+export type SkillsSector = typeof skillsSectors.$inferSelect;
+
+// Skills Job Titles - Second level, belongs to a sector
+export const skillsJobTitles = pgTable("skills_job_titles", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sectorId: varchar("sector_id").notNull().references(() => skillsSectors.id, { onDelete: 'cascade' }),
+  name: varchar("name", { length: 200 }).notNull(),
+  displayOrder: integer("display_order").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const skillsJobTitlesRelations = relations(skillsJobTitles, ({ one, many }) => ({
+  sector: one(skillsSectors, {
+    fields: [skillsJobTitles.sectorId],
+    references: [skillsSectors.id],
+  }),
+  skills: many(skillsSkills),
+}));
+
+export const insertSkillsJobTitleSchema = createInsertSchema(skillsJobTitles).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  sectorId: z.string().min(1, "Sector ID is required"),
+  name: z.string().min(1, "Name is required").max(200, "Name must be 200 characters or less"),
+  displayOrder: z.number().int().optional(),
+});
+
+export type InsertSkillsJobTitle = z.infer<typeof insertSkillsJobTitleSchema>;
+export type SkillsJobTitle = typeof skillsJobTitles.$inferSelect;
+
+// Skills - Third level, belongs to a job title
+export const skillsSkills = pgTable("skills_skills", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  jobTitleId: varchar("job_title_id").notNull().references(() => skillsJobTitles.id, { onDelete: 'cascade' }),
+  name: varchar("name", { length: 200 }).notNull(),
+  displayOrder: integer("display_order").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const skillsSkillsRelations = relations(skillsSkills, ({ one }) => ({
+  jobTitle: one(skillsJobTitles, {
+    fields: [skillsSkills.jobTitleId],
+    references: [skillsJobTitles.id],
+  }),
+}));
+
+export const insertSkillsSkillSchema = createInsertSchema(skillsSkills).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  jobTitleId: z.string().min(1, "Job title ID is required"),
+  name: z.string().min(1, "Name is required").max(200, "Name must be 200 characters or less"),
+  displayOrder: z.number().int().optional(),
+});
+
+export type InsertSkillsSkill = z.infer<typeof insertSkillsSkillSchema>;
+export type SkillsSkill = typeof skillsSkills.$inferSelect;
 
 // ========================================
 // CHAT GROUPS APP TABLES
@@ -2379,10 +2481,12 @@ export const insertWorkforceRecruiterConfigSchema = createInsertSchema(workforce
 export type InsertWorkforceRecruiterConfig = z.infer<typeof insertWorkforceRecruiterConfigSchema>;
 export type WorkforceRecruiterConfig = typeof workforceRecruiterConfig.$inferSelect;
 
-// Occupations
+// Occupations - References shared skills database for data consistency
 export const workforceRecruiterOccupations = pgTable("workforce_recruiter_occupations", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  sector: varchar("sector", { length: 100 }).notNull(),
+  sectorId: varchar("sector_id").references(() => skillsSectors.id, { onDelete: 'restrict' }),
+  jobTitleId: varchar("job_title_id").references(() => skillsJobTitles.id, { onDelete: 'restrict' }),
+  sector: varchar("sector", { length: 100 }), // Legacy text field, kept for backward compatibility
   occupationTitle: varchar("occupation_title", { length: 200 }).notNull(),
   headcountTarget: integer("headcount_target").notNull(),
   skillLevel: varchar("skill_level", { length: 20 }).notNull(), // 'Low', 'Medium', 'High'
@@ -2393,13 +2497,26 @@ export const workforceRecruiterOccupations = pgTable("workforce_recruiter_occupa
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+export const workforceRecruiterOccupationsRelations = relations(workforceRecruiterOccupations, ({ one }) => ({
+  sector: one(skillsSectors, {
+    fields: [workforceRecruiterOccupations.sectorId],
+    references: [skillsSectors.id],
+  }),
+  jobTitle: one(skillsJobTitles, {
+    fields: [workforceRecruiterOccupations.jobTitleId],
+    references: [skillsJobTitles.id],
+  }),
+}));
+
 export const insertWorkforceRecruiterOccupationSchema = createInsertSchema(workforceRecruiterOccupations).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
   currentRecruited: true,
 }).extend({
-  sector: z.string().min(1, "Sector is required").max(100),
+  sectorId: z.string().optional().nullable(),
+  jobTitleId: z.string().optional().nullable(),
+  sector: z.string().max(100).optional().nullable(), // Legacy field, optional
   occupationTitle: z.string().min(1, "Occupation title is required").max(200),
   headcountTarget: z.number().int().min(0),
   skillLevel: z.enum(["Low", "Medium", "High"]),

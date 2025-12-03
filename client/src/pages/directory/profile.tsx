@@ -18,6 +18,16 @@ import { ExternalLink, Check, X, Copy } from "lucide-react";
 import { COUNTRIES } from "@/lib/countries";
 import { US_STATES } from "@/lib/usStates";
 import type { DirectorySkill } from "@shared/schema";
+
+type SkillsSector = {
+  id: string;
+  name: string;
+};
+
+type SkillsJobTitle = {
+  id: string;
+  name: string;
+};
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useExternalLink } from "@/hooks/useExternalLink";
 import { VerifiedBadge } from "@/components/verified-badge";
@@ -36,6 +46,12 @@ export default function DirectoryProfilePage() {
   });
   const { data: availableSkills = [], isLoading: skillsLoading } = useQuery<DirectorySkill[]>({
     queryKey: ["/api/directory/skills"],
+  });
+  const { data: availableSectors = [], isLoading: sectorsLoading } = useQuery<SkillsSector[]>({
+    queryKey: ["/api/directory/sectors"],
+  });
+  const { data: availableJobTitles = [], isLoading: jobTitlesLoading } = useQuery<SkillsJobTitle[]>({
+    queryKey: ["/api/directory/job-titles"],
   });
   
   const publicDirectoryUrl = `${window.location.origin}/apps/directory/public`;
@@ -60,6 +76,8 @@ export default function DirectoryProfilePage() {
 
   const [description, setDescription] = useState("");
   const [skills, setSkills] = useState<string[]>([]);
+  const [sectors, setSectors] = useState<string[]>([]);
+  const [jobTitles, setJobTitles] = useState<string[]>([]);
   const [signalUrl, setSignalUrl] = useState("");
   const [quoraUrl, setQuoraUrl] = useState("");
   const [city, setCity] = useState("");
@@ -78,6 +96,8 @@ export default function DirectoryProfilePage() {
     if (profile) {
       setDescription(profile.description || "");
       setSkills(profile.skills || []);
+      setSectors(profile.sectors || []);
+      setJobTitles(profile.jobTitles || []);
       setSignalUrl(profile.signalUrl || "");
       setQuoraUrl(profile.quoraUrl || "");
       setCity(profile.city || "");
@@ -104,6 +124,8 @@ export default function DirectoryProfilePage() {
       const payload = {
         description: description.trim(),
         skills,
+        sectors: sectors.length > 0 ? sectors : undefined,
+        jobTitles: jobTitles.length > 0 ? jobTitles : undefined,
         signalUrl: signalUrl || null,
         quoraUrl: quoraUrl || null,
         city: city || null,
@@ -136,6 +158,8 @@ export default function DirectoryProfilePage() {
       const payload = {
         description: description.trim(),
         skills,
+        sectors: sectors.length > 0 ? sectors : undefined,
+        jobTitles: jobTitles.length > 0 ? jobTitles : undefined,
         signalUrl: signalUrl || null,
         quoraUrl: quoraUrl || null,
         city: city || null,
@@ -168,7 +192,9 @@ export default function DirectoryProfilePage() {
       await queryClient.invalidateQueries({ queryKey: ["/api/directory/profile"] });
       // Reset all form state
       setDescription(""); 
-      setSkills([]); 
+      setSkills([]);
+      setSectors([]);
+      setJobTitles([]);
       setSignalUrl(""); 
       setQuoraUrl(""); 
       setCity(""); 
@@ -196,6 +222,28 @@ export default function DirectoryProfilePage() {
         return prev;
       }
       return [...prev, s];
+    });
+  };
+
+  const toggleSector = (s: string) => {
+    setSectors(prev => {
+      if (prev.includes(s)) return prev.filter(x => x !== s);
+      if (prev.length >= 3) {
+        toast({ title: "Limit reached", description: "Select up to 3 sectors", variant: "destructive" });
+        return prev;
+      }
+      return [...prev, s];
+    });
+  };
+
+  const toggleJobTitle = (jt: string) => {
+    setJobTitles(prev => {
+      if (prev.includes(jt)) return prev.filter(x => x !== jt);
+      if (prev.length >= 3) {
+        toast({ title: "Limit reached", description: "Select up to 3 job titles", variant: "destructive" });
+        return prev;
+      }
+      return [...prev, jt];
     });
   };
 
@@ -299,6 +347,22 @@ export default function DirectoryProfilePage() {
                   {skills.length ? skills.map(s => (<Badge key={s} variant="secondary">{s}</Badge>)) : <span>—</span>}
                 </div>
               </div>
+              {sectors.length > 0 && (
+                <div>
+                  <Label className="text-muted-foreground">Sectors</Label>
+                  <div className="flex flex-wrap gap-2 mt-1">
+                    {sectors.map(s => (<Badge key={s} variant="secondary">{s}</Badge>))}
+                  </div>
+                </div>
+              )}
+              {jobTitles.length > 0 && (
+                <div>
+                  <Label className="text-muted-foreground">Job Titles</Label>
+                  <div className="flex flex-wrap gap-2 mt-1">
+                    {jobTitles.map(jt => (<Badge key={jt} variant="secondary">{jt}</Badge>))}
+                  </div>
+                </div>
+              )}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <Label className="text-muted-foreground">Signal</Label>
@@ -430,6 +494,134 @@ export default function DirectoryProfilePage() {
             )}
             {skills.length === 0 && (
               <p className="text-xs text-red-600" data-testid="help-skills-required">Select at least one skill.</p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label id="sectors-label">Sectors (up to 3, optional)</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-haspopup="listbox"
+                  aria-labelledby="sectors-label"
+                  data-testid="combo-sectors-trigger"
+                  className="w-full justify-between"
+                  disabled={sectorsLoading}
+                >
+                  {sectors.length > 0 ? `${sectors.length} selected` : "Select sectors"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0 max-h-[80vh] flex flex-col" align="start">
+                <Command shouldFilter>
+                  <CommandInput placeholder="Search sectors…" />
+                  <CommandList>
+                  <CommandEmpty>No sectors found.</CommandEmpty>
+                  <CommandGroup>
+                    {availableSectors.map((sector) => {
+                      const selected = sectors.includes(sector.name);
+                      return (
+                        <CommandItem
+                          key={sector.id}
+                          value={sector.name}
+                          onSelect={() => toggleSector(sector.name)}
+                          data-testid={`combo-sectors-item-${sector.name}`}
+                          aria-selected={selected}
+                        >
+                          <Check className={`mr-2 h-4 w-4 ${selected ? "opacity-100" : "opacity-0"}`} />
+                          <span>{sector.name}</span>
+                        </CommandItem>
+                      );
+                    })}
+                  </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+
+            {sectors.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {sectors.map((s) => (
+                  <Badge key={s} variant="secondary" className="pr-0">
+                    <span className="mr-1">{s}</span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => toggleSector(s)}
+                      className="h-5 w-5 ml-1"
+                      aria-label={`Remove ${s}`}
+                      data-testid={`button-remove-sector-${s}`}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </Badge>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label id="job-titles-label">Job Titles (up to 3, optional)</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-haspopup="listbox"
+                  aria-labelledby="job-titles-label"
+                  data-testid="combo-job-titles-trigger"
+                  className="w-full justify-between"
+                  disabled={jobTitlesLoading}
+                >
+                  {jobTitles.length > 0 ? `${jobTitles.length} selected` : "Select job titles"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0 max-h-[80vh] flex flex-col" align="start">
+                <Command shouldFilter>
+                  <CommandInput placeholder="Search job titles…" />
+                  <CommandList>
+                  <CommandEmpty>No job titles found.</CommandEmpty>
+                  <CommandGroup>
+                    {availableJobTitles.map((jobTitle) => {
+                      const selected = jobTitles.includes(jobTitle.name);
+                      return (
+                        <CommandItem
+                          key={jobTitle.id}
+                          value={jobTitle.name}
+                          onSelect={() => toggleJobTitle(jobTitle.name)}
+                          data-testid={`combo-job-titles-item-${jobTitle.name}`}
+                          aria-selected={selected}
+                        >
+                          <Check className={`mr-2 h-4 w-4 ${selected ? "opacity-100" : "opacity-0"}`} />
+                          <span>{jobTitle.name}</span>
+                        </CommandItem>
+                      );
+                    })}
+                  </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+
+            {jobTitles.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {jobTitles.map((jt) => (
+                  <Badge key={jt} variant="secondary" className="pr-0">
+                    <span className="mr-1">{jt}</span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => toggleJobTitle(jt)}
+                      className="h-5 w-5 ml-1"
+                      aria-label={`Remove ${jt}`}
+                      data-testid={`button-remove-job-title-${jt}`}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </Badge>
+                ))}
+              </div>
             )}
           </div>
 

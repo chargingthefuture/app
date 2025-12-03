@@ -11,6 +11,8 @@ type PublicDirectoryProfile = {
   id: string;
   description: string;
   skills: string[];
+  sectors?: string[];
+  jobTitles?: string[];
   city: string | null;
   state: string | null;
   country: string | null;
