@@ -308,6 +308,8 @@ CREATE TABLE IF NOT EXISTS directory_profiles (
   user_id VARCHAR UNIQUE REFERENCES users(id),
   description VARCHAR(140) NOT NULL,
   skills TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
+  sectors TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
+  job_titles TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
   signal_url TEXT,
   quora_url TEXT,
   city VARCHAR(100),
