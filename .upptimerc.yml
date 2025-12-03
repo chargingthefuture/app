@@ -1,0 +1,121 @@
+# Upptime Configuration
+# This file configures automated status monitoring for all mini-apps
+# 
+# Setup Instructions:
+# 1. Create a new GitHub repository (e.g., your-org/status)
+# 2. Use the Upptime template: https://github.com/upptime/upptime
+# 3. Copy this file to the new repository as .upptimerc.yml
+# 4. Replace YOUR_RAILWAY_URL with your actual Railway deployment URL
+# 5. Replace YOUR_GITHUB_USERNAME with your GitHub username
+# 6. Enable GitHub Pages in repository settings
+# 7. Status page will be available at: https://YOUR_GITHUB_USERNAME.github.io/status
+
+# Repository configuration
+owner: YOUR_GITHUB_USERNAME  # Replace with your GitHub username
+repo: status  # Or your preferred repository name
+assignees:
+  - YOUR_GITHUB_USERNAME  # Replace with your GitHub username
+
+# Sites to monitor
+sites:
+  # Main Platform Health Check
+  - name: Main Platform
+    url: https://YOUR_RAILWAY_URL.railway.app/api/health
+    expectedStatusCodes: [200]
+    maxResponseTime: 3000  # 3 seconds
+    
+  # Mini-Apps Health Checks
+  - name: ChatGroups
+    url: https://YOUR_RAILWAY_URL.railway.app/api/health/chatgroups
+    expectedStatusCodes: [200]
+    maxResponseTime: 3000
+    
+  - name: Directory
+    url: https://YOUR_RAILWAY_URL.railway.app/api/health/directory
+    expectedStatusCodes: [200]
+    maxResponseTime: 3000
+    
+  - name: GentlePulse
+    url: https://YOUR_RAILWAY_URL.railway.app/api/health/gentlepulse
+    expectedStatusCodes: [200]
+    maxResponseTime: 3000
+    
+  - name: Chyme
+    url: https://YOUR_RAILWAY_URL.railway.app/api/health/chyme
+    expectedStatusCodes: [200]
+    maxResponseTime: 3000
+    
+  - name: Workforce Recruiter
+    url: https://YOUR_RAILWAY_URL.railway.app/api/health/workforce-recruiter
+    expectedStatusCodes: [200]
+    maxResponseTime: 3000
+    
+  - name: LightHouse
+    url: https://YOUR_RAILWAY_URL.railway.app/api/health/lighthouse
+    expectedStatusCodes: [200]
+    maxResponseTime: 3000
+    
+  - name: LostMail
+    url: https://YOUR_RAILWAY_URL.railway.app/api/health/lostmail
+    expectedStatusCodes: [200]
+    maxResponseTime: 3000
+    
+  - name: MechanicMatch
+    url: https://YOUR_RAILWAY_URL.railway.app/api/health/mechanicmatch
+    expectedStatusCodes: [200]
+    maxResponseTime: 3000
+    
+  - name: CompareNotes
+    url: https://YOUR_RAILWAY_URL.railway.app/api/health/research
+    expectedStatusCodes: [200]
+    maxResponseTime: 3000
+    
+  - name: SocketRelay
+    url: https://YOUR_RAILWAY_URL.railway.app/api/health/socketrelay
+    expectedStatusCodes: [200]
+    maxResponseTime: 3000
+    
+  - name: SupportMatch
+    url: https://YOUR_RAILWAY_URL.railway.app/api/health/supportmatch
+    expectedStatusCodes: [200]
+    maxResponseTime: 3000
+    
+  - name: TrustTransport
+    url: https://YOUR_RAILWAY_URL.railway.app/api/health/trusttransport
+    expectedStatusCodes: [200]
+    maxResponseTime: 3000
+
+# Status page configuration
+status-website:
+  baseUrl: /status  # Change if your repo name is different
+  logoUrl: https://YOUR_RAILWAY_URL.railway.app/logo.png  # Optional: Add your logo URL
+  name: Platform Status
+  introTitle: "Platform Status"
+  introMessage: "Real-time status monitoring for all platform services. We monitor all mini-apps 24/7 to ensure availability."
+  navbar:
+    - title: Status
+      href: /
+    - title: GitHub
+      href: https://github.com/YOUR_GITHUB_USERNAME/status
+    - title: Main Platform
+      href: https://YOUR_RAILWAY_URL.railway.app
+
+# GitHub Actions workflow settings
+workflowSchedule:
+  # Check every 5 minutes
+  - cron: "*/5 * * * *"
+
+# Incident management
+incident:
+  # Auto-create GitHub issues for downtime
+  autoCreateIssues: true
+  # Auto-close issues when service recovers
+  autoCloseIssues: true
+
+# Response time tracking
+responseTime:
+  # Track response times
+  enabled: true
+  # Maximum acceptable response time (ms)
+  maxResponseTime: 3000
+
