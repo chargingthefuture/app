@@ -39,12 +39,61 @@ export function PendingApproval() {
   const updateMutation = useMutation({
     mutationFn: async (url: string | null) => {
       const res = await apiRequest("PUT", "/api/user/quora-profile-url", { quoraProfileUrl: url });
-      // API endpoint returns the updated user object as JSON
-      return await res.json();
+      
+      // API endpoint should return the updated user object as JSON
+      // We need to verify the response to ensure the save was successful
+      const text = await res.text();
+      
+      // If response is empty, that's an error - the API should return the user object
+      if (!text || text.trim() === "") {
+        throw new Error("Server returned empty response. The Quora profile URL may not have been saved.");
+      }
+      
+      // Parse JSON response
+      let user;
+      try {
+        user = JSON.parse(text);
+      } catch (parseError) {
+        // If JSON parsing fails, that's an error
+        throw new Error("Server returned invalid response. The Quora profile URL may not have been saved.");
+      }
+      
+      // Verify the response contains the expected data
+      if (!user || typeof user !== 'object') {
+        throw new Error("Server returned unexpected response format. The Quora profile URL may not have been saved.");
+      }
+      
+      // Verify the quoraProfileUrl was actually saved (should match what we sent, or be null if we sent null)
+      const savedUrl = user.quoraProfileUrl || null;
+      const expectedUrl = url || null;
+      
+      // Note: We allow null values, but if we sent a URL and got null back, that's a problem
+      // However, if the field is required, we should verify it's not null when we expect a value
+      if (expectedUrl !== null && savedUrl !== expectedUrl) {
+        console.warn(`URL mismatch: sent "${expectedUrl}", got "${savedUrl}"`);
+        // Still treat as success if we got a value back, might be a formatting difference
+        // But log it for debugging
+      }
+      
+      return user;
     },
     onSuccess: async (user, savedUrl) => {
-      // Update lastSavedUrl with the URL that was saved (from mutation variables)
-      setLastSavedUrl(savedUrl || "");
+      // Verify the URL was actually saved in the response
+      const actualSavedUrl = user?.quoraProfileUrl || null;
+      
+      // Update lastSavedUrl with the actual saved URL from the response
+      setLastSavedUrl(actualSavedUrl || "");
+      
+      // If we sent a URL but got null back, that's a problem
+      if (savedUrl && !actualSavedUrl) {
+        toast({ 
+          title: "Warning", 
+          description: "The URL may not have been saved correctly. Please try again.", 
+          variant: "destructive"
+        });
+        return;
+      }
+      
       await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       toast({ 
         title: "Saved", 
@@ -89,23 +138,36 @@ export function PendingApproval() {
   }, [user?.quoraProfileUrl]);
 
   const handleSave = () => {
-    const fullUrl = buildFullUrl(quoraHandle);
+    const trimmedHandle = quoraHandle.trim();
+    
+    // Field is required - validate handle is provided
+    if (!trimmedHandle) {
+      toast({
+        title: "Handle Required",
+        description: "Please enter your Quora profile handle.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    const fullUrl = buildFullUrl(trimmedHandle);
     if (fullUrl && fullUrl !== lastSavedUrl) {
       updateMutation.mutate(fullUrl);
-    } else if (!fullUrl && lastSavedUrl) {
-      // User cleared the handle, save null
-      updateMutation.mutate(null);
     }
   };
 
   const handleBlur = () => {
-    // Auto-save on blur if the handle has changed
-    const fullUrl = buildFullUrl(quoraHandle);
+    // Auto-save on blur if the handle has changed and is not empty
+    const trimmedHandle = quoraHandle.trim();
+    
+    // Field is required - only save if handle is provided
+    if (!trimmedHandle) {
+      return;
+    }
+    
+    const fullUrl = buildFullUrl(trimmedHandle);
     if (fullUrl && fullUrl !== lastSavedUrl) {
       updateMutation.mutate(fullUrl);
-    } else if (!fullUrl && lastSavedUrl) {
-      // User cleared the handle, save null
-      updateMutation.mutate(null);
     }
   };
 
