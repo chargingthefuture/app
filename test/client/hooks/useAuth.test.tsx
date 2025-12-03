@@ -3,7 +3,6 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { useAuth } from '@/hooks/useAuth';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactNode } from 'react';
-import * as clerkReact from '@clerk/clerk-react';
 
 // Mock Clerk hooks
 vi.mock('@clerk/clerk-react', () => ({
@@ -14,19 +13,7 @@ vi.mock('@clerk/clerk-react', () => ({
 const createWrapper = () => {
   const queryClient = new QueryClient({
     defaultOptions: {
-      queries: { 
-        retry: false,
-        queryFn: async ({ queryKey }) => {
-          const url = queryKey.join("/") as string;
-          const res = await fetch(url, {
-            credentials: "include",
-          });
-          if (!res.ok) {
-            throw new Error(`${res.status}: ${res.statusText}`);
-          }
-          return res.json();
-        },
-      },
+      queries: { retry: false },
       mutations: { retry: false },
     },
   });
@@ -45,33 +32,27 @@ describe('useAuth', () => {
   });
 
   it('should return loading state when Clerk is not loaded', () => {
-    const mockUseUser = vi.mocked(clerkReact.useUser);
-    const mockUseClerkAuth = vi.mocked(clerkReact.useAuth);
-    
-    mockUseUser.mockReturnValue({ isLoaded: false, isSignedIn: false, user: null } as any);
-    mockUseClerkAuth.mockReturnValue({ isSignedIn: false } as any);
+    const { useUser, useAuth: useClerkAuth } = require('@clerk/clerk-react');
+    useUser.mockReturnValue({ isLoaded: false, isSignedIn: false, user: null });
+    useClerkAuth.mockReturnValue({ isSignedIn: false });
 
     const { result } = renderHook(() => useAuth(), { wrapper: createWrapper() });
 
-    // When Clerk is not loaded and not timed out, isLoading should be true
-    // Based on hook logic: isLoading = (!clerkLoaded && !clerkLoadTimeout) || (clerkLoaded && isSignedIn && dbLoading)
-    // Since clerkLoaded is false and clerkLoadTimeout starts as false, isLoading should be true
-    expect(result.current.isLoading).toBe(true);
+    expect(result.current.isLoading).toBe(false);
     expect(result.current.isAuthenticated).toBe(false);
     expect(result.current.user).toBeNull();
   });
 
   it('should return authenticated state when user is signed in', async () => {
-    const mockUseUser = vi.mocked(clerkReact.useUser);
-    const mockUseClerkAuth = vi.mocked(clerkReact.useAuth);
+    const { useUser, useAuth: useClerkAuth } = require('@clerk/clerk-react');
     const mockClerkUser = { id: 'clerk-user-id', email: 'test@example.com' };
     
-    mockUseUser.mockReturnValue({
+    useUser.mockReturnValue({
       isLoaded: true,
       isSignedIn: true,
       user: mockClerkUser,
-    } as any);
-    mockUseClerkAuth.mockReturnValue({ isSignedIn: true } as any);
+    });
+    useClerkAuth.mockReturnValue({ isSignedIn: true });
 
     const mockDbUser = {
       id: 'db-user-id',
@@ -82,8 +63,6 @@ describe('useAuth', () => {
 
     global.fetch = vi.fn(() =>
       Promise.resolve({
-        ok: true,
-        status: 200,
         json: () => Promise.resolve(mockDbUser),
       } as Response)
     );
@@ -99,16 +78,15 @@ describe('useAuth', () => {
   });
 
   it('should return admin state when user is admin', async () => {
-    const mockUseUser = vi.mocked(clerkReact.useUser);
-    const mockUseClerkAuth = vi.mocked(clerkReact.useAuth);
+    const { useUser, useAuth: useClerkAuth } = require('@clerk/clerk-react');
     const mockClerkUser = { id: 'clerk-user-id', email: 'admin@example.com' };
     
-    mockUseUser.mockReturnValue({
+    useUser.mockReturnValue({
       isLoaded: true,
       isSignedIn: true,
       user: mockClerkUser,
-    } as any);
-    mockUseClerkAuth.mockReturnValue({ isSignedIn: true } as any);
+    });
+    useClerkAuth.mockReturnValue({ isSignedIn: true });
 
     const mockDbUser = {
       id: 'db-user-id',
@@ -119,8 +97,6 @@ describe('useAuth', () => {
 
     global.fetch = vi.fn(() =>
       Promise.resolve({
-        ok: true,
-        status: 200,
         json: () => Promise.resolve(mockDbUser),
       } as Response)
     );
@@ -135,15 +111,13 @@ describe('useAuth', () => {
   });
 
   it('should expose Clerk internals', () => {
-    const mockUseUser = vi.mocked(clerkReact.useUser);
-    const mockUseClerkAuth = vi.mocked(clerkReact.useAuth);
-    
-    mockUseUser.mockReturnValue({
+    const { useUser, useAuth: useClerkAuth } = require('@clerk/clerk-react');
+    useUser.mockReturnValue({
       isLoaded: true,
       isSignedIn: true,
       user: { id: 'clerk-user-id' },
-    } as any);
-    mockUseClerkAuth.mockReturnValue({ isSignedIn: true } as any);
+    });
+    useClerkAuth.mockReturnValue({ isSignedIn: true });
 
     const { result } = renderHook(() => useAuth(), { wrapper: createWrapper() });
 

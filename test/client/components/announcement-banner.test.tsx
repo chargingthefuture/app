@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import { AnnouncementBanner } from '@/components/announcement-banner';
-import { renderWithProviders } from '../../fixtures/testHelpers';
+import { renderWithProviders } from '../fixtures/testHelpers.tsx';
 
 vi.mock('@/hooks/useErrorHandler', () => ({
   useErrorHandler: () => ({
