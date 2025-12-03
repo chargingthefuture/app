@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import SupportMatchProfile from '@/pages/supportmatch/profile';
-import { renderWithProviders, mockUseAuth } from '../../fixtures/testHelpers';
+import { renderWithProviders, mockUseAuth } from '../../fixtures/testHelpers.tsx';
 import * as useAuthModule from '@/hooks/useAuth';
 
 // Mock useAuth hook

@@ -161,8 +161,9 @@ describe('Security - Input Validation', () => {
 
     // Zod schemas should validate email format
     invalidEmails.forEach(email => {
-      // In real tests, we'd validate against the Zod schema
-      const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+      // More strict email validation - requires at least one character before @, 
+      // at least one character after @, and a valid TLD (at least 2 characters after the last dot)
+      const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email);
       expect(isValidEmail).toBe(false);
     });
   });

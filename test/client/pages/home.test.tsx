@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import Home from '@/pages/home';
-import { renderWithProviders, mockUseAuth } from '../fixtures/testHelpers';
+import { renderWithProviders, mockUseAuth } from '../fixtures/testHelpers.tsx';
 import * as useAuthModule from '@/hooks/useAuth';
 
 vi.mock('@/hooks/useAuth', () => ({

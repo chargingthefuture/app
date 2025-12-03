@@ -33,12 +33,10 @@ export const createTestSupportMatchProfile = (
 ): InsertSupportMatchProfile => ({
   userId,
   timezone: 'America/New_York',
-  availabilityStart: '09:00',
-  availabilityEnd: '17:00',
-  preferredCommunicationMethod: 'text',
-  interests: ['recovery', 'therapy'],
-  bio: 'Test bio',
-  isPublic: false,
+  city: 'New York',
+  state: 'NY',
+  country: 'United States',
+  nickname: 'Test User',
   ...overrides,
 });
 
@@ -47,16 +45,11 @@ export const createTestLighthouseProfile = (
   overrides: Partial<InsertLighthouseProfile> = {}
 ): InsertLighthouseProfile => ({
   userId,
-  role: 'seeker',
-  firstName: 'Test',
-  lastName: 'User',
-  email: 'test@example.com',
-  phone: '555-1234',
-  country: 'United States',
-  state: 'NY',
-  city: 'New York',
+  profileType: 'seeker',
+  displayName: 'Test User',
   bio: 'Test bio',
-  isPublic: false,
+  phoneNumber: '555-1234',
+  desiredCountry: 'United States',
   ...overrides,
 });
 
@@ -65,14 +58,10 @@ export const createTestSocketrelayProfile = (
   overrides: Partial<InsertSocketrelayProfile> = {}
 ): InsertSocketrelayProfile => ({
   userId,
-  firstName: 'Test',
-  lastName: 'User',
-  email: 'test@example.com',
-  phone: '555-1234',
+  displayName: 'Test User',
   country: 'United States',
   state: 'NY',
   city: 'New York',
-  bio: 'Test bio',
   ...overrides,
 });
 

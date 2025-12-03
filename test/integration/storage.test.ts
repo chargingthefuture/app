@@ -107,12 +107,12 @@ describe('Storage Layer - SupportMatch Profile Operations', () => {
     await storage.createSupportMatchProfile(profileData);
 
     const updated = await storage.updateSupportMatchProfile(testUserId, {
-      bio: 'Updated bio',
-      isPublic: true,
+      nickname: 'Updated Nickname',
+      city: 'Boston',
     });
 
-    expect(updated.bio).toBe('Updated bio');
-    expect(updated.isPublic).toBe(true);
+    expect(updated.nickname).toBe('Updated Nickname');
+    expect(updated.city).toBe('Boston');
   });
 
   it('should delete SupportMatch profile and anonymize related data', async () => {
@@ -157,7 +157,7 @@ describe('Storage Layer - LightHouse Profile Operations', () => {
 
     expect(created).toBeDefined();
     expect(created.userId).toBe(testUserId);
-    expect(created.role).toBe('seeker');
+    expect(created.profileType).toBe('seeker');
   });
 
   it('should update a LightHouse profile', async () => {
@@ -165,10 +165,10 @@ describe('Storage Layer - LightHouse Profile Operations', () => {
     const created = await storage.createLighthouseProfile(profileData);
 
     const updated = await storage.updateLighthouseProfile(created.id, {
-      role: 'host',
+      profileType: 'host',
     });
 
-    expect(updated.role).toBe('host');
+    expect(updated.profileType).toBe('host');
   });
 
   it('should delete LightHouse profile with cascade anonymization', async () => {

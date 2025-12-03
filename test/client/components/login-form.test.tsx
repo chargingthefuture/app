@@ -16,7 +16,7 @@ describe('LoginForm', () => {
     render(<LoginForm />);
 
     expect(screen.getByText(/sign in/i)).toBeInTheDocument();
-    expect(screen.getByText(/sign up/i)).toBeInTheDocument();
+    expect(screen.getByText(/create account/i)).toBeInTheDocument();
   });
 
   it('should show confirmation dialog when sign in clicked', async () => {
@@ -35,7 +35,7 @@ describe('LoginForm', () => {
     const user = userEvent.setup();
     render(<LoginForm />);
 
-    const signUpButton = screen.getByText(/sign up/i);
+    const signUpButton = screen.getByText(/create account/i);
     await user.click(signUpButton);
 
     await waitFor(() => {

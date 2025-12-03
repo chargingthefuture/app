@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { DeleteProfileDialog } from '@/components/delete-profile-dialog';
-import { renderWithProviders } from '../../fixtures/testHelpers';
+import { renderWithProviders } from '../../fixtures/testHelpers.tsx';
 
 describe('DeleteProfileDialog', () => {
   it('should render when open', () => {
@@ -19,7 +19,8 @@ describe('DeleteProfileDialog', () => {
       />
     );
 
-    expect(screen.getByText(/delete.*profile/i)).toBeInTheDocument();
+    // Use getByRole to find the heading specifically
+    expect(screen.getByRole('heading', { name: /delete.*testapp.*profile/i })).toBeInTheDocument();
   });
 
   it('should not render when closed', () => {
@@ -100,7 +101,8 @@ describe('DeleteProfileDialog', () => {
       />
     );
 
-    const confirmButton = screen.getByRole('button', { name: /confirm.*delete/i });
+    // When isDeleting is true, button text changes to "Deleting..."
+    const confirmButton = screen.getByRole('button', { name: /deleting/i });
     expect(confirmButton).toBeDisabled();
   });
 });
