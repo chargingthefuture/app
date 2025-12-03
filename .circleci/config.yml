@@ -28,4 +28,14 @@ workflows:
   version: 2
   test:
     jobs:
-      - test
+      - test:
+          filters:
+            # Strategy: Only run on main/master branch pushes
+            # This significantly reduces CI usage while maintaining quality checks
+            # PRs will still run automatically when targeting main/master
+            branches:
+              only:
+                - main
+                - master
+            # To skip CI on a specific commit, include [ci skip] in the commit message:
+            # git commit -m "your message [ci skip]"
