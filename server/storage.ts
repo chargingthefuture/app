@@ -6444,9 +6444,71 @@ export class DatabaseStorage implements IStorage {
       }
     });
 
+    // Count Directory profiles with skills that match occupations
+    // Get all Directory profiles with skills
+    const allDirectoryProfiles = await db
+      .select()
+      .from(directoryProfiles)
+      .where(sql`array_length(${directoryProfiles.skills}, 1) > 0`);
+
+    // Get all job title IDs from occupations
+    const jobTitleIds = occupations
+      .map(occ => occ.jobTitleId)
+      .filter((id): id is string => !!id);
+
+    // Fetch all skills for all job titles in one query
+    const allJobTitleSkills = jobTitleIds.length > 0
+      ? await db
+          .select({ 
+            jobTitleId: skillsSkills.jobTitleId,
+            name: skillsSkills.name 
+          })
+          .from(skillsSkills)
+          .where(inArray(skillsSkills.jobTitleId, jobTitleIds))
+      : [];
+
+    // Build a map of job title -> skills
+    const jobTitleSkillsMap = new Map<string, Set<string>>();
+    for (const skill of allJobTitleSkills) {
+      if (!jobTitleSkillsMap.has(skill.jobTitleId)) {
+        jobTitleSkillsMap.set(skill.jobTitleId, new Set());
+      }
+      jobTitleSkillsMap.get(skill.jobTitleId)!.add(skill.name.toLowerCase());
+    }
+
+    // Build a map of occupation -> skills
+    const occupationSkillsMap = new Map<string, Set<string>>();
+    for (const occ of occupations) {
+      if (occ.jobTitleId && jobTitleSkillsMap.has(occ.jobTitleId)) {
+        occupationSkillsMap.set(occ.id, jobTitleSkillsMap.get(occ.jobTitleId)!);
+      }
+    }
+
+    // Count Directory profiles that match each occupation
+    const directoryProfilesByOccupation = new Map<string, number>();
+    
+    for (const profile of allDirectoryProfiles) {
+      if (!profile.skills || profile.skills.length === 0) continue;
+      
+      const profileSkills = profile.skills.map(s => s.toLowerCase());
+      
+      // Check which occupations this profile matches
+      for (const [occId, occSkills] of occupationSkillsMap.entries()) {
+        // If profile has at least one skill matching the occupation's skills
+        const hasMatchingSkill = profileSkills.some(skill => occSkills.has(skill));
+        if (hasMatchingSkill) {
+          const existing = directoryProfilesByOccupation.get(occId) || 0;
+          directoryProfilesByOccupation.set(occId, existing + 1);
+        }
+      }
+    }
+
+    // Combine recruitment events and Directory profiles for actual count
     const annualTrainingGap = occupations
       .map(occ => {
-        const actual = trainingByOccupation.get(occ.id) || 0;
+        const eventCount = trainingByOccupation.get(occ.id) || 0;
+        const directoryCount = directoryProfilesByOccupation.get(occ.id) || 0;
+        const actual = eventCount + directoryCount;
         return {
           occupationId: occ.id,
           occupationTitle: occ.occupationTitle || "Unknown Occupation",

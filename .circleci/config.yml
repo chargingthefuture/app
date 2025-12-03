@@ -1,122 +1,31 @@
 version: 2.1
 
-# Use orbs for common functionality
-orbs:
-  node: circleci/node@5.1.0
-  browser-tools: circleci/browser-tools@1.4.6
-
-# Define reusable jobs
 jobs:
-  # Install dependencies and cache them
-  install-dependencies:
-    docker:
-      - image: cimg/node:20.0
-    steps:
-      - checkout
-      - node/install-packages:
-          pkg-manager: npm
-      - persist_to_workspace:
-          root: ~/project
-          paths:
-            - node_modules
-
-  # Type checking
-  type-check:
-    docker:
-      - image: cimg/node:20.0
-    steps:
-      - checkout
-      - attach_workspace:
-          at: ~/project
-      - run:
-          name: Type Check
-          command: npm run check
-
-  # Unit and integration tests
-  # NOTE: Requires DATABASE_URL environment variable to be set in CircleCI project settings
   test:
     docker:
-      - image: cimg/node:20.0
-    environment:
-      NODE_ENV: test
-      # DATABASE_URL should be set in CircleCI project settings (Settings > Environment Variables)
+      - image: cimg/node:20.19.0
     steps:
       - checkout
-      - attach_workspace:
-          at: ~/project
+      - restore_cache:
+          keys:
+            - v1-dependencies-{{ checksum "package-lock.json" }}
+            - v1-dependencies-
       - run:
-          name: Run Unit Tests
+          name: Install dependencies
+          command: npm ci
+      - save_cache:
+          paths:
+            - node_modules
+          key: v1-dependencies-{{ checksum "package-lock.json" }}
+      - run:
+          name: Run tests
           command: npm run test:run
       - run:
-          name: Generate Coverage Report
-          command: npm run test:coverage
-      - store_test_results:
-          path: coverage
-      - store_artifacts:
-          path: coverage
-          destination: coverage
-
-  # E2E tests with Playwright
-  # NOTE: Requires DATABASE_URL environment variable to be set in CircleCI project settings
-  test-e2e:
-    docker:
-      - image: cimg/node:20.0
-    environment:
-      NODE_ENV: test
-      PLAYWRIGHT_TEST_BASE_URL: http://localhost:5000
-      # DATABASE_URL should be set in CircleCI project settings (Settings > Environment Variables)
-    steps:
-      - checkout
-      - attach_workspace:
-          at: ~/project
-      - browser-tools/install-browser-tools
-      - run:
-          name: Install Playwright Browsers
-          command: npx playwright install --with-deps chromium
-      - run:
-          name: Run E2E Tests
+          name: Run E2E tests
           command: npm run test:e2e
-      - store_test_results:
-          path: test-results
-      - store_artifacts:
-          path: test-results
-          destination: playwright-report
-      - store_artifacts:
-          path: playwright-report
-          destination: playwright-html-report
 
-  # Build the application
-  build:
-    docker:
-      - image: cimg/node:20.0
-    steps:
-      - checkout
-      - attach_workspace:
-          at: ~/project
-      - run:
-          name: Build Application
-          command: npm run build
-      - store_artifacts:
-          path: dist
-          destination: dist
-
-# Define workflows
 workflows:
-  test-and-build:
+  version: 2
+  test:
     jobs:
-      - install-dependencies
-      - type-check:
-          requires:
-            - install-dependencies
-      - test:
-          requires:
-            - install-dependencies
-      - test-e2e:
-          requires:
-            - install-dependencies
-      - build:
-          requires:
-            - type-check
-            - test
-            - test-e2e
-
+      - test

@@ -4,7 +4,7 @@
   "type": "module",
   "license": "AGPL-3.0",
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=20.19.0"
   },
   "scripts": {
     "dev": "NODE_ENV=development tsx server/index.ts",
