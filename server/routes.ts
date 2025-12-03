@@ -353,7 +353,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           // If it's a database connection error, return 503
           if (syncError.message?.includes("Database temporarily unavailable") ||
-              syncError instanceof ExternalServiceError && syncError.statusCode === 503) {
+              (syncError instanceof ExternalServiceError && syncError.statusCode === 503)) {
             return res.status(503).json({ 
               message: "Database temporarily unavailable. Please try again in a moment.",
               retryAfter: 5,

@@ -1,0 +1,1 @@
+[![CircleCI](https://dl.circleci.com/status-badge/img/gh/chargingthefuture/app/tree/main.svg?style=svg)](https://dl.circleci.com/status-badge/redirect/gh/chargingthefuture/app/tree/main)
