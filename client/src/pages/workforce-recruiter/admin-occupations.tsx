@@ -11,15 +11,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { ArrowLeft, Plus, Edit, Trash2 } from "lucide-react";
+import { ArrowLeft, Plus, Edit, Trash2, UserPlus } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { MiniAppBackButton } from "@/components/mini-app-back-button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useFuzzySearch } from "@/hooks/useFuzzySearch";
 import { PaginationControls } from "@/components/pagination-controls";
 import type { WorkforceRecruiterOccupation } from "@shared/schema";
 import { insertWorkforceRecruiterOccupationSchema } from "@shared/schema";
+import { format } from "date-fns";
 
 const occupationFormSchema = insertWorkforceRecruiterOccupationSchema;
 type OccupationFormValues = z.infer<typeof occupationFormSchema>;
@@ -32,6 +34,11 @@ export default function WorkforceRecruiterAdminOccupations() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [occupationToDelete, setOccupationToDelete] = useState<WorkforceRecruiterOccupation | null>(null);
+  const [recruitmentDialogOpen, setRecruitmentDialogOpen] = useState(false);
+  const [selectedOccupation, setSelectedOccupation] = useState<WorkforceRecruiterOccupation | null>(null);
+  const [recruitmentCount, setRecruitmentCount] = useState("");
+  const [recruitmentSource, setRecruitmentSource] = useState("hire");
+  const [recruitmentNotes, setRecruitmentNotes] = useState("");
   const limit = 20;
 
   const { data, isLoading } = useQuery<{ occupations: WorkforceRecruiterOccupation[]; total: number }>({
@@ -141,6 +148,58 @@ export default function WorkforceRecruiterAdminOccupations() {
   const handleDelete = (occupation: WorkforceRecruiterOccupation) => {
     setOccupationToDelete(occupation);
     setDeleteDialogOpen(true);
+  };
+
+  const recruitmentMutation = useMutation({
+    mutationFn: async (data: { occupationId: string; date: string; count: number; source: string; notes?: string }) => {
+      return apiRequest("POST", "/api/workforce-recruiter/recruitments", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/workforce-recruiter/occupations"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/workforce-recruiter/reports/summary"] });
+      setRecruitmentDialogOpen(false);
+      setRecruitmentCount("");
+      setRecruitmentSource("hire");
+      setRecruitmentNotes("");
+      setSelectedOccupation(null);
+      toast({
+        title: "Recruitment Event Added",
+        description: "The recruitment event has been recorded successfully.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to add recruitment event",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleAddRecruitment = (occupation: WorkforceRecruiterOccupation) => {
+    setSelectedOccupation(occupation);
+    setRecruitmentDialogOpen(true);
+  };
+
+  const handleSubmitRecruitment = () => {
+    if (!selectedOccupation) return;
+    const count = parseInt(recruitmentCount);
+    if (isNaN(count) || count === 0) {
+      toast({
+        title: "Invalid Count",
+        description: "Please enter a valid non-zero number",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    recruitmentMutation.mutate({
+      occupationId: selectedOccupation.id,
+      date: format(new Date(), "yyyy-MM-dd"),
+      count,
+      source: recruitmentSource,
+      notes: recruitmentNotes || undefined,
+    });
   };
 
   const onSubmit = (data: OccupationFormValues) => {
@@ -393,14 +452,25 @@ export default function WorkforceRecruiterAdminOccupations() {
                             size="sm"
                             onClick={() => handleEdit(occupation)}
                             data-testid={`button-edit-${occupation.id}`}
+                            title="Edit occupation"
                           >
                             <Edit className="w-4 h-4" />
                           </Button>
                           <Button
                             variant="ghost"
                             size="sm"
+                            onClick={() => handleAddRecruitment(occupation)}
+                            data-testid={`button-add-recruitment-${occupation.id}`}
+                            title="Add recruitment event"
+                          >
+                            <UserPlus className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             onClick={() => handleDelete(occupation)}
                             data-testid={`button-delete-${occupation.id}`}
+                            title="Delete occupation"
                           >
                             <Trash2 className="w-4 h-4 text-destructive" />
                           </Button>
@@ -453,6 +523,81 @@ export default function WorkforceRecruiterAdminOccupations() {
               data-testid="button-confirm-delete"
             >
               {deleteMutation.isPending ? "Deleting..." : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Recruitment Event Dialog */}
+      <Dialog open={recruitmentDialogOpen} onOpenChange={setRecruitmentDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Recruitment Event</DialogTitle>
+            <DialogDescription>
+              Record a recruitment event for {selectedOccupation?.occupationTitle}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="count">Count</Label>
+              <Input
+                id="count"
+                type="number"
+                value={recruitmentCount}
+                onChange={(e) => setRecruitmentCount(e.target.value)}
+                placeholder="Enter positive number for hires/grads, negative for attrition"
+                data-testid="input-recruitment-count"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Positive for hires/graduates, negative for attrition
+              </p>
+            </div>
+            <div>
+              <Label htmlFor="source">Source</Label>
+              <Select value={recruitmentSource} onValueChange={setRecruitmentSource}>
+                <SelectTrigger id="source" data-testid="select-recruitment-source">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="hire">Hire</SelectItem>
+                  <SelectItem value="grad">Graduate</SelectItem>
+                  <SelectItem value="attrition">Attrition</SelectItem>
+                  <SelectItem value="transfer">Transfer</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="notes">Notes (Optional)</Label>
+              <Textarea
+                id="notes"
+                value={recruitmentNotes}
+                onChange={(e) => setRecruitmentNotes(e.target.value)}
+                placeholder="Additional notes about this recruitment event"
+                data-testid="textarea-recruitment-notes"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setRecruitmentDialogOpen(false);
+                setRecruitmentCount("");
+                setRecruitmentSource("hire");
+                setRecruitmentNotes("");
+                setSelectedOccupation(null);
+              }}
+              data-testid="button-cancel-recruitment"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSubmitRecruitment}
+              disabled={recruitmentMutation.isPending}
+              data-testid="button-submit-recruitment"
+            >
+              {recruitmentMutation.isPending ? "Adding..." : "Add Event"}
             </Button>
           </DialogFooter>
         </DialogContent>

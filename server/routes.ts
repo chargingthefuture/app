@@ -79,7 +79,7 @@ import {
 import { asyncHandler } from "./errorHandler";
 import { validateWithZod } from "./validationErrorFormatter";
 import { withDatabaseErrorHandling } from "./databaseErrorHandler";
-import { NotFoundError, ForbiddenError, ValidationError, UnauthorizedError } from "./errors";
+import { NotFoundError, ForbiddenError, ValidationError, UnauthorizedError, ExternalServiceError } from "./errors";
 import * as Sentry from '@sentry/node';
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -5603,7 +5603,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }));
 
   // Workforce Recruiter Tracker Recruitment Event routes
-  app.post('/api/workforce-recruiter/recruitments', isAuthenticated, asyncHandler(async (req: any, res) => {
+  app.post('/api/workforce-recruiter/recruitments', isAuthenticated, isAdmin, asyncHandler(async (req: any, res) => {
     const userId = getUserId(req);
     const validatedData = validateWithZod(insertWorkforceRecruiterRecruitmentEventSchema, {
       ...req.body,
