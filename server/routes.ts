@@ -616,6 +616,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = getUserId(req);
       const { quoraProfileUrl } = req.body;
       const user = await storage.updateUserQuoraProfileUrl(userId, quoraProfileUrl || null);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
       res.json(user);
     } catch (error: any) {
       console.error("Error updating Quora profile URL:", error);

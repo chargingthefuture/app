@@ -41,10 +41,14 @@ export function PendingApproval() {
       const res = await apiRequest("PUT", "/api/user/quora-profile-url", { quoraProfileUrl: url });
       
       // API endpoint should return the updated user object as JSON
-      // We need to verify the response to ensure the save was successful
-      const text = await res.text();
+      // Check if response has content before parsing
+      const contentType = res.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        throw new Error("Server returned invalid content type. The Quora profile URL may not have been saved.");
+      }
       
-      // If response is empty, that's an error - the API should return the user object
+      // Read response as text first to check if it's empty, then parse
+      const text = await res.text();
       if (!text || text.trim() === "") {
         throw new Error("Server returned empty response. The Quora profile URL may not have been saved.");
       }

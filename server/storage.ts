@@ -1016,6 +1016,9 @@ export class DatabaseStorage implements IStorage {
       })
       .where(eq(users.id, userId))
       .returning();
+    if (!user) {
+      throw new Error("User not found");
+    }
     return user;
   }
 
