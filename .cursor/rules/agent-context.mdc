@@ -1067,6 +1067,99 @@ test/
 
 See the **Testing Requirements** section above for detailed testing guidelines and examples.
 
+#### **Step 13: Status Page Configuration** 📊
+
+**🚨 REQUIRED:** Every new mini-app MUST be added to the status page monitoring system for automated uptime tracking.
+
+**1. Update Health Check Validation (`server/routes.ts`):**
+
+Add the new mini-app name to the `VALID_APPS` array (around line 7):
+
+```typescript
+// Valid mini-app names for health checks
+const VALID_APPS = [
+  'chatgroups',
+  'directory',
+  'gentlepulse',
+  'chyme',
+  'workforce-recruiter',
+  'lighthouse',
+  'lostmail',
+  'mechanicmatch',
+  'research',
+  'socketrelay',
+  'supportmatch',
+  'trusttransport',
+  'myapp', // ← Add your new mini-app here (use kebab-case)
+];
+```
+
+**Important:** Use the **kebab-case** version of your mini-app name (e.g., `workforce-recruiter`, not `workforceRecruiter`).
+
+**2. Update Upptime Configuration (`.upptimerc.yml`):**
+
+Add the new mini-app to the `sites` array in `.upptimerc.yml`:
+
+```yaml
+# Sites to monitor
+sites:
+  # ... existing sites ...
+  
+  - name: MyApp  # Display name (use proper case)
+    url: https://app.chargingthefuture.com/api/health/myapp  # Use kebab-case
+    expectedStatusCodes: [200]
+    maxResponseTime: 3000
+```
+
+**Key points:**
+- **Name**: Use the display name (e.g., "MyApp", "Workforce Recruiter")
+- **URL**: Use kebab-case for the app name in the URL (e.g., `/api/health/myapp`, `/api/health/workforce-recruiter`)
+- **Placement**: Add in alphabetical order by display name for consistency
+- **Format**: Follow the exact same format as existing entries
+
+**Example for a new mini-app called "ServiceMatch":**
+
+```yaml
+sites:
+  # ... existing sites ...
+  
+  - name: ServiceMatch
+    url: https://app.chargingthefuture.com/api/health/servicematch
+    expectedStatusCodes: [200]
+    maxResponseTime: 3000
+```
+
+**3. Verify Health Check Endpoint:**
+
+After adding the mini-app, verify the health check endpoint works:
+
+```bash
+# Test the endpoint
+curl https://app.chargingthefuture.com/api/health/myapp
+
+# Should return:
+# {
+#   "status": "healthy",
+#   "app": "myapp",
+#   "timestamp": "2024-01-01T00:00:00.000Z",
+#   "database": "connected",
+#   "version": "1.0.0"
+# }
+```
+
+**4. Update Status Page Repository (if using Upptime):**
+
+If you're using Upptime for status monitoring:
+1. Copy the updated `.upptimerc.yml` to your Upptime repository
+2. Commit and push the changes
+3. GitHub Actions will automatically start monitoring the new mini-app within 5 minutes
+
+**Note:** The health check endpoint (`/api/health/:app`) is already implemented and will automatically work for any app name in the `VALID_APPS` array. You just need to:
+- Add the app name to `VALID_APPS` in `routes.ts`
+- Add the monitoring entry to `.upptimerc.yml`
+
+**🚨 CRITICAL:** The app name in `VALID_APPS` and the URL in `.upptimerc.yml` MUST match exactly (both in kebab-case).
+
 ---
 
 ### **B. Adding Features to Existing Mini-Apps**
@@ -2131,6 +2224,10 @@ Study these for patterns:
 - [ ] Database schema pushed: `npm run db:push` (or update `schema.sql` if CLI times out)
 - [ ] **`schema.sql` file updated** - REQUIRED: Keep `schema.sql` in sync with `shared/schema.ts` for manual database setup
 - [ ] **`DELETE_SYNC_ISSUE_USERS.sql` file updated** - REQUIRED: Keep `DELETE_SYNC_ISSUE_USERS.sql` in sync with `schema.sql` to ensure all foreign key relationships are handled correctly during user deletion
+- [ ] **Status page configuration updated** - REQUIRED: Add mini-app to status monitoring
+  - [ ] App name added to `VALID_APPS` array in `server/routes.ts` (use kebab-case)
+  - [ ] Monitoring entry added to `.upptimerc.yml` (alphabetical order, proper format)
+  - [ ] Health check endpoint verified: `curl https://app.chargingthefuture.com/api/health/{app-name}`
 
 ### **Testing Checklist** 🧪
 
