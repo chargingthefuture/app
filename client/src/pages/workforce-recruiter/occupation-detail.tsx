@@ -1,30 +1,37 @@
 import { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useParams, Link } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Plus, Calendar } from "lucide-react";
+import { ArrowLeft, Calendar, TrendingUp, TrendingDown } from "lucide-react";
 import { AnnouncementBanner } from "@/components/announcement-banner";
-import { queryClient, apiRequest } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
+import { PaginationControls } from "@/components/pagination-controls";
 import { format } from "date-fns";
 import type { WorkforceRecruiterOccupation, WorkforceRecruiterRecruitmentEvent } from "@shared/schema";
 
 export default function WorkforceRecruiterOccupationDetail() {
   const params = useParams();
   const occupationId = params.id;
+  const [eventsPage, setEventsPage] = useState(0);
+  const eventsLimit = 20;
 
   const { data: occupation, isLoading } = useQuery<WorkforceRecruiterOccupation>({
     queryKey: [`/api/workforce-recruiter/occupations/${occupationId}`],
     enabled: !!occupationId,
   });
+
+  const { data: eventsData, isLoading: eventsLoading } = useQuery<{
+    events: WorkforceRecruiterRecruitmentEvent[];
+    total: number;
+  }>({
+    queryKey: [`/api/workforce-recruiter/recruitments?occupationId=${occupationId}&limit=${eventsLimit}&offset=${eventsPage * eventsLimit}`],
+    enabled: !!occupationId,
+  });
+
+  const events = eventsData?.events || [];
+  const eventsTotal = eventsData?.total || 0;
 
   if (isLoading) {
     return (
@@ -63,6 +70,21 @@ export default function WorkforceRecruiterOccupationDetail() {
         return "secondary";
       case "High":
         return "destructive";
+      default:
+        return "outline";
+    }
+  };
+
+  const getSourceBadgeVariant = (source: string) => {
+    switch (source.toLowerCase()) {
+      case "hire":
+        return "default";
+      case "grad":
+        return "secondary";
+      case "attrition":
+        return "destructive";
+      case "transfer":
+        return "outline";
       default:
         return "outline";
     }
@@ -166,6 +188,83 @@ export default function WorkforceRecruiterOccupationDetail() {
               </div>
             )}
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Recruitment Events */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Recruitment Events</CardTitle>
+          <CardDescription>
+            History of recruitment activities for this occupation
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {eventsLoading ? (
+            <div className="text-center py-8">
+              <p className="text-muted-foreground">Loading events...</p>
+            </div>
+          ) : events.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-muted-foreground">No recruitment events recorded yet.</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="space-y-3">
+                {events.map((event) => (
+                  <div
+                    key={event.id}
+                    className="border rounded-lg p-4 space-y-2"
+                    data-testid={`event-${event.id}`}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2">
+                          {event.count > 0 ? (
+                            <TrendingUp className="w-4 h-4 text-green-600" />
+                          ) : (
+                            <TrendingDown className="w-4 h-4 text-red-600" />
+                          )}
+                          <span className={`text-lg font-semibold ${event.count > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {event.count > 0 ? '+' : ''}{event.count.toLocaleString()}
+                          </span>
+                        </div>
+                        <Badge variant={getSourceBadgeVariant(event.source)}>
+                          {event.source}
+                        </Badge>
+                      </div>
+                      <div className="text-right">
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Calendar className="w-4 h-4" />
+                          <span>{format(new Date(event.date), "MMM d, yyyy")}</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {format(new Date(event.createdAt), "MMM d, yyyy 'at' h:mm a")}
+                        </p>
+                      </div>
+                    </div>
+                    {event.notes && (
+                      <div className="pt-2 border-t">
+                        <p className="text-sm text-muted-foreground">{event.notes}</p>
+                      </div>
+                    )}
+                    <div className="pt-1">
+                      <p className="text-xs text-muted-foreground">
+                        Recorded by: {event.createdBy}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <PaginationControls
+                currentPage={eventsPage}
+                totalItems={eventsTotal}
+                itemsPerPage={eventsLimit}
+                onPageChange={setEventsPage}
+                className="mt-6"
+              />
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

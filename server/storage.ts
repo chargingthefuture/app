@@ -6562,20 +6562,31 @@ export class DatabaseStorage implements IStorage {
     }
 
     // Sector breakdown - count Directory profiles by sector
+    // Use fractional counting: if a profile belongs to multiple sectors, divide the count
+    // This ensures the sum of sector counts equals totalCurrentRecruited
     const sectorRecruitedMap = new Map<string, number>();
     for (const profile of allDirectoryProfiles) {
       const sectors = profile.sectors || [];
       if (sectors.length > 0) {
+        // Count fractionally: divide by number of sectors to avoid double-counting
+        const countPerSector = 1 / sectors.length;
         for (const sector of sectors) {
-          sectorRecruitedMap.set(sector, (sectorRecruitedMap.get(sector) || 0) + 1);
+          sectorRecruitedMap.set(sector, (sectorRecruitedMap.get(sector) || 0) + countPerSector);
         }
       } else {
         // If no sectors, try to infer from matching occupations
         const matchingOccs = profileToOccupationsMap.get(profile.id);
         if (matchingOccs && matchingOccs.size > 0) {
+          // Get unique sectors from matching occupations
+          const inferredSectors = new Set<string>();
           for (const occId of matchingOccs) {
             const sector = occupationSectorMap.get(occId) || "Unknown";
-            sectorRecruitedMap.set(sector, (sectorRecruitedMap.get(sector) || 0) + 1);
+            inferredSectors.add(sector);
+          }
+          // Count fractionally across inferred sectors
+          const countPerSector = 1 / inferredSectors.size;
+          for (const sector of inferredSectors) {
+            sectorRecruitedMap.set(sector, (sectorRecruitedMap.get(sector) || 0) + countPerSector);
           }
         } else {
           sectorRecruitedMap.set("Unknown", (sectorRecruitedMap.get("Unknown") || 0) + 1);
