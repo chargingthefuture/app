@@ -1000,15 +1000,46 @@ export class DatabaseStorage implements IStorage {
 
   // User approval operations
   async updateUserApproval(userId: string, isApproved: boolean): Promise<User> {
-    const [user] = await db
-      .update(users)
-      .set({
-        isApproved: !!isApproved,
-        updatedAt: new Date(),
-      })
-      .where(eq(users.id, userId))
-      .returning();
-    return user;
+    // Retry logic to handle database replication lag
+    const maxRetries = 3;
+    const baseDelay = 100; // 100ms base delay
+    
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      const [user] = await db
+        .update(users)
+        .set({
+          isApproved: !!isApproved,
+          updatedAt: new Date(),
+        })
+        .where(eq(users.id, userId))
+        .returning();
+      
+      if (user) {
+        return user;
+      }
+      
+      // If update returned no rows, check if user exists (might be replication lag)
+      if (attempt < maxRetries - 1) {
+        const existingUser = await db
+          .select()
+          .from(users)
+          .where(eq(users.id, userId))
+          .limit(1);
+        
+        // If user doesn't exist at all, throw error immediately
+        if (existingUser.length === 0) {
+          throw new Error("User not found");
+        }
+        
+        // User exists but update failed - likely replication lag, retry with exponential backoff
+        const delay = baseDelay * Math.pow(2, attempt);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
+      }
+    }
+    
+    // All retries exhausted
+    throw new Error("User not found");
   }
 
   // Terms acceptance operations
@@ -1026,18 +1057,46 @@ export class DatabaseStorage implements IStorage {
 
   // Update user Quora profile URL
   async updateUserQuoraProfileUrl(userId: string, quoraProfileUrl: string | null): Promise<User> {
-    const [user] = await db
-      .update(users)
-      .set({
-        quoraProfileUrl: quoraProfileUrl || null,
-        updatedAt: new Date(),
-      })
-      .where(eq(users.id, userId))
-      .returning();
-    if (!user) {
-      throw new Error("User not found");
+    // Retry logic to handle database replication lag
+    const maxRetries = 3;
+    const baseDelay = 100; // 100ms base delay
+    
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      const [user] = await db
+        .update(users)
+        .set({
+          quoraProfileUrl: quoraProfileUrl || null,
+          updatedAt: new Date(),
+        })
+        .where(eq(users.id, userId))
+        .returning();
+      
+      if (user) {
+        return user;
+      }
+      
+      // If update returned no rows, check if user exists (might be replication lag)
+      if (attempt < maxRetries - 1) {
+        const existingUser = await db
+          .select()
+          .from(users)
+          .where(eq(users.id, userId))
+          .limit(1);
+        
+        // If user doesn't exist at all, throw error immediately
+        if (existingUser.length === 0) {
+          throw new Error("User not found");
+        }
+        
+        // User exists but update failed - likely replication lag, retry with exponential backoff
+        const delay = baseDelay * Math.pow(2, attempt);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
+      }
     }
-    return user;
+    
+    // All retries exhausted
+    throw new Error("User not found");
   }
 
   // Pricing tier operations

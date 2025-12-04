@@ -2548,6 +2548,7 @@ export const insertWorkforceRecruiterMeetupEventSignupSchema = createInsertSchem
   id: true,
   createdAt: true,
   updatedAt: true,
+  userId: true, // Added server-side from authenticated user
 }).extend({
   eventId: z.string().uuid(),
   location: z.string().min(1, "Location is required").max(200),

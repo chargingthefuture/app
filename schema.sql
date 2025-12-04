@@ -965,16 +965,30 @@ CREATE TABLE IF NOT EXISTS workforce_recruiter_occupations (
   updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
--- Recruitment Events
-CREATE TABLE IF NOT EXISTS workforce_recruiter_recruitment_events (
+-- Meetup Events - Admin creates in-person events for occupations
+CREATE TABLE IF NOT EXISTS workforce_recruiter_meetup_events (
   id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
   occupation_id VARCHAR NOT NULL REFERENCES workforce_recruiter_occupations(id) ON DELETE CASCADE,
-  date DATE NOT NULL,
-  count INTEGER NOT NULL,
-  source VARCHAR(50) NOT NULL,
-  notes TEXT,
+  title VARCHAR(200) NOT NULL,
+  description TEXT,
   created_by VARCHAR NOT NULL REFERENCES users(id),
-  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+-- Meetup Event Signups - Users sign up to participate in meetup events
+CREATE TABLE IF NOT EXISTS workforce_recruiter_meetup_event_signups (
+  id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+  event_id VARCHAR NOT NULL REFERENCES workforce_recruiter_meetup_events(id) ON DELETE CASCADE,
+  user_id VARCHAR NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  location VARCHAR(200) NOT NULL,
+  preferred_meetup_date DATE,
+  availability TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
+  why_interested TEXT,
+  additional_comments TEXT,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
 -- Workforce Recruiter Tracker Announcements

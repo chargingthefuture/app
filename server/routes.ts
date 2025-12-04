@@ -623,7 +623,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(user);
     } catch (error: any) {
       console.error("Error updating Quora profile URL:", error);
-      res.status(400).json({ message: error.message || "Failed to update Quora profile URL" });
+      // Return 404 for "User not found" errors, 400 for other errors
+      const statusCode = error.message === "User not found" ? 404 : 400;
+      res.status(statusCode).json({ message: error.message || "Failed to update Quora profile URL" });
     }
   });
 

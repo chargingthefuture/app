@@ -149,55 +149,53 @@ export default function WorkforceRecruiterAdminOccupations() {
     setDeleteDialogOpen(true);
   };
 
-  const recruitmentMutation = useMutation({
-    mutationFn: async (data: { occupationId: string; date: string; count: number; source: string; notes?: string }) => {
-      return apiRequest("POST", "/api/workforce-recruiter/recruitments", data);
+  const meetupEventMutation = useMutation({
+    mutationFn: async (data: { occupationId: string; title: string; description?: string }) => {
+      return apiRequest("POST", "/api/workforce-recruiter/meetup-events", data);
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/workforce-recruiter/meetup-events"] });
       queryClient.invalidateQueries({ queryKey: ["/api/workforce-recruiter/occupations"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/workforce-recruiter/reports/summary"] });
-      setRecruitmentDialogOpen(false);
-      setRecruitmentCount("");
-      setRecruitmentSource("hire");
-      setRecruitmentNotes("");
+      setMeetupEventDialogOpen(false);
+      setEventTitle("");
+      setEventDescription("");
       setSelectedOccupation(null);
       toast({
-        title: "Recruitment Event Added",
-        description: "The recruitment event has been recorded successfully.",
+        title: "Meetup Event Created",
+        description: "The meetup event has been created successfully. Users can now sign up to participate.",
       });
     },
     onError: (error: any) => {
       toast({
         title: "Error",
-        description: error.message || "Failed to add recruitment event",
+        description: error.message || "Failed to create meetup event",
         variant: "destructive",
       });
     },
   });
 
-  const handleAddRecruitment = (occupation: WorkforceRecruiterOccupation) => {
+  const handleCreateMeetupEvent = (occupation: WorkforceRecruiterOccupation) => {
     setSelectedOccupation(occupation);
-    setRecruitmentDialogOpen(true);
+    setEventTitle(`Meetup for ${occupation.occupationTitle}`);
+    setEventDescription("");
+    setMeetupEventDialogOpen(true);
   };
 
-  const handleSubmitRecruitment = () => {
+  const handleSubmitMeetupEvent = () => {
     if (!selectedOccupation) return;
-    const count = parseInt(recruitmentCount);
-    if (isNaN(count) || count === 0) {
+    if (!eventTitle.trim()) {
       toast({
-        title: "Invalid Count",
-        description: "Please enter a valid non-zero number",
+        title: "Title Required",
+        description: "Please enter an event title",
         variant: "destructive",
       });
       return;
     }
 
-    recruitmentMutation.mutate({
+    meetupEventMutation.mutate({
       occupationId: selectedOccupation.id,
-      date: format(new Date(), "yyyy-MM-dd"),
-      count,
-      source: recruitmentSource,
-      notes: recruitmentNotes || undefined,
+      title: eventTitle.trim(),
+      description: eventDescription.trim() || undefined,
     });
   };
 
@@ -458,9 +456,9 @@ export default function WorkforceRecruiterAdminOccupations() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleAddRecruitment(occupation)}
-                            data-testid={`button-add-recruitment-${occupation.id}`}
-                            title="Add recruitment event"
+                            onClick={() => handleCreateMeetupEvent(occupation)}
+                            data-testid={`button-create-meetup-event-${occupation.id}`}
+                            title="Create meetup event"
                           >
                             <UserPlus className="w-4 h-4" />
                           </Button>
@@ -527,76 +525,64 @@ export default function WorkforceRecruiterAdminOccupations() {
         </DialogContent>
       </Dialog>
 
-      {/* Recruitment Event Dialog */}
-      <Dialog open={recruitmentDialogOpen} onOpenChange={setRecruitmentDialogOpen}>
+      {/* Meetup Event Dialog */}
+      <Dialog open={meetupEventDialogOpen} onOpenChange={setMeetupEventDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add Recruitment Event</DialogTitle>
+            <DialogTitle>Create Meetup Event</DialogTitle>
             <DialogDescription>
-              Record a recruitment event for {selectedOccupation?.occupationTitle}
+              Create an in-person meetup event for {selectedOccupation?.occupationTitle}. Users will be able to sign up to participate and discuss this occupation.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="count">Count</Label>
+              <Label htmlFor="event-title">Event Title <span className="text-red-600">*</span></Label>
               <Input
-                id="count"
-                type="number"
-                value={recruitmentCount}
-                onChange={(e) => setRecruitmentCount(e.target.value)}
-                placeholder="Enter positive number for hires/grads, negative for attrition"
-                data-testid="input-recruitment-count"
+                id="event-title"
+                value={eventTitle}
+                onChange={(e) => setEventTitle(e.target.value)}
+                placeholder="e.g., Meetup for Software Engineers"
+                data-testid="input-event-title"
+                maxLength={200}
               />
               <p className="text-xs text-muted-foreground mt-1">
-                Positive for hires/graduates, negative for attrition
+                A clear title for the meetup event
               </p>
             </div>
             <div>
-              <Label htmlFor="source">Source</Label>
-              <Select value={recruitmentSource} onValueChange={setRecruitmentSource}>
-                <SelectTrigger id="source" data-testid="select-recruitment-source">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="hire">Hire</SelectItem>
-                  <SelectItem value="grad">Graduate</SelectItem>
-                  <SelectItem value="attrition">Attrition</SelectItem>
-                  <SelectItem value="transfer">Transfer</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="notes">Notes (Optional)</Label>
+              <Label htmlFor="event-description">Description (Optional)</Label>
               <Textarea
-                id="notes"
-                value={recruitmentNotes}
-                onChange={(e) => setRecruitmentNotes(e.target.value)}
-                placeholder="Additional notes about this recruitment event"
-                data-testid="textarea-recruitment-notes"
+                id="event-description"
+                value={eventDescription}
+                onChange={(e) => setEventDescription(e.target.value)}
+                placeholder="Additional details about the meetup event..."
+                data-testid="textarea-event-description"
+                rows={4}
               />
+              <p className="text-xs text-muted-foreground mt-1">
+                Provide more context about what will be discussed at the meetup
+              </p>
             </div>
           </div>
           <DialogFooter>
             <Button
               variant="outline"
               onClick={() => {
-                setRecruitmentDialogOpen(false);
-                setRecruitmentCount("");
-                setRecruitmentSource("hire");
-                setRecruitmentNotes("");
+                setMeetupEventDialogOpen(false);
+                setEventTitle("");
+                setEventDescription("");
                 setSelectedOccupation(null);
               }}
-              data-testid="button-cancel-recruitment"
+              data-testid="button-cancel-meetup-event"
             >
               Cancel
             </Button>
             <Button
-              onClick={handleSubmitRecruitment}
-              disabled={recruitmentMutation.isPending}
-              data-testid="button-submit-recruitment"
+              onClick={handleSubmitMeetupEvent}
+              disabled={meetupEventMutation.isPending || !eventTitle.trim()}
+              data-testid="button-submit-meetup-event"
             >
-              {recruitmentMutation.isPending ? "Adding..." : "Add Event"}
+              {meetupEventMutation.isPending ? "Creating..." : "Create Event"}
             </Button>
           </DialogFooter>
         </DialogContent>

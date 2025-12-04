@@ -145,6 +145,14 @@ DELETE FROM chyme_rooms WHERE created_by = '49006997';
 -- Finally delete the profile
 DELETE FROM chyme_profiles WHERE user_id = '49006997';
 
+-- Workforce Recruiter - Delete related data first
+-- Meetup event signups: user_id references users.id directly (ON DELETE CASCADE, but explicit for clarity)
+DELETE FROM workforce_recruiter_meetup_event_signups WHERE user_id = '49006997';
+-- Meetup events: created_by references users.id directly
+DELETE FROM workforce_recruiter_meetup_events WHERE created_by = '49006997';
+-- Finally delete the profile
+DELETE FROM workforce_recruiter_profiles WHERE user_id = '49006997';
+
 -- Profile deletion logs (user_id references users.id directly)
 DELETE FROM profile_deletion_logs WHERE user_id = '49006997';
 
@@ -275,6 +283,14 @@ DELETE FROM chyme_room_participants WHERE user_id = '48981890';
 DELETE FROM chyme_rooms WHERE created_by = '48981890';
 -- Finally delete the profile
 DELETE FROM chyme_profiles WHERE user_id = '48981890';
+
+-- Workforce Recruiter - Delete related data first
+-- Meetup event signups: user_id references users.id directly (ON DELETE CASCADE, but explicit for clarity)
+DELETE FROM workforce_recruiter_meetup_event_signups WHERE user_id = '48981890';
+-- Meetup events: created_by references users.id directly
+DELETE FROM workforce_recruiter_meetup_events WHERE created_by = '48981890';
+-- Finally delete the profile
+DELETE FROM workforce_recruiter_profiles WHERE user_id = '48981890';
 
 -- Profile deletion logs (user_id references users.id directly)
 DELETE FROM profile_deletion_logs WHERE user_id = '48981890';
