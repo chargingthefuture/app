@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
-import { UserCheck, Building2, ArrowRight, MessageCircle, Wrench, Mail, Search, HeartPulse, Radio} from "lucide-react";
+import { UserCheck, Building2, ArrowRight, MessageCircle, Wrench, Mail, Search, HeartPulse, Radio, Car, Briefcase} from "lucide-react";
 
 const services = [
   {
@@ -20,7 +20,7 @@ const services = [
   },
   {
     title: "LightHouse",
-    description: "rovides safe accommodations and support resources for human trafficking survivors, guiding them towards healing and empowerment.",
+    description: "Provides safe accommodations and support resources for human trafficking survivors, guiding them towards healing and empowerment.",
     icon: Building2,
     href: "/apps/lighthouse",
     testId: "card-service-lighthouse",
@@ -34,7 +34,7 @@ const services = [
   },
   {
     title: "SupportMatch",
-    description: "partner matching platform for human trafficking victims, featuring monthly partnership cycles, real-time messaging, and robust safety features.",
+    description: "A partner matching platform for human trafficking victims, featuring monthly partnership cycles, real-time messaging, and robust safety features.",
     icon: UserCheck,
     href: "/apps/supportmatch",
     testId: "card-service-supportmatch",
@@ -73,6 +73,20 @@ const services = [
     icon: Radio,
     href: "/apps/chyme",
     testId: "card-service-chyme",
+  },
+  {
+    title: "TrustTransport",
+    description: "Request or provide safe transportation services. Connect with trusted drivers for rides to appointments, errands, or other essential travel needs.",
+    icon: Car,
+    href: "/apps/trusttransport",
+    testId: "card-service-trusttransport",
+  },
+  {
+    title: "Workforce Recruiter",
+    description: "Track your job search progress, manage applications, and connect with employment opportunities. Build your professional profile and track your career journey.",
+    icon: Briefcase,
+    href: "/apps/workforce-recruiter",
+    testId: "card-service-workforce-recruiter",
   },
 ];
 
