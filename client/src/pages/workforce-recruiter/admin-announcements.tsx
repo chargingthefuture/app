@@ -208,7 +208,7 @@ export default function WorkforceRecruiterAdminAnnouncements() {
         <div>
           <h1 className="text-3xl md:text-4xl font-semibold">Manage Announcements</h1>
           <p className="text-muted-foreground">
-            Create and manage Workforce Recruiter Tracker announcements
+            Create and manage Workforce Recruiter announcements
           </p>
         </div>
       </div>

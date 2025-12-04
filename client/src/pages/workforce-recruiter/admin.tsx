@@ -7,7 +7,7 @@ export default function WorkforceRecruiterAdmin() {
   return (
     <div className="p-4 sm:p-6 md:p-8 space-y-6">
       <div>
-        <h1 className="text-2xl sm:text-3xl font-semibold mb-2">Workforce Recruiter Tracker Administration</h1>
+        <h1 className="text-2xl sm:text-3xl font-semibold mb-2">Workforce Recruiter Administration</h1>
         <p className="text-muted-foreground">
           Manage occupations, announcements, and configuration
         </p>

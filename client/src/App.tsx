@@ -937,7 +937,7 @@ function Router() {
         </ProtectedRoute>
       </Route>
 
-      {/* Workforce Recruiter Tracker Routes */}
+      {/* Workforce Recruiter Routes */}
       <Route path="/apps/workforce-recruiter">
         <ProtectedRoute>
           <WorkforceRecruiterDashboard />

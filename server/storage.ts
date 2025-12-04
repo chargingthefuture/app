@@ -781,21 +781,21 @@ export interface IStorage {
   deactivateChymeAnnouncement(id: string): Promise<ChymeAnnouncement>;
 
   // ========================================
-  // WORKFORCE RECRUITER TRACKER OPERATIONS
+  // WORKFORCE RECRUITER OPERATIONS
   // ========================================
 
-  // Workforce Recruiter Tracker Profile operations
+  // Workforce Recruiter Profile operations
   getWorkforceRecruiterProfile(userId: string): Promise<WorkforceRecruiterProfile | undefined>;
   createWorkforceRecruiterProfile(profile: InsertWorkforceRecruiterProfile): Promise<WorkforceRecruiterProfile>;
   updateWorkforceRecruiterProfile(userId: string, profile: Partial<InsertWorkforceRecruiterProfile>): Promise<WorkforceRecruiterProfile>;
   deleteWorkforceRecruiterProfile(userId: string, reason?: string): Promise<void>;
 
-  // Workforce Recruiter Tracker Config operations
+  // Workforce Recruiter Config operations
   getWorkforceRecruiterConfig(): Promise<WorkforceRecruiterConfig | undefined>;
   updateWorkforceRecruiterConfig(config: Partial<InsertWorkforceRecruiterConfig>): Promise<WorkforceRecruiterConfig>;
   createWorkforceRecruiterConfig(config: InsertWorkforceRecruiterConfig): Promise<WorkforceRecruiterConfig>;
 
-  // Workforce Recruiter Tracker Occupation operations
+  // Workforce Recruiter Occupation operations
   getWorkforceRecruiterOccupation(id: string): Promise<WorkforceRecruiterOccupation | undefined>;
   getAllWorkforceRecruiterOccupations(filters?: {
     sector?: string;
@@ -807,7 +807,7 @@ export interface IStorage {
   updateWorkforceRecruiterOccupation(id: string, occupation: Partial<InsertWorkforceRecruiterOccupation>): Promise<WorkforceRecruiterOccupation>;
   deleteWorkforceRecruiterOccupation(id: string): Promise<void>;
 
-  // Workforce Recruiter Tracker Recruitment Event operations
+  // Workforce Recruiter Recruitment Event operations
   createWorkforceRecruiterRecruitmentEvent(event: InsertWorkforceRecruiterRecruitmentEvent): Promise<WorkforceRecruiterRecruitmentEvent>;
   getWorkforceRecruiterRecruitmentEvents(filters?: {
     occupationId?: string;
@@ -817,7 +817,7 @@ export interface IStorage {
     offset?: number;
   }): Promise<{ events: WorkforceRecruiterRecruitmentEvent[]; total: number }>;
 
-  // Workforce Recruiter Tracker Reports
+  // Workforce Recruiter Reports
   getWorkforceRecruiterSummaryReport(): Promise<{
     totalWorkforceTarget: number;
     totalCurrentRecruited: number;
@@ -827,7 +827,7 @@ export interface IStorage {
     annualTrainingGap: Array<{ occupationId: string; occupationTitle: string; sector: string; target: number; actual: number; gap: number }>;
   }>;
 
-  // Workforce Recruiter Tracker Announcement operations
+  // Workforce Recruiter Announcement operations
   createWorkforceRecruiterAnnouncement(announcement: InsertWorkforceRecruiterAnnouncement): Promise<WorkforceRecruiterAnnouncement>;
   getActiveWorkforceRecruiterAnnouncements(): Promise<WorkforceRecruiterAnnouncement[]>;
   getAllWorkforceRecruiterAnnouncements(): Promise<WorkforceRecruiterAnnouncement[]>;
@@ -6254,7 +6254,7 @@ export class DatabaseStorage implements IStorage {
   async deleteWorkforceRecruiterProfile(userId: string, reason?: string): Promise<void> {
     const profile = await this.getWorkforceRecruiterProfile(userId);
     if (!profile) {
-      throw new Error("Workforce Recruiter Tracker profile not found");
+      throw new Error("Workforce Recruiter profile not found");
     }
 
     const anonymizedUserId = this.generateAnonymizedUserId();
@@ -6266,7 +6266,7 @@ export class DatabaseStorage implements IStorage {
         .set({ createdBy: anonymizedUserId })
         .where(eq(workforceRecruiterRecruitmentEvents.createdBy, userId));
     } catch (error: any) {
-      console.warn(`Failed to anonymize Workforce Recruiter Tracker related data: ${error.message}`);
+      console.warn(`Failed to anonymize Workforce Recruiter related data: ${error.message}`);
     }
 
     // Delete the profile

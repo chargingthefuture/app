@@ -10,7 +10,7 @@ import {
 import { eq, and } from "drizzle-orm";
 
 /**
- * Seed script for Workforce Recruiter Tracker
+ * Seed script for Workforce Recruiter
  * 
  * Creates occupation records from the skills database (sectors and job titles).
  * Each job title becomes an occupation with reasonable defaults for headcount targets,
@@ -108,7 +108,7 @@ function calculateAnnualTrainingTarget(headcountTarget: number, skillLevel: "Low
 }
 
 async function seedWorkforceRecruiter() {
-  console.log("Seeding Workforce Recruiter Tracker...");
+  console.log("Seeding Workforce Recruiter...");
   console.log("Creating occupations from skills database...\n");
 
   // Get all sectors
@@ -200,7 +200,7 @@ async function seedWorkforceRecruiter() {
 
   if (existingAnnouncements.length === 0) {
     const announcementData: InsertWorkforceRecruiterAnnouncement = {
-      title: "Welcome to Workforce Recruiter Tracker",
+      title: "Welcome to Workforce Recruiter",
       content: "Use this tool to track recruitment and distribution of workforce across different occupations and sectors. Create recruitment events to monitor progress toward your headcount targets.",
       type: "info",
       isActive: true,
@@ -218,7 +218,7 @@ async function seedWorkforceRecruiter() {
   const allOccupations = await db.select().from(workforceRecruiterOccupations);
 
   console.log("\n" + "=".repeat(60));
-  console.log("✅ Workforce Recruiter Tracker seed complete!");
+  console.log("✅ Workforce Recruiter seed complete!");
   console.log(`- Occupations: ${occupationsCreated} created, ${occupationsSkipped} skipped, ${allOccupations.length} total`);
   console.log("=".repeat(60) + "\n");
 
@@ -226,9 +226,10 @@ async function seedWorkforceRecruiter() {
 }
 
 seedWorkforceRecruiter().catch((error) => {
-  console.error("❌ Error seeding Workforce Recruiter Tracker:", error);
+  console.error("❌ Error seeding Workforce Recruiter:", error);
   process.exit(1);
 });
+
 
 
 
