@@ -971,6 +971,10 @@ export class DatabaseStorage implements IStorage {
       .where(eq(users.id, userId))
       .returning();
 
+    if (!user) {
+      throw new Error("User not found");
+    }
+
     // Update all profiles belonging to this user across all apps
     // Directory profiles
     await db
@@ -1052,6 +1056,9 @@ export class DatabaseStorage implements IStorage {
       })
       .where(eq(users.id, userId))
       .returning();
+    if (!user) {
+      throw new Error("User not found");
+    }
     return user;
   }
 
