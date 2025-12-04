@@ -47,19 +47,18 @@ export function PendingApproval() {
         throw new Error("Server returned invalid content type. The Quora profile URL may not have been saved.");
       }
       
-      // Read response as text first to check if it's empty, then parse
-      const text = await res.text();
-      if (!text || text.trim() === "") {
-        throw new Error("Server returned empty response. The Quora profile URL may not have been saved.");
-      }
-      
-      // Parse JSON response
+      // Parse JSON response directly (apiRequest ensures response is ok)
       let user;
       try {
-        user = JSON.parse(text);
+        user = await res.json();
       } catch (parseError) {
         // If JSON parsing fails, that's an error
         throw new Error("Server returned invalid response. The Quora profile URL may not have been saved.");
+      }
+      
+      // Verify response is not empty
+      if (!user || typeof user !== 'object') {
+        throw new Error("Server returned empty or invalid response. The Quora profile URL may not have been saved.");
       }
       
       // Verify the response contains the expected data

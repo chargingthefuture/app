@@ -5,11 +5,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { ArrowLeft, Calendar, TrendingUp, TrendingDown } from "lucide-react";
+import { ArrowLeft, Calendar } from "lucide-react";
 import { AnnouncementBanner } from "@/components/announcement-banner";
 import { PaginationControls } from "@/components/pagination-controls";
 import { format } from "date-fns";
-import type { WorkforceRecruiterOccupation, WorkforceRecruiterRecruitmentEvent } from "@shared/schema";
+import type { WorkforceRecruiterOccupation, WorkforceRecruiterMeetupEvent } from "@shared/schema";
 
 export default function WorkforceRecruiterOccupationDetail() {
   const params = useParams();
@@ -23,10 +23,10 @@ export default function WorkforceRecruiterOccupationDetail() {
   });
 
   const { data: eventsData, isLoading: eventsLoading } = useQuery<{
-    events: WorkforceRecruiterRecruitmentEvent[];
+    events: WorkforceRecruiterMeetupEvent[];
     total: number;
   }>({
-    queryKey: [`/api/workforce-recruiter/recruitments?occupationId=${occupationId}&limit=${eventsLimit}&offset=${eventsPage * eventsLimit}`],
+    queryKey: [`/api/workforce-recruiter/meetup-events?occupationId=${occupationId}&limit=${eventsLimit}&offset=${eventsPage * eventsLimit}`],
     enabled: !!occupationId,
   });
 
@@ -75,20 +75,6 @@ export default function WorkforceRecruiterOccupationDetail() {
     }
   };
 
-  const getSourceBadgeVariant = (source: string) => {
-    switch (source.toLowerCase()) {
-      case "hire":
-        return "default";
-      case "grad":
-        return "secondary";
-      case "attrition":
-        return "destructive";
-      case "transfer":
-        return "outline";
-      default:
-        return "outline";
-    }
-  };
 
   return (
     <div className="p-4 sm:p-6 md:p-8 space-y-6">
@@ -191,12 +177,12 @@ export default function WorkforceRecruiterOccupationDetail() {
         </CardContent>
       </Card>
 
-      {/* Recruitment Events */}
+      {/* Meetup Events */}
       <Card>
         <CardHeader>
-          <CardTitle>Recruitment Events</CardTitle>
+          <CardTitle>Meetup Events</CardTitle>
           <CardDescription>
-            History of recruitment activities for this occupation
+            In-person events for this occupation
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -206,7 +192,7 @@ export default function WorkforceRecruiterOccupationDetail() {
             </div>
           ) : events.length === 0 ? (
             <div className="text-center py-8">
-              <p className="text-muted-foreground">No recruitment events recorded yet.</p>
+              <p className="text-muted-foreground">No meetup events created yet.</p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -218,40 +204,26 @@ export default function WorkforceRecruiterOccupationDetail() {
                     data-testid={`event-${event.id}`}
                   >
                     <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-2">
-                          {event.count > 0 ? (
-                            <TrendingUp className="w-4 h-4 text-green-600" />
-                          ) : (
-                            <TrendingDown className="w-4 h-4 text-red-600" />
-                          )}
-                          <span className={`text-lg font-semibold ${event.count > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                            {event.count > 0 ? '+' : ''}{event.count.toLocaleString()}
-                          </span>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <h4 className="font-semibold">{event.title}</h4>
+                          <Badge variant={event.isActive ? "default" : "secondary"}>
+                            {event.isActive ? "Active" : "Inactive"}
+                          </Badge>
                         </div>
-                        <Badge variant={getSourceBadgeVariant(event.source)}>
-                          {event.source}
-                        </Badge>
+                        {event.description && (
+                          <p className="text-sm text-muted-foreground mb-2">{event.description}</p>
+                        )}
                       </div>
                       <div className="text-right">
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
                           <Calendar className="w-4 h-4" />
-                          <span>{format(new Date(event.date), "MMM d, yyyy")}</span>
+                          <span>{format(new Date(event.createdAt), "MMM d, yyyy")}</span>
                         </div>
                         <p className="text-xs text-muted-foreground mt-1">
-                          {format(new Date(event.createdAt), "MMM d, yyyy 'at' h:mm a")}
+                          Created by: {event.createdBy}
                         </p>
                       </div>
-                    </div>
-                    {event.notes && (
-                      <div className="pt-2 border-t">
-                        <p className="text-sm text-muted-foreground">{event.notes}</p>
-                      </div>
-                    )}
-                    <div className="pt-1">
-                      <p className="text-xs text-muted-foreground">
-                        Recorded by: {event.createdBy}
-                      </p>
                     </div>
                   </div>
                 ))}
