@@ -63,6 +63,20 @@ export default function TrustTransportDashboard() {
     },
   });
 
+  // Calculate role flags with safe defaults (before early returns to maintain hook order)
+  const isDriver = profile?.isDriver ?? false;
+  const isRider = profile?.isRider ?? true;
+  const showTabs = isDriver && isRider;
+
+  // Set initial tab based on available roles
+  // This hook must be called before any early returns to comply with Rules of Hooks
+  useEffect(() => {
+    if (!showTabs) {
+      if (isDriver) setActiveTab("driver");
+      if (isRider) setActiveTab("rider");
+    }
+  }, [showTabs, isDriver, isRider]);
+
   if (profileLoading) {
     return (
       <div className="p-6 md:p-8">
@@ -131,18 +145,6 @@ export default function TrustTransportDashboard() {
       </div>
     );
   }
-
-  const isDriver = profile.isDriver ?? false;
-  const isRider = profile.isRider ?? true;
-  const showTabs = isDriver && isRider;
-  
-  // Set initial tab based on available roles
-  useEffect(() => {
-    if (!showTabs) {
-      if (isDriver) setActiveTab("driver");
-      if (isRider) setActiveTab("rider");
-    }
-  }, [showTabs, isDriver, isRider]);
 
   const roleLabel = [];
   if (isDriver) roleLabel.push("Driver");
