@@ -864,6 +864,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   }));
 
+  // Public sectors endpoint (for authenticated users to view available sectors)
+  app.get('/api/directory/sectors', isAuthenticated, asyncHandler(async (_req, res) => {
+    try {
+      const sectors = await withDatabaseErrorHandling(
+        () => storage.getAllSkillsSectors(),
+        'getAllSkillsSectors'
+      );
+      // Format as { id, name }[] for Directory app compatibility
+      const formatted = sectors.map(s => ({ id: s.id, name: s.name }));
+      
+      // Log if no sectors found (helps debug seeding issues)
+      if (formatted.length === 0) {
+        console.warn('⚠️ No sectors found in database. Run seed script: npx tsx scripts/seedSkills.ts');
+      }
+      
+      res.json(formatted);
+    } catch (error: any) {
+      console.error('Error fetching sectors:', error);
+      // Return empty array instead of error to prevent frontend breakage
+      res.json([]);
+    }
+  }));
+
+  // Public job titles endpoint (for authenticated users to view available job titles)
+  app.get('/api/directory/job-titles', isAuthenticated, asyncHandler(async (_req, res) => {
+    try {
+      const jobTitles = await withDatabaseErrorHandling(
+        () => storage.getAllSkillsJobTitles(),
+        'getAllSkillsJobTitles'
+      );
+      // Format as { id, name }[] for Directory app compatibility
+      const formatted = jobTitles.map(jt => ({ id: jt.id, name: jt.name }));
+      
+      // Log if no job titles found (helps debug seeding issues)
+      if (formatted.length === 0) {
+        console.warn('⚠️ No job titles found in database. Run seed script: npx tsx scripts/seedSkills.ts');
+      }
+      
+      res.json(formatted);
+    } catch (error: any) {
+      console.error('Error fetching job titles:', error);
+      // Return empty array instead of error to prevent frontend breakage
+      res.json([]);
+    }
+  }));
+
   // Public routes (with rate limiting to prevent scraping)
   app.get('/api/directory/public/:id', publicItemLimiter, asyncHandler(async (req, res) => {
     const profile = await withDatabaseErrorHandling(

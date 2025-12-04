@@ -263,7 +263,7 @@ export default function DirectoryProfilePage() {
   const shareUrl = profile?.isPublic ? `${window.location.origin}/apps/directory/public/${profile.id}` : null;
 
   return (
-    <div className="p-4 sm:p-6 md:p-8 space-y-6 sm:space-y-8">
+    <div className="p-4 sm:p-6 md:p-8 space-y-6 sm:space-y-8 pb-24 sm:pb-8">
       <MiniAppBackButton />
       <div>
         <h1 className="text-2xl sm:text-3xl md:text-4xl font-semibold mb-2">Directory Profile</h1>
@@ -391,7 +391,22 @@ export default function DirectoryProfilePage() {
               </div>
             </div>
           ) : (
-          <>
+          <form onSubmit={(e) => {
+            e.preventDefault();
+            if (skills.length === 0 || !country) {
+              toast({ 
+                title: "Validation Error", 
+                description: "Please select at least one skill and a country.", 
+                variant: "destructive" 
+              });
+              return;
+            }
+            if (!profile) {
+              createMutation.mutate();
+            } else {
+              updateMutation.mutate();
+            }
+          }}>
           <div className="space-y-2">
             <Label htmlFor="description">Short description ({remaining} left)</Label>
             <Textarea id="description" value={description} onChange={(e) => setDescription(e.target.value.slice(0, 140))} placeholder="What can you offer or what are you looking for?" />
@@ -739,24 +754,24 @@ export default function DirectoryProfilePage() {
 
           <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
             {!profile ? (
-              <Button onClick={() => createMutation.mutate()} disabled={skills.length === 0 || !country || createMutation.isPending} data-testid="button-create-directory-profile">
+              <Button type="submit" disabled={skills.length === 0 || !country || createMutation.isPending} data-testid="button-create-directory-profile">
                 {createMutation.isPending ? "Saving…" : "Create Profile"}
               </Button>
             ) : (
               <>
-                <Button onClick={() => updateMutation.mutate()} disabled={skills.length === 0 || !country || updateMutation.isPending} data-testid="button-update-directory-profile">
+                <Button type="submit" disabled={skills.length === 0 || !country || updateMutation.isPending} data-testid="button-update-directory-profile">
                   {updateMutation.isPending ? "Saving…" : "Save Changes"}
                 </Button>
-                <Button variant="outline" onClick={() => setIsEditing(false)} disabled={updateMutation.isPending} data-testid="button-cancel-edit">
+                <Button type="button" variant="outline" onClick={() => setIsEditing(false)} disabled={updateMutation.isPending} data-testid="button-cancel-edit">
                   Cancel
                 </Button>
-                <Button variant="destructive" onClick={() => setDeleteDialogOpen(true)} disabled={deleteMutation.isPending} data-testid="button-delete-directory-profile">
+                <Button type="button" variant="destructive" onClick={() => setDeleteDialogOpen(true)} disabled={deleteMutation.isPending} data-testid="button-delete-directory-profile">
                   Delete Profile
                 </Button>
               </>
             )}
           </div>
-          </>
+          </form>
           )}
         </CardContent>
       </Card>

@@ -19,7 +19,7 @@ export default function DirectoryAnnouncements() {
   }
 
   return (
-    <div className="p-4 sm:p-6 md:p-8 space-y-6 sm:space-y-8">
+    <div className="p-4 sm:p-6 md:p-8 space-y-6 sm:space-y-8 pb-24 sm:pb-8">
       <div>
         <h1 className="text-2xl sm:text-3xl md:text-4xl font-semibold mb-2">Announcements</h1>
         <p className="text-muted-foreground text-sm sm:text-base">
