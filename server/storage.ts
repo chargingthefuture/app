@@ -184,7 +184,8 @@ import {
   workforceRecruiterProfiles,
   workforceRecruiterConfig,
   workforceRecruiterOccupations,
-  workforceRecruiterRecruitmentEvents,
+  workforceRecruiterMeetupEvents,
+  workforceRecruiterMeetupEventSignups,
   workforceRecruiterAnnouncements,
   type WorkforceRecruiterProfile,
   type InsertWorkforceRecruiterProfile,
@@ -192,8 +193,10 @@ import {
   type InsertWorkforceRecruiterConfig,
   type WorkforceRecruiterOccupation,
   type InsertWorkforceRecruiterOccupation,
-  type WorkforceRecruiterRecruitmentEvent,
-  type InsertWorkforceRecruiterRecruitmentEvent,
+  type WorkforceRecruiterMeetupEvent,
+  type InsertWorkforceRecruiterMeetupEvent,
+  type WorkforceRecruiterMeetupEventSignup,
+  type InsertWorkforceRecruiterMeetupEventSignup,
   type WorkforceRecruiterAnnouncement,
   type InsertWorkforceRecruiterAnnouncement,
   type ChymeRoom,
@@ -807,15 +810,30 @@ export interface IStorage {
   updateWorkforceRecruiterOccupation(id: string, occupation: Partial<InsertWorkforceRecruiterOccupation>): Promise<WorkforceRecruiterOccupation>;
   deleteWorkforceRecruiterOccupation(id: string): Promise<void>;
 
-  // Workforce Recruiter Recruitment Event operations
-  createWorkforceRecruiterRecruitmentEvent(event: InsertWorkforceRecruiterRecruitmentEvent): Promise<WorkforceRecruiterRecruitmentEvent>;
-  getWorkforceRecruiterRecruitmentEvents(filters?: {
+  // Workforce Recruiter Meetup Event operations
+  createWorkforceRecruiterMeetupEvent(event: InsertWorkforceRecruiterMeetupEvent): Promise<WorkforceRecruiterMeetupEvent>;
+  getWorkforceRecruiterMeetupEvents(filters?: {
     occupationId?: string;
-    startDate?: Date;
-    endDate?: Date;
+    isActive?: boolean;
     limit?: number;
     offset?: number;
-  }): Promise<{ events: WorkforceRecruiterRecruitmentEvent[]; total: number }>;
+  }): Promise<{ events: WorkforceRecruiterMeetupEvent[]; total: number }>;
+  getWorkforceRecruiterMeetupEventById(id: string): Promise<WorkforceRecruiterMeetupEvent | undefined>;
+  updateWorkforceRecruiterMeetupEvent(id: string, event: Partial<InsertWorkforceRecruiterMeetupEvent>): Promise<WorkforceRecruiterMeetupEvent>;
+  deleteWorkforceRecruiterMeetupEvent(id: string): Promise<void>;
+  
+  // Workforce Recruiter Meetup Event Signup operations
+  createWorkforceRecruiterMeetupEventSignup(signup: InsertWorkforceRecruiterMeetupEventSignup): Promise<WorkforceRecruiterMeetupEventSignup>;
+  getWorkforceRecruiterMeetupEventSignups(filters?: {
+    eventId?: string;
+    userId?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<{ signups: WorkforceRecruiterMeetupEventSignup[]; total: number }>;
+  getWorkforceRecruiterMeetupEventSignupCount(eventId: string): Promise<number>;
+  getUserMeetupEventSignup(eventId: string, userId: string): Promise<WorkforceRecruiterMeetupEventSignup | undefined>;
+  updateWorkforceRecruiterMeetupEventSignup(id: string, signup: Partial<InsertWorkforceRecruiterMeetupEventSignup>): Promise<WorkforceRecruiterMeetupEventSignup>;
+  deleteWorkforceRecruiterMeetupEventSignup(id: string): Promise<void>;
 
   // Workforce Recruiter Reports
   getWorkforceRecruiterSummaryReport(): Promise<{
@@ -6262,12 +6280,16 @@ export class DatabaseStorage implements IStorage {
 
     const anonymizedUserId = this.generateAnonymizedUserId();
 
-    // Anonymize related data (recruitment events created by user)
+    // Anonymize related data (meetup events created by user, meetup event signups)
     try {
       await db
-        .update(workforceRecruiterRecruitmentEvents)
+        .update(workforceRecruiterMeetupEvents)
         .set({ createdBy: anonymizedUserId })
-        .where(eq(workforceRecruiterRecruitmentEvents.createdBy, userId));
+        .where(eq(workforceRecruiterMeetupEvents.createdBy, userId));
+      await db
+        .update(workforceRecruiterMeetupEventSignups)
+        .set({ userId: anonymizedUserId })
+        .where(eq(workforceRecruiterMeetupEventSignups.userId, userId));
     } catch (error: any) {
       console.warn(`Failed to anonymize Workforce Recruiter related data: ${error.message}`);
     }
@@ -6371,75 +6393,35 @@ export class DatabaseStorage implements IStorage {
     await db.delete(workforceRecruiterOccupations).where(eq(workforceRecruiterOccupations.id, id));
   }
 
-  async createWorkforceRecruiterRecruitmentEvent(eventData: InsertWorkforceRecruiterRecruitmentEvent): Promise<WorkforceRecruiterRecruitmentEvent> {
-    // Use transaction to atomically update occupation and create event
-    return await db.transaction(async (tx) => {
-      // Create the event
-      const [event] = await tx
-        .insert(workforceRecruiterRecruitmentEvents)
-        .values(eventData)
-        .returning();
-
-      // Update occupation's currentRecruited count
-      const occupation = await tx
-        .select()
-        .from(workforceRecruiterOccupations)
-        .where(eq(workforceRecruiterOccupations.id, eventData.occupationId))
-        .limit(1);
-
-      if (occupation.length === 0) {
-        throw new Error("Occupation not found");
-      }
-
-      const newCount = occupation[0].currentRecruited + eventData.count;
-      
-      // Validate that new count doesn't exceed target (unless negative, which is allowed for attrition)
-      if (newCount > occupation[0].headcountTarget && eventData.count > 0) {
-        throw new Error(`Recruitment would exceed headcount target. Current: ${occupation[0].currentRecruited}, Target: ${occupation[0].headcountTarget}, Attempted: ${eventData.count}`);
-      }
-
-      // Prevent negative recruited count
-      if (newCount < 0) {
-        throw new Error("Recruited count cannot be negative");
-      }
-
-      await tx
-        .update(workforceRecruiterOccupations)
-        .set({ 
-          currentRecruited: newCount,
-          updatedAt: new Date(),
-        })
-        .where(eq(workforceRecruiterOccupations.id, eventData.occupationId));
-
-      return event;
-    });
+  async createWorkforceRecruiterMeetupEvent(eventData: InsertWorkforceRecruiterMeetupEvent): Promise<WorkforceRecruiterMeetupEvent> {
+    const [event] = await db
+      .insert(workforceRecruiterMeetupEvents)
+      .values(eventData)
+      .returning();
+    return event;
   }
 
-  async getWorkforceRecruiterRecruitmentEvents(filters?: {
+  async getWorkforceRecruiterMeetupEvents(filters?: {
     occupationId?: string;
-    startDate?: Date;
-    endDate?: Date;
+    isActive?: boolean;
     limit?: number;
     offset?: number;
-  }): Promise<{ events: WorkforceRecruiterRecruitmentEvent[]; total: number }> {
-    let query = db.select().from(workforceRecruiterRecruitmentEvents);
+  }): Promise<{ events: WorkforceRecruiterMeetupEvent[]; total: number }> {
+    let query = db.select().from(workforceRecruiterMeetupEvents);
 
     const conditions = [];
     if (filters?.occupationId) {
-      conditions.push(eq(workforceRecruiterRecruitmentEvents.occupationId, filters.occupationId));
+      conditions.push(eq(workforceRecruiterMeetupEvents.occupationId, filters.occupationId));
     }
-    if (filters?.startDate) {
-      conditions.push(gte(workforceRecruiterRecruitmentEvents.date, filters.startDate));
-    }
-    if (filters?.endDate) {
-      conditions.push(lte(workforceRecruiterRecruitmentEvents.date, filters.endDate));
+    if (filters?.isActive !== undefined) {
+      conditions.push(eq(workforceRecruiterMeetupEvents.isActive, filters.isActive));
     }
 
     if (conditions.length > 0) {
       query = query.where(and(...conditions)) as any;
     }
 
-    query = query.orderBy(desc(workforceRecruiterRecruitmentEvents.date)) as any;
+    query = query.orderBy(desc(workforceRecruiterMeetupEvents.createdAt)) as any;
 
     const allEvents = await query;
     const total = allEvents.length;
@@ -6450,6 +6432,110 @@ export class DatabaseStorage implements IStorage {
     const events = allEvents.slice(offset, offset + limit);
 
     return { events, total };
+  }
+
+  async getWorkforceRecruiterMeetupEventById(id: string): Promise<WorkforceRecruiterMeetupEvent | undefined> {
+    const [event] = await db
+      .select()
+      .from(workforceRecruiterMeetupEvents)
+      .where(eq(workforceRecruiterMeetupEvents.id, id))
+      .limit(1);
+    return event;
+  }
+
+  async updateWorkforceRecruiterMeetupEvent(id: string, eventData: Partial<InsertWorkforceRecruiterMeetupEvent>): Promise<WorkforceRecruiterMeetupEvent> {
+    const [event] = await db
+      .update(workforceRecruiterMeetupEvents)
+      .set({
+        ...eventData,
+        updatedAt: new Date(),
+      })
+      .where(eq(workforceRecruiterMeetupEvents.id, id))
+      .returning();
+    return event;
+  }
+
+  async deleteWorkforceRecruiterMeetupEvent(id: string): Promise<void> {
+    await db.delete(workforceRecruiterMeetupEvents).where(eq(workforceRecruiterMeetupEvents.id, id));
+  }
+
+  async createWorkforceRecruiterMeetupEventSignup(signupData: InsertWorkforceRecruiterMeetupEventSignup): Promise<WorkforceRecruiterMeetupEventSignup> {
+    const [signup] = await db
+      .insert(workforceRecruiterMeetupEventSignups)
+      .values(signupData)
+      .returning();
+    return signup;
+  }
+
+  async getWorkforceRecruiterMeetupEventSignups(filters?: {
+    eventId?: string;
+    userId?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<{ signups: WorkforceRecruiterMeetupEventSignup[]; total: number }> {
+    let query = db.select().from(workforceRecruiterMeetupEventSignups);
+
+    const conditions = [];
+    if (filters?.eventId) {
+      conditions.push(eq(workforceRecruiterMeetupEventSignups.eventId, filters.eventId));
+    }
+    if (filters?.userId) {
+      conditions.push(eq(workforceRecruiterMeetupEventSignups.userId, filters.userId));
+    }
+
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as any;
+    }
+
+    query = query.orderBy(desc(workforceRecruiterMeetupEventSignups.createdAt)) as any;
+
+    const allSignups = await query;
+    const total = allSignups.length;
+
+    // Apply pagination
+    const limit = filters?.limit ?? 50;
+    const offset = filters?.offset ?? 0;
+    const signups = allSignups.slice(offset, offset + limit);
+
+    return { signups, total };
+  }
+
+  async getWorkforceRecruiterMeetupEventSignupCount(eventId: string): Promise<number> {
+    const signups = await db
+      .select()
+      .from(workforceRecruiterMeetupEventSignups)
+      .where(eq(workforceRecruiterMeetupEventSignups.eventId, eventId));
+    return signups.length;
+  }
+
+  async getUserMeetupEventSignup(eventId: string, userId: string): Promise<WorkforceRecruiterMeetupEventSignup | undefined> {
+    const [signup] = await db
+      .select()
+      .from(workforceRecruiterMeetupEventSignups)
+      .where(
+        and(
+          eq(workforceRecruiterMeetupEventSignups.eventId, eventId),
+          eq(workforceRecruiterMeetupEventSignups.userId, userId)
+        )
+      )
+      .limit(1);
+    return signup;
+  }
+
+  async updateWorkforceRecruiterMeetupEventSignup(id: string, signupData: Partial<InsertWorkforceRecruiterMeetupEventSignup>): Promise<WorkforceRecruiterMeetupEventSignup> {
+    const [signup] = await db
+      .update(workforceRecruiterMeetupEventSignups)
+      .set({
+        ...signupData,
+        updatedAt: new Date(),
+      })
+      .where(eq(workforceRecruiterMeetupEventSignups.id, id))
+      .returning();
+    return signup;
+  }
+
+  async deleteWorkforceRecruiterMeetupEventSignup(id: string): Promise<void> {
+    await db.delete(workforceRecruiterMeetupEventSignups).where(eq(workforceRecruiterMeetupEventSignups.id, id));
   }
 
   async getWorkforceRecruiterSummaryReport(): Promise<{

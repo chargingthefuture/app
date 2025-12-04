@@ -73,7 +73,8 @@ import {
   insertWorkforceRecruiterProfileSchema,
   insertWorkforceRecruiterConfigSchema,
   insertWorkforceRecruiterOccupationSchema,
-  insertWorkforceRecruiterRecruitmentEventSchema,
+  insertWorkforceRecruiterMeetupEventSchema,
+  insertWorkforceRecruiterMeetupEventSignupSchema,
   insertWorkforceRecruiterAnnouncementSchema,
 } from "@shared/schema";
 import { asyncHandler } from "./errorHandler";
@@ -5605,40 +5606,203 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ message: "Occupation deleted successfully" });
   }));
 
-  // Workforce Recruiter Tracker Recruitment Event routes
-  app.post('/api/workforce-recruiter/recruitments', isAuthenticated, asyncHandler(async (req: any, res) => {
+  // Workforce Recruiter Meetup Event routes
+  app.post('/api/workforce-recruiter/meetup-events', isAuthenticated, isAdmin, ...isAdminWithCsrf, asyncHandler(async (req: any, res) => {
     const userId = getUserId(req);
-    const validatedData = validateWithZod(insertWorkforceRecruiterRecruitmentEventSchema, {
+    const validatedData = validateWithZod(insertWorkforceRecruiterMeetupEventSchema, {
       ...req.body,
       createdBy: userId,
-    }, 'Invalid recruitment event data');
+    }, 'Invalid meetup event data');
     
     const event = await withDatabaseErrorHandling(
-      () => storage.createWorkforceRecruiterRecruitmentEvent(validatedData),
-      'createWorkforceRecruiterRecruitmentEvent'
+      () => storage.createWorkforceRecruiterMeetupEvent(validatedData),
+      'createWorkforceRecruiterMeetupEvent'
     );
+    
+    await logAdminAction(
+      userId,
+      "create_workforce_recruiter_meetup_event",
+      "meetup_event",
+      event.id,
+      { title: event.title, occupationId: event.occupationId }
+    );
+    
     res.json(event);
   }));
 
-  app.get('/api/workforce-recruiter/recruitments', isAuthenticated, asyncHandler(async (req: any, res) => {
+  app.get('/api/workforce-recruiter/meetup-events', isAuthenticated, asyncHandler(async (req: any, res) => {
     const occupationId = req.query.occupationId as string | undefined;
-    const startDate = req.query.startDate ? new Date(req.query.startDate as string) : undefined;
-    const endDate = req.query.endDate ? new Date(req.query.endDate as string) : undefined;
+    const isActive = req.query.isActive !== undefined ? req.query.isActive === 'true' : undefined;
     const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 50;
     const offset = req.query.offset ? parseInt(req.query.offset as string, 10) : 0;
 
     const filters: any = {};
     if (occupationId) filters.occupationId = occupationId;
-    if (startDate) filters.startDate = startDate;
-    if (endDate) filters.endDate = endDate;
+    if (isActive !== undefined) filters.isActive = isActive;
     filters.limit = limit;
     filters.offset = offset;
 
     const result = await withDatabaseErrorHandling(
-      () => storage.getWorkforceRecruiterRecruitmentEvents(filters),
-      'getWorkforceRecruiterRecruitmentEvents'
+      () => storage.getWorkforceRecruiterMeetupEvents(filters),
+      'getWorkforceRecruiterMeetupEvents'
     );
     res.json(result);
+  }));
+
+  app.get('/api/workforce-recruiter/meetup-events/:id', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const event = await withDatabaseErrorHandling(
+      () => storage.getWorkforceRecruiterMeetupEventById(req.params.id),
+      'getWorkforceRecruiterMeetupEventById'
+    );
+    if (!event) {
+      return res.status(404).json({ message: "Meetup event not found" });
+    }
+    res.json(event);
+  }));
+
+  app.put('/api/workforce-recruiter/meetup-events/:id', isAuthenticated, isAdmin, ...isAdminWithCsrf, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const validatedData = validateWithZod(insertWorkforceRecruiterMeetupEventSchema.partial(), req.body, 'Invalid meetup event data');
+    const event = await withDatabaseErrorHandling(
+      () => storage.updateWorkforceRecruiterMeetupEvent(req.params.id, validatedData),
+      'updateWorkforceRecruiterMeetupEvent'
+    );
+    
+    await logAdminAction(
+      userId,
+      "update_workforce_recruiter_meetup_event",
+      "meetup_event",
+      event.id,
+      { title: event.title }
+    );
+    
+    res.json(event);
+  }));
+
+  app.delete('/api/workforce-recruiter/meetup-events/:id', isAuthenticated, isAdmin, ...isAdminWithCsrf, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    await withDatabaseErrorHandling(
+      () => storage.deleteWorkforceRecruiterMeetupEvent(req.params.id),
+      'deleteWorkforceRecruiterMeetupEvent'
+    );
+    
+    await logAdminAction(
+      userId,
+      "delete_workforce_recruiter_meetup_event",
+      "meetup_event",
+      req.params.id,
+      {}
+    );
+    
+    res.json({ message: "Meetup event deleted successfully" });
+  }));
+
+  // Workforce Recruiter Meetup Event Signup routes
+  app.post('/api/workforce-recruiter/meetup-events/:eventId/signups', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const eventId = req.params.eventId;
+    
+    // Check if user already signed up
+    const existingSignup = await withDatabaseErrorHandling(
+      () => storage.getUserMeetupEventSignup(eventId, userId),
+      'getUserMeetupEventSignup'
+    );
+    
+    if (existingSignup) {
+      return res.status(400).json({ message: "You have already signed up for this event" });
+    }
+    
+    const validatedData = validateWithZod(insertWorkforceRecruiterMeetupEventSignupSchema, {
+      ...req.body,
+      eventId,
+      userId,
+    }, 'Invalid signup data');
+    
+    const signup = await withDatabaseErrorHandling(
+      () => storage.createWorkforceRecruiterMeetupEventSignup(validatedData),
+      'createWorkforceRecruiterMeetupEventSignup'
+    );
+    res.json(signup);
+  }));
+
+  app.get('/api/workforce-recruiter/meetup-events/:eventId/signups', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const eventId = req.params.eventId;
+    const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 50;
+    const offset = req.query.offset ? parseInt(req.query.offset as string, 10) : 0;
+
+    const filters: any = {
+      eventId,
+      limit,
+      offset,
+    };
+
+    const result = await withDatabaseErrorHandling(
+      () => storage.getWorkforceRecruiterMeetupEventSignups(filters),
+      'getWorkforceRecruiterMeetupEventSignups'
+    );
+    res.json(result);
+  }));
+
+  app.get('/api/workforce-recruiter/meetup-events/:eventId/signup-count', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const eventId = req.params.eventId;
+    const count = await withDatabaseErrorHandling(
+      () => storage.getWorkforceRecruiterMeetupEventSignupCount(eventId),
+      'getWorkforceRecruiterMeetupEventSignupCount'
+    );
+    res.json({ count });
+  }));
+
+  app.get('/api/workforce-recruiter/meetup-events/:eventId/my-signup', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const eventId = req.params.eventId;
+    const signup = await withDatabaseErrorHandling(
+      () => storage.getUserMeetupEventSignup(eventId, userId),
+      'getUserMeetupEventSignup'
+    );
+    res.json(signup || null);
+  }));
+
+  app.put('/api/workforce-recruiter/meetup-events/:eventId/signups/:signupId', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const signupId = req.params.signupId;
+    
+    // Verify user owns this signup
+    const existingSignup = await withDatabaseErrorHandling(
+      () => storage.getWorkforceRecruiterMeetupEventSignups({ userId, limit: 1000, offset: 0 }),
+      'getWorkforceRecruiterMeetupEventSignups'
+    );
+    const signup = existingSignup.signups.find(s => s.id === signupId);
+    if (!signup || signup.userId !== userId) {
+      return res.status(403).json({ message: "You can only update your own signup" });
+    }
+    
+    const validatedData = validateWithZod(insertWorkforceRecruiterMeetupEventSignupSchema.partial(), req.body, 'Invalid signup data');
+    const updated = await withDatabaseErrorHandling(
+      () => storage.updateWorkforceRecruiterMeetupEventSignup(signupId, validatedData),
+      'updateWorkforceRecruiterMeetupEventSignup'
+    );
+    res.json(updated);
+  }));
+
+  app.delete('/api/workforce-recruiter/meetup-events/:eventId/signups/:signupId', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const signupId = req.params.signupId;
+    
+    // Verify user owns this signup
+    const existingSignup = await withDatabaseErrorHandling(
+      () => storage.getWorkforceRecruiterMeetupEventSignups({ userId, limit: 1000, offset: 0 }),
+      'getWorkforceRecruiterMeetupEventSignups'
+    );
+    const signup = existingSignup.signups.find(s => s.id === signupId);
+    if (!signup || signup.userId !== userId) {
+      return res.status(403).json({ message: "You can only delete your own signup" });
+    }
+    
+    await withDatabaseErrorHandling(
+      () => storage.deleteWorkforceRecruiterMeetupEventSignup(signupId),
+      'deleteWorkforceRecruiterMeetupEventSignup'
+    );
+    res.json({ message: "Signup deleted successfully" });
   }));
 
   // Workforce Recruiter Tracker Reports routes

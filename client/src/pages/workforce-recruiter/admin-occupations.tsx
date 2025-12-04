@@ -34,11 +34,10 @@ export default function WorkforceRecruiterAdminOccupations() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [occupationToDelete, setOccupationToDelete] = useState<WorkforceRecruiterOccupation | null>(null);
-  const [recruitmentDialogOpen, setRecruitmentDialogOpen] = useState(false);
+  const [meetupEventDialogOpen, setMeetupEventDialogOpen] = useState(false);
   const [selectedOccupation, setSelectedOccupation] = useState<WorkforceRecruiterOccupation | null>(null);
-  const [recruitmentCount, setRecruitmentCount] = useState("");
-  const [recruitmentSource, setRecruitmentSource] = useState("hire");
-  const [recruitmentNotes, setRecruitmentNotes] = useState("");
+  const [eventTitle, setEventTitle] = useState("");
+  const [eventDescription, setEventDescription] = useState("");
   const limit = 20;
 
   const { data, isLoading } = useQuery<{ occupations: WorkforceRecruiterOccupation[]; total: number }>({

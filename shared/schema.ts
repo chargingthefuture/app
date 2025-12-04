@@ -2480,43 +2480,85 @@ export const insertWorkforceRecruiterOccupationSchema = createInsertSchema(workf
 export type InsertWorkforceRecruiterOccupation = z.infer<typeof insertWorkforceRecruiterOccupationSchema>;
 export type WorkforceRecruiterOccupation = typeof workforceRecruiterOccupations.$inferSelect;
 
-// Recruitment Events
-export const workforceRecruiterRecruitmentEvents = pgTable("workforce_recruiter_recruitment_events", {
+// Meetup Events - Admin creates in-person events for occupations
+export const workforceRecruiterMeetupEvents = pgTable("workforce_recruiter_meetup_events", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   occupationId: varchar("occupation_id").notNull().references(() => workforceRecruiterOccupations.id, { onDelete: 'cascade' }),
-  date: date("date").notNull(),
-  count: integer("count").notNull(), // Can be positive (hire/grad) or negative (attrition)
-  source: varchar("source", { length: 50 }).notNull(), // e.g., 'hire', 'grad', 'attrition'
-  notes: text("notes"),
+  title: varchar("title", { length: 200 }).notNull(),
+  description: text("description"),
   createdBy: varchar("created_by").notNull().references(() => users.id),
+  isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-export const workforceRecruiterRecruitmentEventsRelations = relations(workforceRecruiterRecruitmentEvents, ({ one }) => ({
+export const workforceRecruiterMeetupEventsRelations = relations(workforceRecruiterMeetupEvents, ({ one, many }) => ({
   occupation: one(workforceRecruiterOccupations, {
-    fields: [workforceRecruiterRecruitmentEvents.occupationId],
+    fields: [workforceRecruiterMeetupEvents.occupationId],
     references: [workforceRecruiterOccupations.id],
   }),
   creator: one(users, {
-    fields: [workforceRecruiterRecruitmentEvents.createdBy],
+    fields: [workforceRecruiterMeetupEvents.createdBy],
+    references: [users.id],
+  }),
+  signups: many(workforceRecruiterMeetupEventSignups),
+}));
+
+export const insertWorkforceRecruiterMeetupEventSchema = createInsertSchema(workforceRecruiterMeetupEvents).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  createdBy: true,
+}).extend({
+  occupationId: z.string().uuid(),
+  title: z.string().min(1, "Title is required").max(200),
+  description: z.string().optional().nullable(),
+  isActive: z.boolean().optional(),
+});
+
+export type InsertWorkforceRecruiterMeetupEvent = z.infer<typeof insertWorkforceRecruiterMeetupEventSchema>;
+export type WorkforceRecruiterMeetupEvent = typeof workforceRecruiterMeetupEvents.$inferSelect;
+
+// Meetup Event Signups - Users sign up to participate in meetup events
+export const workforceRecruiterMeetupEventSignups = pgTable("workforce_recruiter_meetup_event_signups", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  eventId: varchar("event_id").notNull().references(() => workforceRecruiterMeetupEvents.id, { onDelete: 'cascade' }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  location: varchar("location", { length: 200 }).notNull(), // Predefined location from dropdown
+  preferredMeetupDate: date("preferred_meetup_date"),
+  availability: text("availability").array().notNull().default(sql`ARRAY[]::text[]`), // Multi-select: weekdays, weekends, morning, afternoon, evening
+  whyInterested: text("why_interested"),
+  additionalComments: text("additional_comments"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const workforceRecruiterMeetupEventSignupsRelations = relations(workforceRecruiterMeetupEventSignups, ({ one }) => ({
+  event: one(workforceRecruiterMeetupEvents, {
+    fields: [workforceRecruiterMeetupEventSignups.eventId],
+    references: [workforceRecruiterMeetupEvents.id],
+  }),
+  user: one(users, {
+    fields: [workforceRecruiterMeetupEventSignups.userId],
     references: [users.id],
   }),
 }));
 
-export const insertWorkforceRecruiterRecruitmentEventSchema = createInsertSchema(workforceRecruiterRecruitmentEvents).omit({
+export const insertWorkforceRecruiterMeetupEventSignupSchema = createInsertSchema(workforceRecruiterMeetupEventSignups).omit({
   id: true,
   createdAt: true,
-  createdBy: true,
+  updatedAt: true,
 }).extend({
-  occupationId: z.string().uuid(),
-  date: z.coerce.date(),
-  count: z.number().int(),
-  source: z.string().min(1).max(50),
-  notes: z.string().optional().nullable(),
+  eventId: z.string().uuid(),
+  location: z.string().min(1, "Location is required").max(200),
+  preferredMeetupDate: z.coerce.date().optional().nullable(),
+  availability: z.array(z.enum(["weekdays", "weekends", "morning", "afternoon", "evening"])).min(1, "Select at least one availability option"),
+  whyInterested: z.string().optional().nullable(),
+  additionalComments: z.string().optional().nullable(),
 });
 
-export type InsertWorkforceRecruiterRecruitmentEvent = z.infer<typeof insertWorkforceRecruiterRecruitmentEventSchema>;
-export type WorkforceRecruiterRecruitmentEvent = typeof workforceRecruiterRecruitmentEvents.$inferSelect;
+export type InsertWorkforceRecruiterMeetupEventSignup = z.infer<typeof insertWorkforceRecruiterMeetupEventSignupSchema>;
+export type WorkforceRecruiterMeetupEventSignup = typeof workforceRecruiterMeetupEventSignups.$inferSelect;
 
 // Workforce Recruiter Tracker Announcements
 export const workforceRecruiterAnnouncements = pgTable("workforce_recruiter_announcements", {
