@@ -122,17 +122,19 @@ app.use((req, res, next) => {
   }
 
   // 404 handler - must be after all routes (including static file serving)
-  // Only catch API routes that don't exist - static file serving handles frontend routes
-  app.use((req, res, next) => {
-    // If it's an API route that wasn't handled, use notFoundHandler
+  // In Express, app.use() middleware executes BEFORE route matching, so we can't use it here
+  // Instead, we register a catch-all route that only executes if no other route matched
+  // This is the correct way to handle 404s in Express
+  app.all("*", (req, res, next) => {
+    // Only handle API routes that weren't matched by any route handler
+    // Express will only reach this route if no other route matched
     if (req.path.startsWith("/api/")) {
       return notFoundHandler(req, res, next);
     }
     // For non-API routes, static file serving should have already handled them
-    // If we get here, something went wrong - but don't call next() as it would hit error handler
-    // The catch-all in serveStatic should have served index.html already
-    // This is a safety net that shouldn't normally be reached
-    return;
+    // If we reach here, it means the catch-all route in serveStatic didn't match
+    // This shouldn't normally happen, but if it does, return 404
+    return res.status(404).json({ message: "Not found" });
   });
 
   // Error handler - must be last
