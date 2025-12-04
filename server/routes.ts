@@ -1,7 +1,7 @@
 import express, { type Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated, isAdmin, isAdminWithCsrf, getUserId, syncClerkUserToDatabase } from "./auth";
+import { setupAuth, isAuthenticated, isAdmin, isAdminWithCsrf, isUserAdmin, getUserId, syncClerkUserToDatabase } from "./auth";
 import { validateCsrfToken, generateCsrfTokenForAdmin } from "./csrf";
 import { publicListingLimiter, publicItemLimiter } from "./rateLimiter";
 import { fingerprintRequests, getSuspiciousPatterns, getSuspiciousPatternsForIP, clearSuspiciousPatterns } from "./antiScraping";
@@ -3943,7 +3943,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       throw new NotFoundError('Research item', req.params.id);
     }
     
-    if (item.userId !== userId && !isAdmin(req)) {
+    if (item.userId !== userId && !(await isUserAdmin(req))) {
       throw new ForbiddenError("Forbidden");
     }
 
@@ -4044,7 +4044,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       throw new NotFoundError('Answer', req.params.id);
     }
     
-    if (answer.userId !== userId && !isAdmin(req)) {
+    if (answer.userId !== userId && !(await isUserAdmin(req))) {
       throw new ForbiddenError("Forbidden");
     }
 
@@ -4822,7 +4822,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         'getLostmailIncidentsByEmail'
       );
       res.json(incidents);
-    } else if (isAdmin(req)) {
+    } else if (await isUserAdmin(req)) {
       // Admin list with filters
       const filters: any = {};
       if (req.query.incidentType) filters.incidentType = req.query.incidentType as string;
@@ -4855,7 +4855,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     
     // Only admins or the reporter can view details
     const email = req.query.email as string;
-    if (!isAdmin(req) && incident.reporterEmail !== email) {
+    if (!(await isUserAdmin(req)) && incident.reporterEmail !== email) {
       throw new ForbiddenError("Forbidden");
     }
     

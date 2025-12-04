@@ -414,6 +414,34 @@ export const isAuthenticated: RequestHandler = requireAuth({
 // Note: For routes that need optional auth, use clerkMiddleware() directly
 // which attaches req.auth without blocking unauthenticated requests
 
+/**
+ * Synchronous helper function to check if a user is an admin
+ * Use this when you need to check admin status without calling next()
+ * 
+ * @param req - Express request object
+ * @returns Promise<boolean> - true if user is authenticated and is an admin, false otherwise
+ */
+export async function isUserAdmin(req: any): Promise<boolean> {
+  // First ensure user is authenticated
+  if (!req.auth?.userId) {
+    return false;
+  }
+
+  const userId = req.auth.userId;
+  let user;
+  try {
+    user = await withDatabaseErrorHandling(
+      () => storage.getUser(userId),
+      'getUserForAdminCheck'
+    );
+  } catch (error: any) {
+    // If database is unavailable or any error occurs, return false
+    return false;
+  }
+  
+  return !!(user && user.isAdmin);
+}
+
 // Admin middleware - checks if user is admin in our database
 export const isAdmin: RequestHandler = async (req: any, res, next) => {
   // First ensure user is authenticated

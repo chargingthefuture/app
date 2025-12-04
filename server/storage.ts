@@ -6457,134 +6457,211 @@ export class DatabaseStorage implements IStorage {
     skillLevelBreakdown: Array<{ skillLevel: string; target: number; recruited: number; percent: number }>;
     annualTrainingGap: Array<{ occupationId: string; occupationTitle: string; sector: string; target: number; actual: number; gap: number }>;
   }> {
+    // Get all occupations (these define the targets)
     const occupations = await db.select().from(workforceRecruiterOccupations);
-
     const totalWorkforceTarget = occupations.reduce((sum, occ) => sum + occ.headcountTarget, 0);
-    const totalCurrentRecruited = occupations.reduce((sum, occ) => sum + occ.currentRecruited, 0);
-    const percentRecruited = totalWorkforceTarget > 0 ? (totalCurrentRecruited / totalWorkforceTarget) * 100 : 0;
 
-    // Sector breakdown
-    const sectorMap = new Map<string, { target: number; recruited: number }>();
-    occupations.forEach(occ => {
-      const sector = occ.sector || "Unknown";
-      const existing = sectorMap.get(sector) || { target: 0, recruited: 0 };
-      sectorMap.set(sector, {
-        target: existing.target + occ.headcountTarget,
-        recruited: existing.recruited + occ.currentRecruited,
-      });
-    });
-    const sectorBreakdown = Array.from(sectorMap.entries()).map(([sector, data]) => ({
-      sector,
-      target: data.target,
-      recruited: data.recruited,
-      percent: data.target > 0 ? (data.recruited / data.target) * 100 : 0,
-    }));
-
-    // Skill level breakdown
-    const skillMap = new Map<string, { target: number; recruited: number }>();
-    occupations.forEach(occ => {
-      const existing = skillMap.get(occ.skillLevel) || { target: 0, recruited: 0 };
-      skillMap.set(occ.skillLevel, {
-        target: existing.target + occ.headcountTarget,
-        recruited: existing.recruited + occ.currentRecruited,
-      });
-    });
-    const skillLevelBreakdown = Array.from(skillMap.entries()).map(([skillLevel, data]) => ({
-      skillLevel,
-      target: data.target,
-      recruited: data.recruited,
-      percent: data.target > 0 ? (data.recruited / data.target) * 100 : 0,
-    }));
-
-    // Annual training gap (last 12 months)
-    const twelveMonthsAgo = new Date();
-    twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
-    const recentEvents = await db
-      .select()
-      .from(workforceRecruiterRecruitmentEvents)
-      .where(gte(workforceRecruiterRecruitmentEvents.date, twelveMonthsAgo));
-
-    const trainingByOccupation = new Map<string, number>();
-    recentEvents.forEach(event => {
-      if (event.count > 0) { // Only count positive recruitment (hires/graduates)
-        const existing = trainingByOccupation.get(event.occupationId) || 0;
-        trainingByOccupation.set(event.occupationId, existing + event.count);
-      }
-    });
-
-    // Count Directory profiles with skills that match occupations
-    // Get all Directory profiles with skills
+    // Get all Directory profiles with skills (these are the recruited people)
+    // A Directory profile = recruitment into the skills economy
     const allDirectoryProfiles = await db
       .select()
       .from(directoryProfiles)
       .where(sql`array_length(${directoryProfiles.skills}, 1) > 0`);
+    
+    const totalCurrentRecruited = allDirectoryProfiles.length;
+    const percentRecruited = totalWorkforceTarget > 0 ? (totalCurrentRecruited / totalWorkforceTarget) * 100 : 0;
 
-    // Get all job title IDs from occupations
-    const jobTitleIds = occupations
-      .map(occ => occ.jobTitleId)
-      .filter((id): id is string => !!id);
+    // Build lookup maps for matching Directory profiles to occupations
+    // Get all sectors and job titles in one query
+    const allSectors = await db.select().from(skillsSectors);
+    const allJobTitles = await db.select().from(skillsJobTitles);
+    const sectorIdToNameMap = new Map<string, string>();
+    for (const sector of allSectors) {
+      sectorIdToNameMap.set(sector.id, sector.name);
+    }
+    const jobTitleToSectorMap = new Map<string, string>();
+    const jobTitleIdToNameMap = new Map<string, string>();
+    for (const jobTitle of allJobTitles) {
+      jobTitleIdToNameMap.set(jobTitle.id, jobTitle.name);
+      const sectorName = sectorIdToNameMap.get(jobTitle.sectorId);
+      if (sectorName) {
+        jobTitleToSectorMap.set(jobTitle.id, sectorName);
+      }
+    }
 
-    // Fetch all skills for all job titles in one query
-    const allJobTitleSkills = jobTitleIds.length > 0
-      ? await db
-          .select({ 
-            jobTitleId: skillsSkills.jobTitleId,
-            name: skillsSkills.name 
-          })
-          .from(skillsSkills)
-          .where(inArray(skillsSkills.jobTitleId, jobTitleIds))
-      : [];
-
-    // Build a map of job title -> skills
+    // Get all skills for all job titles
+    const allSkills = await db.select().from(skillsSkills);
     const jobTitleSkillsMap = new Map<string, Set<string>>();
-    for (const skill of allJobTitleSkills) {
+    for (const skill of allSkills) {
       if (!jobTitleSkillsMap.has(skill.jobTitleId)) {
         jobTitleSkillsMap.set(skill.jobTitleId, new Set());
       }
       jobTitleSkillsMap.get(skill.jobTitleId)!.add(skill.name.toLowerCase());
     }
 
-    // Build a map of occupation -> skills
+    // Build occupation matching maps
     const occupationSkillsMap = new Map<string, Set<string>>();
+    const occupationSectorMap = new Map<string, string>();
+    const occupationJobTitleMap = new Map<string, string>();
     for (const occ of occupations) {
-      if (occ.jobTitleId && jobTitleSkillsMap.has(occ.jobTitleId)) {
-        occupationSkillsMap.set(occ.id, jobTitleSkillsMap.get(occ.jobTitleId)!);
-      }
-    }
-
-    // Count Directory profiles that match each occupation
-    const directoryProfilesByOccupation = new Map<string, number>();
-    
-    for (const profile of allDirectoryProfiles) {
-      if (!profile.skills || profile.skills.length === 0) continue;
-      
-      const profileSkills = profile.skills.map(s => s.toLowerCase());
-      
-      // Check which occupations this profile matches
-      for (const [occId, occSkills] of occupationSkillsMap.entries()) {
-        // If profile has at least one skill matching the occupation's skills
-        const hasMatchingSkill = profileSkills.some(skill => occSkills.has(skill));
-        if (hasMatchingSkill) {
-          const existing = directoryProfilesByOccupation.get(occId) || 0;
-          directoryProfilesByOccupation.set(occId, existing + 1);
+      occupationSectorMap.set(occ.id, occ.sector || "Unknown");
+      if (occ.jobTitleId) {
+        const jobTitleName = jobTitleIdToNameMap.get(occ.jobTitleId);
+        if (jobTitleName) {
+          occupationJobTitleMap.set(occ.id, jobTitleName);
+        }
+        if (jobTitleSkillsMap.has(occ.jobTitleId)) {
+          occupationSkillsMap.set(occ.id, jobTitleSkillsMap.get(occ.jobTitleId)!);
         }
       }
     }
 
-    // Combine recruitment events and Directory profiles for actual count
+    // Match Directory profiles to occupations
+    // A profile matches an occupation if:
+    // 1. Profile has a sector that matches occupation sector, OR
+    // 2. Profile has a job title that matches occupation job title, OR
+    // 3. Profile has a skill that matches occupation skills
+    const profileToOccupationsMap = new Map<string, Set<string>>(); // profileId -> Set of occupationIds
+    const occupationToProfilesMap = new Map<string, Set<string>>(); // occupationId -> Set of profileIds
+    
+    for (const profile of allDirectoryProfiles) {
+      if (!profile.skills || profile.skills.length === 0) continue;
+      
+      const profileId = profile.id;
+      const profileSectors = (profile.sectors || []).map(s => s.toLowerCase());
+      const profileJobTitles = (profile.jobTitles || []).map(jt => jt.toLowerCase());
+      const profileSkills = (profile.skills || []).map(s => s.toLowerCase());
+      
+      const matchingOccupations = new Set<string>();
+      
+      for (const occ of occupations) {
+        const occSector = (occ.sector || "").toLowerCase();
+        const occJobTitle = occupationJobTitleMap.get(occ.id)?.toLowerCase() || "";
+        const occSkills = occupationSkillsMap.get(occ.id) || new Set<string>();
+        
+        // Check if profile matches this occupation
+        const matchesSector = profileSectors.some(ps => ps === occSector);
+        const matchesJobTitle = profileJobTitles.some(pjt => pjt === occJobTitle);
+        const matchesSkill = profileSkills.some(ps => occSkills.has(ps));
+        
+        if (matchesSector || matchesJobTitle || matchesSkill) {
+          matchingOccupations.add(occ.id);
+          if (!occupationToProfilesMap.has(occ.id)) {
+            occupationToProfilesMap.set(occ.id, new Set());
+          }
+          occupationToProfilesMap.get(occ.id)!.add(profileId);
+        }
+      }
+      
+      if (matchingOccupations.size > 0) {
+        profileToOccupationsMap.set(profileId, matchingOccupations);
+      }
+    }
+
+    // Sector breakdown - count Directory profiles by sector
+    const sectorRecruitedMap = new Map<string, number>();
+    for (const profile of allDirectoryProfiles) {
+      const sectors = profile.sectors || [];
+      if (sectors.length > 0) {
+        for (const sector of sectors) {
+          sectorRecruitedMap.set(sector, (sectorRecruitedMap.get(sector) || 0) + 1);
+        }
+      } else {
+        // If no sectors, try to infer from matching occupations
+        const matchingOccs = profileToOccupationsMap.get(profile.id);
+        if (matchingOccs && matchingOccs.size > 0) {
+          for (const occId of matchingOccs) {
+            const sector = occupationSectorMap.get(occId) || "Unknown";
+            sectorRecruitedMap.set(sector, (sectorRecruitedMap.get(sector) || 0) + 1);
+          }
+        } else {
+          sectorRecruitedMap.set("Unknown", (sectorRecruitedMap.get("Unknown") || 0) + 1);
+        }
+      }
+    }
+
+    // Sector breakdown - combine targets from occupations with recruited from Directory
+    const sectorTargetMap = new Map<string, number>();
+    occupations.forEach(occ => {
+      const sector = occ.sector || "Unknown";
+      sectorTargetMap.set(sector, (sectorTargetMap.get(sector) || 0) + occ.headcountTarget);
+    });
+
+    const sectorBreakdown = Array.from(new Set([
+      ...sectorTargetMap.keys(),
+      ...sectorRecruitedMap.keys()
+    ])).map(sector => ({
+      sector,
+      target: sectorTargetMap.get(sector) || 0,
+      recruited: sectorRecruitedMap.get(sector) || 0,
+      percent: (sectorTargetMap.get(sector) || 0) > 0 
+        ? ((sectorRecruitedMap.get(sector) || 0) / (sectorTargetMap.get(sector) || 0)) * 100 
+        : 0,
+    })).sort((a, b) => b.recruited - a.recruited);
+
+    // Skill level breakdown - infer skill level from matching occupations
+    const skillLevelRecruitedMap = new Map<string, number>();
+    const skillLevelTargetMap = new Map<string, number>();
+    
+    // Count targets by skill level
+    occupations.forEach(occ => {
+      skillLevelTargetMap.set(
+        occ.skillLevel,
+        (skillLevelTargetMap.get(occ.skillLevel) || 0) + occ.headcountTarget
+      );
+    });
+    
+    // Count recruited by skill level (from Directory profiles matching occupations)
+    for (const profile of allDirectoryProfiles) {
+      const matchingOccs = profileToOccupationsMap.get(profile.id);
+      if (matchingOccs && matchingOccs.size > 0) {
+        // Count profile once per unique skill level it matches
+        const skillLevels = new Set<string>();
+        for (const occId of matchingOccs) {
+          const occ = occupations.find(o => o.id === occId);
+          if (occ) {
+            skillLevels.add(occ.skillLevel);
+          }
+        }
+        for (const skillLevel of skillLevels) {
+          skillLevelRecruitedMap.set(
+            skillLevel,
+            (skillLevelRecruitedMap.get(skillLevel) || 0) + 1
+          );
+        }
+      } else {
+        // Profile doesn't match any occupation - count as "Unknown"
+        skillLevelRecruitedMap.set(
+          "Unknown",
+          (skillLevelRecruitedMap.get("Unknown") || 0) + 1
+        );
+      }
+    }
+
+    const skillLevelBreakdown = Array.from(new Set([
+      ...skillLevelTargetMap.keys(),
+      ...skillLevelRecruitedMap.keys()
+    ])).map(skillLevel => ({
+      skillLevel,
+      target: skillLevelTargetMap.get(skillLevel) || 0,
+      recruited: skillLevelRecruitedMap.get(skillLevel) || 0,
+      percent: (skillLevelTargetMap.get(skillLevel) || 0) > 0
+        ? ((skillLevelRecruitedMap.get(skillLevel) || 0) / (skillLevelTargetMap.get(skillLevel) || 0)) * 100
+        : 0,
+    })).sort((a, b) => b.recruited - a.recruited);
+
+    // Annual training gap - count Directory profiles matching each occupation
     const annualTrainingGap = occupations
       .map(occ => {
-        const eventCount = trainingByOccupation.get(occ.id) || 0;
-        const directoryCount = directoryProfilesByOccupation.get(occ.id) || 0;
-        const actual = eventCount + directoryCount;
-      return {
-        occupationId: occ.id,
+        const directoryCount = occupationToProfilesMap.get(occ.id)?.size || 0;
+        return {
+          occupationId: occ.id,
           occupationTitle: occ.occupationTitle || "Unknown Occupation",
           sector: occ.sector || "Unknown Sector",
-        target: occ.annualTrainingTarget,
-        actual,
-        gap: occ.annualTrainingTarget - actual,
-      };
+          target: occ.annualTrainingTarget,
+          actual: directoryCount,
+          gap: occ.annualTrainingTarget - directoryCount,
+        };
       })
       .filter(item => item.target > 0) // Show all occupations with training targets
       .sort((a, b) => b.gap - a.gap) // Sort by gap descending (largest gaps first)
