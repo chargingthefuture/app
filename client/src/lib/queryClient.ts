@@ -57,7 +57,16 @@ export async function apiRequest(
   data?: unknown | undefined,
 ): Promise<Response> {
   // Check if this is an admin endpoint that requires CSRF protection
-  const isAdminEndpoint = url.includes('/api/admin') || url.match(/\/api\/[^/]+\/admin/);
+  // Patterns: /api/admin/*, /api/{app}/admin/*, or specific admin-protected endpoints
+  const isAdminEndpoint = 
+    url.includes('/api/admin') || 
+    url.match(/\/api\/[^/]+\/admin/) ||
+    // Workforce recruiter meetup events (admin-only)
+    url.match(/\/api\/workforce-recruiter\/meetup-events/) ||
+    // Chyme admin rooms
+    url.match(/\/api\/chyme\/admin\/rooms/) ||
+    // Skills admin endpoints
+    url.match(/\/api\/skills\/(sectors|job-titles|skills)/);
   
   // For state-changing methods on admin endpoints, include CSRF token
   const stateChangingMethods = ['POST', 'PUT', 'DELETE', 'PATCH'];
