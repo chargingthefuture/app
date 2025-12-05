@@ -952,10 +952,8 @@ CREATE TABLE IF NOT EXISTS workforce_recruiter_config (
 -- Occupations - References shared skills database for data consistency
 CREATE TABLE IF NOT EXISTS workforce_recruiter_occupations (
   id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
-  sector_id VARCHAR REFERENCES skills_sectors(id) ON DELETE RESTRICT,
-  job_title_id VARCHAR REFERENCES skills_job_titles(id) ON DELETE RESTRICT,
-  sector VARCHAR(100),
-  occupation_title VARCHAR(200),
+  sector VARCHAR(100) NOT NULL,
+  occupation_title VARCHAR(200) NOT NULL,
   headcount_target INTEGER NOT NULL,
   skill_level VARCHAR(20) NOT NULL,
   annual_training_target INTEGER NOT NULL,

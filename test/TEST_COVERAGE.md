@@ -74,6 +74,7 @@ This document lists all tests created for the application.
 - ✅ `test/client/pages/directory/profile.test.tsx` - Directory profile page
 - ✅ `test/client/pages/trusttransport/profile.test.tsx` - TrustTransport profile page
 - ✅ `test/client/pages/mechanicmatch/profile.test.tsx` - MechanicMatch profile page
+- ✅ `test/client/pages/workforce-recruiter/profile.test.tsx` - Workforce Recruiter profile page
 
 ### Core Pages
 - ✅ `test/client/pages/home.test.tsx` - Home dashboard page
@@ -90,6 +91,7 @@ This document lists all tests created for the application.
 - ✅ `test/e2e/lostmail.spec.ts` - LostMail incident reporting flows
 - ✅ `test/e2e/research.spec.ts` - Research items, answers, comments, and interactions
 - ✅ `test/e2e/gentlepulse.spec.ts` - GentlePulse library, favorites, and progress tracking
+- ✅ `test/e2e/workforce-recruiter.spec.ts` - Workforce Recruiter profile, occupations, and meetup events
 
 ## Smoke Tests
 
@@ -172,21 +174,30 @@ This document lists all tests created for the application.
     - Announcements
     - Admin management
 
-13. **Admin Features**
+13. **Workforce Recruiter Mini-App**
+    - Profile CRUD
+    - Occupations tracking
+    - Meetup events
+    - Event signups
+    - Reports and analytics
+    - Announcements
+    - Admin management
+
+14. **Admin Features**
     - Stats dashboard
     - User management (approval/revocation)
     - Payment management
     - Anti-scraping monitoring
     - Activity logs
 
-14. **Core Pages**
+15. **Core Pages**
     - Home dashboard
     - Landing/login page
     - Services listing
     - User payments
     - Account management
 
-15. **Shared Components**
+16. **Shared Components**
     - Announcement banner
     - Pagination controls
     - Login form
@@ -227,12 +238,12 @@ npm run test:e2e
 
 ## Test Statistics
 
-- **Total Test Files**: 38
-- **API Test Files**: 12 (auth, supportmatch, lighthouse, socketrelay, directory, chatgroups, trusttransport, mechanicmatch, lostmail, research, gentlepulse, admin, public-endpoints)
+- **Total Test Files**: 40
+- **API Test Files**: 12 (auth, supportmatch, lighthouse, socketrelay, directory, chatgroups, trusttransport, mechanicmatch, lostmail, research, gentlepulse, workforce-recruiter, admin, public-endpoints)
 - **Integration Test Files**: 1
 - **Security Test Files**: 1
-- **Component Test Files**: 17 (7 profile pages, 5 core pages, 4 shared components, 4 hooks)
-- **E2E Test Files**: 7 (auth, profile-crud, trusttransport, mechanicmatch, lostmail, research, gentlepulse)
+- **Component Test Files**: 18 (8 profile pages, 5 core pages, 4 shared components, 4 hooks)
+- **E2E Test Files**: 8 (auth, profile-crud, trusttransport, mechanicmatch, lostmail, research, gentlepulse, workforce-recruiter)
 - **Smoke Test Files**: 1
 
 ## Coverage Goals
