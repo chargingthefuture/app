@@ -6416,10 +6416,11 @@ export class DatabaseStorage implements IStorage {
     let query = db.select().from(workforceRecruiterOccupations);
 
     const conditions = [];
-    if (filters?.sector) {
-      conditions.push(eq(workforceRecruiterOccupations.sector, filters.sector));
+    if (filters?.sector && filters.sector !== "all") {
+      // Use case-insensitive matching for sector
+      conditions.push(sql`LOWER(${workforceRecruiterOccupations.sector}) = LOWER(${filters.sector})`);
     }
-    if (filters?.skillLevel) {
+    if (filters?.skillLevel && filters.skillLevel !== "all") {
       conditions.push(eq(workforceRecruiterOccupations.skillLevel, filters.skillLevel));
     }
 

@@ -38,15 +38,25 @@ export default function OccupationsPage() {
     queryKey: [`/api/workforce-recruiter/occupations?${queryParams}`],
   });
 
+  // Get all occupations (without filters) to build the sectors dropdown
+  const { data: allOccupationsData } = useQuery<{ occupations: WorkforceRecruiterOccupation[]; total: number }>({
+    queryKey: [`/api/workforce-recruiter/occupations?limit=1000&offset=0`],
+  });
+
   const occupations = data?.occupations || [];
   const total = data?.total || 0;
 
-  // Get unique sectors for filter
+  // Get unique sectors for filter from ALL occupations (not filtered)
   const sectors = useMemo(() => {
     const sectorSet = new Set<string>();
-    occupations.forEach(occ => sectorSet.add(occ.sector));
+    const allOccs = allOccupationsData?.occupations || [];
+    allOccs.forEach(occ => {
+      if (occ.sector) {
+        sectorSet.add(occ.sector);
+      }
+    });
     return Array.from(sectorSet).sort();
-  }, [occupations]);
+  }, [allOccupationsData]);
 
   // Fuzzy search
   const filteredOccupations = useFuzzySearch(occupations, searchQuery, {
@@ -112,7 +122,13 @@ export default function OccupationsPage() {
             </div>
             <div>
               <Label htmlFor="sector">Sector</Label>
-              <Select value={sectorFilter} onValueChange={setSectorFilter}>
+              <Select 
+                value={sectorFilter} 
+                onValueChange={(value) => {
+                  setSectorFilter(value);
+                  setPage(0); // Reset to first page when filter changes
+                }}
+              >
                 <SelectTrigger id="sector" data-testid="select-sector">
                   <SelectValue placeholder="All Sectors" />
                 </SelectTrigger>
@@ -128,7 +144,13 @@ export default function OccupationsPage() {
             </div>
             <div>
               <Label htmlFor="skillLevel">Skill Level</Label>
-              <Select value={skillLevelFilter} onValueChange={setSkillLevelFilter}>
+              <Select 
+                value={skillLevelFilter} 
+                onValueChange={(value) => {
+                  setSkillLevelFilter(value);
+                  setPage(0); // Reset to first page when filter changes
+                }}
+              >
                 <SelectTrigger id="skillLevel" data-testid="select-skill-level">
                   <SelectValue placeholder="All Skill Levels" />
                 </SelectTrigger>
