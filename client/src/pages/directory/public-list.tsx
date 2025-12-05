@@ -160,6 +160,32 @@ export default function PublicDirectoryList() {
                           </div>
                         )}
 
+                        {profile.sectors && profile.sectors.length > 0 && (
+                          <div>
+                            <p className="text-sm text-muted-foreground mb-1">Sectors</p>
+                            <div className="flex flex-wrap gap-1">
+                              {profile.sectors.slice(0, 3).map((sector) => (
+                                <Badge key={sector} variant="secondary" className="text-xs">
+                                  {sector}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {profile.jobTitles && profile.jobTitles.length > 0 && (
+                          <div>
+                            <p className="text-sm text-muted-foreground mb-1">Job Titles</p>
+                            <div className="flex flex-wrap gap-1">
+                              {profile.jobTitles.slice(0, 3).map((jobTitle) => (
+                                <Badge key={jobTitle} variant="secondary" className="text-xs">
+                                  {jobTitle}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
                         {(profile.city || profile.state || profile.country) && (
                           <div className="flex items-center gap-2 text-sm">
                             <MapPin className="w-4 h-4 text-muted-foreground flex-shrink-0" />

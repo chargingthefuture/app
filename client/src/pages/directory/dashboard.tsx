@@ -208,6 +208,16 @@ export default function DirectoryDashboard() {
                         <div className="flex flex-wrap gap-2">
                           {p.skills?.map((s: string) => (<Badge key={s} variant="outline">{s}</Badge>))}
                         </div>
+                        {p.sectors && p.sectors.length > 0 && (
+                          <div className="flex flex-wrap gap-2">
+                            {p.sectors.map((s: string) => (<Badge key={s} variant="outline">{s}</Badge>))}
+                          </div>
+                        )}
+                        {p.jobTitles && p.jobTitles.length > 0 && (
+                          <div className="flex flex-wrap gap-2">
+                            {p.jobTitles.map((jt: string) => (<Badge key={jt} variant="outline">{jt}</Badge>))}
+                          </div>
+                        )}
                         {p.signalUrl ? (
                           <div>
                             <Button variant="ghost" size="sm" onClick={() => openExternal(p.signalUrl)} className="justify-start px-0 text-primary">
