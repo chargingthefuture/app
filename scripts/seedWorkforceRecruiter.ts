@@ -145,8 +145,8 @@ async function seedWorkforceRecruiter() {
         .from(workforceRecruiterOccupations)
         .where(
           and(
-            eq(workforceRecruiterOccupations.sectorId, sector.id),
-            eq(workforceRecruiterOccupations.jobTitleId, jobTitle.id)
+            eq(workforceRecruiterOccupations.sector, sector.name),
+            eq(workforceRecruiterOccupations.occupationTitle, jobTitle.name)
           )
         )
         .limit(1);
@@ -171,9 +171,6 @@ async function seedWorkforceRecruiter() {
 
       // Create occupation record
       const occupationData: InsertWorkforceRecruiterOccupation = {
-        sectorId: sector.id,
-        jobTitleId: jobTitle.id,
-        // Also populate legacy fields for backward compatibility
         sector: sector.name,
         occupationTitle: jobTitle.name,
         headcountTarget,
