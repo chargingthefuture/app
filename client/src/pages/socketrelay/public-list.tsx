@@ -21,6 +21,7 @@ type PublicRequest = {
     country: string | null;
   } | null;
   creator: {
+    displayName: string | null;
     firstName: string | null;
     lastName: string | null;
     isVerified: boolean;
@@ -187,7 +188,7 @@ export default function PublicSocketRelayList() {
               {requests.map((request) => {
                 const shareUrl = `${window.location.origin}/apps/socketrelay/public/${request.id}`;
                 const creatorName = request.creator
-                  ? [request.creator.firstName, request.creator.lastName].filter(Boolean).join(' ') || 'Anonymous'
+                  ? request.creator.displayName || [request.creator.firstName, request.creator.lastName].filter(Boolean).join(' ') || 'Anonymous'
                   : 'Anonymous';
 
                 return (

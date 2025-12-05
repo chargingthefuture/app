@@ -2502,6 +2502,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           country: creatorProfile.country,
         } : null,
         creator: creator ? {
+          displayName: creatorProfile?.displayName || null,
           firstName: creator.firstName,
           lastName: creator.lastName,
           isVerified: creator.isVerified,
@@ -2542,6 +2543,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         country: creatorProfile.country,
       } : null,
       creator: creator ? {
+        displayName: creatorProfile?.displayName || null,
         firstName: creator.firstName,
         lastName: creator.lastName,
         isVerified: creator.isVerified,

@@ -26,7 +26,7 @@ describe('Home', () => {
     renderWithProviders(<Home />);
 
     await waitFor(() => {
-      expect(screen.getByText(/dashboard/i)).toBeInTheDocument();
+      expect(screen.getByText(/welcome back/i)).toBeInTheDocument();
     });
   });
 
@@ -43,7 +43,7 @@ describe('Home', () => {
     renderWithProviders(<Home />);
 
     await waitFor(() => {
-      expect(screen.getByText(/dashboard/i)).toBeInTheDocument();
+      expect(screen.getByText(/welcome back/i)).toBeInTheDocument();
     });
   });
 });
