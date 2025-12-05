@@ -6605,6 +6605,24 @@ export class DatabaseStorage implements IStorage {
     await db.delete(workforceRecruiterMeetupEventSignups).where(eq(workforceRecruiterMeetupEventSignups.id, id));
   }
 
+  // Helper function to infer sectors from skills using the skills database
+  private inferSectorsFromSkills(
+    profileSkills: string[],
+    skillNameToSectorsMap: Map<string, Set<string>>
+  ): Set<string> {
+    const inferredSectors = new Set<string>();
+    for (const skill of profileSkills) {
+      const skillNameLower = skill.toLowerCase().trim();
+      const sectors = skillNameToSectorsMap.get(skillNameLower);
+      if (sectors) {
+        for (const sector of sectors) {
+          inferredSectors.add(sector);
+        }
+      }
+    }
+    return inferredSectors;
+  }
+
   async getWorkforceRecruiterSummaryReport(): Promise<{
     totalWorkforceTarget: number;
     totalCurrentRecruited: number;
@@ -6648,11 +6666,23 @@ export class DatabaseStorage implements IStorage {
     // Get all skills for all job titles
     const allSkills = await db.select().from(skillsSkills);
     const jobTitleSkillsMap = new Map<string, Set<string>>();
+    // Map skill name (lowercase) -> Set of sector names (for direct skill->sector lookup)
+    const skillNameToSectorsMap = new Map<string, Set<string>>();
     for (const skill of allSkills) {
       if (!jobTitleSkillsMap.has(skill.jobTitleId)) {
         jobTitleSkillsMap.set(skill.jobTitleId, new Set());
       }
-      jobTitleSkillsMap.get(skill.jobTitleId)!.add(skill.name.toLowerCase());
+      const skillNameLower = skill.name.toLowerCase().trim();
+      jobTitleSkillsMap.get(skill.jobTitleId)!.add(skillNameLower);
+      
+      // Build skill -> sector mapping
+      const jobTitleSector = jobTitleToSectorMap.get(skill.jobTitleId);
+      if (jobTitleSector) {
+        if (!skillNameToSectorsMap.has(skillNameLower)) {
+          skillNameToSectorsMap.set(skillNameLower, new Set());
+        }
+        skillNameToSectorsMap.get(skillNameLower)!.add(jobTitleSector);
+      }
     }
 
     // Build occupation matching maps
@@ -6763,12 +6793,30 @@ export class DatabaseStorage implements IStorage {
             sectorRecruitedMap.set(sector, (sectorRecruitedMap.get(sector) || 0) + countPerSector);
           }
         } else {
-          // All matching occupations have "Unknown" sector - count as Unknown
-          sectorRecruitedMap.set("Unknown", (sectorRecruitedMap.get("Unknown") || 0) + 1);
+          // All matching occupations have "Unknown" sector - try to infer from skills database
+          const sectorsFromSkills = this.inferSectorsFromSkills(profile.skills || [], skillNameToSectorsMap);
+          if (sectorsFromSkills.size > 0) {
+            const countPerSector = 1 / sectorsFromSkills.size;
+            for (const sector of sectorsFromSkills) {
+              sectorRecruitedMap.set(sector, (sectorRecruitedMap.get(sector) || 0) + countPerSector);
+            }
+          } else {
+            sectorRecruitedMap.set("Unknown", (sectorRecruitedMap.get("Unknown") || 0) + 1);
+          }
         }
       } else {
-        // Profile has no sectors and doesn't match any occupations - count as Unknown
-        sectorRecruitedMap.set("Unknown", (sectorRecruitedMap.get("Unknown") || 0) + 1);
+        // Profile has no sectors and doesn't match any occupations - infer from skills database
+        const sectorsFromSkills = this.inferSectorsFromSkills(profile.skills || [], skillNameToSectorsMap);
+        if (sectorsFromSkills.size > 0) {
+          // Count fractionally across inferred sectors
+          const countPerSector = 1 / sectorsFromSkills.size;
+          for (const sector of sectorsFromSkills) {
+            sectorRecruitedMap.set(sector, (sectorRecruitedMap.get(sector) || 0) + countPerSector);
+          }
+        } else {
+          // No sectors found from skills - count as Unknown (shouldn't happen if skills database is complete)
+          sectorRecruitedMap.set("Unknown", (sectorRecruitedMap.get("Unknown") || 0) + 1);
+        }
       }
     }
 
