@@ -308,20 +308,6 @@ export default function AdminDirectoryPage() {
   const [deleteSkillDialogOpen, setDeleteSkillDialogOpen] = useState(false);
   const [skillToDelete, setSkillToDelete] = useState<DirectorySkill | null>(null);
 
-  const createSkillMutation = useMutation({
-    mutationFn: async (data: { name: string }) => {
-      const res = await apiRequest("POST", "/api/directory/admin/skills", data);
-      return await res.json();
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["/api/directory/admin/skills"] });
-      toast({ title: "Created", description: "Skill created successfully" });
-    },
-    onError: (e: any) => {
-      toast({ title: "Error", description: e.message || "Failed to create skill", variant: "destructive" });
-    }
-  });
-
   const deleteSkillMutation = useMutation({
     mutationFn: async (skillName: string) => {
       // Send skill name in request body to avoid URL encoding issues
@@ -403,26 +389,7 @@ export default function AdminDirectoryPage() {
             )}
           </div>
           <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label id="admin-skills-label">Skills (up to 3) <span className="text-red-600">*</span></Label>
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    const name = prompt("Enter new skill name:");
-                    if (name && name.trim()) {
-                      createSkillMutation.mutate({ name: name.trim() });
-                    }
-                  }}
-                  disabled={createSkillMutation.isPending}
-                  data-testid="button-create-skill"
-                >
-                  <Plus className="w-4 h-4 mr-1" /> Add Skill
-                </Button>
-              </div>
-            </div>
+            <Label id="admin-skills-label">Skills (up to 3) <span className="text-red-600">*</span></Label>
             <Popover>
               <PopoverTrigger asChild>
                 <Button
@@ -813,26 +780,7 @@ export default function AdminDirectoryPage() {
                         </div>
                       </div>
                       <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <Label id={`edit-skills-label-${p.id}`}>Skills (up to 3) <span className="text-red-600">*</span></Label>
-                          <div className="flex gap-2">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                const name = prompt("Enter new skill name:");
-                                if (name && name.trim()) {
-                                  createSkillMutation.mutate({ name: name.trim() });
-                                }
-                              }}
-                              disabled={createSkillMutation.isPending}
-                              data-testid={`button-create-skill-edit-${p.id}`}
-                            >
-                              <Plus className="w-4 h-4 mr-1" /> Add Skill
-                            </Button>
-                          </div>
-                        </div>
+                        <Label id={`edit-skills-label-${p.id}`}>Skills (up to 3) <span className="text-red-600">*</span></Label>
                         <Popover>
                           <PopoverTrigger asChild>
                             <Button variant="outline" role="combobox" aria-haspopup="listbox" aria-labelledby={`edit-skills-label-${p.id}`} className="w-full justify-between" disabled={skillsLoading}>

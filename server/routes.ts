@@ -5864,6 +5864,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(report);
   }));
 
+  app.get('/api/workforce-recruiter/reports/skill-level/:skillLevel', isAuthenticated, asyncHandler(async (req, res) => {
+    const { skillLevel } = req.params;
+    const detail = await withDatabaseErrorHandling(
+      () => storage.getWorkforceRecruiterSkillLevelDetail(skillLevel),
+      'getWorkforceRecruiterSkillLevelDetail'
+    );
+    res.json(detail);
+  }));
+
   // Workforce Recruiter Tracker Export route
   app.get('/api/workforce-recruiter/export', isAuthenticated, asyncHandler(async (req: any, res) => {
     const format = (req.query.format as string) || 'csv';

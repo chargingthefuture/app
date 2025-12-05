@@ -844,6 +844,21 @@ export interface IStorage {
     skillLevelBreakdown: Array<{ skillLevel: string; target: number; recruited: number; percent: number }>;
     annualTrainingGap: Array<{ occupationId: string; occupationTitle: string; sector: string; target: number; actual: number; gap: number }>;
   }>;
+  getWorkforceRecruiterSkillLevelDetail(skillLevel: string): Promise<{
+    skillLevel: string;
+    target: number;
+    recruited: number;
+    percent: number;
+    profiles: Array<{
+      profileId: string;
+      displayName: string;
+      skills: string[];
+      sectors: string[];
+      jobTitles: string[];
+      matchingOccupations: Array<{ id: string; title: string; sector: string }>;
+      matchReason: string; // "sector", "jobTitle", "skill", or "none"
+    }>;
+  }>;
 
   // Workforce Recruiter Announcement operations
   createWorkforceRecruiterAnnouncement(announcement: InsertWorkforceRecruiterAnnouncement): Promise<WorkforceRecruiterAnnouncement>;
@@ -6623,6 +6638,58 @@ export class DatabaseStorage implements IStorage {
     return inferredSectors;
   }
 
+  /**
+   * Normalize skill name for matching - handles variations in punctuation, spacing, and case
+   * Examples:
+   * - "React.js" -> "reactjs"
+   * - "React JS" -> "reactjs"
+   * - "CPR Certification" -> "cprcertification"
+   * - "JavaScript" -> "javascript"
+   */
+  private normalizeSkillName(skill: string): string {
+    return skill
+      .toLowerCase()
+      .trim()
+      // Remove common punctuation
+      .replace(/[.,;:!?()[\]{}'"]/g, '')
+      // Normalize whitespace to single space
+      .replace(/\s+/g, ' ')
+      // Remove all spaces for comparison
+      .replace(/\s/g, '');
+  }
+
+  /**
+   * Check if a profile skill matches an occupation skill
+   * Handles variations like "React.js" matching "React" or "React JS"
+   */
+  private skillMatches(profileSkill: string, occupationSkills: Set<string>): boolean {
+    const normalizedProfileSkill = this.normalizeSkillName(profileSkill);
+    
+    // First try exact match after normalization
+    for (const occSkill of occupationSkills) {
+      const normalizedOccSkill = this.normalizeSkillName(occSkill);
+      if (normalizedProfileSkill === normalizedOccSkill) {
+        return true;
+      }
+    }
+    
+    // Then try partial matches (one contains the other)
+    // This handles cases like "React.js" matching "React" or vice versa
+    for (const occSkill of occupationSkills) {
+      const normalizedOccSkill = this.normalizeSkillName(occSkill);
+      // Check if either skill contains the other (after normalization)
+      // Only match if the shorter one is at least 3 characters to avoid false positives
+      if (normalizedProfileSkill.length >= 3 && normalizedOccSkill.length >= 3) {
+        if (normalizedProfileSkill.includes(normalizedOccSkill) || 
+            normalizedOccSkill.includes(normalizedProfileSkill)) {
+          return true;
+        }
+      }
+    }
+    
+    return false;
+  }
+
   async getWorkforceRecruiterSummaryReport(): Promise<{
     totalWorkforceTarget: number;
     totalCurrentRecruited: number;
@@ -6666,22 +6733,23 @@ export class DatabaseStorage implements IStorage {
     // Get all skills for all job titles
     const allSkills = await db.select().from(skillsSkills);
     const jobTitleSkillsMap = new Map<string, Set<string>>();
-    // Map skill name (lowercase) -> Set of sector names (for direct skill->sector lookup)
+    // Map skill name (normalized) -> Set of sector names (for direct skill->sector lookup)
     const skillNameToSectorsMap = new Map<string, Set<string>>();
     for (const skill of allSkills) {
       if (!jobTitleSkillsMap.has(skill.jobTitleId)) {
         jobTitleSkillsMap.set(skill.jobTitleId, new Set());
       }
-      const skillNameLower = skill.name.toLowerCase().trim();
-      jobTitleSkillsMap.get(skill.jobTitleId)!.add(skillNameLower);
+      // Normalize skill name for consistent matching (handles punctuation, spacing variations)
+      const normalizedSkillName = this.normalizeSkillName(skill.name);
+      jobTitleSkillsMap.get(skill.jobTitleId)!.add(normalizedSkillName);
       
-      // Build skill -> sector mapping
+      // Build skill -> sector mapping (using normalized skill name)
       const jobTitleSector = jobTitleToSectorMap.get(skill.jobTitleId);
       if (jobTitleSector) {
-        if (!skillNameToSectorsMap.has(skillNameLower)) {
-          skillNameToSectorsMap.set(skillNameLower, new Set());
+        if (!skillNameToSectorsMap.has(normalizedSkillName)) {
+          skillNameToSectorsMap.set(normalizedSkillName, new Set());
         }
-        skillNameToSectorsMap.get(skillNameLower)!.add(jobTitleSector);
+        skillNameToSectorsMap.get(normalizedSkillName)!.add(jobTitleSector);
       }
     }
 
@@ -6738,10 +6806,9 @@ export class DatabaseStorage implements IStorage {
           const normalizedPjt = pjt.trim();
           return normalizedPjt === occJobTitle;
         });
-        // Skill matching: case-insensitive
+        // Skill matching: improved normalization to handle variations
         const matchesSkill = profileSkills.some(ps => {
-          const normalizedPs = ps.trim();
-          return occSkills.has(normalizedPs);
+          return this.skillMatches(ps, occSkills);
         });
         
         if (matchesSector || matchesJobTitle || matchesSkill) {
@@ -6888,7 +6955,10 @@ export class DatabaseStorage implements IStorage {
       percent: (skillLevelTargetMap.get(skillLevel) || 0) > 0
         ? ((skillLevelRecruitedMap.get(skillLevel) || 0) / (skillLevelTargetMap.get(skillLevel) || 0)) * 100
         : 0,
-    })).sort((a, b) => b.recruited - a.recruited);
+    }))
+    // Filter out "Unknown" skill level when target is 0 to avoid division by zero display
+    .filter(item => !(item.skillLevel === "Unknown" && item.target === 0))
+    .sort((a, b) => b.recruited - a.recruited);
 
     // Annual training gap - count Directory profiles matching each occupation
     const annualTrainingGap = occupations
@@ -6914,6 +6984,214 @@ export class DatabaseStorage implements IStorage {
       sectorBreakdown,
       skillLevelBreakdown,
       annualTrainingGap,
+    };
+  }
+
+  async getWorkforceRecruiterSkillLevelDetail(skillLevel: string): Promise<{
+    skillLevel: string;
+    target: number;
+    recruited: number;
+    percent: number;
+    profiles: Array<{
+      profileId: string;
+      displayName: string;
+      skills: string[];
+      sectors: string[];
+      jobTitles: string[];
+      matchingOccupations: Array<{ id: string; title: string; sector: string }>;
+      matchReason: string; // "sector", "jobTitle", "skill", or "none"
+    }>;
+  }> {
+    // Reuse the same matching logic from summary report
+    const occupations = await db.select().from(workforceRecruiterOccupations);
+    const allDirectoryProfiles = await db
+      .select()
+      .from(directoryProfiles)
+      .where(sql`array_length(${directoryProfiles.skills}, 1) > 0`);
+
+    // Build lookup maps (same as summary report)
+    const allSectors = await db.select().from(skillsSectors);
+    const allJobTitles = await db.select().from(skillsJobTitles);
+    const sectorIdToNameMap = new Map<string, string>();
+    for (const sector of allSectors) {
+      sectorIdToNameMap.set(sector.id, sector.name);
+    }
+    const jobTitleToSectorMap = new Map<string, string>();
+    const jobTitleIdToNameMap = new Map<string, string>();
+    for (const jobTitle of allJobTitles) {
+      jobTitleIdToNameMap.set(jobTitle.id, jobTitle.name);
+      const sectorName = sectorIdToNameMap.get(jobTitle.sectorId);
+      if (sectorName) {
+        jobTitleToSectorMap.set(jobTitle.id, sectorName);
+      }
+    }
+
+    const allSkills = await db.select().from(skillsSkills);
+    const jobTitleSkillsMap = new Map<string, Set<string>>();
+    const skillNameToSectorsMap = new Map<string, Set<string>>();
+    for (const skill of allSkills) {
+      if (!jobTitleSkillsMap.has(skill.jobTitleId)) {
+        jobTitleSkillsMap.set(skill.jobTitleId, new Set());
+      }
+      // Normalize skill name for consistent matching (handles punctuation, spacing variations)
+      const normalizedSkillName = this.normalizeSkillName(skill.name);
+      jobTitleSkillsMap.get(skill.jobTitleId)!.add(normalizedSkillName);
+      
+      const jobTitleSector = jobTitleToSectorMap.get(skill.jobTitleId);
+      if (jobTitleSector) {
+        if (!skillNameToSectorsMap.has(normalizedSkillName)) {
+          skillNameToSectorsMap.set(normalizedSkillName, new Set());
+        }
+        skillNameToSectorsMap.get(normalizedSkillName)!.add(jobTitleSector);
+      }
+    }
+
+    const occupationSkillsMap = new Map<string, Set<string>>();
+    const occupationSectorMap = new Map<string, string>();
+    const occupationJobTitleMap = new Map<string, string>();
+    for (const occ of occupations) {
+      occupationSectorMap.set(occ.id, occ.sector || "Unknown");
+      if (occ.jobTitleId) {
+        const jobTitleName = jobTitleIdToNameMap.get(occ.jobTitleId);
+        if (jobTitleName) {
+          occupationJobTitleMap.set(occ.id, jobTitleName);
+        }
+        if (jobTitleSkillsMap.has(occ.jobTitleId)) {
+          occupationSkillsMap.set(occ.id, jobTitleSkillsMap.get(occ.jobTitleId)!);
+        }
+      }
+    }
+
+    // Match profiles and track detailed matching information
+    const profileToOccupationsMap = new Map<string, Set<string>>();
+    const profileMatchReasons = new Map<string, Map<string, string>>(); // profileId -> occupationId -> reason
+    
+    for (const profile of allDirectoryProfiles) {
+      if (!profile.skills || profile.skills.length === 0) continue;
+      
+      const profileId = profile.id;
+      const profileSectors = (profile.sectors || []).map(s => s.toLowerCase().trim());
+      const profileJobTitles = (profile.jobTitles || []).map(jt => jt.toLowerCase().trim());
+      const profileSkills = (profile.skills || []).map(s => s.toLowerCase().trim());
+      
+      const matchingOccupations = new Set<string>();
+      const matchReasons = new Map<string, string>();
+      
+      for (const occ of occupations) {
+        const occSector = (occ.sector ? occ.sector.toLowerCase() : "").trim();
+        const occJobTitle = occupationJobTitleMap.get(occ.id)?.toLowerCase().trim() || "";
+        const occSkills = occupationSkillsMap.get(occ.id) || new Set<string>();
+        
+        let matchReason = "";
+        const matchesSector = profileSectors.some(ps => {
+          const normalizedPs = ps.trim();
+          return normalizedPs === occSector || 
+                 normalizedPs.includes(occSector) || 
+                 occSector.includes(normalizedPs);
+        });
+        const matchesJobTitle = profileJobTitles.some(pjt => {
+          const normalizedPjt = pjt.trim();
+          return normalizedPjt === occJobTitle;
+        });
+        const matchesSkill = profileSkills.some(ps => {
+          return this.skillMatches(ps, occSkills);
+        });
+        
+        if (matchesSector) {
+          matchReason = "sector";
+        } else if (matchesJobTitle) {
+          matchReason = "jobTitle";
+        } else if (matchesSkill) {
+          matchReason = "skill";
+        }
+        
+        if (matchesSector || matchesJobTitle || matchesSkill) {
+          matchingOccupations.add(occ.id);
+          matchReasons.set(occ.id, matchReason);
+        }
+      }
+      
+      if (matchingOccupations.size > 0) {
+        profileToOccupationsMap.set(profileId, matchingOccupations);
+        profileMatchReasons.set(profileId, matchReasons);
+      }
+    }
+
+    // Calculate target for this skill level
+    const target = occupations
+      .filter(occ => occ.skillLevel === skillLevel)
+      .reduce((sum, occ) => sum + occ.headcountTarget, 0);
+
+    // Get all profiles in this skill level
+    const profilesInSkillLevel: Array<{
+      profileId: string;
+      displayName: string;
+      skills: string[];
+      sectors: string[];
+      jobTitles: string[];
+      matchingOccupations: Array<{ id: string; title: string; sector: string }>;
+      matchReason: string;
+    }> = [];
+
+    for (const profile of allDirectoryProfiles) {
+      const matchingOccs = profileToOccupationsMap.get(profile.id);
+      let belongsToSkillLevel = false;
+      const relevantOccupations: Array<{ id: string; title: string; sector: string }> = [];
+      let primaryMatchReason = "none";
+
+      if (matchingOccs && matchingOccs.size > 0) {
+        // Check if profile matches any occupation with this skill level
+        for (const occId of matchingOccs) {
+          const occ = occupations.find(o => o.id === occId);
+          if (occ && occ.skillLevel === skillLevel) {
+            belongsToSkillLevel = true;
+            relevantOccupations.push({
+              id: occ.id,
+              title: occ.occupationTitle,
+              sector: occ.sector || "Unknown",
+            });
+            const reason = profileMatchReasons.get(profile.id)?.get(occId);
+            if (reason && primaryMatchReason === "none") {
+              primaryMatchReason = reason;
+            }
+          }
+        }
+      } else if (skillLevel === "Unknown") {
+        // Profile doesn't match any occupation
+        belongsToSkillLevel = true;
+        primaryMatchReason = "none";
+      }
+
+      if (belongsToSkillLevel) {
+        // Get display name
+        let displayName = "Unknown";
+        if (profile.displayNameType === "nickname" && profile.nickname) {
+          displayName = profile.nickname;
+        } else if (profile.firstName) {
+          displayName = profile.firstName;
+        }
+
+        profilesInSkillLevel.push({
+          profileId: profile.id,
+          displayName,
+          skills: profile.skills || [],
+          sectors: profile.sectors || [],
+          jobTitles: profile.jobTitles || [],
+          matchingOccupations: relevantOccupations,
+          matchReason: primaryMatchReason,
+        });
+      }
+    }
+
+    const recruited = profilesInSkillLevel.length;
+    const percent = target > 0 ? (recruited / target) * 100 : 0;
+
+    return {
+      skillLevel,
+      target,
+      recruited,
+      percent,
+      profiles: profilesInSkillLevel,
     };
   }
 

@@ -278,18 +278,24 @@ export default function WorkforceRecruiterDashboard() {
         <CardContent>
           <div className="grid md:grid-cols-3 gap-4">
             {summaryReport?.skillLevelBreakdown.map((skill) => (
-              <div key={skill.skillLevel} className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="font-medium">{skill.skillLevel}</span>
-                  <span className="text-muted-foreground">
-                    {skill.recruited.toLocaleString()} / {skill.target.toLocaleString()}
-                  </span>
+              <Link
+                key={skill.skillLevel}
+                href={`/apps/workforce-recruiter/skill-level/${encodeURIComponent(skill.skillLevel)}`}
+                className="block"
+              >
+                <div className="space-y-2 p-3 rounded-lg border hover:bg-accent cursor-pointer transition-colors" data-testid={`skill-level-${skill.skillLevel}`}>
+                  <div className="flex justify-between text-sm">
+                    <span className="font-medium">{skill.skillLevel}</span>
+                    <span className="text-muted-foreground">
+                      {skill.recruited.toLocaleString()} / {skill.target.toLocaleString()}
+                    </span>
+                  </div>
+                  <Progress value={skill.percent} className="h-2" />
+                  <div className="text-xs text-muted-foreground">
+                    {skill.percent.toFixed(1)}% filled
+                  </div>
                 </div>
-                <Progress value={skill.percent} className="h-2" />
-                <div className="text-xs text-muted-foreground">
-                  {skill.percent.toFixed(1)}% filled
-                </div>
-              </div>
+              </Link>
             ))}
           </div>
         </CardContent>

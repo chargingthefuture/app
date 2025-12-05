@@ -10,6 +10,7 @@ export default defineConfig({
     setupFiles: ['./test/setup.ts'],
     include: ['test/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
     exclude: ['node_modules', 'dist', '.idea', '.git', '.cache', 'test/e2e'],
+    reporter: ['verbose', ['junit', { outputFile: './test-results/vitest-junit.xml' }]],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
