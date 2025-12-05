@@ -6683,21 +6683,35 @@ export class DatabaseStorage implements IStorage {
       if (!profile.skills || profile.skills.length === 0) continue;
       
       const profileId = profile.id;
-      const profileSectors = (profile.sectors || []).map(s => s.toLowerCase());
-      const profileJobTitles = (profile.jobTitles || []).map(jt => jt.toLowerCase());
-      const profileSkills = (profile.skills || []).map(s => s.toLowerCase());
+      const profileSectors = (profile.sectors || []).map(s => s.toLowerCase().trim());
+      const profileJobTitles = (profile.jobTitles || []).map(jt => jt.toLowerCase().trim());
+      const profileSkills = (profile.skills || []).map(s => s.toLowerCase().trim());
       
       const matchingOccupations = new Set<string>();
       
       for (const occ of occupations) {
-        const occSector = (occ.sector || "").toLowerCase();
-        const occJobTitle = occupationJobTitleMap.get(occ.id)?.toLowerCase() || "";
+        const occSector = (occ.sector ? occ.sector.toLowerCase() : "").trim();
+        const occJobTitle = occupationJobTitleMap.get(occ.id)?.toLowerCase().trim() || "";
         const occSkills = occupationSkillsMap.get(occ.id) || new Set<string>();
         
         // Check if profile matches this occupation
-        const matchesSector = profileSectors.some(ps => ps === occSector);
-        const matchesJobTitle = profileJobTitles.some(pjt => pjt === occJobTitle);
-        const matchesSkill = profileSkills.some(ps => occSkills.has(ps));
+        // Sector matching: case-insensitive, also check if profile sector contains occupation sector or vice versa
+        const matchesSector = profileSectors.some(ps => {
+          const normalizedPs = ps.trim();
+          return normalizedPs === occSector || 
+                 normalizedPs.includes(occSector) || 
+                 occSector.includes(normalizedPs);
+        });
+        // Job title matching: exact case-insensitive match
+        const matchesJobTitle = profileJobTitles.some(pjt => {
+          const normalizedPjt = pjt.trim();
+          return normalizedPjt === occJobTitle;
+        });
+        // Skill matching: case-insensitive
+        const matchesSkill = profileSkills.some(ps => {
+          const normalizedPs = ps.trim();
+          return occSkills.has(normalizedPs);
+        });
         
         if (matchesSector || matchesJobTitle || matchesSkill) {
           matchingOccupations.add(occ.id);
@@ -6719,30 +6733,41 @@ export class DatabaseStorage implements IStorage {
     const sectorRecruitedMap = new Map<string, number>();
     for (const profile of allDirectoryProfiles) {
       const sectors = profile.sectors || [];
+      const matchingOccs = profileToOccupationsMap.get(profile.id);
+      
       if (sectors.length > 0) {
+        // Profile has explicit sectors - use them
         // Count fractionally: divide by number of sectors to avoid double-counting
         const countPerSector = 1 / sectors.length;
         for (const sector of sectors) {
-          sectorRecruitedMap.set(sector, (sectorRecruitedMap.get(sector) || 0) + countPerSector);
+          // Normalize sector name (trim, capitalize first letter)
+          const normalizedSector = sector.trim();
+          sectorRecruitedMap.set(normalizedSector, (sectorRecruitedMap.get(normalizedSector) || 0) + countPerSector);
         }
-      } else {
-        // If no sectors, try to infer from matching occupations
-        const matchingOccs = profileToOccupationsMap.get(profile.id);
-        if (matchingOccs && matchingOccs.size > 0) {
-          // Get unique sectors from matching occupations
-          const inferredSectors = new Set<string>();
-          for (const occId of matchingOccs) {
-            const sector = occupationSectorMap.get(occId) || "Unknown";
+      } else if (matchingOccs && matchingOccs.size > 0) {
+        // Profile has no explicit sectors but matches occupations - infer from occupations
+        // Get unique sectors from matching occupations
+        const inferredSectors = new Set<string>();
+        for (const occId of matchingOccs) {
+          const sector = occupationSectorMap.get(occId);
+          if (sector && sector !== "Unknown") {
             inferredSectors.add(sector);
           }
+        }
+        
+        if (inferredSectors.size > 0) {
           // Count fractionally across inferred sectors
           const countPerSector = 1 / inferredSectors.size;
           for (const sector of inferredSectors) {
             sectorRecruitedMap.set(sector, (sectorRecruitedMap.get(sector) || 0) + countPerSector);
           }
         } else {
+          // All matching occupations have "Unknown" sector - count as Unknown
           sectorRecruitedMap.set("Unknown", (sectorRecruitedMap.get("Unknown") || 0) + 1);
         }
+      } else {
+        // Profile has no sectors and doesn't match any occupations - count as Unknown
+        sectorRecruitedMap.set("Unknown", (sectorRecruitedMap.get("Unknown") || 0) + 1);
       }
     }
 

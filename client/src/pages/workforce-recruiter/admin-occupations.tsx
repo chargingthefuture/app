@@ -458,7 +458,7 @@ export default function WorkforceRecruiterAdminOccupations() {
                             size="sm"
                             onClick={() => handleCreateMeetupEvent(occupation)}
                             data-testid={`button-create-meetup-event-${occupation.id}`}
-                            title="Create meetup event"
+                            title="Create in-person meetup event for this occupation"
                           >
                             <UserPlus className="w-4 h-4" />
                           </Button>
@@ -529,9 +529,9 @@ export default function WorkforceRecruiterAdminOccupations() {
       <Dialog open={meetupEventDialogOpen} onOpenChange={setMeetupEventDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Create Meetup Event</DialogTitle>
+            <DialogTitle>Create In-Person Meetup Event</DialogTitle>
             <DialogDescription>
-              Create an in-person meetup event for {selectedOccupation?.occupationTitle}. Users will be able to sign up to participate and discuss this occupation.
+              Create an in-person meetup event for <strong>{selectedOccupation?.occupationTitle}</strong>. This will allow community members to sign up and meet to discuss this occupation, share experiences, and explore opportunities in this role.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
