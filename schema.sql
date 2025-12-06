@@ -954,6 +954,7 @@ CREATE TABLE IF NOT EXISTS workforce_recruiter_occupations (
   id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
   sector VARCHAR(100) NOT NULL,
   occupation_title VARCHAR(200) NOT NULL,
+  job_title_id VARCHAR REFERENCES skills_job_titles(id),
   headcount_target INTEGER NOT NULL,
   skill_level VARCHAR(20) NOT NULL,
   annual_training_target INTEGER NOT NULL,

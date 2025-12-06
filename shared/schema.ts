@@ -2454,6 +2454,7 @@ export const workforceRecruiterOccupations = pgTable("workforce_recruiter_occupa
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   sector: varchar("sector", { length: 100 }).notNull(),
   occupationTitle: varchar("occupation_title", { length: 200 }).notNull(),
+  jobTitleId: varchar("job_title_id").references(() => skillsJobTitles.id), // Links to skills database for skill matching
   headcountTarget: integer("headcount_target").notNull(),
   skillLevel: varchar("skill_level", { length: 20 }).notNull(), // 'Low', 'Medium', 'High'
   annualTrainingTarget: integer("annual_training_target").notNull(),

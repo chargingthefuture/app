@@ -6767,6 +6767,21 @@ export class DatabaseStorage implements IStorage {
         if (jobTitleSkillsMap.has(occ.jobTitleId)) {
           occupationSkillsMap.set(occ.id, jobTitleSkillsMap.get(occ.jobTitleId)!);
         }
+      } else {
+        // Fallback: Try to match by occupation title name if jobTitleId is missing
+        // This helps with backward compatibility for existing occupations
+        const normalizedOccTitle = occ.occupationTitle.toLowerCase().trim();
+        for (const [jobTitleId, jobTitleName] of jobTitleIdToNameMap.entries()) {
+          const normalizedJobTitle = jobTitleName.toLowerCase().trim();
+          if (normalizedOccTitle === normalizedJobTitle) {
+            // Found matching job title by name - use its skills
+            occupationJobTitleMap.set(occ.id, jobTitleName);
+            if (jobTitleSkillsMap.has(jobTitleId)) {
+              occupationSkillsMap.set(occ.id, jobTitleSkillsMap.get(jobTitleId)!);
+            }
+            break;
+          }
+        }
       }
     }
 
@@ -7058,6 +7073,21 @@ export class DatabaseStorage implements IStorage {
         }
         if (jobTitleSkillsMap.has(occ.jobTitleId)) {
           occupationSkillsMap.set(occ.id, jobTitleSkillsMap.get(occ.jobTitleId)!);
+        }
+      } else {
+        // Fallback: Try to match by occupation title name if jobTitleId is missing
+        // This helps with backward compatibility for existing occupations
+        const normalizedOccTitle = occ.occupationTitle.toLowerCase().trim();
+        for (const [jobTitleId, jobTitleName] of jobTitleIdToNameMap.entries()) {
+          const normalizedJobTitle = jobTitleName.toLowerCase().trim();
+          if (normalizedOccTitle === normalizedJobTitle) {
+            // Found matching job title by name - use its skills
+            occupationJobTitleMap.set(occ.id, jobTitleName);
+            if (jobTitleSkillsMap.has(jobTitleId)) {
+              occupationSkillsMap.set(occ.id, jobTitleSkillsMap.get(jobTitleId)!);
+            }
+            break;
+          }
         }
       }
     }

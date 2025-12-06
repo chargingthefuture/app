@@ -173,6 +173,7 @@ async function seedWorkforceRecruiter() {
       const occupationData: InsertWorkforceRecruiterOccupation = {
         sector: sector.name,
         occupationTitle: jobTitle.name,
+        jobTitleId: jobTitle.id, // Link to skills database for skill matching
         headcountTarget,
         skillLevel,
         annualTrainingTarget,
