@@ -6627,8 +6627,10 @@ export class DatabaseStorage implements IStorage {
   ): Set<string> {
     const inferredSectors = new Set<string>();
     for (const skill of profileSkills) {
-      const skillNameLower = skill.toLowerCase().trim();
-      const sectors = skillNameToSectorsMap.get(skillNameLower);
+      // Use normalizeSkillName to match how skillNameToSectorsMap keys are built
+      // This ensures "React.js", "React JS", and "React" all match correctly
+      const normalizedSkillName = this.normalizeSkillName(skill);
+      const sectors = skillNameToSectorsMap.get(normalizedSkillName);
       if (sectors) {
         for (const sector of sectors) {
           inferredSectors.add(sector);
@@ -6665,6 +6667,11 @@ export class DatabaseStorage implements IStorage {
   private skillMatches(profileSkill: string, occupationSkills: Set<string>): boolean {
     const normalizedProfileSkill = this.normalizeSkillName(profileSkill);
     
+    // Skip empty or very short skills (less than 2 chars after normalization)
+    if (normalizedProfileSkill.length < 2) {
+      return false;
+    }
+    
     // First try exact match after normalization
     for (const occSkill of occupationSkills) {
       const normalizedOccSkill = this.normalizeSkillName(occSkill);
@@ -6675,14 +6682,47 @@ export class DatabaseStorage implements IStorage {
     
     // Then try partial matches (one contains the other)
     // This handles cases like "React.js" matching "React" or vice versa
+    // But we need to be more strict to avoid false positives
+    
+    // Common words that shouldn't match via partial matching (too generic)
+    // These are common English words that could match incorrectly
+    const commonWords = new Set(['and', 'or', 'the', 'for', 'with', 'from', 'that', 'this', 'have', 'been', 'are', 'was', 'were', 'has', 'had', 'will', 'can', 'may', 'not', 'but', 'all', 'any', 'one', 'two', 'use', 'get', 'set', 'run', 'end', 'new', 'old', 'big', 'small', 'high', 'low', 'top', 'out', 'off', 'on', 'in', 'at', 'to', 'of', 'is', 'it', 'as', 'be', 'do', 'if', 'up', 'so', 'no', 'go', 'my', 'we', 'he', 'she', 'him', 'her', 'his', 'its', 'our', 'your', 'their', 'they', 'them', 'these', 'those', 'what', 'when', 'where', 'which', 'who', 'why', 'how', 'much', 'many', 'more', 'most', 'some', 'such', 'only', 'just', 'also', 'very', 'well', 'now', 'then', 'here', 'there', 'back', 'down', 'over', 'under', 'again', 'once', 'twice', 'first', 'last', 'next', 'other', 'each', 'every', 'both', 'same', 'different', 'own']);
+    
+    // Skip partial matching if the skill is a common word
+    if (commonWords.has(normalizedProfileSkill)) {
+      return false;
+    }
+    
     for (const occSkill of occupationSkills) {
       const normalizedOccSkill = this.normalizeSkillName(occSkill);
+      
+      // Skip if either skill is a common word
+      if (commonWords.has(normalizedOccSkill)) {
+        continue;
+      }
+      
       // Check if either skill contains the other (after normalization)
-      // Only match if the shorter one is at least 3 characters to avoid false positives
-      if (normalizedProfileSkill.length >= 3 && normalizedOccSkill.length >= 3) {
-        if (normalizedProfileSkill.includes(normalizedOccSkill) || 
-            normalizedOccSkill.includes(normalizedProfileSkill)) {
-          return true;
+      const shorterLength = Math.min(normalizedProfileSkill.length, normalizedOccSkill.length);
+      const longerLength = Math.max(normalizedProfileSkill.length, normalizedOccSkill.length);
+      
+      // For partial matching, we need to be more careful:
+      // 1. Require at least 3 characters for the shorter skill (allows "IT" to match "IT Support")
+      // 2. But if the shorter skill is very short (3-4 chars), require it to be at least 50% of longer skill
+      // 3. If the shorter skill is longer (5+ chars), allow 30% ratio (allows "React" to match "React.js")
+      if (shorterLength >= 3 && longerLength > 0) {
+        const lengthRatio = shorterLength / longerLength;
+        
+        // Determine minimum ratio based on shorter skill length
+        let minRatio = 0.3; // Default for longer skills (5+ chars)
+        if (shorterLength <= 4) {
+          minRatio = 0.5; // Stricter for very short skills (3-4 chars)
+        }
+        
+        if (lengthRatio >= minRatio) {
+          if (normalizedProfileSkill.includes(normalizedOccSkill) || 
+              normalizedOccSkill.includes(normalizedProfileSkill)) {
+            return true;
+          }
         }
       }
     }

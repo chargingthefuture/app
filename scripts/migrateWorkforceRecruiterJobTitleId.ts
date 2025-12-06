@@ -94,17 +94,15 @@ async function migrateWorkforceRecruiterJobTitleId() {
 }
 
 // Run migration if called directly
-if (require.main === module) {
-  migrateWorkforceRecruiterJobTitleId()
-    .then(() => {
-      console.log("Migration completed successfully");
-      process.exit(0);
-    })
-    .catch((error) => {
-      console.error("Migration failed:", error);
-      process.exit(1);
-    });
-}
+migrateWorkforceRecruiterJobTitleId()
+  .then(() => {
+    console.log("Migration completed successfully");
+    process.exit(0);
+  })
+  .catch((error) => {
+    console.error("Migration failed:", error);
+    process.exit(1);
+  });
 
 export { migrateWorkforceRecruiterJobTitleId };
 
