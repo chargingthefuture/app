@@ -3,6 +3,10 @@ import type { InsertSupportMatchProfile } from '@shared/schema';
 import type { InsertLighthouseProfile } from '@shared/schema';
 import type { InsertSocketrelayProfile } from '@shared/schema';
 import type { InsertDirectoryProfile } from '@shared/schema';
+import type { InsertWorkforceRecruiterProfile } from '@shared/schema';
+import type { InsertTrusttransportProfile } from '@shared/schema';
+import type { InsertMechanicmatchProfile } from '@shared/schema';
+import type { InsertChymeProfile } from '@shared/schema';
 
 /**
  * Test data fixtures for creating consistent test data
@@ -79,6 +83,55 @@ export const createTestDirectoryProfile = (
   city: 'New York',
   bio: 'Test bio',
   isPublic: false,
+  ...overrides,
+});
+
+export const createTestWorkforceRecruiterProfile = (
+  userId: string,
+  overrides: Partial<InsertWorkforceRecruiterProfile> = {}
+): InsertWorkforceRecruiterProfile => ({
+  userId,
+  displayName: 'Test User',
+  notes: 'Test notes',
+  ...overrides,
+});
+
+export const createTestTrusttransportProfile = (
+  userId: string,
+  overrides: Partial<InsertTrusttransportProfile> = {}
+): InsertTrusttransportProfile => ({
+  userId,
+  displayName: 'Test User',
+  isDriver: false,
+  isRider: true,
+  city: 'New York',
+  state: 'NY',
+  country: 'United States',
+  ...overrides,
+});
+
+export const createTestMechanicmatchProfile = (
+  userId: string,
+  overrides: Partial<InsertMechanicmatchProfile> = {}
+): InsertMechanicmatchProfile => ({
+  userId,
+  displayName: 'Test User',
+  isCarOwner: true,
+  isMechanic: false,
+  city: 'New York',
+  state: 'NY',
+  country: 'United States',
+  isClaimed: true,
+  ...overrides,
+});
+
+export const createTestChymeProfile = (
+  userId: string,
+  overrides: Partial<InsertChymeProfile> = {}
+): InsertChymeProfile => ({
+  userId,
+  displayName: 'Test User',
+  isAnonymous: false,
   ...overrides,
 });
 

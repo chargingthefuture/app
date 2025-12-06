@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { storage } from '../../server/storage';
 import { db } from '../../server/db';
-import { users, supportMatchProfiles, lighthouseProfiles, socketrelayProfiles, directoryProfiles } from '@shared/schema';
+import { users, supportMatchProfiles, lighthouseProfiles, socketrelayProfiles, directoryProfiles, workforceRecruiterProfiles, trusttransportProfiles, mechanicmatchProfiles, chymeProfiles } from '@shared/schema';
 import { eq } from 'drizzle-orm';
-import { generateTestUserId, createTestSupportMatchProfile, createTestLighthouseProfile, createTestSocketrelayProfile, createTestDirectoryProfile } from '../fixtures/testData';
+import { generateTestUserId, createTestSupportMatchProfile, createTestLighthouseProfile, createTestSocketrelayProfile, createTestDirectoryProfile, createTestWorkforceRecruiterProfile, createTestTrusttransportProfile, createTestMechanicmatchProfile, createTestChymeProfile } from '../fixtures/testData';
 
 /**
  * Integration tests for storage layer
@@ -304,6 +304,272 @@ describe.skipIf(!hasDatabaseUrl)('Storage Layer - Directory Profile Operations',
     await storage.deleteDirectoryProfileWithCascade(testUserId, 'Test deletion');
 
     const retrieved = await storage.getDirectoryProfileByUserId(testUserId);
+    expect(retrieved).toBeUndefined();
+  });
+});
+
+describe.skipIf(!hasDatabaseUrl)('Storage Layer - Workforce Recruiter Profile Operations', () => {
+  let testUserId: string;
+
+  beforeEach(async () => {
+    testUserId = generateTestUserId();
+    await storage.upsertUser({
+      id: testUserId,
+      email: `test-${Date.now()}@example.com`,
+      firstName: 'Test',
+      lastName: 'User',
+    });
+  });
+
+  afterAll(async () => {
+    try {
+      await db.delete(workforceRecruiterProfiles).where(eq(workforceRecruiterProfiles.userId, testUserId));
+      await db.delete(users).where(eq(users.id, testUserId));
+    } catch (error) {
+      // Ignore cleanup errors
+    }
+  });
+
+  it.skipIf(!canConnectToDatabase)('should create a Workforce Recruiter profile', async () => {
+    const profileData = createTestWorkforceRecruiterProfile(testUserId);
+    const created = await storage.createWorkforceRecruiterProfile(profileData);
+
+    expect(created).toBeDefined();
+    expect(created.userId).toBe(testUserId);
+    expect(created.displayName).toBe(profileData.displayName);
+    expect(created.notes).toBe(profileData.notes);
+  });
+
+  it.skipIf(!canConnectToDatabase)('should retrieve a Workforce Recruiter profile by userId', async () => {
+    const profileData = createTestWorkforceRecruiterProfile(testUserId);
+    await storage.createWorkforceRecruiterProfile(profileData);
+
+    const retrieved = await storage.getWorkforceRecruiterProfile(testUserId);
+    expect(retrieved).toBeDefined();
+    expect(retrieved?.userId).toBe(testUserId);
+    expect(retrieved?.displayName).toBe(profileData.displayName);
+  });
+
+  it.skipIf(!canConnectToDatabase)('should update a Workforce Recruiter profile', async () => {
+    const profileData = createTestWorkforceRecruiterProfile(testUserId);
+    await storage.createWorkforceRecruiterProfile(profileData);
+
+    const updated = await storage.updateWorkforceRecruiterProfile(testUserId, {
+      displayName: 'Updated Name',
+      notes: 'Updated notes',
+    });
+
+    expect(updated.displayName).toBe('Updated Name');
+    expect(updated.notes).toBe('Updated notes');
+  });
+
+  it.skipIf(!canConnectToDatabase)('should delete Workforce Recruiter profile and log deletion', async () => {
+    const profileData = createTestWorkforceRecruiterProfile(testUserId);
+    await storage.createWorkforceRecruiterProfile(profileData);
+
+    await storage.deleteWorkforceRecruiterProfile(testUserId, 'Test deletion');
+
+    const retrieved = await storage.getWorkforceRecruiterProfile(testUserId);
+    expect(retrieved).toBeUndefined();
+  });
+
+  it.skipIf(!canConnectToDatabase)('should return undefined when profile does not exist', async () => {
+    const retrieved = await storage.getWorkforceRecruiterProfile(testUserId);
+    expect(retrieved).toBeUndefined();
+  });
+});
+
+describe.skipIf(!hasDatabaseUrl)('Storage Layer - TrustTransport Profile Operations', () => {
+  let testUserId: string;
+
+  beforeEach(async () => {
+    testUserId = generateTestUserId();
+    await storage.upsertUser({
+      id: testUserId,
+      email: `test-${Date.now()}@example.com`,
+      firstName: 'Test',
+      lastName: 'User',
+    });
+  });
+
+  afterAll(async () => {
+    try {
+      await db.delete(trusttransportProfiles).where(eq(trusttransportProfiles.userId, testUserId));
+      await db.delete(users).where(eq(users.id, testUserId));
+    } catch (error) {
+      // Ignore cleanup errors
+    }
+  });
+
+  it.skipIf(!canConnectToDatabase)('should create a TrustTransport profile', async () => {
+    const profileData = createTestTrusttransportProfile(testUserId);
+    const created = await storage.createTrusttransportProfile(profileData);
+
+    expect(created).toBeDefined();
+    expect(created.userId).toBe(testUserId);
+    expect(created.displayName).toBe(profileData.displayName);
+    expect(created.isRider).toBe(true);
+  });
+
+  it.skipIf(!canConnectToDatabase)('should retrieve a TrustTransport profile by userId', async () => {
+    const profileData = createTestTrusttransportProfile(testUserId);
+    await storage.createTrusttransportProfile(profileData);
+
+    const retrieved = await storage.getTrusttransportProfile(testUserId);
+    expect(retrieved).toBeDefined();
+    expect(retrieved?.userId).toBe(testUserId);
+  });
+
+  it.skipIf(!canConnectToDatabase)('should update a TrustTransport profile', async () => {
+    const profileData = createTestTrusttransportProfile(testUserId);
+    await storage.createTrusttransportProfile(profileData);
+
+    const updated = await storage.updateTrusttransportProfile(testUserId, {
+      displayName: 'Updated Name',
+      bio: 'Updated bio',
+    });
+
+    expect(updated.displayName).toBe('Updated Name');
+    expect(updated.bio).toBe('Updated bio');
+  });
+
+  it.skipIf(!canConnectToDatabase)('should delete TrustTransport profile with cascade anonymization', async () => {
+    const profileData = createTestTrusttransportProfile(testUserId);
+    await storage.createTrusttransportProfile(profileData);
+
+    await storage.deleteTrusttransportProfile(testUserId, 'Test deletion');
+
+    const retrieved = await storage.getTrusttransportProfile(testUserId);
+    expect(retrieved).toBeUndefined();
+  });
+});
+
+describe.skipIf(!hasDatabaseUrl)('Storage Layer - MechanicMatch Profile Operations', () => {
+  let testUserId: string;
+
+  beforeEach(async () => {
+    testUserId = generateTestUserId();
+    await storage.upsertUser({
+      id: testUserId,
+      email: `test-${Date.now()}@example.com`,
+      firstName: 'Test',
+      lastName: 'User',
+    });
+  });
+
+  afterAll(async () => {
+    try {
+      await db.delete(mechanicmatchProfiles).where(eq(mechanicmatchProfiles.userId, testUserId));
+      await db.delete(users).where(eq(users.id, testUserId));
+    } catch (error) {
+      // Ignore cleanup errors
+    }
+  });
+
+  it.skipIf(!canConnectToDatabase)('should create a MechanicMatch profile', async () => {
+    const profileData = createTestMechanicmatchProfile(testUserId);
+    const created = await storage.createMechanicmatchProfile(profileData);
+
+    expect(created).toBeDefined();
+    expect(created.userId).toBe(testUserId);
+    expect(created.displayName).toBe(profileData.displayName);
+    expect(created.isCarOwner).toBe(true);
+  });
+
+  it.skipIf(!canConnectToDatabase)('should retrieve a MechanicMatch profile by userId', async () => {
+    const profileData = createTestMechanicmatchProfile(testUserId);
+    await storage.createMechanicmatchProfile(profileData);
+
+    const retrieved = await storage.getMechanicmatchProfile(testUserId);
+    expect(retrieved).toBeDefined();
+    expect(retrieved?.userId).toBe(testUserId);
+  });
+
+  it.skipIf(!canConnectToDatabase)('should update a MechanicMatch profile', async () => {
+    const profileData = createTestMechanicmatchProfile(testUserId);
+    await storage.createMechanicmatchProfile(profileData);
+
+    const updated = await storage.updateMechanicmatchProfile(testUserId, {
+      displayName: 'Updated Name',
+      ownerBio: 'Updated bio',
+    });
+
+    expect(updated.displayName).toBe('Updated Name');
+    expect(updated.ownerBio).toBe('Updated bio');
+  });
+
+  it.skipIf(!canConnectToDatabase)('should delete MechanicMatch profile with cascade anonymization', async () => {
+    const profileData = createTestMechanicmatchProfile(testUserId);
+    await storage.createMechanicmatchProfile(profileData);
+
+    await storage.deleteMechanicmatchProfile(testUserId, 'Test deletion');
+
+    const retrieved = await storage.getMechanicmatchProfile(testUserId);
+    expect(retrieved).toBeUndefined();
+  });
+});
+
+describe.skipIf(!hasDatabaseUrl)('Storage Layer - Chyme Profile Operations', () => {
+  let testUserId: string;
+
+  beforeEach(async () => {
+    testUserId = generateTestUserId();
+    await storage.upsertUser({
+      id: testUserId,
+      email: `test-${Date.now()}@example.com`,
+      firstName: 'Test',
+      lastName: 'User',
+    });
+  });
+
+  afterAll(async () => {
+    try {
+      await db.delete(chymeProfiles).where(eq(chymeProfiles.userId, testUserId));
+      await db.delete(users).where(eq(users.id, testUserId));
+    } catch (error) {
+      // Ignore cleanup errors
+    }
+  });
+
+  it.skipIf(!canConnectToDatabase)('should create a Chyme profile', async () => {
+    const profileData = createTestChymeProfile(testUserId);
+    const created = await storage.createChymeProfile(profileData);
+
+    expect(created).toBeDefined();
+    expect(created.userId).toBe(testUserId);
+    expect(created.displayName).toBe(profileData.displayName);
+    expect(created.isAnonymous).toBe(false);
+  });
+
+  it.skipIf(!canConnectToDatabase)('should retrieve a Chyme profile by userId', async () => {
+    const profileData = createTestChymeProfile(testUserId);
+    await storage.createChymeProfile(profileData);
+
+    const retrieved = await storage.getChymeProfile(testUserId);
+    expect(retrieved).toBeDefined();
+    expect(retrieved?.userId).toBe(testUserId);
+  });
+
+  it.skipIf(!canConnectToDatabase)('should update a Chyme profile', async () => {
+    const profileData = createTestChymeProfile(testUserId);
+    await storage.createChymeProfile(profileData);
+
+    const updated = await storage.updateChymeProfile(testUserId, {
+      displayName: 'Updated Name',
+      isAnonymous: true,
+    });
+
+    expect(updated.displayName).toBe('Updated Name');
+    expect(updated.isAnonymous).toBe(true);
+  });
+
+  it.skipIf(!canConnectToDatabase)('should delete Chyme profile and log deletion', async () => {
+    const profileData = createTestChymeProfile(testUserId);
+    await storage.createChymeProfile(profileData);
+
+    await storage.deleteChymeProfile(testUserId, 'Test deletion');
+
+    const retrieved = await storage.getChymeProfile(testUserId);
     expect(retrieved).toBeUndefined();
   });
 });
