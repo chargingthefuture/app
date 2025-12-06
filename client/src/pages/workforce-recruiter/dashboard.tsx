@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "wouter";
@@ -7,6 +7,8 @@ import { Users, TrendingUp, Target, AlertCircle, BarChart3, Briefcase, Bell, Cal
 import { AnnouncementBanner } from "@/components/announcement-banner";
 import type { WorkforceRecruiterConfig, WorkforceRecruiterOccupation, WorkforceRecruiterMeetupEvent } from "@shared/schema";
 import { Progress } from "@/components/ui/progress";
+import { SectorDetailsDialog } from "@/components/sector-details-dialog";
+import { useState } from "react";
 
 interface SummaryReport {
   totalWorkforceTarget: number;
@@ -61,6 +63,9 @@ export default function WorkforceRecruiterDashboard() {
   });
 
   const totalSignups = signupCounts ? Object.values(signupCounts).reduce((sum, count) => sum + count, 0) : 0;
+
+  const [selectedSector, setSelectedSector] = useState<string | null>(null);
+  const [sectorDialogOpen, setSectorDialogOpen] = useState(false);
 
   if (configLoading || reportLoading || occupationsLoading || meetupEventsLoading) {
     return (
@@ -379,6 +384,15 @@ export default function WorkforceRecruiterDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Sector Summary */}
+      {/* This section is not directly related to the edit, but it's part of the new_code.
+          It will be added based on the new_code's structure. */}
+      {/* <SectorDetailsDialog
+        sector={selectedSector}
+        open={sectorDialogOpen}
+        onOpenChange={setSectorDialogOpen}
+      /> */}
     </div>
   );
 }

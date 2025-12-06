@@ -859,6 +859,24 @@ export interface IStorage {
       matchReason: string; // "sector", "jobTitle", "skill", or "none"
     }>;
   }>;
+  getWorkforceRecruiterSectorDetail(sector: string): Promise<{
+    sector: string;
+    target: number;
+    recruited: number;
+    percent: number;
+    jobTitles: Array<{ id: string; name: string; count: number }>;
+    skills: Array<{ name: string; count: number }>;
+    occupations: Array<{ id: string; title: string; jobTitleId: string | null; headcountTarget: number; skillLevel: string }>;
+    profiles: Array<{
+      profileId: string;
+      displayName: string;
+      skills: string[];
+      sectors: string[];
+      jobTitles: string[];
+      matchingOccupations: Array<{ id: string; title: string; sector: string }>;
+      matchReason: string; // "sector", "jobTitle", "skill", or "none"
+    }>;
+  }>;
 
   // Workforce Recruiter Announcement operations
   createWorkforceRecruiterAnnouncement(announcement: InsertWorkforceRecruiterAnnouncement): Promise<WorkforceRecruiterAnnouncement>;

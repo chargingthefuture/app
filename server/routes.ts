@@ -6008,6 +6008,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(announcement);
   }));
 
+  // Add this route after the existing workforce-recruiter routes (around line 2800+)
+
+  // Get sector details with skills and job titles breakdown
+  app.get(
+    "/api/workforce-recruiter/sector/:sector",
+    isAuthenticated,
+    async (req: any, res) => {
+      try {
+        const userId = getUserId(req);
+        const sector = decodeURIComponent(req.params.sector);
+
+        const details = await storage.getWorkforceSectorDetails(userId, sector);
+
+        res.json(details);
+      } catch (error: any) {
+        console.error("Error fetching sector details:", error);
+        res.status(500).json({ message: error.message });
+      }
+    }
+  );
+
   const httpServer = createServer(app);
   return httpServer;
 }
