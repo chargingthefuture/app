@@ -7497,21 +7497,79 @@ export class DatabaseStorage implements IStorage {
     const percent = target > 0 ? (recruited / target) * 100 : 0;
 
     // Count job titles in this sector
+    // Approach: Show all job titles from occupations in this sector, and count how many profiles match each
     const jobTitleCounts = new Map<string, { id: string; name: string; count: number }>();
+    
+    // First, initialize all job titles from occupations in this sector (even if count is 0)
+    for (const occ of sectorOccupations) {
+      if (occ.jobTitleId) {
+        const jobTitleName = jobTitleIdToNameMap.get(occ.jobTitleId);
+        if (jobTitleName && !jobTitleCounts.has(occ.jobTitleId)) {
+          jobTitleCounts.set(occ.jobTitleId, { id: occ.jobTitleId, name: jobTitleName, count: 0 });
+        }
+      } else {
+        // Fallback: If occupation doesn't have jobTitleId, use occupation title as job title
+        // Use occupation ID as a unique identifier for this "job title"
+        const fallbackId = `occ_${occ.id}`;
+        if (!jobTitleCounts.has(fallbackId)) {
+          jobTitleCounts.set(fallbackId, { id: fallbackId, name: occ.occupationTitle, count: 0 });
+        }
+      }
+    }
+    
+    // Count profiles by the job titles they match through occupations
+    // Use a Set per profile to avoid double-counting if a profile matches multiple occupations with same job title
+    const profileJobTitles = new Map<string, Set<string>>(); // profileId -> Set of jobTitleIds
+    
     for (const profile of profilesInSector) {
+      const matchingOccs = profileToOccupationsMap.get(profile.profileId);
+      if (matchingOccs) {
+        if (!profileJobTitles.has(profile.profileId)) {
+          profileJobTitles.set(profile.profileId, new Set());
+        }
+        const profileJobTitleSet = profileJobTitles.get(profile.profileId)!;
+        
+        for (const occId of matchingOccs) {
+          const occ = sectorOccupations.find(o => o.id === occId);
+          if (occ) {
+            if (occ.jobTitleId) {
+              profileJobTitleSet.add(occ.jobTitleId);
+            } else {
+              // Use fallback ID for occupations without jobTitleId
+              profileJobTitleSet.add(`occ_${occ.id}`);
+            }
+          }
+        }
+      }
+      
+      // Also check explicit job titles from profiles
       for (const jobTitleName of profile.jobTitles) {
         // Find job title ID by name
         for (const [jobTitleId, name] of jobTitleIdToNameMap.entries()) {
           if (name.toLowerCase().trim() === jobTitleName.toLowerCase().trim()) {
-            const sectorName = jobTitleToSectorMap.get(jobTitleId);
-            if (sectorName && sectorName.toLowerCase().trim() === normalizedSector) {
+            // Check if this job title belongs to this sector
+            const jobTitleSector = jobTitleToSectorMap.get(jobTitleId);
+            if (jobTitleSector && jobTitleSector.toLowerCase().trim() === normalizedSector) {
+              if (!profileJobTitles.has(profile.profileId)) {
+                profileJobTitles.set(profile.profileId, new Set());
+              }
+              profileJobTitles.get(profile.profileId)!.add(jobTitleId);
+              // Initialize if not already present
               if (!jobTitleCounts.has(jobTitleId)) {
                 jobTitleCounts.set(jobTitleId, { id: jobTitleId, name, count: 0 });
               }
-              jobTitleCounts.get(jobTitleId)!.count++;
-              break;
             }
+            break;
           }
+        }
+      }
+    }
+    
+    // Now count: each profile contributes 1 to each job title it matches
+    for (const [profileId, jobTitleSet] of Array.from(profileJobTitles.entries())) {
+      for (const jobTitleId of Array.from(jobTitleSet)) {
+        if (jobTitleCounts.has(jobTitleId)) {
+          jobTitleCounts.get(jobTitleId)!.count++;
         }
       }
     }
@@ -7528,12 +7586,29 @@ export class DatabaseStorage implements IStorage {
       }
     }
 
+    // Return job titles sorted by count (descending), then by name
+    // Only show job titles if there are recruited profiles (count > 0)
+    let jobTitlesToReturn: Array<{ id: string; name: string; count: number }> = [];
+    
+    if (recruited > 0) {
+      const jobTitlesArray = Array.from(jobTitleCounts.values());
+      jobTitlesToReturn = jobTitlesArray
+        .filter(jt => jt.count > 0) // Only show job titles that have at least one match
+        .sort((a, b) => {
+          // Sort by count descending, then by name ascending
+          if (b.count !== a.count) {
+            return b.count - a.count;
+          }
+          return a.name.localeCompare(b.name);
+        });
+    }
+    
     return {
       sector,
       target,
       recruited,
       percent,
-      jobTitles: Array.from(jobTitleCounts.values()).sort((a, b) => b.count - a.count),
+      jobTitles: jobTitlesToReturn,
       skills: Array.from(skillCounts.entries())
         .map(([name, count]) => ({ name, count }))
         .sort((a, b) => b.count - a.count),
