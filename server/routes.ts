@@ -5661,13 +5661,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Workforce Recruiter Meetup Event routes
   app.post('/api/workforce-recruiter/meetup-events', isAuthenticated, isAdmin, ...isAdminWithCsrf, asyncHandler(async (req: any, res) => {
     const userId = getUserId(req);
-    const validatedData = validateWithZod(insertWorkforceRecruiterMeetupEventSchema, {
-      ...req.body,
-      createdBy: userId,
-    }, 'Invalid meetup event data');
+    const validatedData = validateWithZod(insertWorkforceRecruiterMeetupEventSchema, req.body, 'Invalid meetup event data');
     
+    // Add createdBy after validation (schema omits it, but database requires it)
     const event = await withDatabaseErrorHandling(
-      () => storage.createWorkforceRecruiterMeetupEvent(validatedData),
+      () => storage.createWorkforceRecruiterMeetupEvent({
+        ...validatedData,
+        createdBy: userId,
+      } as any),
       'createWorkforceRecruiterMeetupEvent'
     );
     
