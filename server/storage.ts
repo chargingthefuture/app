@@ -7269,7 +7269,7 @@ export class DatabaseStorage implements IStorage {
             relevantOccupations.push({
               id: occ.id,
               title: occ.occupationTitle,
-              sector: occ.sector || "Unknown",
+              sector: occ.sector,
             });
             const reason = profileMatchReasons.get(profile.id)?.get(occId);
             if (reason && primaryMatchReason === "none") {
@@ -7414,7 +7414,11 @@ export class DatabaseStorage implements IStorage {
     // Filter occupations by sector (case-insensitive)
     const normalizedSector = sector.toLowerCase().trim();
     const sectorOccupations = occupations.filter(occ => {
-      const occSector = (occ.sector || "Unknown").toLowerCase().trim();
+      // Skip occupations without valid sectors
+      if (!occ.sector || occ.sector.trim().length === 0) {
+        continue;
+      }
+      const occSector = occ.sector.toLowerCase().trim();
       return occSector === normalizedSector;
     });
 
@@ -7499,7 +7503,7 @@ export class DatabaseStorage implements IStorage {
             relevantOccupations.push({
               id: occ.id,
               title: occ.occupationTitle,
-              sector: occ.sector || "Unknown",
+              sector: occ.sector,
             });
             const reason = profileMatchReasons.get(profile.id)?.get(occId);
             if (reason && primaryMatchReason === "none") {

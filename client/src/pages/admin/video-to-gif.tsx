@@ -53,63 +53,60 @@ export default function VideoToGifConverter() {
   };
 
   const loadFFmpeg = async () => {
+    // If FFmpeg is already loaded, return it
     if (ffmpegRef.current) {
       return ffmpegRef.current;
     }
 
-    const ffmpeg = new FFmpeg();
-    ffmpegRef.current = ffmpeg;
+    // Try multiple CDN sources for better reliability
+    // Using version 0.12.15 to match installed @ffmpeg/ffmpeg package
+    const cdnSources = [
+      "https://unpkg.com/@ffmpeg/core@0.12.15/dist/esm",
+      "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.15/dist/esm",
+      "https://esm.sh/@ffmpeg/core@0.12.15/dist/esm",
+      // Fallback to older version if newer one fails
+      "https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm",
+      "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/esm",
+    ];
 
-    // FFmpeg logging removed for production
-
-    ffmpeg.on("progress", ({ progress: p }) => {
-      setProgress(p * 100);
-    });
-
-    try {
-      // Try multiple CDN sources for better reliability
-      // Using version 0.12.15 to match installed @ffmpeg/ffmpeg package
-      const cdnSources = [
-        "https://unpkg.com/@ffmpeg/core@0.12.15/dist/esm",
-        "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.15/dist/esm",
-        "https://esm.sh/@ffmpeg/core@0.12.15/dist/esm",
-        // Fallback to older version if newer one fails
-        "https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm",
-        "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/esm",
-      ];
-
-      let lastError: Error | null = null;
+    let lastError: Error | null = null;
+    
+    for (const baseURL of cdnSources) {
+      // Create a new FFmpeg instance for each attempt
+      const ffmpeg = new FFmpeg();
       
-      for (const baseURL of cdnSources) {
-        try {
-          setStatus(`Loading FFmpeg from ${new URL(baseURL).hostname}...`);
-          await ffmpeg.load({
-            coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript"),
-            wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, "application/wasm"),
-          });
-          setStatus("FFmpeg loaded successfully");
-          return ffmpeg;
-        } catch (error: any) {
-          console.warn(`Failed to load from ${baseURL}:`, error);
-          lastError = error;
-          // Reset FFmpeg instance for next attempt
-          ffmpegRef.current = new FFmpeg();
-          ffmpegRef.current.on("progress", ({ progress: p }) => {
-            setProgress(p * 100);
-          });
-        }
-      }
+      // Set up progress handler
+      ffmpeg.on("progress", ({ progress: p }) => {
+        setProgress(p * 100);
+      });
 
-      // If all CDN sources failed, throw the last error
-      throw new Error(
-        `Failed to load FFmpeg from all CDN sources. This may be due to network issues, CORS restrictions, or CDN unavailability. ` +
-        `Last error: ${lastError?.message || "Unknown error"}. ` +
-        `Please check your internet connection and try again. If the problem persists, try using a different network or VPN.`
-      );
-    } catch (error: any) {
-      console.error("Failed to load FFmpeg:", error);
-      throw error;
+      try {
+        setStatus(`Loading FFmpeg from ${new URL(baseURL).hostname}...`);
+        await ffmpeg.load({
+          coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript"),
+          wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, "application/wasm"),
+        });
+        
+        // Only set ref after successful load
+        ffmpegRef.current = ffmpeg;
+        setStatus("FFmpeg loaded successfully");
+        return ffmpeg;
+      } catch (error: any) {
+        console.warn(`Failed to load from ${baseURL}:`, error);
+        lastError = error;
+        // Don't set ref on failure - continue to next CDN source
+      }
     }
+
+    // Clear ref if all attempts failed
+    ffmpegRef.current = null;
+
+    // If all CDN sources failed, throw the last error
+    throw new Error(
+      `Failed to load FFmpeg from all CDN sources. This may be due to network issues, CORS restrictions, or CDN unavailability. ` +
+      `Last error: ${lastError?.message || "Unknown error"}. ` +
+      `Please check your internet connection and try again. If the problem persists, try using a different network or VPN.`
+    );
   };
 
   const convertToGif = async () => {
@@ -187,8 +184,12 @@ export default function VideoToGifConverter() {
         }
         gifBlob = new Blob([bytes], { type: "image/gif" });
       } else {
-        // If it's Uint8Array, use it directly
-        gifBlob = new Blob([gifData], { type: "image/gif" });
+        // If it's Uint8Array, create a new array to ensure compatibility with Blob
+        // This handles cases where the buffer might be a SharedArrayBuffer
+        // Create a new Uint8Array which will have a regular ArrayBuffer
+        const bytes = new Uint8Array(gifData.length);
+        bytes.set(gifData);
+        gifBlob = new Blob([bytes], { type: "image/gif" });
       }
       const gifUrl = URL.createObjectURL(gifBlob);
       setGifUrl(gifUrl);
