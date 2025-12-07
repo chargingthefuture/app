@@ -5768,11 +5768,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const validatedData = validateWithZod(insertWorkforceRecruiterMeetupEventSignupSchema, {
       ...req.body,
       eventId,
-      userId,
     }, 'Invalid signup data');
     
+    // Add userId after validation (schema omits it, but database requires it)
     const signup = await withDatabaseErrorHandling(
-      () => storage.createWorkforceRecruiterMeetupEventSignup(validatedData),
+      () => storage.createWorkforceRecruiterMeetupEventSignup({
+        ...validatedData,
+        userId,
+      } as any),
       'createWorkforceRecruiterMeetupEventSignup'
     );
     res.json(signup);
