@@ -6840,7 +6840,11 @@ export class DatabaseStorage implements IStorage {
     const occupationSectorMap = new Map<string, string>();
     const occupationJobTitleMap = new Map<string, string>();
     for (const occ of occupations) {
-      occupationSectorMap.set(occ.id, occ.sector || "Unknown");
+      // Skip occupations without valid sectors
+      if (!occ.sector || occ.sector.trim().length === 0) {
+        continue;
+      }
+      occupationSectorMap.set(occ.id, occ.sector);
       if (occ.jobTitleId) {
         const jobTitleName = jobTitleIdToNameMap.get(occ.jobTitleId);
         if (jobTitleName) {
@@ -7148,7 +7152,11 @@ export class DatabaseStorage implements IStorage {
     const occupationSectorMap = new Map<string, string>();
     const occupationJobTitleMap = new Map<string, string>();
     for (const occ of occupations) {
-      occupationSectorMap.set(occ.id, occ.sector || "Unknown");
+      // Skip occupations without valid sectors
+      if (!occ.sector || occ.sector.trim().length === 0) {
+        continue;
+      }
+      occupationSectorMap.set(occ.id, occ.sector);
       if (occ.jobTitleId) {
         const jobTitleName = jobTitleIdToNameMap.get(occ.jobTitleId);
         if (jobTitleName) {
@@ -7374,7 +7382,11 @@ export class DatabaseStorage implements IStorage {
     const occupationSectorMap = new Map<string, string>();
     const occupationJobTitleMap = new Map<string, string>();
     for (const occ of occupations) {
-      occupationSectorMap.set(occ.id, occ.sector || "Unknown");
+      // Skip occupations without valid sectors
+      if (!occ.sector || occ.sector.trim().length === 0) {
+        continue;
+      }
+      occupationSectorMap.set(occ.id, occ.sector);
       if (occ.jobTitleId) {
         const jobTitleName = jobTitleIdToNameMap.get(occ.jobTitleId);
         if (jobTitleName) {

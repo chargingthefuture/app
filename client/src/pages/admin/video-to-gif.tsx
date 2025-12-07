@@ -68,10 +68,14 @@ export default function VideoToGifConverter() {
 
     try {
       // Try multiple CDN sources for better reliability
+      // Using version 0.12.15 to match installed @ffmpeg/ffmpeg package
       const cdnSources = [
+        "https://unpkg.com/@ffmpeg/core@0.12.15/dist/esm",
+        "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.15/dist/esm",
+        "https://esm.sh/@ffmpeg/core@0.12.15/dist/esm",
+        // Fallback to older version if newer one fails
         "https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm",
         "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/esm",
-        "https://esm.sh/@ffmpeg/core@0.12.6/dist/esm",
       ];
 
       let lastError: Error | null = null;
@@ -83,6 +87,7 @@ export default function VideoToGifConverter() {
             coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript"),
             wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, "application/wasm"),
           });
+          setStatus("FFmpeg loaded successfully");
           return ffmpeg;
         } catch (error: any) {
           console.warn(`Failed to load from ${baseURL}:`, error);
@@ -97,9 +102,9 @@ export default function VideoToGifConverter() {
 
       // If all CDN sources failed, throw the last error
       throw new Error(
-        `Failed to load FFmpeg from all CDN sources. This may be due to network issues or CORS restrictions. ` +
+        `Failed to load FFmpeg from all CDN sources. This may be due to network issues, CORS restrictions, or CDN unavailability. ` +
         `Last error: ${lastError?.message || "Unknown error"}. ` +
-        `Please check your internet connection and try again.`
+        `Please check your internet connection and try again. If the problem persists, try using a different network or VPN.`
       );
     } catch (error: any) {
       console.error("Failed to load FFmpeg:", error);
@@ -204,12 +209,14 @@ export default function VideoToGifConverter() {
       // Provide more helpful error messages
       let errorMessage = error.message || "Failed to convert video to GIF";
       
-      if (errorMessage.includes("Failed to fetch") || errorMessage.includes("unpkg.com")) {
+      if (errorMessage.includes("Failed to load FFmpeg") || errorMessage.includes("Failed to fetch") || errorMessage.includes("unpkg.com") || errorMessage.includes("CDN")) {
         errorMessage = "Failed to load FFmpeg library. This may be due to network issues, CORS restrictions, or CDN unavailability. Please check your internet connection and try again. If the problem persists, try using a different network or VPN.";
       } else if (errorMessage.includes("format") || errorMessage.includes("codec")) {
         errorMessage = `Video format may not be supported. Error: ${errorMessage}. Try converting your video to MP4 format first.`;
       } else if (errorMessage.includes("memory") || errorMessage.includes("Memory")) {
         errorMessage = "Video file is too large to process in browser memory. Try a smaller video file.";
+      } else if (errorMessage.includes("Failed to load FFmpeg library")) {
+        // Error message already set, keep it
       }
       
       toast({
