@@ -7283,6 +7283,271 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
+  async getWorkforceRecruiterSectorDetail(sector: string): Promise<{
+    sector: string;
+    target: number;
+    recruited: number;
+    percent: number;
+    jobTitles: Array<{ id: string; name: string; count: number }>;
+    skills: Array<{ name: string; count: number }>;
+    occupations: Array<{ id: string; title: string; jobTitleId: string | null; headcountTarget: number; skillLevel: string }>;
+    profiles: Array<{
+      profileId: string;
+      displayName: string;
+      skills: string[];
+      sectors: string[];
+      jobTitles: string[];
+      matchingOccupations: Array<{ id: string; title: string; sector: string }>;
+      matchReason: string; // "sector", "jobTitle", "skill", or "none"
+    }>;
+  }> {
+    // Reuse the same matching logic from summary report
+    const occupations = await db.select().from(workforceRecruiterOccupations);
+    const allDirectoryProfiles = await db
+      .select()
+      .from(directoryProfiles)
+      .where(sql`array_length(${directoryProfiles.skills}, 1) > 0`);
+
+    // Build lookup maps (same as summary report)
+    const allSectors = await db.select().from(skillsSectors);
+    const allJobTitles = await db.select().from(skillsJobTitles);
+    const sectorIdToNameMap = new Map<string, string>();
+    for (const s of allSectors) {
+      sectorIdToNameMap.set(s.id, s.name);
+    }
+    const jobTitleToSectorMap = new Map<string, string>();
+    const jobTitleIdToNameMap = new Map<string, string>();
+    for (const jobTitle of allJobTitles) {
+      jobTitleIdToNameMap.set(jobTitle.id, jobTitle.name);
+      const sectorName = sectorIdToNameMap.get(jobTitle.sectorId);
+      if (sectorName) {
+        jobTitleToSectorMap.set(jobTitle.id, sectorName);
+      }
+    }
+
+    const allSkills = await db.select().from(skillsSkills);
+    const jobTitleSkillsMap = new Map<string, Set<string>>();
+    const skillNameToSectorsMap = new Map<string, Set<string>>();
+    for (const skill of allSkills) {
+      if (!jobTitleSkillsMap.has(skill.jobTitleId)) {
+        jobTitleSkillsMap.set(skill.jobTitleId, new Set());
+      }
+      // Normalize skill name for consistent matching (handles punctuation, spacing variations)
+      const normalizedSkillName = this.normalizeSkillName(skill.name);
+      jobTitleSkillsMap.get(skill.jobTitleId)!.add(normalizedSkillName);
+      
+      const jobTitleSector = jobTitleToSectorMap.get(skill.jobTitleId);
+      if (jobTitleSector) {
+        if (!skillNameToSectorsMap.has(normalizedSkillName)) {
+          skillNameToSectorsMap.set(normalizedSkillName, new Set());
+        }
+        skillNameToSectorsMap.get(normalizedSkillName)!.add(jobTitleSector);
+      }
+    }
+
+    const occupationSkillsMap = new Map<string, Set<string>>();
+    const occupationSectorMap = new Map<string, string>();
+    const occupationJobTitleMap = new Map<string, string>();
+    for (const occ of occupations) {
+      occupationSectorMap.set(occ.id, occ.sector || "Unknown");
+      if (occ.jobTitleId) {
+        const jobTitleName = jobTitleIdToNameMap.get(occ.jobTitleId);
+        if (jobTitleName) {
+          occupationJobTitleMap.set(occ.id, jobTitleName);
+        }
+        if (jobTitleSkillsMap.has(occ.jobTitleId)) {
+          occupationSkillsMap.set(occ.id, jobTitleSkillsMap.get(occ.jobTitleId)!);
+        }
+      } else {
+        // Fallback: Try to match by occupation title name if jobTitleId is missing
+        const normalizedOccTitle = occ.occupationTitle.toLowerCase().trim();
+        for (const [jobTitleId, jobTitleName] of jobTitleIdToNameMap.entries()) {
+          const normalizedJobTitle = jobTitleName.toLowerCase().trim();
+          if (normalizedOccTitle === normalizedJobTitle) {
+            occupationJobTitleMap.set(occ.id, jobTitleName);
+            if (jobTitleSkillsMap.has(jobTitleId)) {
+              occupationSkillsMap.set(occ.id, jobTitleSkillsMap.get(jobTitleId)!);
+            }
+            break;
+          }
+        }
+      }
+    }
+
+    // Filter occupations by sector (case-insensitive)
+    const normalizedSector = sector.toLowerCase().trim();
+    const sectorOccupations = occupations.filter(occ => {
+      const occSector = (occ.sector || "Unknown").toLowerCase().trim();
+      return occSector === normalizedSector;
+    });
+
+    // Calculate target for this sector
+    const target = sectorOccupations.reduce((sum, occ) => sum + occ.headcountTarget, 0);
+
+    // Match profiles and track detailed matching information
+    const profileToOccupationsMap = new Map<string, Set<string>>();
+    const profileMatchReasons = new Map<string, Map<string, string>>(); // profileId -> occupationId -> reason
+    
+    for (const profile of allDirectoryProfiles) {
+      if (!profile.skills || profile.skills.length === 0) continue;
+      
+      const profileId = profile.id;
+      const profileSectors = (profile.sectors || []).map(s => s.toLowerCase().trim());
+      const profileJobTitles = (profile.jobTitles || []).map(jt => jt.toLowerCase().trim());
+      const profileSkills = (profile.skills || []).map(s => s.toLowerCase().trim());
+      
+      const matchingOccupations = new Set<string>();
+      const matchReasons = new Map<string, string>();
+      
+      for (const occ of sectorOccupations) {
+        const occSector = (occ.sector ? occ.sector.toLowerCase() : "").trim();
+        const occJobTitle = occupationJobTitleMap.get(occ.id)?.toLowerCase().trim() || "";
+        const occSkills = occupationSkillsMap.get(occ.id) || new Set<string>();
+        
+        let matchReason = "";
+        const matchesSector = profileSectors.some(ps => {
+          const normalizedPs = ps.trim();
+          return normalizedPs === occSector || 
+                 normalizedPs.includes(occSector) || 
+                 occSector.includes(normalizedPs);
+        });
+        const matchesJobTitle = profileJobTitles.some(pjt => {
+          const normalizedPjt = pjt.trim();
+          return normalizedPjt === occJobTitle;
+        });
+        const matchesSkill = profileSkills.some(ps => {
+          return this.skillMatches(ps, occSkills);
+        });
+        
+        if (matchesSector) {
+          matchReason = "sector";
+        } else if (matchesJobTitle) {
+          matchReason = "jobTitle";
+        } else if (matchesSkill) {
+          matchReason = "skill";
+        }
+        
+        if (matchesSector || matchesJobTitle || matchesSkill) {
+          matchingOccupations.add(occ.id);
+          matchReasons.set(occ.id, matchReason);
+        }
+      }
+      
+      if (matchingOccupations.size > 0) {
+        profileToOccupationsMap.set(profileId, matchingOccupations);
+        profileMatchReasons.set(profileId, matchReasons);
+      }
+    }
+
+    // Get all profiles in this sector
+    const profilesInSector: Array<{
+      profileId: string;
+      displayName: string;
+      skills: string[];
+      sectors: string[];
+      jobTitles: string[];
+      matchingOccupations: Array<{ id: string; title: string; sector: string }>;
+      matchReason: string;
+    }> = [];
+
+    for (const profile of allDirectoryProfiles) {
+      const matchingOccs = profileToOccupationsMap.get(profile.id);
+      const relevantOccupations: Array<{ id: string; title: string; sector: string }> = [];
+      let primaryMatchReason = "none";
+
+      if (matchingOccs && matchingOccs.size > 0) {
+        for (const occId of matchingOccs) {
+          const occ = sectorOccupations.find(o => o.id === occId);
+          if (occ) {
+            relevantOccupations.push({
+              id: occ.id,
+              title: occ.occupationTitle,
+              sector: occ.sector || "Unknown",
+            });
+            const reason = profileMatchReasons.get(profile.id)?.get(occId);
+            if (reason && primaryMatchReason === "none") {
+              primaryMatchReason = reason;
+            }
+          }
+        }
+      }
+
+      if (relevantOccupations.length > 0) {
+        // Get display name
+        let displayName = "Unknown";
+        if (profile.displayNameType === "nickname" && profile.nickname) {
+          displayName = profile.nickname;
+        } else if (profile.firstName) {
+          displayName = profile.firstName;
+        }
+
+        profilesInSector.push({
+          profileId: profile.id,
+          displayName,
+          skills: profile.skills || [],
+          sectors: profile.sectors || [],
+          jobTitles: profile.jobTitles || [],
+          matchingOccupations: relevantOccupations,
+          matchReason: primaryMatchReason,
+        });
+      }
+    }
+
+    const recruited = profilesInSector.length;
+    const percent = target > 0 ? (recruited / target) * 100 : 0;
+
+    // Count job titles in this sector
+    const jobTitleCounts = new Map<string, { id: string; name: string; count: number }>();
+    for (const profile of profilesInSector) {
+      for (const jobTitleName of profile.jobTitles) {
+        // Find job title ID by name
+        for (const [jobTitleId, name] of jobTitleIdToNameMap.entries()) {
+          if (name.toLowerCase().trim() === jobTitleName.toLowerCase().trim()) {
+            const sectorName = jobTitleToSectorMap.get(jobTitleId);
+            if (sectorName && sectorName.toLowerCase().trim() === normalizedSector) {
+              if (!jobTitleCounts.has(jobTitleId)) {
+                jobTitleCounts.set(jobTitleId, { id: jobTitleId, name, count: 0 });
+              }
+              jobTitleCounts.get(jobTitleId)!.count++;
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    // Count skills in this sector
+    const skillCounts = new Map<string, number>();
+    for (const profile of profilesInSector) {
+      for (const skillName of profile.skills) {
+        const normalizedSkill = this.normalizeSkillName(skillName);
+        const skillSectors = skillNameToSectorsMap.get(normalizedSkill);
+        if (skillSectors && skillSectors.has(sector)) {
+          skillCounts.set(normalizedSkill, (skillCounts.get(normalizedSkill) || 0) + 1);
+        }
+      }
+    }
+
+    return {
+      sector,
+      target,
+      recruited,
+      percent,
+      jobTitles: Array.from(jobTitleCounts.values()).sort((a, b) => b.count - a.count),
+      skills: Array.from(skillCounts.entries())
+        .map(([name, count]) => ({ name, count }))
+        .sort((a, b) => b.count - a.count),
+      occupations: sectorOccupations.map(occ => ({
+        id: occ.id,
+        title: occ.occupationTitle,
+        jobTitleId: occ.jobTitleId,
+        headcountTarget: occ.headcountTarget,
+        skillLevel: occ.skillLevel,
+      })),
+      profiles: profilesInSector,
+    };
+  }
+
   async createWorkforceRecruiterAnnouncement(announcementData: InsertWorkforceRecruiterAnnouncement): Promise<WorkforceRecruiterAnnouncement> {
     const [announcement] = await db
       .insert(workforceRecruiterAnnouncements)

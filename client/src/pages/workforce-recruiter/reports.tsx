@@ -3,10 +3,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "wouter";
-import { BarChart3, ArrowLeft } from "lucide-react";
+import { BarChart3, ArrowLeft, ChevronDown, ChevronRight } from "lucide-react";
 import { AnnouncementBanner } from "@/components/announcement-banner";
 import type { WorkforceRecruiterConfig } from "@shared/schema";
 import { Progress } from "@/components/ui/progress";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Loader2 } from "lucide-react";
+import { useState } from "react";
 
 interface SummaryReport {
   totalWorkforceTarget: number;
@@ -15,6 +18,96 @@ interface SummaryReport {
   sectorBreakdown: Array<{ sector: string; target: number; recruited: number; percent: number }>;
   skillLevelBreakdown: Array<{ skillLevel: string; target: number; recruited: number; percent: number }>;
   annualTrainingGap: Array<{ occupationId: string; occupationTitle: string; sector: string; target: number; actual: number; gap: number }>;
+}
+
+interface SectorItemProps {
+  sector: { sector: string; target: number; recruited: number; percent: number };
+}
+
+function SectorItem({ sector }: SectorItemProps) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  const { data: sectorDetails, isLoading } = useQuery<{
+    sector: string;
+    target: number;
+    recruited: number;
+    percent: number;
+    jobTitles: Array<{ id: string; name: string; count: number }>;
+    skills: Array<{ name: string; count: number }>;
+    occupations: Array<{ id: string; title: string; jobTitleId: string | null; headcountTarget: number; skillLevel: string }>;
+    profiles: Array<{
+      profileId: string;
+      displayName: string;
+      skills: string[];
+      sectors: string[];
+      jobTitles: string[];
+      matchingOccupations: Array<{ id: string; title: string; sector: string }>;
+      matchReason: string;
+    }>;
+  }>({
+    queryKey: [`/api/workforce-recruiter/sector/${encodeURIComponent(sector.sector)}`],
+    enabled: isOpen,
+  });
+
+  return (
+    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+      <div className="space-y-2">
+        <CollapsibleTrigger asChild>
+          <button
+            className="flex items-center justify-between w-full text-left hover:bg-accent rounded-md p-2 -m-2 transition-colors"
+            data-testid={`sector-trigger-${sector.sector}`}
+            aria-expanded={isOpen}
+          >
+            <div className="flex items-center gap-2 flex-1">
+              {isOpen ? (
+                <ChevronDown className="w-4 h-4 text-muted-foreground" />
+              ) : (
+                <ChevronRight className="w-4 h-4 text-muted-foreground" />
+              )}
+              <span className="font-medium text-sm">{sector.sector}</span>
+            </div>
+            <span className="text-muted-foreground text-sm">
+              {sector.recruited.toLocaleString()} / {sector.target.toLocaleString()}
+            </span>
+          </button>
+        </CollapsibleTrigger>
+        <Progress value={sector.percent} className="h-2" />
+        <div className="text-xs text-muted-foreground">
+          {sector.percent.toFixed(1)}% filled
+        </div>
+        <CollapsibleContent className="pt-2 space-y-2">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-4">
+              <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+            </div>
+          ) : sectorDetails && sectorDetails.jobTitles.length > 0 ? (
+            <div className="pl-6 space-y-2 border-l-2 border-muted">
+              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                Job Titles
+              </h4>
+              <div className="space-y-1">
+                {sectorDetails.jobTitles.map((jobTitle) => (
+                  <div
+                    key={jobTitle.id}
+                    className="flex items-center justify-between text-xs py-1"
+                  >
+                    <span className="text-muted-foreground">{jobTitle.name}</span>
+                    <Badge variant="secondary" className="text-xs">
+                      {jobTitle.count}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="pl-6 text-xs text-muted-foreground">
+              No job titles available for this sector
+            </div>
+          )}
+        </CollapsibleContent>
+      </div>
+    </Collapsible>
+  );
 }
 
 export default function WorkforceRecruiterReports() {
@@ -158,18 +251,7 @@ export default function WorkforceRecruiterReports() {
               <p className="text-sm text-muted-foreground">No sector data available</p>
             ) : (
               summaryReport?.sectorBreakdown.map((sector) => (
-                <div key={sector.sector} className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="font-medium">{sector.sector}</span>
-                    <span className="text-muted-foreground">
-                      {sector.recruited.toLocaleString()} / {sector.target.toLocaleString()}
-                    </span>
-                  </div>
-                  <Progress value={sector.percent} className="h-2" />
-                  <div className="text-xs text-muted-foreground">
-                    {sector.percent.toFixed(1)}% filled
-                  </div>
-                </div>
+                <SectorItem key={sector.sector} sector={sector} />
               ))
             )}
           </div>

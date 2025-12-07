@@ -6016,10 +6016,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     isAuthenticated,
     async (req: any, res) => {
       try {
-        const userId = getUserId(req);
         const sector = decodeURIComponent(req.params.sector);
 
-        const details = await storage.getWorkforceSectorDetails(userId, sector);
+        const details = await storage.getWorkforceRecruiterSectorDetail(sector);
 
         res.json(details);
       } catch (error: any) {
