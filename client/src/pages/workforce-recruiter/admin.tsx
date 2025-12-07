@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
-import { Briefcase, Bell, Settings } from "lucide-react";
+import { Briefcase, Bell, Settings, Calendar } from "lucide-react";
 
 export default function WorkforceRecruiterAdmin() {
   return (
@@ -43,6 +43,23 @@ export default function WorkforceRecruiterAdmin() {
               <Button className="w-full" data-testid="button-manage-announcements">
                 <Bell className="w-4 h-4 mr-2" />
                 Manage Announcements
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Meetup Events</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Create and manage meetup events, and view user signups.
+            </p>
+            <Link href="/apps/workforce-recruiter/admin/meetup-events">
+              <Button className="w-full" data-testid="button-manage-meetup-events">
+                <Calendar className="w-4 h-4 mr-2" />
+                Manage Meetup Events
               </Button>
             </Link>
           </CardContent>
