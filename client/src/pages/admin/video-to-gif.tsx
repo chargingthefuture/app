@@ -1,13 +1,12 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
-import { Video, Download, Upload, Loader2, X } from "lucide-react";
-import { FFmpeg } from "@ffmpeg/ffmpeg";
-import { fetchFile, toBlobURL } from "@ffmpeg/util";
+import { Video, Download, Loader2, X } from "lucide-react";
+import GIF from "gif.js";
 
 export default function VideoToGifConverter() {
   const { toast } = useToast();
@@ -18,7 +17,6 @@ export default function VideoToGifConverter() {
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const ffmpegRef = useRef<FFmpeg | null>(null);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -52,65 +50,8 @@ export default function VideoToGifConverter() {
     setGifUrl(null); // Clear previous GIF
   };
 
-  const loadFFmpeg = async () => {
-    // If FFmpeg is already loaded, return it
-    if (ffmpegRef.current) {
-      return ffmpegRef.current;
-    }
-
-    // Try multiple CDN sources for better reliability
-    // Using version 0.12.15 to match installed @ffmpeg/ffmpeg package
-    const cdnSources = [
-      "https://unpkg.com/@ffmpeg/core@0.12.15/dist/esm",
-      "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.15/dist/esm",
-      "https://esm.sh/@ffmpeg/core@0.12.15/dist/esm",
-      // Fallback to older version if newer one fails
-      "https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm",
-      "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/esm",
-    ];
-
-    let lastError: Error | null = null;
-    
-    for (const baseURL of cdnSources) {
-      // Create a new FFmpeg instance for each attempt
-      const ffmpeg = new FFmpeg();
-      
-      // Set up progress handler
-      ffmpeg.on("progress", ({ progress: p }) => {
-        setProgress(p * 100);
-      });
-
-      try {
-        setStatus(`Loading FFmpeg from ${new URL(baseURL).hostname}...`);
-        await ffmpeg.load({
-          coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript"),
-          wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, "application/wasm"),
-        });
-        
-        // Only set ref after successful load
-        ffmpegRef.current = ffmpeg;
-        setStatus("FFmpeg loaded successfully");
-        return ffmpeg;
-      } catch (error: any) {
-        console.warn(`Failed to load from ${baseURL}:`, error);
-        lastError = error;
-        // Don't set ref on failure - continue to next CDN source
-      }
-    }
-
-    // Clear ref if all attempts failed
-    ffmpegRef.current = null;
-
-    // If all CDN sources failed, throw the last error
-    throw new Error(
-      `Failed to load FFmpeg from all CDN sources. This may be due to network issues, CORS restrictions, or CDN unavailability. ` +
-      `Last error: ${lastError?.message || "Unknown error"}. ` +
-      `Please check your internet connection and try again. If the problem persists, try using a different network or VPN.`
-    );
-  };
-
   const convertToGif = async () => {
-    if (!videoFile) {
+    if (!videoFile || !videoUrl) {
       toast({
         title: "No Video Selected",
         description: "Please select a video file first",
@@ -121,85 +62,119 @@ export default function VideoToGifConverter() {
 
     setIsLoading(true);
     setProgress(0);
-    setStatus("Loading FFmpeg...");
+    setStatus("Initializing...");
     setGifUrl(null);
 
     try {
-      // Load FFmpeg
-      const ffmpeg = await loadFFmpeg();
+      // Create video element to extract frames
+      const video = document.createElement("video");
+      video.src = videoUrl;
+      video.crossOrigin = "anonymous";
       
-      setStatus("Reading video file...");
-      const videoData = await fetchFile(videoFile);
-      
-      // Detect file extension from MIME type or filename
-      let inputExtension = "mp4";
-      if (videoFile.type.includes("webm")) {
-        inputExtension = "webm";
-      } else if (videoFile.type.includes("mov") || videoFile.name.toLowerCase().endsWith(".mov")) {
-        inputExtension = "mov";
-      } else if (videoFile.type.includes("avi") || videoFile.name.toLowerCase().endsWith(".avi")) {
-        inputExtension = "avi";
-      } else if (videoFile.name.toLowerCase().endsWith(".webm")) {
-        inputExtension = "webm";
-      } else if (videoFile.name.toLowerCase().endsWith(".mp4")) {
-        inputExtension = "mp4";
-      }
-      
-      const inputFileName = `input.${inputExtension}`;
-      
-      // Write video file to FFmpeg virtual file system
-      setStatus("Processing video...");
-      await ffmpeg.writeFile(inputFileName, videoData);
-      
-      // Convert to GIF
-      // Using palette-based conversion for better quality and smaller file size
-      setStatus("Generating color palette...");
-      await ffmpeg.exec([
-        "-i", inputFileName,
-        "-vf", "fps=10,scale=640:-1:flags=lanczos,palettegen",
-        "palette.png"
-      ]);
+      // Wait for video metadata to load
+      await new Promise<void>((resolve, reject) => {
+        video.onloadedmetadata = () => resolve();
+        video.onerror = () => reject(new Error("Failed to load video"));
+        video.load();
+      });
 
-      setStatus("Creating GIF...");
-      await ffmpeg.exec([
-        "-i", inputFileName,
-        "-i", "palette.png",
-        "-filter_complex", "fps=10,scale=640:-1:flags=lanczos[x];[x][1:v]paletteuse",
-        "output.gif"
-      ]);
-
-      // Read the output GIF
-      setStatus("Finalizing...");
-      const gifData = await ffmpeg.readFile("output.gif");
+      const videoDuration = video.duration;
+      const targetFPS = 10; // Frames per second for GIF
+      const frameInterval = 1 / targetFPS; // Time between frames
+      const maxWidth = 640; // Max width for GIF
+      const maxDuration = 30; // Max 30 seconds to prevent memory issues
+      const duration = Math.min(videoDuration, maxDuration);
       
-      // Create blob URL for download
-      // FileData can be Uint8Array or string, handle both cases
-      let gifBlob: Blob;
-      if (typeof gifData === "string") {
-        // If it's a string (base64), convert to blob
-        const binaryString = atob(gifData);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-          bytes[i] = binaryString.charCodeAt(i);
-        }
-        gifBlob = new Blob([bytes], { type: "image/gif" });
-      } else {
-        // If it's Uint8Array, create a new array to ensure compatibility with Blob
-        // This handles cases where the buffer might be a SharedArrayBuffer
-        // Create a new Uint8Array which will have a regular ArrayBuffer
-        const bytes = new Uint8Array(gifData.length);
-        bytes.set(gifData);
-        gifBlob = new Blob([bytes], { type: "image/gif" });
+      // Calculate video dimensions maintaining aspect ratio
+      const videoAspectRatio = video.videoWidth / video.videoHeight;
+      let gifWidth = maxWidth;
+      let gifHeight = Math.round(maxWidth / videoAspectRatio);
+      
+      // If height is too large, scale down
+      if (gifHeight > 480) {
+        gifHeight = 480;
+        gifWidth = Math.round(480 * videoAspectRatio);
       }
+
+      // Create canvas for frame extraction
+      const canvas = document.createElement("canvas");
+      canvas.width = gifWidth;
+      canvas.height = gifHeight;
+      const ctx = canvas.getContext("2d");
+      
+      if (!ctx) {
+        throw new Error("Failed to get canvas context");
+      }
+
+      // Initialize GIF encoder
+      setStatus("Setting up GIF encoder...");
+      const gif = new GIF({
+        workers: 2,
+        quality: 10, // Lower = better quality but larger file (1-30)
+        width: gifWidth,
+        height: gifHeight,
+        // Use CDN for worker script, fallback to local if needed
+        workerScript: typeof window !== "undefined" 
+          ? "https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.worker.js"
+          : undefined,
+      });
+
+      // Track progress
+      gif.on("progress", (p: number) => {
+        setProgress(p * 100);
+      });
+
+      // Extract frames
+      setStatus("Extracting frames from video...");
+      const totalFrames = Math.floor(duration * targetFPS);
+      let framesExtracted = 0;
+
+      for (let time = 0; time < duration; time += frameInterval) {
+        // Seek to specific time
+        video.currentTime = time;
+        
+        // Wait for video to seek
+        await new Promise<void>((resolve) => {
+          const onSeeked = () => {
+            video.removeEventListener("seeked", onSeeked);
+            resolve();
+          };
+          video.addEventListener("seeked", onSeeked);
+        });
+
+        // Draw frame to canvas
+        ctx.drawImage(video, 0, 0, gifWidth, gifHeight);
+        
+        // Add frame to GIF
+        gif.addFrame(canvas, { delay: frameInterval * 1000 }); // delay in milliseconds
+        
+        framesExtracted++;
+        const extractionProgress = (framesExtracted / totalFrames) * 50; // First 50% of progress
+        setProgress(extractionProgress);
+        setStatus(`Extracting frame ${framesExtracted} of ${totalFrames}...`);
+      }
+
+      // Render GIF
+      setStatus("Encoding GIF...");
+      setProgress(50);
+      
+      const gifBlob = await new Promise<Blob>((resolve, reject) => {
+        gif.on("finished", (blob: Blob) => {
+          resolve(blob);
+        });
+        
+        gif.on("error", (error: Error) => {
+          reject(error);
+        });
+        
+        gif.render();
+      });
+
       const gifUrl = URL.createObjectURL(gifBlob);
       setGifUrl(gifUrl);
-
-      // Clean up FFmpeg files
-      await ffmpeg.deleteFile(inputFileName);
-      await ffmpeg.deleteFile("palette.png");
-      await ffmpeg.deleteFile("output.gif");
-
+      setProgress(100);
       setStatus("Complete!");
+
       toast({
         title: "Conversion Complete",
         description: "Your GIF is ready to download",
@@ -207,17 +182,14 @@ export default function VideoToGifConverter() {
     } catch (error: any) {
       console.error("Conversion error:", error);
       
-      // Provide more helpful error messages
       let errorMessage = error.message || "Failed to convert video to GIF";
       
-      if (errorMessage.includes("Failed to load FFmpeg") || errorMessage.includes("Failed to fetch") || errorMessage.includes("unpkg.com") || errorMessage.includes("CDN")) {
-        errorMessage = "Failed to load FFmpeg library. This may be due to network issues, CORS restrictions, or CDN unavailability. Please check your internet connection and try again. If the problem persists, try using a different network or VPN.";
-      } else if (errorMessage.includes("format") || errorMessage.includes("codec")) {
-        errorMessage = `Video format may not be supported. Error: ${errorMessage}. Try converting your video to MP4 format first.`;
+      if (errorMessage.includes("Failed to load")) {
+        errorMessage = "Failed to load video. Please ensure the video file is valid and try again.";
       } else if (errorMessage.includes("memory") || errorMessage.includes("Memory")) {
-        errorMessage = "Video file is too large to process in browser memory. Try a smaller video file.";
-      } else if (errorMessage.includes("Failed to load FFmpeg library")) {
-        // Error message already set, keep it
+        errorMessage = "Video file is too large to process in browser memory. Try a smaller video file or a shorter duration.";
+      } else if (errorMessage.includes("codec") || errorMessage.includes("format")) {
+        errorMessage = `Video format may not be supported. Error: ${errorMessage}. Try converting your video to MP4 format first.`;
       }
       
       toast({
@@ -228,7 +200,6 @@ export default function VideoToGifConverter() {
       setStatus("Error");
     } finally {
       setIsLoading(false);
-      setProgress(0);
     }
   };
 
@@ -271,6 +242,18 @@ export default function VideoToGifConverter() {
     }
   };
 
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (videoUrl) {
+        URL.revokeObjectURL(videoUrl);
+      }
+      if (gifUrl) {
+        URL.revokeObjectURL(gifUrl);
+      }
+    };
+  }, [videoUrl, gifUrl]);
+
   return (
     <div className="p-4 sm:p-6 md:p-8 space-y-6 max-w-4xl mx-auto">
       <div>
@@ -284,7 +267,7 @@ export default function VideoToGifConverter() {
         <CardHeader>
           <CardTitle>Upload Video</CardTitle>
           <CardDescription>
-            Select a video file from your device (max 100MB). Supports common video formats including MP4, WebM, MOV, AVI, etc.
+            Select a video file from your device (max 100MB, first 30 seconds will be converted). Supports common video formats including MP4, WebM, MOV, AVI, etc.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -397,20 +380,15 @@ export default function VideoToGifConverter() {
         </CardHeader>
         <CardContent className="space-y-2 text-sm text-muted-foreground">
           <ul className="list-disc list-inside space-y-1">
-            <li>For best results, use videos shorter than 30 seconds</li>
-            <li>GIFs are converted at 10 FPS and scaled to 640px width</li>
+            <li>For best results, use videos shorter than 30 seconds (first 30 seconds will be converted)</li>
+            <li>GIFs are converted at 10 FPS and scaled to 640px width (or 480px height, whichever is smaller)</li>
             <li>Larger videos will take longer to process</li>
             <li>All processing happens in your browser - your files never leave your device</li>
             <li>After downloading, the GIF is automatically removed from memory</li>
+            <li>No external libraries or CDN dependencies required - works offline after initial load</li>
           </ul>
         </CardContent>
       </Card>
     </div>
   );
 }
-
-
-
-
-
-
