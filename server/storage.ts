@@ -7417,7 +7417,7 @@ export class DatabaseStorage implements IStorage {
     const sectorOccupations = occupations.filter(occ => {
       // Skip occupations without valid sectors
       if (!occ.sector || occ.sector.trim().length === 0) {
-        continue;
+        return false;
       }
       const occSector = occ.sector.toLowerCase().trim();
       return occSector === normalizedSector;
