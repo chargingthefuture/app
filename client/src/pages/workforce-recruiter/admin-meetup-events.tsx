@@ -20,6 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { useFuzzySearch } from "@/hooks/useFuzzySearch";
 import { PaginationControls } from "@/components/pagination-controls";
 import { Switch } from "@/components/ui/switch";
+import { PrivacyField } from "@/components/ui/privacy-field";
 import type { WorkforceRecruiterMeetupEvent, WorkforceRecruiterMeetupEventSignup, WorkforceRecruiterOccupation } from "@shared/schema";
 import { insertWorkforceRecruiterMeetupEventSchema } from "@shared/schema";
 import { format } from "date-fns";
@@ -60,8 +61,8 @@ export default function WorkforceRecruiterAdminMeetupEvents() {
     threshold: 0.3,
   });
 
-  // Fetch signups for selected event
-  const { data: signupsData, isLoading: signupsLoading } = useQuery<{ signups: WorkforceRecruiterMeetupEventSignup[]; total: number }>({
+  // Fetch signups for selected event (now includes user data)
+  const { data: signupsData, isLoading: signupsLoading } = useQuery<{ signups: (WorkforceRecruiterMeetupEventSignup & { user?: { firstName?: string | null; lastName?: string | null; email?: string | null } | null })[], total: number }>({
     queryKey: [`/api/workforce-recruiter/meetup-events/${selectedEvent?.id}/signups?limit=${signupsLimit}&offset=${signupsPage * signupsLimit}`],
     enabled: !!selectedEvent && signupsDialogOpen,
   });
@@ -463,8 +464,28 @@ export default function WorkforceRecruiterAdminMeetupEvents() {
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
                           <div>
-                            <p className="font-medium">User ID: {signup.userId}</p>
-                            <p className="text-sm text-muted-foreground">
+                            <div className="space-y-1">
+                              {(signup.user?.firstName || signup.user?.lastName) ? (
+                                <p className="font-medium">
+                                  {[signup.user.firstName, signup.user.lastName].filter(Boolean).join(' ') || 'User'}
+                                </p>
+                              ) : (
+                                <p className="font-medium text-muted-foreground">User</p>
+                              )}
+                              {signup.user?.email && (
+                                <div className="text-sm">
+                                  <PrivacyField
+                                    value={signup.user.email}
+                                    type="email"
+                                    testId={`signup-email-${signup.id}`}
+                                  />
+                                </div>
+                              )}
+                              {!signup.user?.email && !signup.user?.firstName && !signup.user?.lastName && (
+                                <p className="text-sm text-muted-foreground">User ID: {signup.userId}</p>
+                              )}
+                            </div>
+                            <p className="text-sm text-muted-foreground mt-2">
                               Signed up: {format(new Date(signup.createdAt), "PPp")}
                             </p>
                           </div>

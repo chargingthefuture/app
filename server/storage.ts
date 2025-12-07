@@ -6596,8 +6596,25 @@ export class DatabaseStorage implements IStorage {
     userId?: string;
     limit?: number;
     offset?: number;
-  }): Promise<{ signups: WorkforceRecruiterMeetupEventSignup[]; total: number }> {
-    let query = db.select().from(workforceRecruiterMeetupEventSignups);
+  }): Promise<{ signups: (WorkforceRecruiterMeetupEventSignup & { user?: Pick<User, 'firstName' | 'lastName' | 'email'> | null })[], total: number }> {
+    let query = db
+      .select({
+        id: workforceRecruiterMeetupEventSignups.id,
+        eventId: workforceRecruiterMeetupEventSignups.eventId,
+        userId: workforceRecruiterMeetupEventSignups.userId,
+        location: workforceRecruiterMeetupEventSignups.location,
+        preferredMeetupDate: workforceRecruiterMeetupEventSignups.preferredMeetupDate,
+        availability: workforceRecruiterMeetupEventSignups.availability,
+        whyInterested: workforceRecruiterMeetupEventSignups.whyInterested,
+        additionalComments: workforceRecruiterMeetupEventSignups.additionalComments,
+        createdAt: workforceRecruiterMeetupEventSignups.createdAt,
+        updatedAt: workforceRecruiterMeetupEventSignups.updatedAt,
+        userFirstName: users.firstName,
+        userLastName: users.lastName,
+        userEmail: users.email,
+      })
+      .from(workforceRecruiterMeetupEventSignups)
+      .leftJoin(users, eq(workforceRecruiterMeetupEventSignups.userId, users.id));
 
     const conditions = [];
     if (filters?.eventId) {
@@ -6621,7 +6638,26 @@ export class DatabaseStorage implements IStorage {
     const offset = filters?.offset ?? 0;
     const signups = allSignups.slice(offset, offset + limit);
 
-    return { signups, total };
+    // Transform the results to include user data
+    const transformedSignups = signups.map((signup) => ({
+      id: signup.id,
+      eventId: signup.eventId,
+      userId: signup.userId,
+      location: signup.location,
+      preferredMeetupDate: signup.preferredMeetupDate,
+      availability: signup.availability,
+      whyInterested: signup.whyInterested,
+      additionalComments: signup.additionalComments,
+      createdAt: signup.createdAt,
+      updatedAt: signup.updatedAt,
+      user: signup.userFirstName || signup.userLastName || signup.userEmail ? {
+        firstName: signup.userFirstName || null,
+        lastName: signup.userLastName || null,
+        email: signup.userEmail || null,
+      } : null,
+    }));
+
+    return { signups: transformedSignups as any, total };
   }
 
   async getWorkforceRecruiterMeetupEventSignupCount(eventId: string): Promise<number> {
