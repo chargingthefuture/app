@@ -6473,6 +6473,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createWorkforceRecruiterOccupation(occupationData: InsertWorkforceRecruiterOccupation): Promise<WorkforceRecruiterOccupation> {
+    // Validate sector is provided and not empty/whitespace
+    if (!occupationData.sector || occupationData.sector.trim().length === 0) {
+      throw new Error("Sector is required and cannot be empty");
+    }
+    
     const [occupation] = await db
       .insert(workforceRecruiterOccupations)
       .values(occupationData)
@@ -6481,6 +6486,25 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateWorkforceRecruiterOccupation(id: string, occupationData: Partial<InsertWorkforceRecruiterOccupation>): Promise<WorkforceRecruiterOccupation> {
+    // Prevent clearing or setting empty sector
+    if (occupationData.sector !== undefined) {
+      if (!occupationData.sector || occupationData.sector.trim().length === 0) {
+        throw new Error("Sector cannot be empty. All occupations must have a valid sector.");
+      }
+    }
+    
+    // If updating sector, ensure it's not being set to empty
+    // Also check existing occupation to ensure we don't lose the sector
+    const existing = await this.getWorkforceRecruiterOccupation(id);
+    if (!existing) {
+      throw new Error("Occupation not found");
+    }
+    
+    // If sector is being updated, validate it
+    if (occupationData.sector !== undefined && (!occupationData.sector || occupationData.sector.trim().length === 0)) {
+      throw new Error("Sector cannot be empty. All occupations must have a valid sector.");
+    }
+    
     const [updated] = await db
       .update(workforceRecruiterOccupations)
       .set({ ...occupationData, updatedAt: new Date() })
@@ -6921,7 +6945,7 @@ export class DatabaseStorage implements IStorage {
         const inferredSectors = new Set<string>();
         for (const occId of matchingOccs) {
           const sector = occupationSectorMap.get(occId);
-          if (sector && sector !== "Unknown") {
+          if (sector) {
             inferredSectors.add(sector);
           }
         }
@@ -6933,16 +6957,15 @@ export class DatabaseStorage implements IStorage {
             sectorRecruitedMap.set(sector, (sectorRecruitedMap.get(sector) || 0) + countPerSector);
           }
         } else {
-          // All matching occupations have "Unknown" sector - try to infer from skills database
+          // No valid sectors from matching occupations - try to infer from skills database
           const sectorsFromSkills = this.inferSectorsFromSkills(profile.skills || [], skillNameToSectorsMap);
           if (sectorsFromSkills.size > 0) {
             const countPerSector = 1 / sectorsFromSkills.size;
             for (const sector of sectorsFromSkills) {
               sectorRecruitedMap.set(sector, (sectorRecruitedMap.get(sector) || 0) + countPerSector);
             }
-          } else {
-            sectorRecruitedMap.set("Unknown", (sectorRecruitedMap.get("Unknown") || 0) + 1);
           }
+          // If still no sectors found, skip this profile (don't count as Unknown)
         }
       } else {
         // Profile has no sectors and doesn't match any occupations - infer from skills database
@@ -6953,24 +6976,26 @@ export class DatabaseStorage implements IStorage {
           for (const sector of sectorsFromSkills) {
             sectorRecruitedMap.set(sector, (sectorRecruitedMap.get(sector) || 0) + countPerSector);
           }
-        } else {
-          // No sectors found from skills - count as Unknown (shouldn't happen if skills database is complete)
-          sectorRecruitedMap.set("Unknown", (sectorRecruitedMap.get("Unknown") || 0) + 1);
         }
+        // If no sectors found from skills, skip this profile (don't count as Unknown)
       }
     }
 
     // Sector breakdown - combine targets from occupations with recruited from Directory
     const sectorTargetMap = new Map<string, number>();
     occupations.forEach(occ => {
-      const sector = occ.sector || "Unknown";
-      sectorTargetMap.set(sector, (sectorTargetMap.get(sector) || 0) + occ.headcountTarget);
+      // Only count occupations with valid sectors
+      if (occ.sector && occ.sector.trim().length > 0) {
+        sectorTargetMap.set(occ.sector, (sectorTargetMap.get(occ.sector) || 0) + occ.headcountTarget);
+      }
     });
 
     const sectorBreakdown = Array.from(new Set([
       ...sectorTargetMap.keys(),
       ...sectorRecruitedMap.keys()
-    ])).map(sector => ({
+    ]))
+    .filter(sector => sector !== "Unknown") // Filter out "Unknown" sector
+    .map(sector => ({
       sector,
       target: sectorTargetMap.get(sector) || 0,
       recruited: sectorRecruitedMap.get(sector) || 0,

@@ -67,13 +67,41 @@ export default function VideoToGifConverter() {
     });
 
     try {
-      const baseURL = "https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm";
-      await ffmpeg.load({
-        coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript"),
-        wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, "application/wasm"),
-      });
-      return ffmpeg;
-    } catch (error) {
+      // Try multiple CDN sources for better reliability
+      const cdnSources = [
+        "https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm",
+        "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/esm",
+        "https://esm.sh/@ffmpeg/core@0.12.6/dist/esm",
+      ];
+
+      let lastError: Error | null = null;
+      
+      for (const baseURL of cdnSources) {
+        try {
+          setStatus(`Loading FFmpeg from ${new URL(baseURL).hostname}...`);
+          await ffmpeg.load({
+            coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript"),
+            wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, "application/wasm"),
+          });
+          return ffmpeg;
+        } catch (error: any) {
+          console.warn(`Failed to load from ${baseURL}:`, error);
+          lastError = error;
+          // Reset FFmpeg instance for next attempt
+          ffmpegRef.current = new FFmpeg();
+          ffmpegRef.current.on("progress", ({ progress: p }) => {
+            setProgress(p * 100);
+          });
+        }
+      }
+
+      // If all CDN sources failed, throw the last error
+      throw new Error(
+        `Failed to load FFmpeg from all CDN sources. This may be due to network issues or CORS restrictions. ` +
+        `Last error: ${lastError?.message || "Unknown error"}. ` +
+        `Please check your internet connection and try again.`
+      );
+    } catch (error: any) {
       console.error("Failed to load FFmpeg:", error);
       throw error;
     }
@@ -101,22 +129,38 @@ export default function VideoToGifConverter() {
       setStatus("Reading video file...");
       const videoData = await fetchFile(videoFile);
       
+      // Detect file extension from MIME type or filename
+      let inputExtension = "mp4";
+      if (videoFile.type.includes("webm")) {
+        inputExtension = "webm";
+      } else if (videoFile.type.includes("mov") || videoFile.name.toLowerCase().endsWith(".mov")) {
+        inputExtension = "mov";
+      } else if (videoFile.type.includes("avi") || videoFile.name.toLowerCase().endsWith(".avi")) {
+        inputExtension = "avi";
+      } else if (videoFile.name.toLowerCase().endsWith(".webm")) {
+        inputExtension = "webm";
+      } else if (videoFile.name.toLowerCase().endsWith(".mp4")) {
+        inputExtension = "mp4";
+      }
+      
+      const inputFileName = `input.${inputExtension}`;
+      
       // Write video file to FFmpeg virtual file system
       setStatus("Processing video...");
-      await ffmpeg.writeFile("input.mp4", videoData);
+      await ffmpeg.writeFile(inputFileName, videoData);
       
       // Convert to GIF
       // Using palette-based conversion for better quality and smaller file size
       setStatus("Generating color palette...");
       await ffmpeg.exec([
-        "-i", "input.mp4",
+        "-i", inputFileName,
         "-vf", "fps=10,scale=640:-1:flags=lanczos,palettegen",
         "palette.png"
       ]);
 
       setStatus("Creating GIF...");
       await ffmpeg.exec([
-        "-i", "input.mp4",
+        "-i", inputFileName,
         "-i", "palette.png",
         "-filter_complex", "fps=10,scale=640:-1:flags=lanczos[x];[x][1:v]paletteuse",
         "output.gif"
@@ -127,12 +171,25 @@ export default function VideoToGifConverter() {
       const gifData = await ffmpeg.readFile("output.gif");
       
       // Create blob URL for download
-      const gifBlob = new Blob([gifData], { type: "image/gif" });
+      // FileData can be Uint8Array or string, handle both cases
+      let gifBlob: Blob;
+      if (typeof gifData === "string") {
+        // If it's a string (base64), convert to blob
+        const binaryString = atob(gifData);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        gifBlob = new Blob([bytes], { type: "image/gif" });
+      } else {
+        // If it's Uint8Array, use it directly
+        gifBlob = new Blob([gifData], { type: "image/gif" });
+      }
       const gifUrl = URL.createObjectURL(gifBlob);
       setGifUrl(gifUrl);
 
       // Clean up FFmpeg files
-      await ffmpeg.deleteFile("input.mp4");
+      await ffmpeg.deleteFile(inputFileName);
       await ffmpeg.deleteFile("palette.png");
       await ffmpeg.deleteFile("output.gif");
 
@@ -143,9 +200,21 @@ export default function VideoToGifConverter() {
       });
     } catch (error: any) {
       console.error("Conversion error:", error);
+      
+      // Provide more helpful error messages
+      let errorMessage = error.message || "Failed to convert video to GIF";
+      
+      if (errorMessage.includes("Failed to fetch") || errorMessage.includes("unpkg.com")) {
+        errorMessage = "Failed to load FFmpeg library. This may be due to network issues, CORS restrictions, or CDN unavailability. Please check your internet connection and try again. If the problem persists, try using a different network or VPN.";
+      } else if (errorMessage.includes("format") || errorMessage.includes("codec")) {
+        errorMessage = `Video format may not be supported. Error: ${errorMessage}. Try converting your video to MP4 format first.`;
+      } else if (errorMessage.includes("memory") || errorMessage.includes("Memory")) {
+        errorMessage = "Video file is too large to process in browser memory. Try a smaller video file.";
+      }
+      
       toast({
         title: "Conversion Failed",
-        description: error.message || "Failed to convert video to GIF",
+        description: errorMessage,
         variant: "destructive",
       });
       setStatus("Error");
@@ -207,7 +276,7 @@ export default function VideoToGifConverter() {
         <CardHeader>
           <CardTitle>Upload Video</CardTitle>
           <CardDescription>
-            Select a video file from your device (max 100MB). Supports common video formats like MP4, MOV, etc.
+            Select a video file from your device (max 100MB). Supports common video formats including MP4, WebM, MOV, AVI, etc.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
