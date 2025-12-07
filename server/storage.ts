@@ -7064,12 +7064,13 @@ export class DatabaseStorage implements IStorage {
 
     // Annual training gap - count Directory profiles matching each occupation
     const annualTrainingGap = occupations
+      .filter(occ => occ.sector && occ.sector.trim().length > 0) // Only include occupations with valid sectors
       .map(occ => {
         const directoryCount = occupationToProfilesMap.get(occ.id)?.size || 0;
         return {
           occupationId: occ.id,
-          occupationTitle: occ.occupationTitle || "Unknown Occupation",
-          sector: occ.sector || "Unknown Sector",
+          occupationTitle: occ.occupationTitle || "Unnamed Occupation",
+          sector: occ.sector, // Sector is guaranteed to exist due to filter above
           target: occ.annualTrainingTarget,
           actual: directoryCount,
           gap: occ.annualTrainingTarget - directoryCount,
