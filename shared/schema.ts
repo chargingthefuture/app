@@ -2473,7 +2473,7 @@ export const workforceRecruiterOccupations = pgTable("workforce_recruiter_occupa
   occupationTitle: varchar("occupation_title", { length: 200 }).notNull(),
   jobTitleId: varchar("job_title_id").references(() => skillsJobTitles.id), // Links to skills database for skill matching
   headcountTarget: integer("headcount_target").notNull(),
-  skillLevel: varchar("skill_level", { length: 20 }).notNull(), // 'Low', 'Medium', 'High'
+  skillLevel: varchar("skill_level", { length: 20 }).notNull(), // 'Foundational', 'Intermediate', 'Advanced'
   annualTrainingTarget: integer("annual_training_target").notNull(),
   currentRecruited: integer("current_recruited").notNull().default(0),
   notes: text("notes"),
@@ -2490,7 +2490,7 @@ export const insertWorkforceRecruiterOccupationSchema = createInsertSchema(workf
   sector: z.string().min(1, "Sector is required").max(100),
   occupationTitle: z.string().min(1, "Occupation title is required").max(200),
   headcountTarget: z.number().int().min(0),
-  skillLevel: z.enum(["Low", "Medium", "High"]),
+  skillLevel: z.enum(["Foundational", "Intermediate", "Advanced"]),
   annualTrainingTarget: z.number().int().min(0),
   notes: z.string().optional().nullable(),
 });

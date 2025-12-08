@@ -18,10 +18,10 @@ import { eq, and } from "drizzle-orm";
  */
 
 // Helper function to determine skill level based on job title name
-function determineSkillLevel(jobTitleName: string): "Low" | "Medium" | "High" {
+function determineSkillLevel(jobTitleName: string): "Foundational" | "Intermediate" | "Advanced" {
   const lowerName = jobTitleName.toLowerCase();
   
-  // High skill level indicators
+  // Advanced skill level indicators
   if (
     lowerName.includes("engineer") ||
     lowerName.includes("scientist") ||
@@ -39,10 +39,10 @@ function determineSkillLevel(jobTitleName: string): "Low" | "Medium" | "High" {
     lowerName.includes("instructor") ||
     lowerName.includes("coordinator")
   ) {
-    return "High";
+    return "Advanced";
   }
   
-  // Low skill level indicators
+  // Foundational skill level indicators
   if (
     lowerName.includes("helper") ||
     lowerName.includes("assistant") ||
@@ -53,11 +53,11 @@ function determineSkillLevel(jobTitleName: string): "Low" | "Medium" | "High" {
     lowerName.includes("guard") ||
     lowerName.includes("attendant")
   ) {
-    return "Low";
+    return "Foundational";
   }
   
-  // Default to Medium
-  return "Medium";
+  // Default to Intermediate
+  return "Intermediate";
 }
 
 // Helper function to calculate headcount target based on sector workforce
@@ -86,19 +86,19 @@ function calculateHeadcountTarget(
 }
 
 // Helper function to calculate annual training target
-function calculateAnnualTrainingTarget(headcountTarget: number, skillLevel: "Low" | "Medium" | "High"): number {
+function calculateAnnualTrainingTarget(headcountTarget: number, skillLevel: "Foundational" | "Intermediate" | "Advanced"): number {
   // Training targets as percentage of headcount:
-  // High skill: 20-30% (more training needed)
-  // Medium skill: 10-20%
-  // Low skill: 5-15% (less training needed)
+  // Advanced skill: 20-30% (more training needed)
+  // Intermediate skill: 10-20%
+  // Foundational skill: 5-15% (less training needed)
   
   let minPercent = 0.05;
   let maxPercent = 0.15;
   
-  if (skillLevel === "High") {
+  if (skillLevel === "Advanced") {
     minPercent = 0.20;
     maxPercent = 0.30;
-  } else if (skillLevel === "Medium") {
+  } else if (skillLevel === "Intermediate") {
     minPercent = 0.10;
     maxPercent = 0.20;
   }

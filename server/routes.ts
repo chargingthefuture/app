@@ -1041,44 +1041,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const withNames = await Promise.all(profiles.map(async (p) => {
       let name: string | null = null;
       let userIsVerified = false;
+      let userFirstName: string | null = null;
+      let userLastName: string | null = null;
+      
+      // Fetch user data once if userId exists
+      let user: any = null;
+      if (p.userId) {
+        user = await withDatabaseErrorHandling(
+          () => storage.getUser(p.userId),
+          'getUserForDirectoryList'
+        );
+        if (user) {
+          userFirstName = user.firstName || null;
+          userLastName = user.lastName || null;
+          userIsVerified = user.isVerified || false;
+        }
+      } else {
+        // For admin-created profiles without userId, use profile's own isVerified field
+        userIsVerified = p.isVerified || false;
+      }
+      
       if (p.displayNameType === 'nickname' && p.nickname) {
         name = p.nickname;
       } else if (p.displayNameType === 'first') {
         // Priority: Directory profile firstName (override) > user firstName
         if (p.firstName) {
           name = p.firstName;
-        } else if (p.userId) {
-          const u = await withDatabaseErrorHandling(
-            () => storage.getUser(p.userId),
-            'getUserForDirectoryList'
-          );
-          name = u?.firstName || null;
-        }
-        // Get verification status: use user's isVerified if userId exists, otherwise use profile's isVerified
-        if (p.userId) {
-          const u = await withDatabaseErrorHandling(
-            () => storage.getUser(p.userId),
-            'getUserVerificationForDirectoryList'
-          );
-          userIsVerified = u?.isVerified || false;
         } else {
-          // For admin-created profiles without userId, use profile's own isVerified field
-          userIsVerified = p.isVerified || false;
+          name = userFirstName;
         }
-      } else if (p.userId) {
-        const u = await withDatabaseErrorHandling(
-          () => storage.getUser(p.userId),
-          'getUserVerificationForDirectoryListFallback'
-        );
-        userIsVerified = u?.isVerified || false;
-      } else {
-        // For admin-created profiles without userId, use profile's own isVerified field
-        userIsVerified = p.isVerified || false;
       }
+      
       // Fallback to nickname if no name found
       if (!name && p.nickname) name = p.nickname;
-      // Ensure we always return displayName (even if null)
-      return { ...p, displayName: name || null, userIsVerified };
+      
+      // Ensure we always return displayName, firstName, and lastName (even if null)
+      return { 
+        ...p, 
+        displayName: name || null, 
+        userIsVerified,
+        // Include firstName and lastName for search functionality
+        // Priority: Directory profile firstName > user firstName
+        firstName: p.firstName || userFirstName || null,
+        lastName: userLastName || null,
+      };
     }));
     res.json(withNames);
   }));
@@ -5760,7 +5766,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Workforce Recruiter Tracker Occupation routes
   app.get('/api/workforce-recruiter/occupations', isAuthenticated, asyncHandler(async (req: any, res) => {
     const sector = req.query.sector as string | undefined;
-    const skillLevel = req.query.skillLevel as 'Low' | 'Medium' | 'High' | undefined;
+    const skillLevel = req.query.skillLevel as 'Foundational' | 'Intermediate' | 'Advanced' | undefined;
     const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 50;
     const offset = req.query.offset ? parseInt(req.query.offset as string, 10) : 0;
 

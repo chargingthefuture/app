@@ -804,7 +804,7 @@ export interface IStorage {
   getWorkforceRecruiterOccupation(id: string): Promise<WorkforceRecruiterOccupation | undefined>;
   getAllWorkforceRecruiterOccupations(filters?: {
     sector?: string;
-    skillLevel?: 'Low' | 'Medium' | 'High';
+    skillLevel?: 'Foundational' | 'Intermediate' | 'Advanced';
     limit?: number;
     offset?: number;
   }): Promise<{ occupations: WorkforceRecruiterOccupation[]; total: number }>;
@@ -6545,7 +6545,7 @@ export class DatabaseStorage implements IStorage {
 
   async getAllWorkforceRecruiterOccupations(filters?: {
     sector?: string;
-    skillLevel?: 'Low' | 'Medium' | 'High';
+    skillLevel?: 'Foundational' | 'Intermediate' | 'Advanced';
     limit?: number;
     offset?: number;
   }): Promise<{ occupations: WorkforceRecruiterOccupation[]; total: number }> {

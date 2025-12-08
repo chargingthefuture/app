@@ -64,11 +64,11 @@ export default function WorkforceRecruiterOccupationDetail() {
 
   const getSkillLevelBadgeVariant = (skillLevel: string) => {
     switch (skillLevel) {
-      case "Low":
+      case "Foundational":
         return "default";
-      case "Medium":
+      case "Intermediate":
         return "secondary";
-      case "High":
+      case "Advanced":
         return "destructive";
       default:
         return "outline";

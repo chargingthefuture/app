@@ -58,7 +58,7 @@ export default function WorkforceRecruiterAdminOccupations() {
       sector: "",
       occupationTitle: "",
       headcountTarget: 0,
-      skillLevel: "Medium",
+      skillLevel: "Intermediate",
       annualTrainingTarget: 0,
       notes: "",
     },
@@ -209,11 +209,11 @@ export default function WorkforceRecruiterAdminOccupations() {
 
   const getSkillLevelBadgeVariant = (skillLevel: string) => {
     switch (skillLevel) {
-      case "High":
+      case "Advanced":
         return "default";
-      case "Medium":
+      case "Intermediate":
         return "secondary";
-      case "Low":
+      case "Foundational":
         return "outline";
       default:
         return "outline";
@@ -313,9 +313,9 @@ export default function WorkforceRecruiterAdminOccupations() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="Low">Low</SelectItem>
-                          <SelectItem value="Medium">Medium</SelectItem>
-                          <SelectItem value="High">High</SelectItem>
+                          <SelectItem value="Foundational">Foundational</SelectItem>
+                          <SelectItem value="Intermediate">Intermediate</SelectItem>
+                          <SelectItem value="Advanced">Advanced</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />

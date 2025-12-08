@@ -264,10 +264,10 @@ describe('API - Workforce Recruiter Occupations', () => {
 
     it('should support filtering by skillLevel', () => {
       const req = createMockRequest(testUserId);
-      req.query = { skillLevel: 'High' };
+      req.query = { skillLevel: 'Advanced' };
       
       expect(req.isAuthenticated()).toBe(true);
-      expect(req.query.skillLevel).toBe('High');
+      expect(req.query.skillLevel).toBe('Advanced');
     });
 
     it('should support pagination with limit and offset', () => {
@@ -301,7 +301,7 @@ describe('API - Workforce Recruiter Occupations', () => {
         sector: 'Technology',
         occupationTitle: 'Software Engineer',
         headcountTarget: 1000,
-        skillLevel: 'High' as const,
+        skillLevel: 'Advanced' as const,
         annualTrainingTarget: 500,
       };
       
@@ -314,7 +314,7 @@ describe('API - Workforce Recruiter Occupations', () => {
       const invalidData = {
         occupationTitle: 'Software Engineer',
         headcountTarget: 1000,
-        skillLevel: 'High' as const,
+        skillLevel: 'Advanced' as const,
         annualTrainingTarget: 500,
       };
       
@@ -327,7 +327,7 @@ describe('API - Workforce Recruiter Occupations', () => {
       const invalidData = {
         sector: 'Technology',
         headcountTarget: 1000,
-        skillLevel: 'High' as const,
+        skillLevel: 'Advanced' as const,
         annualTrainingTarget: 500,
       };
       
@@ -478,10 +478,10 @@ describe('API - Workforce Recruiter Reports', () => {
 
     it('should filter reports by skill level', () => {
       const req = createMockRequest(testUserId);
-      req.params = { skillLevel: 'High' };
+      req.params = { skillLevel: 'Advanced' };
       
       expect(req.isAuthenticated()).toBe(true);
-      expect(req.params.skillLevel).toBe('High');
+      expect(req.params.skillLevel).toBe('Advanced');
     });
   });
 

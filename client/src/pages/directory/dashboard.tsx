@@ -3,18 +3,21 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Link } from "wouter";
-import { ExternalLink, Bell, Copy, Check } from "lucide-react";
+import { ExternalLink, Bell, Copy, Check, Search } from "lucide-react";
 import type { DirectoryProfile } from "@shared/schema";
 import { AnnouncementBanner } from "@/components/announcement-banner";
 import { VerifiedBadge } from "@/components/verified-badge";
 import { useExternalLink } from "@/hooks/useExternalLink";
 import { useToast } from "@/hooks/use-toast";
+import { useFuzzySearch } from "@/hooks/useFuzzySearch";
 
 export default function DirectoryDashboard() {
   const { openExternal, ExternalLinkDialog } = useExternalLink();
   const { toast } = useToast();
   const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
   
   const publicDirectoryUrl = `${window.location.origin}/apps/directory/public`;
   
@@ -43,6 +46,13 @@ export default function DirectoryDashboard() {
   const { data: publicProfiles = [], isLoading: listLoading } = useQuery<any[]>({
     queryKey: ["/api/directory/list"],
     enabled: !!profile,
+  });
+
+  // Filter profiles using fuzzy search on firstName and lastName
+  const profilesToSearch = (publicProfiles && publicProfiles.length > 0) ? publicProfiles : (profile ? [profile] : []);
+  const filteredProfiles = useFuzzySearch(profilesToSearch, searchQuery, {
+    searchFields: ['firstName', 'lastName'],
+    threshold: 0.3,
   });
 
   if (profileLoading) {
@@ -176,18 +186,34 @@ export default function DirectoryDashboard() {
             </Link>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          {/* Search Input */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+            <Input
+              type="text"
+              placeholder="Search by first name or last name..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+              data-testid="input-search-directory"
+            />
+          </div>
+          
           {listLoading ? (
             <div className="text-muted-foreground py-6 text-center">Loading…</div>
           ) : (
             (() => {
-              const profilesToShow = (publicProfiles && publicProfiles.length > 0) ? publicProfiles : [profile];
-              if (!profilesToShow || profilesToShow.length === 0) {
-                return <div className="text-muted-foreground py-6 text-center">No profiles yet</div>;
+              if (!filteredProfiles || filteredProfiles.length === 0) {
+                return (
+                  <div className="text-muted-foreground py-6 text-center">
+                    {searchQuery ? "No profiles found matching your search" : "No profiles yet"}
+                  </div>
+                );
               }
               return (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {profilesToShow.map((p: any) => {
+                  {filteredProfiles.map((p: any) => {
                     // Compute displayName if not present
                     let computedName = p.displayName;
                     if (!computedName) {
