@@ -1027,6 +1027,14 @@ export default function AdminDirectoryPage() {
                           </Badge>
                         )}
                       </div>
+                      {/* Display first name and last name if available */}
+                      {(profileUser?.firstName || profileUser?.lastName || p.firstName) && (
+                        <div className="text-sm font-medium mt-1">
+                          {profileUser 
+                            ? [profileUser.firstName, profileUser.lastName].filter(Boolean).join(' ')
+                            : p.firstName || null}
+                        </div>
+                      )}
                       <div className="text-sm mt-1 truncate">{p.description}</div>
                       <div className="text-xs text-muted-foreground truncate">
                         {p.city || p.state || p.country ? [p.city, p.state, p.country].filter(Boolean).join(', ') : '—'}
