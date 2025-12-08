@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { DeleteProfileDialog } from '@/components/delete-profile-dialog';
-import { renderWithProviders } from '../../fixtures/testHelpers';
+import { renderWithProviders } from '@test/fixtures/testHelpers';
 
 describe('DeleteProfileDialog', () => {
   it('should render when open', () => {

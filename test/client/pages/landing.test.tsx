@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen } from '@testing-library/react';
 import Landing from '@/pages/landing';
-import { renderWithProviders, mockUseAuth } from '../../fixtures/testHelpers';
+import { renderWithProviders, mockUseAuth } from '@test/fixtures/testHelpers';
 import * as useAuthModule from '@/hooks/useAuth';
 
 vi.mock('@/hooks/useAuth', () => ({

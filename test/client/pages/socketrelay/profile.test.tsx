@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import SocketRelayProfile from '@/pages/socketrelay/profile';
-import { renderWithProviders, mockUseAuth } from '../../../fixtures/testHelpers';
+import { renderWithProviders, mockUseAuth } from '@test/fixtures/testHelpers';
 import * as useAuthModule from '@/hooks/useAuth';
 
 vi.mock('@/hooks/useAuth', () => ({

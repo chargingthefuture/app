@@ -38,6 +38,7 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, './client/src'),
       '@shared': path.resolve(__dirname, './shared'),
+      '@test': path.resolve(__dirname, './test'),
     },
   },
 });
