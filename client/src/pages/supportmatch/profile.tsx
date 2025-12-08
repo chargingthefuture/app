@@ -20,6 +20,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "
 import { Check as CheckIcon } from "lucide-react";
 import { DeleteProfileDialog } from "@/components/delete-profile-dialog";
 import { MiniAppBackButton } from "@/components/mini-app-back-button";
+import { VerifiedBadge } from "@/components/verified-badge";
 
 const profileFormSchema = insertSupportMatchProfileSchema.omit({ userId: true }).extend({
   nickname: z.preprocess((val) => (val === "" ? null : val), z.string().nullish()),
@@ -40,9 +41,16 @@ export default function SupportMatchProfile() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [stateOpen, setStateOpen] = useState(false);
 
-  const { data: profile, isLoading } = useQuery<SupportMatchProfile | null>({
+  const { data: profileData, isLoading } = useQuery<SupportMatchProfile & { userIsVerified?: boolean } | null>({
     queryKey: ["/api/supportmatch/profile"],
   });
+  
+  const profile = profileData ? (() => {
+    const { userIsVerified, ...rest } = profileData;
+    return rest;
+  })() : null;
+  
+  const userIsVerified = (profileData as any)?.userIsVerified || false;
 
   const form = useForm<ProfileFormData>({
     resolver: zodResolver(profileFormSchema),
@@ -176,9 +184,12 @@ export default function SupportMatchProfile() {
     <div className="p-4 sm:p-6 md:p-8 space-y-6 sm:space-y-8">
       <MiniAppBackButton />
       <div>
-        <h1 className="text-2xl sm:text-3xl md:text-4xl font-semibold mb-2">
-          {profile ? "Edit Profile" : "Create Profile"}
-        </h1>
+        <div className="flex items-center gap-3 mb-2">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-semibold">
+            {profile ? "Edit Profile" : "Create Profile"}
+          </h1>
+          {profile && <VerifiedBadge isVerified={userIsVerified} testId="badge-verified-profile" />}
+        </div>
         <p className="text-muted-foreground text-sm sm:text-base">
           {profile 
             ? "Update your SupportMatch profile and preferences" 

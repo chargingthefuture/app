@@ -14,6 +14,7 @@ import { z } from "zod";
 import { DeleteProfileDialog } from "@/components/delete-profile-dialog";
 import { useLocation } from "wouter";
 import type { WorkforceRecruiterProfile } from "@shared/schema";
+import { VerifiedBadge } from "@/components/verified-badge";
 
 const profileFormSchema = insertWorkforceRecruiterProfileSchema.omit({ userId: true });
 type ProfileFormData = z.infer<typeof profileFormSchema>;
@@ -23,9 +24,16 @@ export default function WorkforceRecruiterProfile() {
   const [, setLocation] = useLocation();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
-  const { data: profile, isLoading } = useQuery<WorkforceRecruiterProfile | null>({
+  const { data: profileData, isLoading } = useQuery<WorkforceRecruiterProfile & { userIsVerified?: boolean } | null>({
     queryKey: ["/api/workforce-recruiter/profile"],
   });
+  
+  const profile = profileData ? (() => {
+    const { userIsVerified, ...rest } = profileData;
+    return rest;
+  })() : null;
+  
+  const userIsVerified = (profileData as any)?.userIsVerified || false;
 
   const form = useForm<ProfileFormData>({
     resolver: zodResolver(profileFormSchema),
@@ -90,9 +98,12 @@ export default function WorkforceRecruiterProfile() {
 
   return (
     <div className="p-4 sm:p-6 md:p-8 space-y-6">
-      <h1 className="text-2xl sm:text-3xl font-semibold mb-2">
-        {profile ? "Edit Profile" : "Create Profile"}
-      </h1>
+      <div className="flex items-center gap-3 mb-2">
+        <h1 className="text-2xl sm:text-3xl font-semibold">
+          {profile ? "Edit Profile" : "Create Profile"}
+        </h1>
+        {profile && <VerifiedBadge isVerified={userIsVerified} testId="badge-verified-profile" />}
+      </div>
 
       <Card>
         <CardHeader>

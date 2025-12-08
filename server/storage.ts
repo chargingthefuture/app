@@ -1022,16 +1022,41 @@ export class DatabaseStorage implements IStorage {
       .set({ isVerified: !!isVerified, updatedAt: new Date() })
       .where(eq(lighthouseProfiles.userId, userId));
 
-    // SupportMatch profiles (if they have isVerified)
-    // Note: SupportMatch may not have isVerified, so we skip if column doesn't exist
-    try {
-      await db
-        .update(supportMatchProfiles)
-        .set({ isVerified: !!isVerified, updatedAt: new Date() } as any)
-        .where(eq(supportMatchProfiles.userId, userId));
-    } catch (e) {
-      // SupportMatch may not have isVerified field, ignore
-    }
+    // SupportMatch profiles
+    await db
+      .update(supportMatchProfiles)
+      .set({ isVerified: !!isVerified, updatedAt: new Date() })
+      .where(eq(supportMatchProfiles.userId, userId));
+
+    // SocketRelay profiles
+    await db
+      .update(socketrelayProfiles)
+      .set({ isVerified: !!isVerified, updatedAt: new Date() })
+      .where(eq(socketrelayProfiles.userId, userId));
+
+    // TrustTransport profiles
+    await db
+      .update(trusttransportProfiles)
+      .set({ isVerified: !!isVerified, updatedAt: new Date() })
+      .where(eq(trusttransportProfiles.userId, userId));
+
+    // MechanicMatch profiles
+    await db
+      .update(mechanicmatchProfiles)
+      .set({ isVerified: !!isVerified, updatedAt: new Date() })
+      .where(eq(mechanicmatchProfiles.userId, userId));
+
+    // Chyme profiles
+    await db
+      .update(chymeProfiles)
+      .set({ isVerified: !!isVerified, updatedAt: new Date() })
+      .where(eq(chymeProfiles.userId, userId));
+
+    // Workforce Recruiter profiles
+    await db
+      .update(workforceRecruiterProfiles)
+      .set({ isVerified: !!isVerified, updatedAt: new Date() })
+      .where(eq(workforceRecruiterProfiles.userId, userId));
 
     return user;
   }

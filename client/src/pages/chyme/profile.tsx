@@ -14,6 +14,7 @@ import { useState } from "react";
 import { DeleteProfileDialog } from "@/components/delete-profile-dialog";
 import { useLocation } from "wouter";
 import { MiniAppBackButton } from "@/components/mini-app-back-button";
+import { VerifiedBadge } from "@/components/verified-badge";
 
 const profileFormSchema = insertChymeProfileSchema.omit({ userId: true }).extend({
   displayName: z.string().max(100).optional().nullable(),
@@ -26,9 +27,16 @@ export default function ChymeProfile() {
   const [, setLocation] = useLocation();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
-  const { data: profile, isLoading } = useQuery<ChymeProfile | null>({
+  const { data: profileData, isLoading } = useQuery<ChymeProfile & { userIsVerified?: boolean } | null>({
     queryKey: ["/api/chyme/profile"],
   });
+  
+  const profile = profileData ? (() => {
+    const { userIsVerified, ...rest } = profileData;
+    return rest;
+  })() : null;
+  
+  const userIsVerified = (profileData as any)?.userIsVerified || false;
 
   const form = useForm<ProfileFormData>({
     resolver: zodResolver(profileFormSchema),
@@ -85,9 +93,12 @@ export default function ChymeProfile() {
     <div className="p-4 sm:p-6 md:p-8 space-y-6">
       <MiniAppBackButton href="/apps/chyme" />
       
-      <h1 className="text-2xl sm:text-3xl font-semibold mb-2">
-        {profile ? "Edit Profile" : "Create Profile"}
-      </h1>
+      <div className="flex items-center gap-3 mb-2">
+        <h1 className="text-2xl sm:text-3xl font-semibold">
+          {profile ? "Edit Profile" : "Create Profile"}
+        </h1>
+        {profile && <VerifiedBadge isVerified={userIsVerified} testId="badge-verified-profile" />}
+      </div>
       
       <Card>
         <CardHeader>

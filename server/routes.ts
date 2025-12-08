@@ -1507,7 +1507,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       () => storage.getSupportMatchProfile(userId),
       'getSupportMatchProfile'
     );
-    res.json(profile || null);
+    if (!profile) {
+      return res.json(null);
+    }
+    // Get verification status from user
+    const user = await withDatabaseErrorHandling(
+      () => storage.getUser(userId),
+      'getUserVerificationForSupportMatchProfile'
+    );
+    const userIsVerified = user?.isVerified || false;
+    res.json({ ...profile, userIsVerified });
   }));
 
   app.post('/api/supportmatch/profile', isAuthenticated, asyncHandler(async (req: any, res) => {
@@ -1829,7 +1838,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       () => storage.getLighthouseProfileByUserId(userId),
       'getLighthouseProfileByUserId'
     );
-    res.json(profile || null);
+    if (!profile) {
+      return res.json(null);
+    }
+    // Get verification status from user
+    const user = await withDatabaseErrorHandling(
+      () => storage.getUser(userId),
+      'getUserVerificationForLighthouseProfile'
+    );
+    const userIsVerified = user?.isVerified || false;
+    res.json({ ...profile, userIsVerified });
   }));
 
   app.post('/api/lighthouse/profile', isAuthenticated, asyncHandler(async (req: any, res) => {
@@ -2384,7 +2402,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       () => storage.getSocketrelayProfile(userId),
       'getSocketrelayProfile'
     );
-    res.json(profile || null);
+    if (!profile) {
+      return res.json(null);
+    }
+    // Get verification status from user
+    const user = await withDatabaseErrorHandling(
+      () => storage.getUser(userId),
+      'getUserVerificationForSocketrelayProfile'
+    );
+    const userIsVerified = user?.isVerified || false;
+    res.json({ ...profile, userIsVerified });
   }));
 
   app.post('/api/socketrelay/profile', isAuthenticated, asyncHandler(async (req: any, res) => {
@@ -2949,7 +2976,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       () => storage.getTrusttransportProfile(userId),
       'getTrusttransportProfile'
     );
-    res.json(profile || null);
+    if (!profile) {
+      return res.json(null);
+    }
+    // Get verification status from user
+    const user = await withDatabaseErrorHandling(
+      () => storage.getUser(userId),
+      'getUserVerificationForTrusttransportProfile'
+    );
+    const userIsVerified = user?.isVerified || false;
+    res.json({ ...profile, userIsVerified });
   }));
 
   app.post('/api/trusttransport/profile', isAuthenticated, asyncHandler(async (req: any, res) => {
@@ -3273,7 +3309,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       () => storage.getMechanicmatchProfile(userId),
       'getMechanicmatchProfile'
     );
-    res.json(profile);
+    if (!profile) {
+      return res.json(null);
+    }
+    // Get verification status from user
+    const user = await withDatabaseErrorHandling(
+      () => storage.getUser(userId),
+      'getUserVerificationForMechanicmatchProfile'
+    );
+    const userIsVerified = user?.isVerified || false;
+    res.json({ ...profile, userIsVerified });
   }));
 
   app.post('/api/mechanicmatch/profile', isAuthenticated, asyncHandler(async (req: any, res) => {
@@ -5151,7 +5196,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       () => storage.getChymeProfile(userId),
       'getChymeProfile'
     );
-    res.json(profile);
+    if (!profile) {
+      return res.json(null);
+    }
+    // Get verification status from user
+    const user = await withDatabaseErrorHandling(
+      () => storage.getUser(userId),
+      'getUserVerificationForChymeProfile'
+    );
+    const userIsVerified = user?.isVerified || false;
+    res.json({ ...profile, userIsVerified });
   }));
 
   app.post('/api/chyme/profile', isAuthenticated, asyncHandler(async (req: any, res) => {
@@ -5559,7 +5613,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       () => storage.getWorkforceRecruiterProfile(userId),
       'getWorkforceRecruiterProfile'
     );
-    res.json(profile);
+    if (!profile) {
+      return res.json(null);
+    }
+    // Get verification status from user
+    const user = await withDatabaseErrorHandling(
+      () => storage.getUser(userId),
+      'getUserVerificationForWorkforceRecruiterProfile'
+    );
+    const userIsVerified = user?.isVerified || false;
+    res.json({ ...profile, userIsVerified });
   }));
 
   app.post('/api/workforce-recruiter/profile', isAuthenticated, asyncHandler(async (req: any, res) => {

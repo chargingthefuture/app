@@ -21,6 +21,7 @@ import { Check, ChevronsUpDown } from "lucide-react";
 import { COUNTRIES } from "@/lib/countries";
 import { US_STATES } from "@/lib/usStates";
 import { cn } from "@/lib/utils";
+import { VerifiedBadge } from "@/components/verified-badge";
 
 const profileFormSchema = insertMechanicmatchProfileSchema.omit({ userId: true });
 
@@ -33,9 +34,16 @@ export default function MechanicMatchProfile() {
   const [countryOpen, setCountryOpen] = useState(false);
   const [stateOpen, setStateOpen] = useState(false);
 
-  const { data: profile, isLoading } = useQuery<MechanicmatchProfile | null>({
+  const { data: profileData, isLoading } = useQuery<MechanicmatchProfile & { userIsVerified?: boolean } | null>({
     queryKey: ["/api/mechanicmatch/profile"],
   });
+  
+  const profile = profileData ? (() => {
+    const { userIsVerified, ...rest } = profileData;
+    return rest;
+  })() : null;
+  
+  const userIsVerified = (profileData as any)?.userIsVerified || false;
 
   const form = useForm<ProfileFormData>({
     resolver: zodResolver(profileFormSchema),
@@ -192,9 +200,12 @@ export default function MechanicMatchProfile() {
   return (
     <div className="p-4 sm:p-6 md:p-8 space-y-6">
       <MiniAppBackButton />
-      <h1 className="text-2xl sm:text-3xl font-semibold mb-2">
-        {profile ? "Edit Profile" : "Create Profile"}
-      </h1>
+      <div className="flex items-center gap-3 mb-2">
+        <h1 className="text-2xl sm:text-3xl font-semibold">
+          {profile ? "Edit Profile" : "Create Profile"}
+        </h1>
+        {profile && <VerifiedBadge isVerified={userIsVerified} testId="badge-verified-profile" />}
+      </div>
 
       <Card>
         <CardHeader>

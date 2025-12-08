@@ -19,6 +19,7 @@ import { US_STATES } from "@/lib/usStates";
 import { MiniAppBackButton } from "@/components/mini-app-back-button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
+import { VerifiedBadge } from "@/components/verified-badge";
 
 const profileFormSchema = insertSocketrelayProfileSchema.omit({ userId: true });
 
@@ -30,9 +31,16 @@ export default function SocketRelayProfile() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [stateOpen, setStateOpen] = useState(false);
 
-  const { data: profile, isLoading } = useQuery<SocketrelayProfile | null>({
+  const { data: profileData, isLoading } = useQuery<SocketrelayProfile & { userIsVerified?: boolean } | null>({
     queryKey: ["/api/socketrelay/profile"],
   });
+  
+  const profile = profileData ? (() => {
+    const { userIsVerified, ...rest } = profileData;
+    return rest;
+  })() : null;
+  
+  const userIsVerified = (profileData as any)?.userIsVerified || false;
 
   // Fetch other app profiles to pre-fill location data
   const { data: supportMatchProfile } = useQuery<SupportMatchProfile | null>({
@@ -174,9 +182,12 @@ export default function SocketRelayProfile() {
           <Package className="w-6 h-6 text-primary" />
         </div>
         <div>
-          <h1 className="text-3xl md:text-4xl font-semibold">
-            {profile ? "Edit Profile" : "Create Profile"}
-          </h1>
+          <div className="flex items-center gap-3 mb-2">
+            <h1 className="text-3xl md:text-4xl font-semibold">
+              {profile ? "Edit Profile" : "Create Profile"}
+            </h1>
+            {profile && <VerifiedBadge isVerified={userIsVerified} testId="badge-verified-profile" />}
+          </div>
           <p className="text-muted-foreground">
             {profile ? "Update your SocketRelay information" : "Set up your SocketRelay profile"}
           </p>

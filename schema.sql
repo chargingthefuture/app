@@ -81,6 +81,7 @@ CREATE TABLE IF NOT EXISTS support_match_profiles (
   country VARCHAR(100),
   timezone VARCHAR(100),
   timezone_preference VARCHAR(50) NOT NULL DEFAULT 'same_timezone',
+  is_verified BOOLEAN DEFAULT false NOT NULL,
   is_active BOOLEAN NOT NULL DEFAULT true,
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMP NOT NULL DEFAULT NOW()
@@ -281,6 +282,7 @@ CREATE TABLE IF NOT EXISTS socketrelay_profiles (
   city VARCHAR(100) NOT NULL,
   state VARCHAR(100) NOT NULL,
   country VARCHAR(100) NOT NULL,
+  is_verified BOOLEAN DEFAULT false NOT NULL,
   is_active BOOLEAN NOT NULL DEFAULT true,
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMP NOT NULL DEFAULT NOW()
@@ -429,6 +431,7 @@ CREATE TABLE IF NOT EXISTS trusttransport_profiles (
   bio TEXT,
   phone_number VARCHAR(20),
   signal_url TEXT,
+  is_verified BOOLEAN DEFAULT false NOT NULL,
   is_active BOOLEAN NOT NULL DEFAULT true,
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMP NOT NULL DEFAULT NOW()
@@ -526,6 +529,7 @@ CREATE TABLE IF NOT EXISTS mechanicmatch_profiles (
   response_time_hours INTEGER,
   total_jobs_completed INTEGER NOT NULL DEFAULT 0,
   average_rating DECIMAL(3, 2),
+  is_verified BOOLEAN DEFAULT false NOT NULL,
   is_claimed BOOLEAN NOT NULL DEFAULT false,
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMP NOT NULL DEFAULT NOW()
@@ -863,6 +867,7 @@ CREATE TABLE IF NOT EXISTS chyme_profiles (
   id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id VARCHAR NOT NULL UNIQUE REFERENCES users(id),
   display_name VARCHAR(100),
+  is_verified BOOLEAN DEFAULT false NOT NULL,
   is_anonymous BOOLEAN NOT NULL DEFAULT true,
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMP NOT NULL DEFAULT NOW()
@@ -934,6 +939,7 @@ CREATE TABLE IF NOT EXISTS workforce_recruiter_profiles (
   id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id VARCHAR NOT NULL UNIQUE REFERENCES users(id),
   display_name VARCHAR(100),
+  is_verified BOOLEAN DEFAULT false NOT NULL,
   notes TEXT,
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMP NOT NULL DEFAULT NOW()

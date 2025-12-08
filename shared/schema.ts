@@ -210,6 +210,7 @@ export const supportMatchProfiles = pgTable("support_match_profiles", {
   country: varchar("country", { length: 100 }),
   timezone: varchar("timezone", { length: 100 }),
   timezonePreference: varchar("timezone_preference", { length: 50 }).notNull().default('same_timezone'), // same_timezone, any_timezone
+  isVerified: boolean("is_verified").default(false).notNull(),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -716,6 +717,7 @@ export const socketrelayProfiles = pgTable("socketrelay_profiles", {
   city: varchar("city", { length: 100 }).notNull(),
   state: varchar("state", { length: 100 }).notNull(),
   country: varchar("country", { length: 100 }).notNull(),
+  isVerified: boolean("is_verified").default(false).notNull(),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -1025,7 +1027,8 @@ export const trusttransportProfiles = pgTable("trusttransport_profiles", {
   phoneNumber: varchar("phone_number", { length: 20 }),
   signalUrl: text("signal_url"),
   
-  // Availability and preferences
+  // Verification and availability
+  isVerified: boolean("is_verified").default(false).notNull(),
   isActive: boolean("is_active").notNull().default(true),
   
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -1263,6 +1266,7 @@ export const mechanicmatchProfiles = pgTable("mechanicmatch_profiles", {
   averageRating: decimal("average_rating", { precision: 3, scale: 2 }), // Average rating (0-5)
   
   // Verification and visibility
+  isVerified: boolean("is_verified").default(false).notNull(),
   isClaimed: boolean("is_claimed").notNull().default(false),
   
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -2232,6 +2236,7 @@ export const chymeProfiles = pgTable("chyme_profiles", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().unique().references(() => users.id),
   displayName: varchar("display_name", { length: 100 }),
+  isVerified: boolean("is_verified").default(false).notNull(),
   isAnonymous: boolean("is_anonymous").notNull().default(true),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -2408,6 +2413,7 @@ export const workforceRecruiterProfiles = pgTable("workforce_recruiter_profiles"
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().unique().references(() => users.id),
   displayName: varchar("display_name", { length: 100 }),
+  isVerified: boolean("is_verified").default(false).notNull(),
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),

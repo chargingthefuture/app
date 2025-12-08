@@ -21,6 +21,7 @@ import { MiniAppBackButton } from "@/components/mini-app-back-button";
 import { COUNTRIES } from "@/lib/countries";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
+import { VerifiedBadge } from "@/components/verified-badge";
 
 export default function LighthouseProfilePage() {
   const { toast } = useToast();
@@ -29,9 +30,16 @@ export default function LighthouseProfilePage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [desiredCountryOpen, setDesiredCountryOpen] = useState(false);
   const { openExternal, ExternalLinkDialog } = useExternalLink();
-  const { data: profile, isLoading } = useQuery<LighthouseProfile | null>({
+  const { data: profileData, isLoading } = useQuery<LighthouseProfile & { userIsVerified?: boolean } | null>({
     queryKey: ["/api/lighthouse/profile"],
   });
+  
+  const profile = profileData ? (() => {
+    const { userIsVerified, ...rest } = profileData;
+    return rest;
+  })() : null;
+  
+  const userIsVerified = (profileData as any)?.userIsVerified || false;
 
   const form = useForm({
     resolver: zodResolver(
@@ -179,9 +187,12 @@ export default function LighthouseProfilePage() {
             <Home className="w-6 h-6 text-primary" />
           </div>
           <div>
-            <h1 className="text-3xl md:text-4xl font-semibold">
-              {profile ? "Edit Profile" : "Create Profile"}
-            </h1>
+            <div className="flex items-center gap-3 mb-2">
+              <h1 className="text-3xl md:text-4xl font-semibold">
+                {profile ? "Edit Profile" : "Create Profile"}
+              </h1>
+              {profile && <VerifiedBadge isVerified={userIsVerified} testId="badge-verified-profile" />}
+            </div>
             <p className="text-muted-foreground">
               {profile ? "Update your LightHouse profile information" : "Set up your LightHouse profile to get started"}
             </p>
