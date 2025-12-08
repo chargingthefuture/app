@@ -42,31 +42,29 @@ export function DeleteProfileDialog({
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
-        <AlertDialogHeader>
+        <AlertDialogHeader className="space-y-3">
           <AlertDialogTitle>Delete {appName} Profile</AlertDialogTitle>
-          <AlertDialogDescription className="space-y-4">
-            <p>
-              Are you sure you want to delete your {appName} profile? This action is permanent and cannot be undone.
-            </p>
-            <p>
-              If you delete your profile, you will need to create a new profile to rejoin {appName} in the future.
-            </p>
-            <div className="space-y-2 pt-2">
-              <Label htmlFor="delete-reason" className="text-sm font-normal">
-                Reason for deletion (optional)
-              </Label>
-              <Textarea
-                id="delete-reason"
-                placeholder="Help us understand why you're leaving..."
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-                className="min-h-[100px]"
-                data-testid="textarea-delete-reason"
-                disabled={isDeleting}
-              />
-            </div>
+          <AlertDialogDescription>
+            Are you sure you want to delete your {appName} profile? This action is permanent and cannot be undone.
+          </AlertDialogDescription>
+          <AlertDialogDescription>
+            If you delete your profile, you will need to create a new profile to rejoin {appName} in the future.
           </AlertDialogDescription>
         </AlertDialogHeader>
+        <div className="space-y-2">
+          <Label htmlFor="delete-reason" className="text-sm font-normal">
+            Reason for deletion (optional)
+          </Label>
+          <Textarea
+            id="delete-reason"
+            placeholder="Help us understand why you're leaving..."
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            className="min-h-[100px]"
+            data-testid="textarea-delete-reason"
+            disabled={isDeleting}
+          />
+        </div>
         <AlertDialogFooter>
           <AlertDialogCancel onClick={handleCancel} disabled={isDeleting} data-testid="button-cancel-delete">
             Cancel
