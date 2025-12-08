@@ -16,6 +16,16 @@ export function AnnouncementBanner({ apiEndpoint, queryKey }: AnnouncementBanner
   const { handleError } = useErrorHandler({ showToast: true, toastTitle: "Announcements Error" });
   const { data: announcements, isLoading } = useQuery<any[]>({
     queryKey: [queryKey || apiEndpoint],
+    // Provide an explicit queryFn because tests use a QueryClient without a default queryFn.
+    queryFn: async () => {
+      const res = await fetch(apiEndpoint, { credentials: "include" });
+
+      if (!res.ok) {
+        throw new Error(`Failed to fetch announcements: ${res.status} ${res.statusText}`);
+      }
+
+      return res.json();
+    },
     onError: (err) => handleError(err),
   });
 
