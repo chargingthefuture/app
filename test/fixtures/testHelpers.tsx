@@ -13,7 +13,12 @@ export function createTestQueryClient() {
   return new QueryClient({
     defaultOptions: {
       queries: {
+        // Provide a no-op default query function so components using a queryKey
+        // without specifying queryFn don't warn or throw in tests.
+        queryFn: async () => null,
         retry: false,
+        refetchOnWindowFocus: false,
+        refetchInterval: false,
       },
       mutations: {
         retry: false,
@@ -43,12 +48,34 @@ export function renderWithProviders(
 }
 
 // Mock useAuth hook
-export const mockUseAuth = (overrides = {}) => ({
-  user: null,
-  isAdmin: false,
-  loading: false,
-  ...overrides,
-});
+export const mockUseAuth = (overrides = {}) => {
+  const merged = {
+    user: null,
+    isAdmin: false,
+    isAuthenticated: undefined as boolean | undefined,
+    isLoading: false,
+    _clerk: {
+      isSignedIn: false,
+      clerkLoaded: false,
+      clerkUser: null,
+      clerkError: null,
+    },
+    _dbError: null,
+    ...overrides,
+  };
+
+  // If isAuthenticated wasn't explicitly provided, derive it from the presence of a user.
+  if (merged.isAuthenticated === undefined) {
+    merged.isAuthenticated = Boolean(merged.user);
+  }
+
+  // Keep Clerk's isSignedIn in sync with authentication state when not explicitly set.
+  if (merged._clerk && merged._clerk.isSignedIn === false && merged.isAuthenticated) {
+    merged._clerk = { ...merged._clerk, isSignedIn: true };
+  }
+
+  return merged;
+};
 
 /**
  * Wait for async operations to complete

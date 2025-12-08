@@ -26,7 +26,7 @@ describe('Landing', () => {
 
     renderWithProviders(<Landing />);
 
-    expect(screen.getByText(/welcome/i)).toBeInTheDocument();
+    expect(screen.getByText(/psyop-free/i)).toBeInTheDocument();
   });
 
   it('should display login form', () => {
@@ -34,7 +34,7 @@ describe('Landing', () => {
 
     renderWithProviders(<Landing />);
 
-    expect(screen.getByText(/sign in/i)).toBeInTheDocument();
+    expect(screen.getByTestId('button-login')).toBeInTheDocument();
   });
 });
 
