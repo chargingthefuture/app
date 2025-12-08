@@ -398,6 +398,7 @@ export interface IStorage {
   getPublicSocketrelayRequestById(id: string): Promise<SocketrelayRequest | undefined>;
   listPublicSocketrelayRequests(): Promise<SocketrelayRequest[]>;
   updateSocketrelayRequestStatus(id: string, status: string): Promise<SocketrelayRequest>;
+  repostSocketrelayRequest(id: string, userId: string): Promise<SocketrelayRequest>;
   deleteSocketrelayRequest(id: string): Promise<void>;
 
   // SocketRelay Fulfillment operations
@@ -3079,6 +3080,42 @@ export class DatabaseStorage implements IStorage {
       .where(eq(socketrelayRequests.id, id))
       .returning();
     return request;
+  }
+
+  async repostSocketrelayRequest(id: string, userId: string): Promise<SocketrelayRequest> {
+    // Get the request to verify ownership and expiration
+    const request = await this.getSocketrelayRequestById(id);
+    if (!request) {
+      throw new Error("Request not found");
+    }
+
+    // Verify ownership
+    if (request.userId !== userId) {
+      throw new Error("You can only repost your own requests");
+    }
+
+    // Check if request is expired
+    const now = new Date();
+    if (new Date(request.expiresAt) >= now) {
+      throw new Error("Request is not expired yet");
+    }
+
+    // Set new expiration date (14 days from now)
+    const newExpiresAt = new Date();
+    newExpiresAt.setDate(newExpiresAt.getDate() + 14);
+
+    // Update the request: set new expiration, set status to active, update timestamp
+    const [updated] = await db
+      .update(socketrelayRequests)
+      .set({
+        expiresAt: newExpiresAt,
+        status: 'active',
+        updatedAt: new Date(),
+      })
+      .where(eq(socketrelayRequests.id, id))
+      .returning();
+    
+    return updated;
   }
 
   async deleteSocketrelayRequest(id: string): Promise<void> {

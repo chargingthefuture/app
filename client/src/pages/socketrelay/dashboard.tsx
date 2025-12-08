@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Package, Clock, CheckCircle2, MapPin, Settings, Share2, ExternalLink, Copy, Check, Bell } from "lucide-react";
+import { Package, Clock, CheckCircle2, MapPin, Settings, Share2, ExternalLink, Copy, Check, Bell, RefreshCw } from "lucide-react";
 import { formatDistanceToNow, isPast } from "date-fns";
 import type { SocketrelayRequest, SocketrelayProfile } from "@shared/schema";
 import { Link } from "wouter";
@@ -91,6 +91,27 @@ export default function SocketRelayDashboard() {
       toast({
         title: "Error",
         description: error.message || "Failed to fulfill request",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const repostMutation = useMutation({
+    mutationFn: async (requestId: string) => {
+      return await apiRequest('POST', `/api/socketrelay/requests/${requestId}/repost`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/socketrelay/requests'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/socketrelay/my-requests'] });
+      toast({
+        title: "Request reposted",
+        description: "Your request has been reposted and will expire in 14 days.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to repost request",
         variant: "destructive",
       });
     },
@@ -378,6 +399,20 @@ export default function SocketRelayDashboard() {
                         <span>Expires {formatDistanceToNow(new Date(request.expiresAt), { addSuffix: true })}</span>
                         <span>Posted {formatDistanceToNow(new Date(request.createdAt), { addSuffix: true })}</span>
                       </div>
+                      {isPast(new Date(request.expiresAt)) && request.status === 'active' && (
+                        <div className="pt-2 border-t">
+                          <Button
+                            onClick={() => repostMutation.mutate(request.id)}
+                            disabled={repostMutation.isPending}
+                            variant="outline"
+                            size="sm"
+                            data-testid={`button-repost-${request.id}`}
+                          >
+                            <RefreshCw className="w-4 h-4 mr-2" />
+                            {repostMutation.isPending ? "Reposting..." : "Repost Request"}
+                          </Button>
+                        </div>
+                      )}
                       {shareUrl && (
                         <div className="space-y-2 pt-2 border-t">
                           <Label className="text-xs text-muted-foreground">Shareable URL</Label>

@@ -2586,6 +2586,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(fulfillment);
   }));
 
+  // Repost an expired request
+  app.post('/api/socketrelay/requests/:id/repost', isAuthenticated, asyncHandler(async (req: any, res) => {
+    const userId = getUserId(req);
+    const requestId = req.params.id;
+
+    const request = await withDatabaseErrorHandling(
+      () => storage.repostSocketrelayRequest(requestId, userId),
+      'repostSocketrelayRequest'
+    );
+    res.json(request);
+  }));
+
   // Get fulfillment by ID (with request data)
   app.get('/api/socketrelay/fulfillments/:id', isAuthenticated, asyncHandler(async (req: any, res) => {
     const userId = getUserId(req);
