@@ -19,7 +19,7 @@ describe('Services', () => {
     renderWithProviders(<Services />);
 
     await waitFor(() => {
-      expect(screen.getByText(/services/i)).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /available services/i })).toBeInTheDocument();
     });
   });
 
