@@ -11,7 +11,7 @@ export default defineConfig({
     include: ['test/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
     exclude: ['node_modules', 'dist', '.idea', '.git', '.cache', 'test/e2e'],
     reporter: process.env.CI
-      ? ['verbose', ['junit', './test-results/vitest-junit.xml']]
+      ? ['verbose', ['junit', { outputFile: './test-results/vitest-junit.xml' }]]
       : ['verbose'],
     coverage: {
       provider: 'v8',
