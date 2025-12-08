@@ -47,11 +47,18 @@ export default function ChymeRoom() {
     refetchInterval: 5000, // Poll every 5 seconds
   });
 
+  // Calculate permissions based on room type:
+  // Private Room: Must join to speak/chat/listen
+  // Public Room: Can listen without join, but must join + be authenticated to speak/chat
+  const canSpeak = isJoined && profile !== null; // Speaking requires joining and authentication for both room types
+  const canChat = (room?.roomType === 'public' && user && isJoined) || (room?.roomType === 'private' && isJoined);
+  const canListen = room?.roomType === 'public' || (room?.roomType === 'private' && isJoined); // Public rooms allow listening without join
+
   // WebRTC audio functionality
   const audio = useChymeAudio({
     roomId: roomId || '',
     userId: user?.id || '',
-    enabled: isJoined && canSpeak,
+    enabled: canSpeak,
     onError: (error) => {
       toast({
         title: "Audio Error",
@@ -61,9 +68,11 @@ export default function ChymeRoom() {
     },
   });
 
+  // Allow viewing messages in public rooms without joining (listening mode)
+  // Private rooms require joining to see messages
   const { data: messagesData, refetch: refetchMessages } = useQuery<{ messages: ChymeMessage[]; total: number }>({
     queryKey: ['/api/chyme/rooms', roomId, 'messages'],
-    enabled: !!roomId && isJoined,
+    enabled: !!roomId && (room?.roomType === 'public' || isJoined),
     refetchInterval: 3000, // Poll every 3 seconds
   });
 
@@ -142,7 +151,7 @@ export default function ChymeRoom() {
     },
   });
 
-  const handleJoin = () => {
+  const handleJoin = async () => {
     if (!profile) {
       toast({
         title: "Profile required",
@@ -151,7 +160,34 @@ export default function ChymeRoom() {
       });
       return;
     }
-    joinRoomMutation.mutate();
+
+    // Request microphone permission proactively (before joining)
+    // This ensures the browser prompts for permission immediately
+    // The audio hook will get its own stream, so we stop this one after requesting permission
+    let tempStream: MediaStream | null = null;
+    try {
+      tempStream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+        video: false,
+      });
+      // Stop the temporary stream - the audio hook will get its own stream
+      tempStream.getTracks().forEach(track => track.stop());
+      // Permission granted, proceed with joining
+      joinRoomMutation.mutate();
+    } catch (error: any) {
+      // Permission denied or error
+      toast({
+        title: "Microphone Access Required",
+        description: "Please allow microphone access to join audio rooms. You can still join to listen, but speaking requires microphone permission.",
+        variant: "destructive",
+      });
+      // Still allow joining (user can listen even without mic permission)
+      joinRoomMutation.mutate();
+    }
   };
 
   const handleLeave = () => {
@@ -164,12 +200,20 @@ export default function ChymeRoom() {
 
   const handleSendMessage = () => {
     if (newMessage.trim().length === 0) return;
-    if (room?.roomType === 'private' && !isJoined) {
-      toast({
-        title: "Join required",
-        description: "You must join the room to send messages.",
-        variant: "destructive",
-      });
+    if (!canChat) {
+      if (!user) {
+        toast({
+          title: "Authentication required",
+          description: "You must be signed in to send messages.",
+          variant: "destructive",
+        });
+      } else if (!isJoined) {
+        toast({
+          title: "Join required",
+          description: "You must join the room to send messages.",
+          variant: "destructive",
+        });
+      }
       return;
     }
     sendMessageMutation.mutate(newMessage.trim());
@@ -190,9 +234,6 @@ export default function ChymeRoom() {
       </div>
     );
   }
-
-  const canChat = room.roomType === 'public' || (room.roomType === 'private' && isJoined);
-  const canSpeak = room.roomType === 'private' && isJoined && profile !== null;
 
   return (
     <div className="h-[calc(100vh-4rem)] flex flex-col">
@@ -230,13 +271,26 @@ export default function ChymeRoom() {
           </div>
           <div className="flex gap-2">
             {!isJoined ? (
-              <Button
-                onClick={handleJoin}
-                disabled={joinRoomMutation.isPending || !profile}
-                data-testid="button-join-room"
-              >
-                Join Room
-              </Button>
+              <>
+                {room.roomType === 'public' && !user && (
+                  <Button
+                    variant="outline"
+                    disabled
+                    data-testid="button-sign-in-required"
+                  >
+                    Sign in to participate
+                  </Button>
+                )}
+                {user && (
+                  <Button
+                    onClick={handleJoin}
+                    disabled={joinRoomMutation.isPending || !profile}
+                    data-testid="button-join-room"
+                  >
+                    Join Room
+                  </Button>
+                )}
+              </>
             ) : (
               <>
                 {canSpeak && (
@@ -382,9 +436,21 @@ export default function ChymeRoom() {
             </div>
           )}
 
-          {!canChat && (
+          {!canChat && canListen && (
             <div className="p-6 border-t bg-background text-center text-muted-foreground">
-              {room.roomType === 'private' ? "Join the room to send messages" : "Authentication required to send messages"}
+              {!user ? (
+                "Sign in and join to send messages"
+              ) : !isJoined ? (
+                "Join the room to send messages"
+              ) : (
+                "Unable to send messages"
+              )}
+            </div>
+          )}
+
+          {!canChat && !canListen && (
+            <div className="p-6 border-t bg-background text-center text-muted-foreground">
+              Join the room to send messages
             </div>
           )}
         </div>

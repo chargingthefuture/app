@@ -5208,14 +5208,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(result);
   }));
 
-  app.get('/api/chyme/rooms/:id', isAuthenticated, asyncHandler(async (req: any, res) => {
+  // GET room details: Public rooms allow unauthenticated access (for listening)
+  // Private rooms require authentication
+  app.get('/api/chyme/rooms/:id', publicItemLimiter, asyncHandler(async (req: any, res) => {
     const room = await withDatabaseErrorHandling(
       () => storage.getChymeRoomById(req.params.id),
       'getChymeRoomById'
     );
-    if (!room) {
-      throw new NotFoundError("Room not found");
+    if (!room || !room.isActive) {
+      throw new NotFoundError("Room not found or inactive");
     }
+
+    // Private rooms require authentication
+    if (room.roomType === 'private') {
+      if (!req.auth?.userId) {
+        return res.status(401).json({ message: "Authentication required for private rooms" });
+      }
+    }
+
     res.json(room);
   }));
 
@@ -5342,10 +5352,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }));
 
   // Chyme Message routes
-  app.get('/api/chyme/rooms/:roomId/messages', isAuthenticated, asyncHandler(async (req: any, res) => {
+  // GET messages: Public rooms allow unauthenticated access (listening mode)
+  // Private rooms require authentication
+  app.get('/api/chyme/rooms/:roomId/messages', publicItemLimiter, asyncHandler(async (req: any, res) => {
     const roomId = req.params.roomId;
     const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 50;
     const offset = req.query.offset ? parseInt(req.query.offset as string, 10) : 0;
+
+    // Check room type - public rooms allow unauthenticated access
+    const room = await withDatabaseErrorHandling(
+      () => storage.getChymeRoomById(roomId),
+      'getChymeRoomById'
+    );
+    
+    if (!room || !room.isActive) {
+      throw new NotFoundError("Room not found or inactive");
+    }
+
+    // Private rooms require authentication
+    if (room.roomType === 'private') {
+      // Check if user is authenticated via Clerk
+      if (!req.auth?.userId) {
+        return res.status(401).json({ message: "Authentication required for private rooms" });
+      }
+    }
 
     const result = await withDatabaseErrorHandling(
       () => storage.getChymeMessagesByRoom(roomId, limit, offset),
