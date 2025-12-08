@@ -19,6 +19,8 @@ vi.mock('wouter', async () => {
 describe('Landing', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Set default mock return value to prevent undefined errors
+    vi.mocked(useAuthModule.useAuth).mockReturnValue(mockUseAuth({ user: null }));
   });
 
   it('should render landing page for unauthenticated users', () => {

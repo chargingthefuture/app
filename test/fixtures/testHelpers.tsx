@@ -49,19 +49,27 @@ export function renderWithProviders(
 
 // Mock useAuth hook
 export const mockUseAuth = (overrides = {}) => {
+  const defaultClerk = {
+    isSignedIn: false,
+    clerkLoaded: false,
+    clerkUser: null,
+    clerkError: null,
+  };
+
+  // Extract _clerk from overrides if present, otherwise use default
+  const clerkOverrides = overrides._clerk || {};
+  const finalClerk = { ...defaultClerk, ...clerkOverrides };
+
   const merged = {
     user: null,
     isAdmin: false,
     isAuthenticated: undefined as boolean | undefined,
     isLoading: false,
-    _clerk: {
-      isSignedIn: false,
-      clerkLoaded: false,
-      clerkUser: null,
-      clerkError: null,
-    },
+    _clerk: finalClerk,
     _dbError: null,
     ...overrides,
+    // Ensure _clerk is always defined (overwrite any undefined/null from overrides)
+    _clerk: finalClerk,
   };
 
   // If isAuthenticated wasn't explicitly provided, derive it from the presence of a user.
