@@ -130,15 +130,6 @@ import WorkforceRecruiterAdminMeetupEvents from "@/pages/workforce-recruiter/adm
 import WorkforceRecruiterMeetupEvents from "@/pages/workforce-recruiter/meetup-events";
 import WorkforceRecruiterSkillLevelDetail from "@/pages/workforce-recruiter/skill-level-detail";
 import { GentlePulseBottomNav } from "@/components/gentlepulse/bottom-nav";
-import { SupportMatchBottomNav } from "@/components/supportmatch/bottom-nav";
-import { LighthouseBottomNav } from "@/components/lighthouse/bottom-nav";
-import { SocketRelayBottomNav } from "@/components/socketrelay/bottom-nav";
-import { DirectoryBottomNav } from "@/components/directory/bottom-nav";
-import { ChatGroupsBottomNav } from "@/components/chatgroups/bottom-nav";
-import { TrustTransportBottomNav } from "@/components/trusttransport/bottom-nav";
-import { MechanicMatchBottomNav } from "@/components/mechanicmatch/bottom-nav";
-import { LostMailBottomNav } from "@/components/lostmail/bottom-nav";
-import { ResearchBottomNav } from "@/components/research/bottom-nav";
 
 // Protected route wrapper that redirects unauthenticated users
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -355,50 +346,32 @@ function Router() {
       {/* Mini-app routes - all protected */}
       <Route path="/apps/supportmatch">
         <ProtectedRoute>
-          <>
-            <SupportMatchDashboard />
-            <SupportMatchBottomNav />
-          </>
+          <SupportMatchDashboard />
         </ProtectedRoute>
       </Route>
       <Route path="/apps/supportmatch/profile">
         <ProtectedRoute>
-          <>
-            <SupportMatchProfile />
-            <SupportMatchBottomNav />
-          </>
+          <SupportMatchProfile />
         </ProtectedRoute>
       </Route>
       <Route path="/apps/supportmatch/partnership">
         <ProtectedRoute>
-          <>
-            <SupportMatchPartnership />
-            <SupportMatchBottomNav />
-          </>
+          <SupportMatchPartnership />
         </ProtectedRoute>
       </Route>
       <Route path="/apps/supportmatch/announcements">
         <ProtectedRoute>
-          <>
-            <SupportMatchAnnouncements />
-            <SupportMatchBottomNav />
-          </>
+          <SupportMatchAnnouncements />
         </ProtectedRoute>
       </Route>
       <Route path="/apps/supportmatch/history">
         <ProtectedRoute>
-          <>
-            <SupportMatchHistory />
-            <SupportMatchBottomNav />
-          </>
+          <SupportMatchHistory />
         </ProtectedRoute>
       </Route>
       <Route path="/apps/supportmatch/safety">
         <ProtectedRoute>
-          <>
-            <SupportMatchSafety />
-            <SupportMatchBottomNav />
-          </>
+          <SupportMatchSafety />
         </ProtectedRoute>
       </Route>
       <Route path="/apps/supportmatch/admin">
@@ -428,66 +401,42 @@ function Router() {
       </Route>
       <Route path="/apps/lighthouse">
         <ProtectedRoute>
-          <>
-            <LighthouseDashboard />
-            <LighthouseBottomNav />
-          </>
+          <LighthouseDashboard />
         </ProtectedRoute>
       </Route>
       <Route path="/apps/lighthouse/profile">
         <ProtectedRoute>
-          <>
-            <LighthouseProfile />
-            <LighthouseBottomNav />
-          </>
+          <LighthouseProfile />
         </ProtectedRoute>
       </Route>
       <Route path="/apps/lighthouse/browse">
         <ProtectedRoute>
-          <>
-            <LighthouseBrowse />
-            <LighthouseBottomNav />
-          </>
+          <LighthouseBrowse />
         </ProtectedRoute>
       </Route>
       <Route path="/apps/lighthouse/my-properties">
         <ProtectedRoute>
-          <>
-            <LighthouseMyProperties />
-            <LighthouseBottomNav />
-          </>
+          <LighthouseMyProperties />
         </ProtectedRoute>
       </Route>
       <Route path="/apps/lighthouse/property/new">
         <ProtectedRoute>
-          <>
-            <LighthousePropertyForm />
-            <LighthouseBottomNav />
-          </>
+          <LighthousePropertyForm />
         </ProtectedRoute>
       </Route>
       <Route path="/apps/lighthouse/property/edit/:id">
         <ProtectedRoute>
-          <>
-            <LighthousePropertyForm />
-            <LighthouseBottomNav />
-          </>
+          <LighthousePropertyForm />
         </ProtectedRoute>
       </Route>
       <Route path="/apps/lighthouse/property/:id">
         <ProtectedRoute>
-          <>
-            <LighthousePropertyDetail />
-            <LighthouseBottomNav />
-          </>
+          <LighthousePropertyDetail />
         </ProtectedRoute>
       </Route>
       <Route path="/apps/lighthouse/matches">
         <ProtectedRoute>
-          <>
-            <LighthouseMatches />
-            <LighthouseBottomNav />
-          </>
+          <LighthouseMatches />
         </ProtectedRoute>
       </Route>
       <Route path="/apps/lighthouse/admin">
@@ -507,42 +456,27 @@ function Router() {
       </Route>
       <Route path="/apps/lighthouse/announcements">
         <ProtectedRoute>
-          <>
-            <LighthouseAnnouncements />
-            <LighthouseBottomNav />
-          </>
+          <LighthouseAnnouncements />
         </ProtectedRoute>
       </Route>
       <Route path="/apps/socketrelay">
         <ProtectedRoute>
-          <>
-            <SocketRelayDashboard />
-            <SocketRelayBottomNav />
-          </>
+          <SocketRelayDashboard />
         </ProtectedRoute>
       </Route>
       <Route path="/apps/socketrelay/profile">
         <ProtectedRoute>
-          <>
-            <SocketRelayProfile />
-            <SocketRelayBottomNav />
-          </>
+          <SocketRelayProfile />
         </ProtectedRoute>
       </Route>
       <Route path="/apps/socketrelay/announcements">
         <ProtectedRoute>
-          <>
-            <SocketRelayAnnouncements />
-            <SocketRelayBottomNav />
-          </>
+          <SocketRelayAnnouncements />
         </ProtectedRoute>
       </Route>
       <Route path="/apps/socketrelay/chat/:id">
         <ProtectedRoute>
-          <>
-            <SocketRelayChat />
-            <SocketRelayBottomNav />
-          </>
+          <SocketRelayChat />
         </ProtectedRoute>
       </Route>
       <Route path="/apps/socketrelay/admin">
@@ -557,26 +491,17 @@ function Router() {
       </Route>
       <Route path="/apps/directory">
         <ProtectedRoute>
-          <>
-            <DirectoryDashboard />
-            <DirectoryBottomNav />
-          </>
+          <DirectoryDashboard />
         </ProtectedRoute>
       </Route>
       <Route path="/apps/directory/profile">
         <ProtectedRoute>
-          <>
-            <DirectoryProfile />
-            <DirectoryBottomNav />
-          </>
+          <DirectoryProfile />
         </ProtectedRoute>
       </Route>
       <Route path="/apps/directory/announcements">
         <ProtectedRoute>
-          <>
-            <DirectoryAnnouncements />
-            <DirectoryBottomNav />
-          </>
+          <DirectoryAnnouncements />
         </ProtectedRoute>
       </Route>
       <Route path="/apps/directory/admin">
@@ -591,18 +516,12 @@ function Router() {
       </Route>
       <Route path="/apps/chatgroups">
         <ProtectedRoute>
-          <>
-            <ChatGroups />
-            <ChatGroupsBottomNav />
-          </>
+          <ChatGroups />
         </ProtectedRoute>
       </Route>
       <Route path="/apps/chatgroups/announcements">
         <ProtectedRoute>
-          <>
-            <ChatGroupsAnnouncements />
-            <ChatGroupsBottomNav />
-          </>
+          <ChatGroupsAnnouncements />
         </ProtectedRoute>
       </Route>
       <Route path="/apps/chatgroups/admin">
@@ -617,66 +536,42 @@ function Router() {
       </Route>
       <Route path="/apps/trusttransport">
         <ProtectedRoute>
-          <>
-            <TrustTransportDashboard />
-            <TrustTransportBottomNav />
-          </>
+          <TrustTransportDashboard />
         </ProtectedRoute>
       </Route>
       <Route path="/apps/trusttransport/profile">
         <ProtectedRoute>
-          <>
-            <TrustTransportProfile />
-            <TrustTransportBottomNav />
-          </>
+          <TrustTransportProfile />
         </ProtectedRoute>
       </Route>
       <Route path="/apps/trusttransport/browse">
         <ProtectedRoute>
-          <>
-            <TrustTransportBrowse />
-            <TrustTransportBottomNav />
-          </>
+          <TrustTransportBrowse />
         </ProtectedRoute>
       </Route>
       <Route path="/apps/trusttransport/request/new">
         <ProtectedRoute>
-          <>
-            <TrustTransportRequestNew />
-            <TrustTransportBottomNav />
-          </>
+          <TrustTransportRequestNew />
         </ProtectedRoute>
       </Route>
       <Route path="/apps/trusttransport/request/:id">
         <ProtectedRoute>
-          <>
-            <TrustTransportRequestDetail />
-            <TrustTransportBottomNav />
-          </>
+          <TrustTransportRequestDetail />
         </ProtectedRoute>
       </Route>
       <Route path="/apps/trusttransport/my-requests">
         <ProtectedRoute>
-          <>
-            <TrustTransportMyRequests />
-            <TrustTransportBottomNav />
-          </>
+          <TrustTransportMyRequests />
         </ProtectedRoute>
       </Route>
       <Route path="/apps/trusttransport/my-claimed">
         <ProtectedRoute>
-          <>
-            <TrustTransportMyClaimed />
-            <TrustTransportBottomNav />
-          </>
+          <TrustTransportMyClaimed />
         </ProtectedRoute>
       </Route>
       <Route path="/apps/trusttransport/announcements">
         <ProtectedRoute>
-          <>
-            <TrustTransportAnnouncements />
-            <TrustTransportBottomNav />
-          </>
+          <TrustTransportAnnouncements />
         </ProtectedRoute>
       </Route>
       <Route path="/apps/trusttransport/admin">
@@ -691,66 +586,42 @@ function Router() {
       </Route>
       <Route path="/apps/mechanicmatch">
         <ProtectedRoute>
-          <>
-            <MechanicMatchDashboard />
-            <MechanicMatchBottomNav />
-          </>
+          <MechanicMatchDashboard />
         </ProtectedRoute>
       </Route>
       <Route path="/apps/mechanicmatch/profile">
         <ProtectedRoute>
-          <>
-            <MechanicMatchProfile />
-            <MechanicMatchBottomNav />
-          </>
+          <MechanicMatchProfile />
         </ProtectedRoute>
       </Route>
       <Route path="/apps/mechanicmatch/vehicles">
         <ProtectedRoute>
-          <>
-            <MechanicMatchVehicles />
-            <MechanicMatchBottomNav />
-          </>
+          <MechanicMatchVehicles />
         </ProtectedRoute>
       </Route>
       <Route path="/apps/mechanicmatch/vehicles/new">
         <ProtectedRoute>
-          <>
-            <MechanicMatchVehicleNew />
-            <MechanicMatchBottomNav />
-          </>
+          <MechanicMatchVehicleNew />
         </ProtectedRoute>
       </Route>
       <Route path="/apps/mechanicmatch/vehicles/:id/edit">
         <ProtectedRoute>
-          <>
-            <MechanicMatchVehicleEdit />
-            <MechanicMatchBottomNav />
-          </>
+          <MechanicMatchVehicleEdit />
         </ProtectedRoute>
       </Route>
       <Route path="/apps/mechanicmatch/request-new">
         <ProtectedRoute>
-          <>
-            <MechanicMatchRequestNew />
-            <MechanicMatchBottomNav />
-          </>
+          <MechanicMatchRequestNew />
         </ProtectedRoute>
       </Route>
       <Route path="/apps/mechanicmatch/browse-mechanics">
         <ProtectedRoute>
-          <>
-            <MechanicMatchBrowseMechanics />
-            <MechanicMatchBottomNav />
-          </>
+          <MechanicMatchBrowseMechanics />
         </ProtectedRoute>
       </Route>
       <Route path="/apps/mechanicmatch/availability">
         <ProtectedRoute>
-          <>
-            <MechanicMatchAvailability />
-            <MechanicMatchBottomNav />
-          </>
+          <MechanicMatchAvailability />
         </ProtectedRoute>
       </Route>
       <Route path="/apps/mechanicmatch/admin">
@@ -770,26 +641,17 @@ function Router() {
       </Route>
       <Route path="/apps/lostmail">
         <ProtectedRoute>
-          <>
-            <LostMailDashboard />
-            <LostMailBottomNav />
-          </>
+          <LostMailDashboard />
         </ProtectedRoute>
       </Route>
       <Route path="/apps/lostmail/report">
         <ProtectedRoute>
-          <>
-            <LostMailReport />
-            <LostMailBottomNav />
-          </>
+          <LostMailReport />
         </ProtectedRoute>
       </Route>
       <Route path="/apps/lostmail/incident/:id">
         <ProtectedRoute>
-          <>
-            <LostMailIncidentDetail />
-            <LostMailBottomNav />
-          </>
+          <LostMailIncidentDetail />
         </ProtectedRoute>
       </Route>
       <Route path="/apps/lostmail/admin">
@@ -809,50 +671,32 @@ function Router() {
       </Route>
       <Route path="/apps/research">
         <ProtectedRoute>
-          <>
-            <ResearchDashboard />
-            <ResearchBottomNav />
-          </>
+          <ResearchDashboard />
         </ProtectedRoute>
       </Route>
       <Route path="/apps/research/timeline">
         <ProtectedRoute>
-          <>
-            <ResearchTimeline />
-            <ResearchBottomNav />
-          </>
+          <ResearchTimeline />
         </ProtectedRoute>
       </Route>
       <Route path="/apps/research/my-items">
         <ProtectedRoute>
-          <>
-            <ResearchMyItems />
-            <ResearchBottomNav />
-          </>
+          <ResearchMyItems />
         </ProtectedRoute>
       </Route>
       <Route path="/apps/research/bookmarks">
         <ProtectedRoute>
-          <>
-            <ResearchBookmarks />
-            <ResearchBottomNav />
-          </>
+          <ResearchBookmarks />
         </ProtectedRoute>
       </Route>
       <Route path="/apps/research/item/:id">
         <ProtectedRoute>
-          <>
-            <ResearchItemView />
-            <ResearchBottomNav />
-          </>
+          <ResearchItemView />
         </ProtectedRoute>
       </Route>
       <Route path="/apps/research/new">
         <ProtectedRoute>
-          <>
-            <NewResearchItem />
-            <ResearchBottomNav />
-          </>
+          <NewResearchItem />
         </ProtectedRoute>
       </Route>
       <Route path="/apps/research/admin">
