@@ -31,16 +31,34 @@ describe('DirectoryProfile', () => {
   it('should render create form when no profile exists', async () => {
     vi.mocked(useAuthModule.useAuth).mockReturnValue(mockUseAuth());
 
-    global.fetch = vi.fn(() =>
-      Promise.resolve({
+    // Mock all required queries
+    global.fetch = vi.fn((url: string | Request | URL) => {
+      const urlString = typeof url === 'string' ? url : url.toString();
+      if (urlString.includes('/api/directory/skills')) {
+        return Promise.resolve({
+          json: () => Promise.resolve([]),
+        } as Response);
+      }
+      if (urlString.includes('/api/directory/sectors')) {
+        return Promise.resolve({
+          json: () => Promise.resolve([]),
+        } as Response);
+      }
+      if (urlString.includes('/api/directory/job-titles')) {
+        return Promise.resolve({
+          json: () => Promise.resolve([]),
+        } as Response);
+      }
+      // Profile query
+      return Promise.resolve({
         json: () => Promise.resolve(null),
-      } as Response)
-    );
+      } as Response);
+    });
 
     renderWithProviders(<DirectoryProfile />);
 
     await waitFor(() => {
-      expect(screen.getByText(/create.*profile/i)).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /create.*profile/i })).toBeInTheDocument();
     });
   });
 
@@ -62,11 +80,29 @@ describe('DirectoryProfile', () => {
       updatedAt: new Date(),
     };
 
-    global.fetch = vi.fn(() =>
-      Promise.resolve({
+    // Mock all required queries
+    global.fetch = vi.fn((url: string | Request | URL) => {
+      const urlString = typeof url === 'string' ? url : url.toString();
+      if (urlString.includes('/api/directory/skills')) {
+        return Promise.resolve({
+          json: () => Promise.resolve([]),
+        } as Response);
+      }
+      if (urlString.includes('/api/directory/sectors')) {
+        return Promise.resolve({
+          json: () => Promise.resolve([]),
+        } as Response);
+      }
+      if (urlString.includes('/api/directory/job-titles')) {
+        return Promise.resolve({
+          json: () => Promise.resolve([]),
+        } as Response);
+      }
+      // Profile query
+      return Promise.resolve({
         json: () => Promise.resolve(mockProfile),
-      } as Response)
-    );
+      } as Response);
+    });
 
     renderWithProviders(<DirectoryProfile />);
 

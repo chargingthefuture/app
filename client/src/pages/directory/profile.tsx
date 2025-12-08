@@ -44,15 +44,18 @@ export default function DirectoryProfilePage() {
   const { data: profile, isLoading } = useQuery<DirectoryProfile | null>({
     queryKey: ["/api/directory/profile"],
   });
-  const { data: availableSkills = [], isLoading: skillsLoading } = useQuery<DirectorySkill[]>({
+  const { data: availableSkillsData, isLoading: skillsLoading } = useQuery<DirectorySkill[]>({
     queryKey: ["/api/directory/skills"],
   });
-  const { data: availableSectors = [], isLoading: sectorsLoading } = useQuery<SkillsSector[]>({
+  const availableSkills = availableSkillsData ?? [];
+  const { data: availableSectorsData, isLoading: sectorsLoading } = useQuery<SkillsSector[]>({
     queryKey: ["/api/directory/sectors"],
   });
-  const { data: availableJobTitles = [], isLoading: jobTitlesLoading } = useQuery<SkillsJobTitle[]>({
+  const availableSectors = availableSectorsData ?? [];
+  const { data: availableJobTitlesData, isLoading: jobTitlesLoading } = useQuery<SkillsJobTitle[]>({
     queryKey: ["/api/directory/job-titles"],
   });
+  const availableJobTitles = availableJobTitlesData ?? [];
   
   const publicDirectoryUrl = `${window.location.origin}/apps/directory/public`;
   

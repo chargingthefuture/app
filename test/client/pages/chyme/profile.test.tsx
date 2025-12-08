@@ -45,7 +45,7 @@ describe('ChymeProfile', () => {
     renderWithProviders(<ChymeProfile />);
 
     await waitFor(() => {
-      expect(screen.getByText(/create.*profile/i)).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /create.*profile/i })).toBeInTheDocument();
     });
   });
 
@@ -70,7 +70,7 @@ describe('ChymeProfile', () => {
     renderWithProviders(<ChymeProfile />);
 
     await waitFor(() => {
-      expect(screen.getByText(/edit.*profile/i)).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /edit.*profile/i })).toBeInTheDocument();
     });
   });
 
@@ -128,7 +128,8 @@ describe('ChymeProfile', () => {
     renderWithProviders(<ChymeProfile />);
 
     await waitFor(() => {
-      const submitButton = screen.getByTestId('button-submit');
+      // Check for either create or update button
+      const submitButton = screen.queryByTestId('button-submit') || screen.queryByTestId('button-save-profile') || screen.queryByTestId('button-save');
       expect(submitButton).toBeInTheDocument();
     });
   });

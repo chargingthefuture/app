@@ -37,13 +37,20 @@ global.IntersectionObserver = class IntersectionObserver {
   unobserve() {}
 } as any;
 
-// Mock ResizeObserver
+// Mock ResizeObserver - must be defined before any component imports
+// @ts-ignore - ResizeObserver may not be in types for test environment
 global.ResizeObserver = class ResizeObserver {
   constructor() {}
   disconnect() {}
   observe() {}
   unobserve() {}
 } as any;
+
+// Also ensure it's available on window
+if (typeof window !== 'undefined') {
+  // @ts-ignore
+  window.ResizeObserver = global.ResizeObserver;
+}
 
 // Suppress console errors in tests (uncomment if needed)
 // global.console = {

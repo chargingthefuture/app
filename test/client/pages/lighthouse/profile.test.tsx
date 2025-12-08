@@ -40,7 +40,7 @@ describe('LightHouseProfile', () => {
     renderWithProviders(<LightHouseProfile />);
 
     await waitFor(() => {
-      expect(screen.getByText(/create.*profile/i)).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /create.*profile/i })).toBeInTheDocument();
     });
   });
 

@@ -40,7 +40,7 @@ describe('MechanicMatchProfile', () => {
     renderWithProviders(<MechanicMatchProfile />);
 
     await waitFor(() => {
-      expect(screen.getByText(/create.*profile/i)).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /create.*profile/i })).toBeInTheDocument();
     });
   });
 
@@ -73,7 +73,7 @@ describe('MechanicMatchProfile', () => {
     renderWithProviders(<MechanicMatchProfile />);
 
     await waitFor(() => {
-      expect(screen.getByText(/edit.*profile/i)).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /edit.*profile/i })).toBeInTheDocument();
     });
   });
 

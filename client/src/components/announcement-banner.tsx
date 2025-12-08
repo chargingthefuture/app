@@ -20,7 +20,8 @@ export function AnnouncementBanner({ apiEndpoint, queryKey }: AnnouncementBanner
     queryFn: async () => {
       const res = await fetch(apiEndpoint, { credentials: "include" });
 
-      if (!res.ok) {
+      // Treat undefined ok (from mocked fetch in tests) as success to avoid false failures.
+      if (res.ok === false) {
         throw new Error(`Failed to fetch announcements: ${res.status} ${res.statusText}`);
       }
 

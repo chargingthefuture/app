@@ -1156,6 +1156,7 @@ export const insertTrusttransportAnnouncementSchema = createInsertSchema(trusttr
   createdAt: true,
   updatedAt: true,
 }).extend({
+  type: z.enum(["info", "warning", "maintenance", "update", "promotion"]),
   expiresAt: z.coerce.date().optional().nullable(),
 });
 
@@ -1618,6 +1619,7 @@ export const insertMechanicmatchAnnouncementSchema = createInsertSchema(mechanic
   createdAt: true,
   updatedAt: true,
 }).extend({
+  type: z.enum(["info", "warning", "maintenance", "update", "promotion"]),
   expiresAt: z.coerce.date().optional().nullable(),
 });
 
