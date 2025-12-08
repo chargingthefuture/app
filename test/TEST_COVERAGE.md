@@ -37,6 +37,9 @@ This document lists all tests created for the application.
 ### GentlePulse
 - ✅ `test/api/gentlepulse.test.ts` - Meditations, favorites, progress, announcements, admin
 
+### Chyme
+- ✅ `test/api/chyme.test.ts` - Profile CRUD, rooms, messages, survey, announcements, admin
+
 ### Admin
 - ✅ `test/api/admin.test.ts` - Stats, users, payments, anti-scraping monitoring, activity logs
 
@@ -74,6 +77,7 @@ This document lists all tests created for the application.
 - ✅ `test/client/pages/directory/profile.test.tsx` - Directory profile page
 - ✅ `test/client/pages/trusttransport/profile.test.tsx` - TrustTransport profile page
 - ✅ `test/client/pages/mechanicmatch/profile.test.tsx` - MechanicMatch profile page
+- ✅ `test/client/pages/chyme/profile.test.tsx` - Chyme profile page
 - ✅ `test/client/pages/workforce-recruiter/profile.test.tsx` - Workforce Recruiter profile page
 
 ### Core Pages
@@ -189,27 +193,36 @@ This document lists all tests created for the application.
     - Announcements
     - Admin management
 
-14. **Admin Features**
+14. **Chyme Mini-App**
+    - Profile CRUD
+    - Audio rooms
+    - Room participants
+    - Messaging
+    - Survey responses
+    - Announcements
+    - Admin management
+
+15. **Admin Features**
     - Stats dashboard
     - User management (approval/revocation)
     - Payment management
     - Anti-scraping monitoring
     - Activity logs
 
-15. **Core Pages**
+16. **Core Pages**
     - Home dashboard
     - Landing/login page
     - Services listing
     - User payments
     - Account management
 
-16. **Shared Components**
+17. **Shared Components**
     - Announcement banner
     - Pagination controls
     - Login form
     - Delete profile dialog
 
-9. **Security**
+18. **Security**
    - SQL injection prevention
    - XSS prevention
    - Authorization bypass prevention
@@ -217,7 +230,7 @@ This document lists all tests created for the application.
    - Rate limiting
    - Bot detection
 
-10. **Public Endpoints**
+19. **Public Endpoints**
     - Rate limiting
     - Request fingerprinting
     - Bot detection
@@ -244,12 +257,12 @@ npm run test:e2e
 
 ## Test Statistics
 
-- **Total Test Files**: 40
-- **API Test Files**: 12 (auth, supportmatch, lighthouse, socketrelay, directory, chatgroups, trusttransport, mechanicmatch, lostmail, research, gentlepulse, workforce-recruiter, admin, public-endpoints)
+- **Total Test Files**: 52
+- **API Test Files**: 15 (auth, supportmatch, lighthouse, socketrelay, directory, chatgroups, trusttransport, mechanicmatch, lostmail, research, gentlepulse, chyme, workforce-recruiter, admin, public-endpoints)
 - **Integration Test Files**: 1
 - **Security Test Files**: 1
 - **Component Test Files**: 18 (8 profile pages, 5 core pages, 4 shared components, 4 hooks)
-- **E2E Test Files**: 13 (auth, profile-crud, chatgroups, directory, lighthouse, socketrelay, supportmatch, trusttransport, mechanicmatch, lostmail, research, gentlepulse, workforce-recruiter, chyme)
+- **E2E Test Files**: 14 (auth, profile-crud, chatgroups, directory, lighthouse, socketrelay, supportmatch, trusttransport, mechanicmatch, lostmail, research, gentlepulse, workforce-recruiter, chyme)
 - **Smoke Test Files**: 1
 
 ## Coverage Goals
