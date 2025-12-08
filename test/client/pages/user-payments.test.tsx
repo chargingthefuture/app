@@ -1,18 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import UserPayments from '@/pages/user-payments';
-import { renderWithProviders, mockUseAuth } from '../../fixtures/testHelpers';
+import { renderWithProviders, mockUseAuth, createTestQueryClient } from '../../fixtures/testHelpers';
 import * as useAuthModule from '@/hooks/useAuth';
 
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: vi.fn(),
-}));
-
-vi.mock('@/lib/queryClient', () => ({
-  queryClient: {
-    invalidateQueries: vi.fn(),
-  },
-  apiRequest: vi.fn(),
 }));
 
 describe('UserPayments', () => {
@@ -21,34 +14,41 @@ describe('UserPayments', () => {
   });
 
   it('should render payments page for authenticated user', async () => {
-    vi.mocked(useAuthModule.useAuth).mockReturnValue(mockUseAuth({ user: { id: 'test-user' } }));
+    vi.mocked(useAuthModule.useAuth).mockReturnValue(mockUseAuth({ 
+      user: { 
+        id: 'test-user',
+        subscriptionStatus: 'active',
+        pricingTier: 0,
+      } 
+    }));
 
-    global.fetch = vi.fn()
-      // Payments list
-      .mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve([]),
-      } as unknown as Response)
-      // Payment status
-      .mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({
-          isDelinquent: false,
-          missingMonths: [],
-          nextBillingDate: null,
-          amountOwed: "0",
-        }),
-      } as unknown as Response);
+    // Create query client and pre-populate queries to avoid fetch mocks
+    const queryClient = createTestQueryClient();
+    queryClient.setQueryData(['/api/payments'], []);
+    queryClient.setQueryData(['/api/payments/status'], {
+      isDelinquent: false,
+      missingMonths: [],
+      nextBillingDate: null,
+      amountOwed: "0",
+    });
 
-    renderWithProviders(<UserPayments />);
+    renderWithProviders(<UserPayments />, { queryClient });
 
+    // Wait for the heading to appear - use exact text match
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: /my payments/i })).toBeInTheDocument();
+      const heading = screen.getByRole('heading', { name: 'My Payments' });
+      expect(heading).toBeInTheDocument();
     });
   });
 
   it('should display payment history when available', async () => {
-    vi.mocked(useAuthModule.useAuth).mockReturnValue(mockUseAuth({ user: { id: 'test-user' } }));
+    vi.mocked(useAuthModule.useAuth).mockReturnValue(mockUseAuth({ 
+      user: { 
+        id: 'test-user',
+        subscriptionStatus: 'active',
+        pricingTier: 0,
+      } 
+    }));
 
     const mockPayments = [
       {
@@ -62,27 +62,27 @@ describe('UserPayments', () => {
       },
     ];
 
-    global.fetch = vi.fn()
-      // Payments list
-      .mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve(mockPayments),
-      } as unknown as Response)
-      // Payment status
-      .mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({
-          isDelinquent: false,
-          missingMonths: [],
-          nextBillingDate: null,
-          amountOwed: "0",
-        }),
-      } as unknown as Response);
+    // Create query client and pre-populate queries to avoid fetch mocks
+    const queryClient = createTestQueryClient();
+    queryClient.setQueryData(['/api/payments'], mockPayments);
+    queryClient.setQueryData(['/api/payments/status'], {
+      isDelinquent: false,
+      missingMonths: [],
+      nextBillingDate: null,
+      amountOwed: "0",
+    });
 
-    renderWithProviders(<UserPayments />);
+    renderWithProviders(<UserPayments />, { queryClient });
 
+    // Wait for the heading to appear - use exact text match
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: /my payments/i })).toBeInTheDocument();
+      const heading = screen.getByRole('heading', { name: 'My Payments' });
+      expect(heading).toBeInTheDocument();
+    });
+
+    // Wait for payment data to load and verify it's displayed
+    await waitFor(() => {
+      expect(screen.getByTestId('row-payment-payment-1')).toBeInTheDocument();
     });
   });
 });

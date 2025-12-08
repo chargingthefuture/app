@@ -32,9 +32,11 @@ export function createTestQueryClient() {
  */
 export function renderWithProviders(
   ui: ReactElement,
-  options?: Omit<RenderOptions, 'wrapper'>
+  options?: Omit<RenderOptions, 'wrapper'> & {
+    queryClient?: QueryClient;
+  }
 ) {
-  const queryClient = createTestQueryClient();
+  const queryClient = options?.queryClient || createTestQueryClient();
 
   const Wrapper = ({ children }: { children: React.ReactNode }) => {
     return (
@@ -44,7 +46,8 @@ export function renderWithProviders(
     );
   };
 
-  return render(ui, { wrapper: Wrapper, ...options });
+  const { queryClient: _, ...renderOptions } = options || {};
+  return render(ui, { wrapper: Wrapper, ...renderOptions });
 }
 
 // Mock useAuth hook
@@ -60,14 +63,16 @@ export const mockUseAuth = (overrides = {}) => {
   const clerkOverrides = overrides._clerk || {};
   const finalClerk = { ...defaultClerk, ...clerkOverrides };
 
+  // Remove _clerk from overrides to avoid duplicate key
+  const { _clerk: _, ...overridesWithoutClerk } = overrides as any;
+
   const merged = {
     user: null,
     isAdmin: false,
     isAuthenticated: undefined as boolean | undefined,
     isLoading: false,
-    _clerk: finalClerk,
     _dbError: null,
-    ...overrides,
+    ...overridesWithoutClerk,
     // Ensure _clerk is always defined (overwrite any undefined/null from overrides)
     _clerk: finalClerk,
   };
