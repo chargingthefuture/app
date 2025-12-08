@@ -377,7 +377,7 @@ describe('API - Chyme Messages', () => {
     it('should accept valid message data', () => {
       const validData = {
         roomId: 'test-room-id',
-        senderId: testUserId,
+        userId: testUserId,
         content: 'Test message',
       };
 
@@ -387,7 +387,7 @@ describe('API - Chyme Messages', () => {
 
     it('should reject missing required fields', () => {
       const invalidData = {
-        // Missing roomId, senderId, content
+        // Missing roomId, userId, content
       };
 
       expect(() => {
@@ -398,8 +398,8 @@ describe('API - Chyme Messages', () => {
     it('should reject message content exceeding max length', () => {
       const invalidData = {
         roomId: 'test-room-id',
-        senderId: testUserId,
-        content: 'a'.repeat(1001), // Exceeds max length (assuming 1000 char limit)
+        userId: testUserId,
+        content: 'a'.repeat(1001), // Exceeds max length (1000 char limit)
       };
 
       // Check if schema has max length validation
@@ -419,9 +419,9 @@ describe('API - Chyme Messages', () => {
       expect(req.isAuthenticated()).toBe(false);
     });
 
-    it('should automatically set senderId from authenticated user', () => {
+    it('should automatically set userId from authenticated user', () => {
       const req = createMockRequest(testUserId);
-      // In actual route, senderId is extracted from req.user.claims.sub
+      // In actual route, userId is extracted from req.user.claims.sub
       expect(req.user?.claims?.sub).toBe(testUserId);
     });
 
@@ -440,6 +440,7 @@ describe('API - Chyme Survey', () => {
         clientId: 'test-client-id',
         foundValuable: true,
         roomId: 'test-room-id',
+        date: new Date('2024-12-08'),
       };
 
       const result = insertChymeSurveyResponseSchema.parse(validData);
@@ -455,7 +456,7 @@ describe('API - Chyme Survey', () => {
 
     it('should reject missing required fields', () => {
       const invalidData = {
-        // Missing clientId, foundValuable, roomId
+        // Missing clientId, foundValuable, date
       };
 
       expect(() => {

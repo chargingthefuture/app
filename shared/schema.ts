@@ -2390,6 +2390,7 @@ export const insertChymeAnnouncementSchema = createInsertSchema(chymeAnnouncemen
   createdAt: true,
   updatedAt: true,
 }).extend({
+  type: z.enum(["info", "warning", "maintenance", "update", "promotion"]),
   expiresAt: z.coerce.date().optional().nullable(),
 });
 
