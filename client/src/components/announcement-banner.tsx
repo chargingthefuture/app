@@ -25,7 +25,9 @@ export function AnnouncementBanner({ apiEndpoint, queryKey }: AnnouncementBanner
         throw new Error(`Failed to fetch announcements: ${res.status} ${res.statusText}`);
       }
 
-      return res.json();
+      const data = await res.json();
+      // Ensure we always return an array, even if the API returns something else
+      return Array.isArray(data) ? data : [];
     },
     onError: (err) => handleError(err),
   });
@@ -44,11 +46,14 @@ export function AnnouncementBanner({ apiEndpoint, queryKey }: AnnouncementBanner
     );
   };
 
-  if (isLoading || !announcements || announcements.length === 0) {
+  // Ensure announcements is an array before checking length
+  const announcementsArray = Array.isArray(announcements) ? announcements : [];
+  
+  if (isLoading || !announcementsArray || announcementsArray.length === 0) {
     return null;
   }
 
-  const activeAnnouncements = announcements.filter(
+  const activeAnnouncements = announcementsArray.filter(
     (announcement) => !dismissedIds.has(announcement.id)
   );
 

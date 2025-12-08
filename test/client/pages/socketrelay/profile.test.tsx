@@ -33,6 +33,7 @@ describe('SocketRelayProfile', () => {
 
     global.fetch = vi.fn(() =>
       Promise.resolve({
+        ok: true,
         json: () => Promise.resolve(null),
       } as Response)
     );
@@ -63,6 +64,7 @@ describe('SocketRelayProfile', () => {
 
     global.fetch = vi.fn(() =>
       Promise.resolve({
+        ok: true,
         json: () => Promise.resolve(mockProfile),
       } as Response)
     );

@@ -38,6 +38,7 @@ describe('ChymeProfile', () => {
     // Mock no profile returned
     global.fetch = vi.fn(() =>
       Promise.resolve({
+        ok: true,
         json: () => Promise.resolve(null),
       } as Response)
     );
@@ -63,6 +64,7 @@ describe('ChymeProfile', () => {
 
     global.fetch = vi.fn(() =>
       Promise.resolve({
+        ok: true,
         json: () => Promise.resolve(mockProfile),
       } as Response)
     );
@@ -88,6 +90,7 @@ describe('ChymeProfile', () => {
 
     global.fetch = vi.fn(() =>
       Promise.resolve({
+        ok: true,
         json: () => Promise.resolve(mockProfile),
       } as Response)
     );

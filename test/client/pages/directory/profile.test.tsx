@@ -36,21 +36,31 @@ describe('DirectoryProfile', () => {
       const urlString = typeof url === 'string' ? url : url.toString();
       if (urlString.includes('/api/directory/skills')) {
         return Promise.resolve({
+          ok: true,
           json: () => Promise.resolve([]),
         } as Response);
       }
       if (urlString.includes('/api/directory/sectors')) {
         return Promise.resolve({
+          ok: true,
           json: () => Promise.resolve([]),
         } as Response);
       }
       if (urlString.includes('/api/directory/job-titles')) {
         return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve([]),
+        } as Response);
+      }
+      if (urlString.includes('/api/directory/announcements')) {
+        return Promise.resolve({
+          ok: true,
           json: () => Promise.resolve([]),
         } as Response);
       }
       // Profile query
       return Promise.resolve({
+        ok: true,
         json: () => Promise.resolve(null),
       } as Response);
     });
@@ -58,7 +68,7 @@ describe('DirectoryProfile', () => {
     renderWithProviders(<DirectoryProfile />);
 
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: /create.*profile/i })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /create.*your.*profile/i })).toBeInTheDocument();
     });
   });
 
@@ -85,21 +95,31 @@ describe('DirectoryProfile', () => {
       const urlString = typeof url === 'string' ? url : url.toString();
       if (urlString.includes('/api/directory/skills')) {
         return Promise.resolve({
+          ok: true,
           json: () => Promise.resolve([]),
         } as Response);
       }
       if (urlString.includes('/api/directory/sectors')) {
         return Promise.resolve({
+          ok: true,
           json: () => Promise.resolve([]),
         } as Response);
       }
       if (urlString.includes('/api/directory/job-titles')) {
         return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve([]),
+        } as Response);
+      }
+      if (urlString.includes('/api/directory/announcements')) {
+        return Promise.resolve({
+          ok: true,
           json: () => Promise.resolve([]),
         } as Response);
       }
       // Profile query
       return Promise.resolve({
+        ok: true,
         json: () => Promise.resolve(mockProfile),
       } as Response);
     });
@@ -107,7 +127,7 @@ describe('DirectoryProfile', () => {
     renderWithProviders(<DirectoryProfile />);
 
     await waitFor(() => {
-      const deleteButton = screen.queryByTestId('button-delete-profile');
+      const deleteButton = screen.queryByTestId('button-delete-directory-profile');
       expect(deleteButton).toBeInTheDocument();
     });
   });

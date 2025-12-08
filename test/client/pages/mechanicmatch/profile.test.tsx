@@ -33,6 +33,7 @@ describe('MechanicMatchProfile', () => {
 
     global.fetch = vi.fn(() =>
       Promise.resolve({
+        ok: true,
         json: () => Promise.resolve(null),
       } as Response)
     );
@@ -66,6 +67,7 @@ describe('MechanicMatchProfile', () => {
 
     global.fetch = vi.fn(() =>
       Promise.resolve({
+        ok: true,
         json: () => Promise.resolve(mockProfile),
       } as Response)
     );
@@ -93,6 +95,7 @@ describe('MechanicMatchProfile', () => {
 
     global.fetch = vi.fn(() =>
       Promise.resolve({
+        ok: true,
         json: () => Promise.resolve(mockProfile),
       } as Response)
     );

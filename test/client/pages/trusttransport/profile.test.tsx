@@ -42,7 +42,9 @@ describe('TrustTransportProfile', () => {
     renderWithProviders(<TrustTransportProfile />);
 
     await waitFor(() => {
-      expect(screen.getByText(/create.*profile/i)).toBeInTheDocument();
+      // Use getAllByRole and check the first one (the h1 heading, not the button)
+      const headings = screen.getAllByRole('heading', { name: /create.*profile/i });
+      expect(headings[0]).toBeInTheDocument();
     });
   });
 
