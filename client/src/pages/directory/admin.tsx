@@ -715,7 +715,8 @@ export default function AdminDirectoryPage() {
               <div className="space-y-3">
                 {paginatedProfiles.map((p) => {
                 const profileUser = p.userId ? users.find(u => u.id === p.userId) : null;
-                const isVerified = profileUser?.isVerified || false;
+                // Use user's isVerified if userId exists, otherwise use profile's isVerified field
+                const isVerified = profileUser?.isVerified ?? (p.isVerified || false);
                 
                 return editingId === p.id ? (
                   <Card key={p.id}>
@@ -1018,7 +1019,7 @@ export default function AdminDirectoryPage() {
                   <div key={p.id} className="rounded-md border p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
-                        {p.userId && <VerifiedBadge isVerified={isVerified} testId={`badge-verified-${p.id}`} />}
+                        <VerifiedBadge isVerified={isVerified} testId={`badge-verified-${p.id}`} />
                         {!p.isClaimed && <Badge variant="outline">Unclaimed</Badge>}
                         {p.isPublic && (
                           <Badge variant="default" className="gap-1">

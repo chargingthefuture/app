@@ -200,9 +200,7 @@ export default function DirectoryDashboard() {
                       <div key={p.id} className="rounded-md border p-3 flex flex-col gap-2">
                         <div className="font-medium truncate">{computedName || '—'}</div>
                         <div className="flex items-center gap-2">
-                          {(p as any).userIsVerified !== undefined && (p as any).userId && (
-                            <VerifiedBadge isVerified={(p as any).userIsVerified || false} testId={`badge-verified-${p.id}`} />
-                          )}
+                          <VerifiedBadge isVerified={(p as any).userIsVerified || false} testId={`badge-verified-${p.id}`} />
                         </div>
                         <div className="text-sm">{p.description}</div>
                         <div className="flex flex-wrap gap-2">

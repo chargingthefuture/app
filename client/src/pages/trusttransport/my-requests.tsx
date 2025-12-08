@@ -26,6 +26,7 @@ export default function MyRequestsPage() {
   const claimedRequests = requests?.filter(r => r.status === 'claimed') || [];
   const completedRequests = requests?.filter(r => r.status === 'completed') || [];
   const cancelledRequests = requests?.filter(r => r.status === 'cancelled') || [];
+  const expiredRequests = requests?.filter(r => r.status === 'expired') || [];
 
   return (
     <div className="p-6 md:p-8 space-y-8">
@@ -44,7 +45,7 @@ export default function MyRequestsPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid md:grid-cols-4 gap-4">
+      <div className="grid md:grid-cols-5 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Open</CardTitle>
@@ -79,6 +80,15 @@ export default function MyRequestsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{cancelledRequests.length}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Expired</CardTitle>
+            <Calendar className="w-4 h-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{expiredRequests.length}</div>
           </CardContent>
         </Card>
       </div>
@@ -153,6 +163,36 @@ export default function MyRequestsPage() {
                               )}
                             </div>
                             <Badge variant="default">Claimed</Badge>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </Link>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {expiredRequests.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Expired Requests</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {expiredRequests.map((request) => (
+                    <Link key={request.id} href={`/apps/trusttransport/request/${request.id}`}>
+                      <Card className="hover-elevate">
+                        <CardContent className="p-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <p className="font-medium">{request.pickupCity} → {request.dropoffCity}</p>
+                              <p className="text-sm text-muted-foreground">
+                                {format(new Date(request.departureDateTime), "MMM d, yyyy 'at' h:mm a")}
+                                {" "}• {request.requestedSeats} {request.requestedSeats === 1 ? 'seat' : 'seats'}
+                              </p>
+                            </div>
+                            <Badge variant="outline">Expired</Badge>
                           </div>
                         </CardContent>
                       </Card>

@@ -16,7 +16,7 @@ export function GentlePulseDesktopNav() {
       <div className="flex gap-1 w-full">
         {navItems.map((item) => {
           const Icon = item.icon;
-          const isActive = location === item.path || location.startsWith(item.path + "/");
+          const isActive = location === item.path;
           return (
             <Link key={item.path} href={item.path}>
               <button

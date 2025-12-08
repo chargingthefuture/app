@@ -530,6 +530,7 @@ CREATE TABLE IF NOT EXISTS mechanicmatch_profiles (
   total_jobs_completed INTEGER NOT NULL DEFAULT 0,
   average_rating DECIMAL(3, 2),
   is_verified BOOLEAN DEFAULT false NOT NULL,
+  is_public BOOLEAN NOT NULL DEFAULT false,
   is_claimed BOOLEAN NOT NULL DEFAULT false,
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMP NOT NULL DEFAULT NOW()

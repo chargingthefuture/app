@@ -134,9 +134,7 @@ export default function PublicDirectoryList() {
                           <CardTitle className="text-base sm:text-lg line-clamp-1 flex-1">
                             {profile.displayName || profile.nickname || 'Directory Profile'}
                           </CardTitle>
-                          {profile.userIsVerified && (
-                            <VerifiedBadge isVerified={true} testId={`badge-verified-${profile.id}`} />
-                          )}
+                          <VerifiedBadge isVerified={profile.userIsVerified || false} testId={`badge-verified-${profile.id}`} />
                         </div>
                       </div>
                     </CardHeader>

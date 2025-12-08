@@ -36,7 +36,8 @@ export default function RequestDetailPage() {
 
   const isRider = request?.riderId === user?.id;
   const isDriver = profile?.isDriver ?? false;
-  const canClaim = isDriver && request?.status === 'open' && !isRider;
+  const isExpired = request?.status === 'expired';
+  const canClaim = isDriver && request?.status === 'open' && !isRider && !isExpired;
 
   const claimMutation = useMutation({
     mutationFn: async () => {
@@ -127,8 +128,13 @@ export default function RequestDetailPage() {
         <div className="flex-1">
           <h1 className="text-3xl md:text-4xl font-semibold">Ride Request Details</h1>
           <div className="flex items-center gap-2 mt-2">
-            <Badge variant={request.status === "claimed" ? "default" : request.status === "cancelled" ? "destructive" : "secondary"}>
-              {request.status}
+            <Badge variant={
+              request.status === "claimed" ? "default" 
+              : request.status === "cancelled" ? "destructive" 
+              : request.status === "expired" ? "outline"
+              : "secondary"
+            }>
+              {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
             </Badge>
           </div>
         </div>
@@ -208,6 +214,19 @@ export default function RequestDetailPage() {
         </CardContent>
       </Card>
 
+      {/* Expired Notice */}
+      {isExpired && (
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center py-4">
+              <p className="text-muted-foreground">
+                This ride request has expired. The departure date has passed and it can no longer be claimed.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Claim Form (for drivers) */}
       {canClaim && (
         <Card>
@@ -240,7 +259,7 @@ export default function RequestDetailPage() {
       )}
 
       {/* Cancel Button (for rider or driver who claimed) */}
-      {(isRider || (request.driverId === profile?.id && profile?.isDriver)) && request.status !== 'cancelled' && (
+      {(isRider || (request.driverId === profile?.id && profile?.isDriver)) && request.status !== 'cancelled' && request.status !== 'expired' && (
         <Card>
           <CardContent className="pt-6">
             <Button

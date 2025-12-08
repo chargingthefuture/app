@@ -315,7 +315,7 @@ export default function DirectoryProfilePage() {
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg sm:text-xl flex items-center gap-2">
               {profile ? "Your Profile" : "Create Your Profile"}
-              {profile?.userId && <VerifiedBadge isVerified={userIsVerified} testId="badge-verified-profile" />}
+              {profile && <VerifiedBadge isVerified={userIsVerified} testId="badge-verified-profile" />}
             </CardTitle>
             <div className="flex items-center gap-2">
               {profile && !isEditing && (

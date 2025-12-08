@@ -112,7 +112,7 @@ export default function PublicDirectoryProfile() {
               <CardTitle className="text-lg sm:text-xl">
                 {(profile as any).displayName || profile.nickname || profile.firstName || 'Directory Profile'}
               </CardTitle>
-              {(profile as any).userId && <VerifiedBadge isVerified={userIsVerified} testId="badge-verified-public" />}
+              <VerifiedBadge isVerified={userIsVerified} testId="badge-verified-public" />
             </div>
           </div>
         </CardHeader>

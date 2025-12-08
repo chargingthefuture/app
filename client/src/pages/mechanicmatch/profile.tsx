@@ -68,6 +68,7 @@ export default function MechanicMatchProfile() {
       portfolioPhotos: "",
       responseTimeHours: null,
       averageRating: null,
+      isPublic: false,
     },
   });
 
@@ -94,6 +95,7 @@ export default function MechanicMatchProfile() {
         portfolioPhotos: profile.portfolioPhotos || "",
         responseTimeHours: profile.responseTimeHours || null,
         averageRating: profile.averageRating ? parseFloat(profile.averageRating) : null,
+        isPublic: profile.isPublic ?? false,
       });
     }
   }, [profile, form]);
@@ -605,6 +607,31 @@ export default function MechanicMatchProfile() {
                   />
                 </div>
               )}
+
+              {/* Visibility */}
+              <div className="space-y-2 pt-4 border-t">
+                <FormField
+                  control={form.control}
+                  name="isPublic"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                          data-testid="checkbox-public-profile"
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel>Make my MechanicMatch profile public</FormLabel>
+                        <FormDescription>
+                          Allow others to view your profile in the public directory
+                        </FormDescription>
+                      </div>
+                    </FormItem>
+                  )}
+                />
+              </div>
 
               <div className="flex gap-3 pt-4">
                 <Button

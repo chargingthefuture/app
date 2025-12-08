@@ -1099,7 +1099,7 @@ export const trusttransportRideRequests = pgTable("trusttransport_ride_requests"
   riderMessage: text("rider_message"), // Notes from rider
   
   // Status
-  status: varchar("status", { length: 20 }).notNull().default('open'), // 'open', 'claimed', 'completed', 'cancelled'
+  status: varchar("status", { length: 20 }).notNull().default('open'), // 'open', 'claimed', 'completed', 'cancelled', 'expired'
   
   // Driver response (when claiming)
   driverMessage: text("driver_message"), // Message from driver when claiming
@@ -1267,6 +1267,7 @@ export const mechanicmatchProfiles = pgTable("mechanicmatch_profiles", {
   
   // Verification and visibility
   isVerified: boolean("is_verified").default(false).notNull(),
+  isPublic: boolean("is_public").notNull().default(false),
   isClaimed: boolean("is_claimed").notNull().default(false),
   
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -1316,6 +1317,7 @@ export const insertMechanicmatchProfileSchema = createInsertSchema(mechanicmatch
   portfolioPhotos: z.string().optional().nullable(), // Will store as JSON string
   responseTimeHours: z.number().int().min(0).optional().nullable(),
   averageRating: z.coerce.number().min(0).max(5).optional().nullable(),
+  isPublic: z.boolean().default(false),
   isClaimed: z.boolean().default(false),
 });
 

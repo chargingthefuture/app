@@ -768,13 +768,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
         displayName = user?.firstName || null;
       }
-      // Get verification status
+      // Get verification status: use user's isVerified if userId exists, otherwise use profile's isVerified
       if (profile.userId) {
         const user = await withDatabaseErrorHandling(
           () => storage.getUser(profile.userId),
           'getUserVerificationForDirectoryProfile'
         );
         userIsVerified = user?.isVerified || false;
+      } else {
+        // For admin-created profiles without userId, use profile's own isVerified field
+        userIsVerified = profile.isVerified || false;
       }
     } else if (profile.userId) {
       const user = await withDatabaseErrorHandling(
@@ -782,6 +785,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         'getUserVerificationForDirectoryProfileFallback'
       );
       userIsVerified = user?.isVerified || false;
+    } else {
+      // For admin-created profiles without userId, use profile's own isVerified field
+      userIsVerified = profile.isVerified || false;
     }
     if (!displayName && profile.nickname) displayName = profile.nickname;
     res.json({ ...profile, displayName, userIsVerified });
@@ -934,13 +940,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
         displayName = user?.firstName || null;
       }
-      // Get verification status
+      // Get verification status: use user's isVerified if userId exists, otherwise use profile's isVerified
       if (profile.userId) {
         const user = await withDatabaseErrorHandling(
           () => storage.getUser(profile.userId),
           'getUserVerificationForPublicDirectoryProfile'
         );
         userIsVerified = user?.isVerified || false;
+      } else {
+        // For admin-created profiles without userId, use profile's own isVerified field
+        userIsVerified = profile.isVerified || false;
       }
     } else if (profile.userId) {
       const user = await withDatabaseErrorHandling(
@@ -948,6 +957,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         'getUserVerificationForPublicDirectoryProfileFallback'
       );
       userIsVerified = user?.isVerified || false;
+    } else {
+      // For admin-created profiles without userId, use profile's own isVerified field
+      userIsVerified = profile.isVerified || false;
     }
     if (!displayName && profile.nickname) displayName = profile.nickname;
     res.json({ ...profile, displayName, userIsVerified });
@@ -987,13 +999,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           );
           name = u?.firstName || null;
         }
-        // Get verification status
+        // Get verification status: use user's isVerified if userId exists, otherwise use profile's isVerified
         if (p.userId) {
           const u = await withDatabaseErrorHandling(
             () => storage.getUser(p.userId),
             'getUserVerificationForPublicDirectoryList'
           );
           userIsVerified = u?.isVerified || false;
+        } else {
+          // For admin-created profiles without userId, use profile's own isVerified field
+          userIsVerified = p.isVerified || false;
         }
       } else if (p.userId) {
         const u = await withDatabaseErrorHandling(
@@ -1001,6 +1016,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           'getUserVerificationForPublicDirectoryListFallback'
         );
         userIsVerified = u?.isVerified || false;
+      } else {
+        // For admin-created profiles without userId, use profile's own isVerified field
+        userIsVerified = p.isVerified || false;
       }
       // Fallback to nickname if no name found
       if (!name && p.nickname) name = p.nickname;
@@ -1036,13 +1054,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           );
           name = u?.firstName || null;
         }
-        // Get verification status
+        // Get verification status: use user's isVerified if userId exists, otherwise use profile's isVerified
         if (p.userId) {
           const u = await withDatabaseErrorHandling(
             () => storage.getUser(p.userId),
             'getUserVerificationForDirectoryList'
           );
           userIsVerified = u?.isVerified || false;
+        } else {
+          // For admin-created profiles without userId, use profile's own isVerified field
+          userIsVerified = p.isVerified || false;
         }
       } else if (p.userId) {
         const u = await withDatabaseErrorHandling(
@@ -1050,6 +1071,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           'getUserVerificationForDirectoryListFallback'
         );
         userIsVerified = u?.isVerified || false;
+      } else {
+        // For admin-created profiles without userId, use profile's own isVerified field
+        userIsVerified = p.isVerified || false;
       }
       // Fallback to nickname if no name found
       if (!name && p.nickname) name = p.nickname;
@@ -3352,6 +3376,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
       'deleteMechanicmatchProfile'
     );
     res.json({ message: "MechanicMatch profile deleted successfully" });
+  }));
+
+  // Public routes (with rate limiting to prevent scraping)
+  app.get('/api/mechanicmatch/public/:id', publicItemLimiter, asyncHandler(async (req, res) => {
+    const profile = await withDatabaseErrorHandling(
+      () => storage.getMechanicmatchProfileById(req.params.id),
+      'getMechanicmatchProfileById'
+    );
+    if (!profile || !profile.isPublic) {
+      return res.status(404).json({ message: "Profile not found" });
+    }
+    // Get verification status from user
+    let userIsVerified = false;
+    if (profile.userId) {
+      const user = await withDatabaseErrorHandling(
+        () => storage.getUser(profile.userId),
+        'getUserVerificationForPublicMechanicmatchProfile'
+      );
+      userIsVerified = user?.isVerified || false;
+    }
+    res.json({ ...profile, userIsVerified });
+  }));
+
+  app.get('/api/mechanicmatch/public', publicListingLimiter, asyncHandler(async (req, res) => {
+    // Add delay for suspicious requests
+    const isSuspicious = (req as any).isSuspicious || false;
+    const userAgent = req.headers['user-agent'];
+    const accept = req.headers['accept'];
+    const acceptLang = req.headers['accept-language'];
+    const likelyBot = isLikelyBot(userAgent, accept, acceptLang);
+    
+    if (isSuspicious || likelyBot) {
+      await addAntiScrapingDelay(true, 200, 800);
+    } else {
+      await addAntiScrapingDelay(false, 50, 200);
+    }
+
+    const profiles = await withDatabaseErrorHandling(
+      () => storage.listPublicMechanicmatchProfiles(),
+      'listPublicMechanicmatchProfiles'
+    );
+    const withVerification = await Promise.all(profiles.map(async (p) => {
+      let userIsVerified = false;
+      if (p.userId) {
+        const u = await withDatabaseErrorHandling(
+          () => storage.getUser(p.userId),
+          'getUserVerificationForPublicMechanicmatchList'
+        );
+        userIsVerified = u?.isVerified || false;
+      }
+      return { ...p, userIsVerified };
+    }));
+    
+    // Rotate display order to make scraping harder
+    const rotated = rotateDisplayOrder(withVerification);
+    
+    res.json(rotated);
   }));
 
   // MechanicMatch Vehicle routes

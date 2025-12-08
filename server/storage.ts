@@ -211,7 +211,7 @@ import {
   type InsertChymeAnnouncement,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, asc, sql, or, inArray, gte, lte } from "drizzle-orm";
+import { eq, and, desc, asc, sql, or, inArray, gte, lte, lt } from "drizzle-orm";
 import { randomBytes } from "crypto";
 
 // Interface for storage operations
@@ -528,6 +528,7 @@ export interface IStorage {
     limit?: number;
     offset?: number;
   }): Promise<{ items: MechanicmatchProfile[]; total: number }>;
+  listPublicMechanicmatchProfiles(): Promise<MechanicmatchProfile[]>;
   createMechanicmatchProfile(profile: InsertMechanicmatchProfile): Promise<MechanicmatchProfile>;
   updateMechanicmatchProfile(userId: string, profile: Partial<InsertMechanicmatchProfile>): Promise<MechanicmatchProfile>;
   updateMechanicmatchProfileById(profileId: string, profile: Partial<InsertMechanicmatchProfile>): Promise<MechanicmatchProfile>;
@@ -3865,6 +3866,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getTrusttransportRideRequestById(id: string): Promise<TrusttransportRideRequest | undefined> {
+    // First, expire any requests that have passed their departure date
+    await this.expireTrusttransportRideRequests();
+    
     const [request] = await db
       .select()
       .from(trusttransportRideRequests)
@@ -3873,6 +3877,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getTrusttransportRideRequestsByRider(riderId: string): Promise<TrusttransportRideRequest[]> {
+    // First, expire any requests that have passed their departure date
+    await this.expireTrusttransportRideRequests();
+    
     return await db
       .select()
       .from(trusttransportRideRequests)
@@ -3880,7 +3887,27 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(trusttransportRideRequests.createdAt));
   }
 
+  // Expire ride requests where departure date has passed
+  async expireTrusttransportRideRequests(): Promise<void> {
+    const now = new Date();
+    await db
+      .update(trusttransportRideRequests)
+      .set({
+        status: 'expired',
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(trusttransportRideRequests.status, 'open'),
+          lt(trusttransportRideRequests.departureDateTime, now)
+        )
+      );
+  }
+
   async getOpenTrusttransportRideRequests(): Promise<TrusttransportRideRequest[]> {
+    // First, expire any requests that have passed their departure date
+    await this.expireTrusttransportRideRequests();
+    
     const now = new Date();
     return await db
       .select()
@@ -3903,11 +3930,17 @@ export class DatabaseStorage implements IStorage {
   }
 
   async claimTrusttransportRideRequest(requestId: string, driverId: string, driverMessage?: string): Promise<TrusttransportRideRequest> {
+    // First, expire any requests that have passed their departure date
+    await this.expireTrusttransportRideRequests();
+    
     const request = await this.getTrusttransportRideRequestById(requestId);
     if (!request) {
       throw new Error("Ride request not found");
     }
     if (request.status !== 'open') {
+      if (request.status === 'expired') {
+        throw new Error("This ride request has expired and can no longer be claimed");
+      }
       throw new Error("Ride request is not available to claim");
     }
     if (request.driverId) {
@@ -4395,6 +4428,14 @@ export class DatabaseStorage implements IStorage {
       .offset(offset);
 
     return { items, total };
+  }
+
+  async listPublicMechanicmatchProfiles(): Promise<MechanicmatchProfile[]> {
+    return await db
+      .select()
+      .from(mechanicmatchProfiles)
+      .where(eq(mechanicmatchProfiles.isPublic, true))
+      .orderBy(desc(mechanicmatchProfiles.createdAt));
   }
 
   async createMechanicmatchProfile(profileData: InsertMechanicmatchProfile): Promise<MechanicmatchProfile> {

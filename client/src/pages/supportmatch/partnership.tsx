@@ -17,7 +17,7 @@ export default function SupportMatchPartnership() {
   const [messageText, setMessageText] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const { data: partnership } = useQuery<Partnership | null>({
+  const { data: partnership } = useQuery<Partnership & { partnerNickname?: string } | null>({
     queryKey: ["/api/supportmatch/partnership/active"],
   });
 
@@ -168,6 +168,16 @@ export default function SupportMatchPartnership() {
             <CardContent className="space-y-4">
               <div>
                 <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground mb-1">
+                  <User className="w-3 h-3 sm:w-4 sm:h-4" />
+                  <span>Partner</span>
+                </div>
+                <p className="font-medium text-sm sm:text-base">
+                  {partnership.partnerNickname || "Unknown Partner"}
+                </p>
+              </div>
+
+              <div>
+                <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground mb-1">
                   <Calendar className="w-3 h-3 sm:w-4 sm:h-4" />
                   <span>Duration</span>
                 </div>
@@ -184,7 +194,6 @@ export default function SupportMatchPartnership() {
 
               <div>
                 <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground mb-1">
-                  <User className="w-3 h-3 sm:w-4 sm:h-4" />
                   <span>Status</span>
                 </div>
                 <Badge variant="default" className="text-xs">

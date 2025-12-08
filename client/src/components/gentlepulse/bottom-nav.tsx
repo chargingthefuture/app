@@ -16,7 +16,7 @@ export function GentlePulseBottomNav() {
       <div className="grid grid-cols-3 gap-1 p-2">
         {navItems.map((item) => {
           const Icon = item.icon;
-          const isActive = location === item.path || location.startsWith(item.path + "/");
+          const isActive = location === item.path;
           return (
             <Link key={item.path} href={item.path}>
               <button
