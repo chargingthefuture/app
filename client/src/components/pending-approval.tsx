@@ -221,6 +221,25 @@ export function PendingApproval() {
           >
             {updateMutation.isPending ? "Saving..." : "Save Quora Profile URL"}
           </Button>
+
+          <div className="pt-6 border-t space-y-4">
+            <div>
+              <h3 className="text-sm font-semibold mb-3">How to Find Your Quora Handle</h3>
+              <div className="mb-4">
+                <img
+                  src="/quora-handle-instructions.gif"
+                  alt="How to find your Quora handle"
+                  className="w-full rounded-md border"
+                  data-testid="gif-quora-handle-instructions"
+                />
+              </div>
+              <ol className="space-y-2 text-sm text-muted-foreground list-decimal list-inside">
+                <li>Go to Quora.com and click on your profile/avatar.</li>
+                <li>On your profile page, look at the URL bar in your web browser. The text after "/profile" in the URL is your Quora handle.</li>
+                <li>Copy your Quora handle and paste it in the field above.</li>
+              </ol>
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>
