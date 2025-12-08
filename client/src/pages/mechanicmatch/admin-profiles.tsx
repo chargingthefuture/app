@@ -36,11 +36,12 @@ import {
 } from "@/components/ui/alert-dialog";
 import { ArrowLeft, Users, Wrench, ShieldQuestion, PencilLine, Trash2, UserPlus } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { COUNTRIES } from "@/lib/countries";
 import { US_STATES } from "@/lib/usStates";
 import { cn } from "@/lib/utils";
+import type { User } from "@shared/schema";
 
 const adminProfileFormSchema = z
   .object({
@@ -73,6 +74,7 @@ export default function MechanicMatchAdminProfiles() {
   const [assigningProfile, setAssigningProfile] = useState<MechanicmatchProfile | null>(null);
   const [deletingProfile, setDeletingProfile] = useState<MechanicmatchProfile | null>(null);
   const [assignUserId, setAssignUserId] = useState("");
+  const [userSearchOpen, setUserSearchOpen] = useState(false);
   const { toast } = useToast();
 
   const queryParams = useMemo(() => {
@@ -96,6 +98,10 @@ export default function MechanicMatchAdminProfiles() {
 
   const { data, isLoading } = useQuery<{ items: MechanicmatchProfile[]; total: number }>({
     queryKey: [endpoint],
+  });
+
+  const { data: users = [] } = useQuery<User[]>({
+    queryKey: ["/api/admin/users"],
   });
 
   const fuzzyProfiles = useFuzzySearch(data?.items ?? [], searchTerm, {
@@ -183,6 +189,7 @@ export default function MechanicMatchAdminProfiles() {
       invalidateProfiles();
       setAssignDialogOpen(false);
       setAssignUserId("");
+      setUserSearchOpen(false);
       toast({ title: "Profile Assigned", description: "Profile assigned to user successfully." });
     },
     onError: (error: any) => {
@@ -545,22 +552,99 @@ export default function MechanicMatchAdminProfiles() {
       </Dialog>
 
       {/* Assign dialog */}
-      <Dialog open={assignDialogOpen} onOpenChange={(open) => setAssignDialogOpen(open)}>
+      <Dialog open={assignDialogOpen} onOpenChange={(open) => {
+        setAssignDialogOpen(open);
+        if (!open) {
+          setAssignUserId("");
+          setUserSearchOpen(false);
+        }
+      }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Assign Profile</DialogTitle>
-            <DialogDescription>Enter the user ID to claim this profile.</DialogDescription>
+            <DialogDescription>Select a user to claim this profile.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <Input
-              placeholder="User ID"
-              value={assignUserId}
-              onChange={(event) => setAssignUserId(event.target.value)}
-              data-testid="input-assign-user"
-            />
+            <Popover open={userSearchOpen} onOpenChange={setUserSearchOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={userSearchOpen}
+                  className="w-full justify-between"
+                  data-testid="button-select-user"
+                >
+                  {assignUserId
+                    ? (() => {
+                        const selectedUser = users.find((u) => u.id === assignUserId);
+                        if (selectedUser) {
+                          const displayName = selectedUser.firstName && selectedUser.lastName
+                            ? `${selectedUser.firstName} ${selectedUser.lastName}`
+                            : selectedUser.email || "User";
+                          return displayName;
+                        }
+                        return "Select user...";
+                      })()
+                    : "Select user..."}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] max-w-[calc(100vw-2rem)] p-0" align="start">
+                <Command shouldFilter>
+                  <CommandInput placeholder="Search users by name or email..." />
+                  <CommandList>
+                    <CommandEmpty>No user found.</CommandEmpty>
+                    <CommandGroup>
+                      {users
+                        .filter((user) => {
+                          // Filter out deleted users
+                          if (!user || !user.id) return false;
+                          const id = String(user.id);
+                          return !id.startsWith("deleted_user_");
+                        })
+                        .map((user) => {
+                          const selected = assignUserId === user.id;
+                          const displayName = user.firstName && user.lastName
+                            ? `${user.firstName} ${user.lastName}`
+                            : "User";
+                          return (
+                            <CommandItem
+                              key={user.id}
+                              value={`${displayName} ${user.email || ""}`}
+                              onSelect={() => {
+                                setAssignUserId(user.id);
+                                setUserSearchOpen(false);
+                              }}
+                              data-testid={`command-user-${user.id}`}
+                              className="break-words"
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4 shrink-0",
+                                  selected ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              <div className="flex flex-col min-w-0 flex-1">
+                                <span className="truncate">{displayName}</span>
+                                {user.email && (
+                                  <span className="text-xs text-muted-foreground truncate">{user.email}</span>
+                                )}
+                              </div>
+                            </CommandItem>
+                          );
+                        })}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setAssignDialogOpen(false)} data-testid="button-cancel-assign">
+            <Button type="button" variant="outline" onClick={() => {
+              setAssignDialogOpen(false);
+              setAssignUserId("");
+              setUserSearchOpen(false);
+            }} data-testid="button-cancel-assign">
               Cancel
             </Button>
             <Button
