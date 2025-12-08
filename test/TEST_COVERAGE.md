@@ -85,13 +85,19 @@ This document lists all tests created for the application.
 ## E2E Tests
 
 - ✅ `test/e2e/auth.spec.ts` - Authentication flows
-- ✅ `test/e2e/profile-crud.spec.ts` - Profile CRUD operations
+- ✅ `test/e2e/profile-crud.spec.ts` - Profile CRUD operations (general patterns)
+- ✅ `test/e2e/chatgroups.spec.ts` - Chat Groups listing and admin management
+- ✅ `test/e2e/directory.spec.ts` - Directory profile, public listing, and admin
+- ✅ `test/e2e/lighthouse.spec.ts` - LightHouse profile, properties, matches, and admin
+- ✅ `test/e2e/socketrelay.spec.ts` - SocketRelay profile, requests, fulfillments, chat, and admin
+- ✅ `test/e2e/supportmatch.spec.ts` - SupportMatch profile, partnerships, messaging, safety, and admin
 - ✅ `test/e2e/trusttransport.spec.ts` - TrustTransport profile and ride request flows
 - ✅ `test/e2e/mechanicmatch.spec.ts` - MechanicMatch profile, vehicles, and service requests
 - ✅ `test/e2e/lostmail.spec.ts` - LostMail incident reporting flows
 - ✅ `test/e2e/research.spec.ts` - Research items, answers, comments, and interactions
 - ✅ `test/e2e/gentlepulse.spec.ts` - GentlePulse library, favorites, and progress tracking
 - ✅ `test/e2e/workforce-recruiter.spec.ts` - Workforce Recruiter profile, occupations, and meetup events
+- ✅ `test/e2e/chyme.spec.ts` - Chyme profile, rooms, messaging, and admin
 
 ## Smoke Tests
 
@@ -243,7 +249,7 @@ npm run test:e2e
 - **Integration Test Files**: 1
 - **Security Test Files**: 1
 - **Component Test Files**: 18 (8 profile pages, 5 core pages, 4 shared components, 4 hooks)
-- **E2E Test Files**: 8 (auth, profile-crud, trusttransport, mechanicmatch, lostmail, research, gentlepulse, workforce-recruiter)
+- **E2E Test Files**: 13 (auth, profile-crud, chatgroups, directory, lighthouse, socketrelay, supportmatch, trusttransport, mechanicmatch, lostmail, research, gentlepulse, workforce-recruiter, chyme)
 - **Smoke Test Files**: 1
 
 ## Coverage Goals
