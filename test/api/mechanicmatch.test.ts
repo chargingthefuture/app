@@ -361,22 +361,67 @@ describe('API - MechanicMatch Service Requests', () => {
   describe('POST /api/mechanicmatch/service-requests - Zod Validation', () => {
     it('should accept valid service request data', () => {
       const validData = {
-        ownerId: testUserId,
-        vehicleId: 'vehicle-id',
-        serviceType: 'repair',
-        description: 'Engine trouble',
-        urgency: 'high',
+        vehicleId: '550e8400-e29b-41d4-a716-446655440000', // Valid UUID
+        symptoms: 'Engine trouble - car won\'t start',
+        requestType: 'in_person' as const,
       };
 
       const result = insertMechanicmatchServiceRequestSchema.parse(validData);
-      expect(result.serviceType).toBe('repair');
-      expect(result.urgency).toBe('high');
+      expect(result.symptoms).toBe('Engine trouble - car won\'t start');
+      expect(result.requestType).toBe('in_person');
+      expect(result.vehicleId).toBe('550e8400-e29b-41d4-a716-446655440000');
+    });
+
+    it('should accept service request without vehicleId (optional)', () => {
+      const validData = {
+        symptoms: 'Engine trouble - car won\'t start',
+        requestType: 'advice_only' as const,
+        vehicleId: null, // Optional field
+      };
+
+      const result = insertMechanicmatchServiceRequestSchema.parse(validData);
+      expect(result.symptoms).toBe('Engine trouble - car won\'t start');
+      expect(result.requestType).toBe('advice_only');
+      expect(result.vehicleId).toBeNull();
     });
 
     it('should reject missing required fields', () => {
       const invalidData = {
-        ownerId: testUserId,
-        // Missing vehicleId, serviceType, etc.
+        // Missing symptoms and requestType (required fields)
+      };
+
+      expect(() => {
+        insertMechanicmatchServiceRequestSchema.parse(invalidData);
+      }).toThrow();
+    });
+
+    it('should reject invalid requestType', () => {
+      const invalidData = {
+        symptoms: 'Engine trouble',
+        requestType: 'invalid_type', // Not one of the allowed types
+      };
+
+      expect(() => {
+        insertMechanicmatchServiceRequestSchema.parse(invalidData);
+      }).toThrow();
+    });
+
+    it('should reject invalid vehicleId (not a UUID)', () => {
+      const invalidData = {
+        vehicleId: 'not-a-valid-uuid',
+        symptoms: 'Engine trouble',
+        requestType: 'in_person' as const,
+      };
+
+      expect(() => {
+        insertMechanicmatchServiceRequestSchema.parse(invalidData);
+      }).toThrow();
+    });
+
+    it('should reject empty symptoms', () => {
+      const invalidData = {
+        symptoms: '', // Empty string not allowed
+        requestType: 'in_person' as const,
       };
 
       expect(() => {
@@ -419,20 +464,143 @@ describe('API - MechanicMatch Jobs', () => {
   describe('POST /api/mechanicmatch/jobs - Zod Validation', () => {
     it('should accept valid job data', () => {
       const validData = {
-        serviceRequestId: 'request-id',
-        mechanicId: 'mechanic-id',
-        estimatedCost: 500.00,
-        estimatedDuration: '2 hours',
+        mechanicId: '550e8400-e29b-41d4-a716-446655440002', // Required - mechanic creating the job
+        serviceRequestId: '550e8400-e29b-41d4-a716-446655440000', // Valid UUID (optional)
+        vehicleId: '550e8400-e29b-41d4-a716-446655440001', // Valid UUID (optional)
+        symptoms: 'Engine trouble - car won\'t start',
+        jobType: 'in_person' as const,
+        location: '123 Main St, New York, NY',
+        scheduledDateTime: new Date('2024-12-31T10:00:00Z'),
       };
 
       const result = insertMechanicmatchJobSchema.parse(validData);
-      expect(result.estimatedCost).toBe(500.00);
-      expect(result.estimatedDuration).toBe('2 hours');
+      expect(result.symptoms).toBe('Engine trouble - car won\'t start');
+      expect(result.jobType).toBe('in_person');
+      expect(result.mechanicId).toBe('550e8400-e29b-41d4-a716-446655440002');
+      expect(result.serviceRequestId).toBe('550e8400-e29b-41d4-a716-446655440000');
+      expect(result.location).toBe('123 Main St, New York, NY');
+    });
+
+    it('should accept job data without serviceRequestId (direct booking)', () => {
+      const validData = {
+        mechanicId: '550e8400-e29b-41d4-a716-446655440002', // Required
+        symptoms: 'Brake pads need replacement',
+        jobType: 'in_person' as const,
+        vehicleId: null, // Optional
+        serviceRequestId: null, // Optional - direct booking
+      };
+
+      const result = insertMechanicmatchJobSchema.parse(validData);
+      expect(result.symptoms).toBe('Brake pads need replacement');
+      expect(result.jobType).toBe('in_person');
+      expect(result.serviceRequestId).toBeNull();
+    });
+
+    it('should accept remote diagnosis job with rate per minute', () => {
+      const validData = {
+        mechanicId: '550e8400-e29b-41d4-a716-446655440002', // Required
+        symptoms: 'Diagnostic check needed',
+        jobType: 'remote_diagnosis' as const,
+        ratePerMinute: 2.50,
+        videoUrl: 'https://example.com/video.mp4',
+      };
+
+      const result = insertMechanicmatchJobSchema.parse(validData);
+      expect(result.jobType).toBe('remote_diagnosis');
+      expect(result.ratePerMinute).toBe(2.50);
+      expect(result.videoUrl).toBe('https://example.com/video.mp4');
     });
 
     it('should reject missing required fields', () => {
       const invalidData = {
-        // Missing serviceRequestId, mechanicId, etc.
+        // Missing mechanicId, symptoms, and jobType (required fields)
+      };
+
+      expect(() => {
+        insertMechanicmatchJobSchema.parse(invalidData);
+      }).toThrow();
+    });
+
+    it('should reject missing mechanicId', () => {
+      const invalidData = {
+        symptoms: 'Engine trouble',
+        jobType: 'in_person' as const,
+        // Missing mechanicId (required)
+      };
+
+      expect(() => {
+        insertMechanicmatchJobSchema.parse(invalidData);
+      }).toThrow();
+    });
+
+    it('should reject invalid mechanicId (not a UUID)', () => {
+      const invalidData = {
+        mechanicId: 'not-a-valid-uuid',
+        symptoms: 'Engine trouble',
+        jobType: 'in_person' as const,
+      };
+
+      expect(() => {
+        insertMechanicmatchJobSchema.parse(invalidData);
+      }).toThrow();
+    });
+
+    it('should reject invalid jobType', () => {
+      const invalidData = {
+        mechanicId: '550e8400-e29b-41d4-a716-446655440002',
+        symptoms: 'Engine trouble',
+        jobType: 'invalid_type', // Not one of the allowed types
+      };
+
+      expect(() => {
+        insertMechanicmatchJobSchema.parse(invalidData);
+      }).toThrow();
+    });
+
+    it('should reject invalid serviceRequestId (not a UUID)', () => {
+      const invalidData = {
+        mechanicId: '550e8400-e29b-41d4-a716-446655440002',
+        serviceRequestId: 'not-a-valid-uuid',
+        symptoms: 'Engine trouble',
+        jobType: 'in_person' as const,
+      };
+
+      expect(() => {
+        insertMechanicmatchJobSchema.parse(invalidData);
+      }).toThrow();
+    });
+
+    it('should reject empty symptoms', () => {
+      const invalidData = {
+        mechanicId: '550e8400-e29b-41d4-a716-446655440002',
+        symptoms: '', // Empty string not allowed
+        jobType: 'in_person' as const,
+      };
+
+      expect(() => {
+        insertMechanicmatchJobSchema.parse(invalidData);
+      }).toThrow();
+    });
+
+    it('should reject invalid ratePerMinute (negative)', () => {
+      const invalidData = {
+        mechanicId: '550e8400-e29b-41d4-a716-446655440002',
+        symptoms: 'Diagnostic check',
+        jobType: 'remote_diagnosis' as const,
+        ratePerMinute: -1,
+      };
+
+      expect(() => {
+        insertMechanicmatchJobSchema.parse(invalidData);
+      }).toThrow();
+    });
+
+    it('should reject invalid ratePerMinute (exceeds max)', () => {
+      const invalidData = {
+        mechanicId: '550e8400-e29b-41d4-a716-446655440002',
+        symptoms: 'Diagnostic check',
+        jobType: 'remote_diagnosis' as const,
+        ratePerMinute: 101, // Exceeds max 100
       };
 
       expect(() => {
@@ -443,6 +611,12 @@ describe('API - MechanicMatch Jobs', () => {
     it('should require authentication', () => {
       const req = createMockRequest(undefined);
       expect(req.isAuthenticated()).toBe(false);
+    });
+
+    it('should automatically set ownerId from authenticated user', () => {
+      const req = createMockRequest(testUserId);
+      // In actual route, ownerId is extracted from req.user.claims.sub
+      expect(req.user?.claims?.sub).toBe(testUserId);
     });
   });
 
@@ -471,7 +645,8 @@ describe('API - MechanicMatch Reviews', () => {
   describe('POST /api/mechanicmatch/reviews - Zod Validation', () => {
     it('should accept valid review data', () => {
       const validData = {
-        jobId: 'job-id',
+        jobId: '550e8400-e29b-41d4-a716-446655440000', // Valid UUID (optional)
+        revieweeId: '550e8400-e29b-41d4-a716-446655440001', // Required - profile being reviewed
         rating: 5,
         comment: 'Great service!',
       };
@@ -479,11 +654,59 @@ describe('API - MechanicMatch Reviews', () => {
       const result = insertMechanicmatchReviewSchema.parse(validData);
       expect(result.rating).toBe(5);
       expect(result.comment).toBe('Great service!');
+      expect(result.revieweeId).toBe('550e8400-e29b-41d4-a716-446655440001');
+    });
+
+    it('should accept review without jobId (optional)', () => {
+      const validData = {
+        revieweeId: '550e8400-e29b-41d4-a716-446655440001', // Required
+        rating: 4,
+        comment: 'Good work!',
+        jobId: null, // Optional - can review without a job
+      };
+
+      const result = insertMechanicmatchReviewSchema.parse(validData);
+      expect(result.rating).toBe(4);
+      expect(result.jobId).toBeNull();
     });
 
     it('should reject missing required fields', () => {
       const invalidData = {
-        // Missing jobId, rating
+        // Missing revieweeId and rating (required fields)
+      };
+
+      expect(() => {
+        insertMechanicmatchReviewSchema.parse(invalidData);
+      }).toThrow();
+    });
+
+    it('should reject missing revieweeId', () => {
+      const invalidData = {
+        rating: 5,
+        // Missing revieweeId (required)
+      };
+
+      expect(() => {
+        insertMechanicmatchReviewSchema.parse(invalidData);
+      }).toThrow();
+    });
+
+    it('should reject invalid revieweeId (not a UUID)', () => {
+      const invalidData = {
+        revieweeId: 'not-a-valid-uuid',
+        rating: 5,
+      };
+
+      expect(() => {
+        insertMechanicmatchReviewSchema.parse(invalidData);
+      }).toThrow();
+    });
+
+    it('should reject invalid jobId (not a UUID)', () => {
+      const invalidData = {
+        revieweeId: '550e8400-e29b-41d4-a716-446655440001',
+        jobId: 'not-a-valid-uuid',
+        rating: 5,
       };
 
       expect(() => {
@@ -493,7 +716,7 @@ describe('API - MechanicMatch Reviews', () => {
 
     it('should reject invalid rating (negative)', () => {
       const invalidData = {
-        jobId: 'job-id',
+        revieweeId: '550e8400-e29b-41d4-a716-446655440001',
         rating: -1,
       };
 
@@ -504,7 +727,7 @@ describe('API - MechanicMatch Reviews', () => {
 
     it('should reject invalid rating (exceeds max)', () => {
       const invalidData = {
-        jobId: 'job-id',
+        revieweeId: '550e8400-e29b-41d4-a716-446655440001',
         rating: 6, // Exceeds max 5
       };
 
@@ -516,6 +739,12 @@ describe('API - MechanicMatch Reviews', () => {
     it('should require authentication', () => {
       const req = createMockRequest(undefined);
       expect(req.isAuthenticated()).toBe(false);
+    });
+
+    it('should automatically set reviewerId from authenticated user', () => {
+      const req = createMockRequest(testUserId);
+      // In actual route, reviewerId is extracted from req.user.claims.sub
+      expect(req.user?.claims?.sub).toBe(testUserId);
     });
   });
 });

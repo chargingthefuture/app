@@ -5522,13 +5522,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/workforce-recruiter/profile', isAuthenticated, asyncHandler(async (req: any, res) => {
     const userId = getUserId(req);
-    const validatedData = validateWithZod(insertWorkforceRecruiterProfileSchema, {
-      ...req.body,
-      userId,
-    }, 'Invalid profile data');
+    const validatedData = validateWithZod(insertWorkforceRecruiterProfileSchema, req.body, 'Invalid profile data');
     
     const profile = await withDatabaseErrorHandling(
-      () => storage.createWorkforceRecruiterProfile(validatedData),
+      () => storage.createWorkforceRecruiterProfile({
+        ...validatedData,
+        userId,
+      }),
       'createWorkforceRecruiterProfile'
     );
     res.json(profile);

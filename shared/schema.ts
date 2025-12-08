@@ -1465,6 +1465,7 @@ export const insertMechanicmatchJobSchema = createInsertSchema(mechanicmatchJobs
   updatedAt: true,
   status: true,
   completedAt: true,
+  ownerId: true, // Added by server from authenticated user
 }).extend({
   serviceRequestId: z.string().uuid().optional().nullable(),
   vehicleId: z.string().uuid().optional().nullable(),
@@ -1478,6 +1479,7 @@ export const insertMechanicmatchJobSchema = createInsertSchema(mechanicmatchJobs
   minutesUsed: z.number().int().min(0).optional().nullable(),
   mechanicNotes: z.string().optional().nullable(),
   ownerNotes: z.string().optional().nullable(),
+  mechanicId: z.string().uuid(), // Required - the mechanic creating/accepting the job
 });
 
 export type InsertMechanicmatchJob = z.infer<typeof insertMechanicmatchJobSchema>;
@@ -1552,6 +1554,7 @@ export const insertMechanicmatchReviewSchema = createInsertSchema(mechanicmatchR
   reviewerId: true, // Added by server from authenticated user
 }).extend({
   jobId: z.string().uuid().optional().nullable(),
+  revieweeId: z.string().uuid(), // Required - the profile being reviewed (mechanic or owner)
   rating: z.number().int().min(1).max(5),
   comment: z.string().optional().nullable(),
 });
@@ -2418,7 +2421,10 @@ export const insertWorkforceRecruiterProfileSchema = createInsertSchema(workforc
   id: true,
   createdAt: true,
   updatedAt: true,
+  userId: true, // Added by server from authenticated user
 }).extend({
+  // Keep userId optional for validation since the server injects it after auth
+  userId: z.string().optional(),
   displayName: z.string().max(100).optional().nullable(),
   notes: z.string().optional().nullable(),
 });
