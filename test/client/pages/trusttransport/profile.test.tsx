@@ -33,6 +33,8 @@ describe('TrustTransportProfile', () => {
 
     global.fetch = vi.fn(() =>
       Promise.resolve({
+        ok: true,
+        status: 200,
         json: () => Promise.resolve(null),
       } as Response)
     );
@@ -66,6 +68,8 @@ describe('TrustTransportProfile', () => {
 
     global.fetch = vi.fn(() =>
       Promise.resolve({
+        ok: true,
+        status: 200,
         json: () => Promise.resolve(mockProfile),
       } as Response)
     );
@@ -73,7 +77,8 @@ describe('TrustTransportProfile', () => {
     renderWithProviders(<TrustTransportProfile />);
 
     await waitFor(() => {
-      expect(screen.getByText(/edit.*profile/i)).toBeInTheDocument();
+      const heading = screen.getByRole('heading', { name: /edit.*profile/i });
+      expect(heading).toBeInTheDocument();
     });
   });
 
@@ -94,6 +99,8 @@ describe('TrustTransportProfile', () => {
 
     global.fetch = vi.fn(() =>
       Promise.resolve({
+        ok: true,
+        status: 200,
         json: () => Promise.resolve(mockProfile),
       } as Response)
     );
@@ -111,6 +118,8 @@ describe('TrustTransportProfile', () => {
 
     global.fetch = vi.fn(() =>
       Promise.resolve({
+        ok: true,
+        status: 200,
         json: () => Promise.resolve(null),
       } as Response)
     );

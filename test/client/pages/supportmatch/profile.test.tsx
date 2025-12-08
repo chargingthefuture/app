@@ -38,6 +38,8 @@ describe('SupportMatchProfile', () => {
     // Mock no profile returned
     global.fetch = vi.fn(() =>
       Promise.resolve({
+        ok: true,
+        status: 200,
         json: () => Promise.resolve(null),
       } as Response)
     );
@@ -70,6 +72,8 @@ describe('SupportMatchProfile', () => {
 
     global.fetch = vi.fn(() =>
       Promise.resolve({
+        ok: true,
+        status: 200,
         json: () => Promise.resolve(mockProfile),
       } as Response)
     );
@@ -77,7 +81,8 @@ describe('SupportMatchProfile', () => {
     renderWithProviders(<SupportMatchProfile />);
 
     await waitFor(() => {
-      expect(screen.getByText(/edit.*profile/i)).toBeInTheDocument();
+      const heading = screen.getByRole('heading', { name: /edit.*profile/i });
+      expect(heading).toBeInTheDocument();
     });
   });
 
@@ -102,6 +107,8 @@ describe('SupportMatchProfile', () => {
 
     global.fetch = vi.fn(() =>
       Promise.resolve({
+        ok: true,
+        status: 200,
         json: () => Promise.resolve(mockProfile),
       } as Response)
     );

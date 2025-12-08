@@ -8,14 +8,30 @@ import { ReactElement } from 'react';
 
 /**
  * Create a test QueryClient with disabled retries
+ * Uses fetch for queries so mocked global.fetch works
  */
 export function createTestQueryClient() {
   return new QueryClient({
     defaultOptions: {
       queries: {
-        // Provide a no-op default query function so components using a queryKey
-        // without specifying queryFn don't warn or throw in tests.
-        queryFn: async () => null,
+        // Use fetch-based queryFn so mocked global.fetch works in tests
+        queryFn: async ({ queryKey }) => {
+          const url = queryKey.join("/") as string;
+          const res = await fetch(url, {
+            credentials: "include",
+          });
+
+          // Return null for 401/404, throw for other errors
+          if (res.status === 401 || res.status === 404) {
+            return null;
+          }
+
+          if (!res.ok) {
+            throw new Error(`Request failed with status ${res.status}`);
+          }
+
+          return await res.json();
+        },
         retry: false,
         refetchOnWindowFocus: false,
         refetchInterval: false,

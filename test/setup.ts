@@ -37,6 +37,14 @@ global.IntersectionObserver = class IntersectionObserver {
   unobserve() {}
 } as any;
 
+// Mock ResizeObserver
+global.ResizeObserver = class ResizeObserver {
+  constructor() {}
+  disconnect() {}
+  observe() {}
+  unobserve() {}
+} as any;
+
 // Suppress console errors in tests (uncomment if needed)
 // global.console = {
 //   ...console,

@@ -38,6 +38,8 @@ describe('WorkforceRecruiterProfile', () => {
     // Mock no profile returned
     global.fetch = vi.fn(() =>
       Promise.resolve({
+        ok: true,
+        status: 200,
         json: () => Promise.resolve(null),
       } as Response)
     );
@@ -45,7 +47,8 @@ describe('WorkforceRecruiterProfile', () => {
     renderWithProviders(<WorkforceRecruiterProfile />);
 
     await waitFor(() => {
-      expect(screen.getByText(/create.*profile/i)).toBeInTheDocument();
+      const heading = screen.getByRole('heading', { name: /create.*profile/i });
+      expect(heading).toBeInTheDocument();
     });
   });
 
@@ -63,6 +66,8 @@ describe('WorkforceRecruiterProfile', () => {
 
     global.fetch = vi.fn(() =>
       Promise.resolve({
+        ok: true,
+        status: 200,
         json: () => Promise.resolve(mockProfile),
       } as Response)
     );
@@ -70,7 +75,8 @@ describe('WorkforceRecruiterProfile', () => {
     renderWithProviders(<WorkforceRecruiterProfile />);
 
     await waitFor(() => {
-      expect(screen.getByText(/edit.*profile/i)).toBeInTheDocument();
+      const heading = screen.getByRole('heading', { name: /edit.*profile/i });
+      expect(heading).toBeInTheDocument();
     });
   });
 
@@ -88,6 +94,8 @@ describe('WorkforceRecruiterProfile', () => {
 
     global.fetch = vi.fn(() =>
       Promise.resolve({
+        ok: true,
+        status: 200,
         json: () => Promise.resolve(mockProfile),
       } as Response)
     );
@@ -149,12 +157,21 @@ describe('WorkforceRecruiterProfile', () => {
 
     global.fetch = vi.fn(() =>
       Promise.resolve({
+        ok: true,
+        status: 200,
         json: () => Promise.resolve(mockProfile),
       } as Response)
     );
 
     renderWithProviders(<WorkforceRecruiterProfile />);
 
+    // Wait for profile to load and form to reset
+    await waitFor(() => {
+      const heading = screen.getByRole('heading', { name: /edit.*profile/i });
+      expect(heading).toBeInTheDocument();
+    });
+
+    // Wait for form fields to be pre-filled
     await waitFor(() => {
       const displayNameInput = screen.getByTestId('input-display-name') as HTMLInputElement;
       const notesInput = screen.getByTestId('input-notes') as HTMLTextAreaElement;
