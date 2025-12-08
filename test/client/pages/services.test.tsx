@@ -28,9 +28,25 @@ describe('Services', () => {
 
     renderWithProviders(<Services />);
 
+    const serviceTestIds = [
+      'card-service-chatgroups',
+      'card-service-directory',
+      'card-service-lighthouse',
+      'card-service-socketrelay',
+      'card-service-supportmatch',
+      'card-service-mechanicmatch',
+      'card-service-lostmail',
+      'card-service-research',
+      'card-service-gentlepulse',
+      'card-service-chyme',
+      'card-service-trusttransport',
+      'card-service-workforce-recruiter',
+    ];
+
     await waitFor(() => {
-      // Check for some common mini-app names
-      expect(screen.getByText(/supportmatch|directory|lighthouse|socketrelay/i)).toBeInTheDocument();
+      serviceTestIds.forEach((testId) => {
+        expect(screen.getByTestId(testId)).toBeInTheDocument();
+      });
     });
   });
 });

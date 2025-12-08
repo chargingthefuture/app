@@ -51,6 +51,11 @@ export default function UserPayments() {
 
   const { data: payments, isLoading } = useQuery<Payment[]>({
     queryKey: ["/api/payments"],
+    // Explicit queryFn avoids default-query warnings in tests and ensures credentials
+    queryFn: async () => {
+      const res = await fetch("/api/payments", { credentials: "include" });
+      return res.json();
+    },
   });
 
   const { data: paymentStatus } = useQuery<{
@@ -61,6 +66,10 @@ export default function UserPayments() {
     gracePeriodEnds?: string;
   }>({
     queryKey: ["/api/payments/status"],
+    queryFn: async () => {
+      const res = await fetch("/api/payments/status", { credentials: "include" });
+      return res.json();
+    },
   });
 
   // Check localStorage on mount - validate if acknowledgment is for current month

@@ -23,16 +23,27 @@ describe('UserPayments', () => {
   it('should render payments page for authenticated user', async () => {
     vi.mocked(useAuthModule.useAuth).mockReturnValue(mockUseAuth({ user: { id: 'test-user' } }));
 
-    global.fetch = vi.fn(() =>
-      Promise.resolve({
+    global.fetch = vi.fn()
+      // Payments list
+      .mockResolvedValueOnce({
+        ok: true,
         json: () => Promise.resolve([]),
-      } as Response)
-    );
+      } as unknown as Response)
+      // Payment status
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({
+          isDelinquent: false,
+          missingMonths: [],
+          nextBillingDate: null,
+          amountOwed: "0",
+        }),
+      } as unknown as Response);
 
     renderWithProviders(<UserPayments />);
 
     await waitFor(() => {
-      expect(screen.getByText(/payments/i)).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /my payments/i })).toBeInTheDocument();
     });
   });
 
@@ -42,22 +53,36 @@ describe('UserPayments', () => {
     const mockPayments = [
       {
         id: 'payment-1',
-        amount: 10.00,
-        status: 'completed',
-        createdAt: new Date(),
+        amount: 10.0,
+        billingPeriod: 'monthly',
+        billingMonth: '2024-01',
+        paymentMethod: 'venmo',
+        paymentDate: '2024-01-15',
+        notes: 'Test payment',
       },
     ];
 
-    global.fetch = vi.fn(() =>
-      Promise.resolve({
+    global.fetch = vi.fn()
+      // Payments list
+      .mockResolvedValueOnce({
+        ok: true,
         json: () => Promise.resolve(mockPayments),
-      } as Response)
-    );
+      } as unknown as Response)
+      // Payment status
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({
+          isDelinquent: false,
+          missingMonths: [],
+          nextBillingDate: null,
+          amountOwed: "0",
+        }),
+      } as unknown as Response);
 
     renderWithProviders(<UserPayments />);
 
     await waitFor(() => {
-      expect(screen.getByText(/payments/i)).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /my payments/i })).toBeInTheDocument();
     });
   });
 });
