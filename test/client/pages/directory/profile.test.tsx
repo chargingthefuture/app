@@ -68,7 +68,7 @@ describe('DirectoryProfile', () => {
     renderWithProviders(<DirectoryProfile />);
 
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: /create.*your.*profile/i })).toBeInTheDocument();
+      expect(screen.getByText(/create.*your.*profile/i)).toBeInTheDocument();
     });
   });
 

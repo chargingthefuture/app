@@ -319,7 +319,12 @@ export default function DirectoryProfilePage() {
             </CardTitle>
             <div className="flex items-center gap-2">
               {profile && !isEditing && (
-                <Button variant="outline" size="sm" onClick={() => setIsEditing(true)} data-testid="button-edit-profile">Edit</Button>
+                <>
+                  <Button variant="outline" size="sm" onClick={() => setIsEditing(true)} data-testid="button-edit-profile">Edit</Button>
+                  <Button variant="destructive" size="sm" onClick={() => setDeleteDialogOpen(true)} data-testid="button-delete-directory-profile">
+                    Delete Profile
+                  </Button>
+                </>
               )}
               {shareUrl && (
                 <Button variant="outline" size="sm" onClick={() => openExternal(shareUrl)} data-testid="button-share">
