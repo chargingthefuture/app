@@ -45,6 +45,11 @@ sites:
     expectedStatusCodes: [200]
     maxResponseTime: 3000
     
+  - name: Default Alive or Dead
+    url: https://app.chargingthefuture.com/api/health/default-alive-or-dead
+    expectedStatusCodes: [200]
+    maxResponseTime: 3000
+    
   - name: Workforce Recruiter
     url: https://app.chargingthefuture.com/api/health/workforce-recruiter
     expectedStatusCodes: [200]

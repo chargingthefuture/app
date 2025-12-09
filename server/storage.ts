@@ -199,6 +199,15 @@ import {
   type InsertWorkforceRecruiterMeetupEventSignup,
   type WorkforceRecruiterAnnouncement,
   type InsertWorkforceRecruiterAnnouncement,
+  defaultAliveOrDeadFinancialEntries,
+  defaultAliveOrDeadEbitdaSnapshots,
+  defaultAliveOrDeadAnnouncements,
+  type DefaultAliveOrDeadFinancialEntry,
+  type InsertDefaultAliveOrDeadFinancialEntry,
+  type DefaultAliveOrDeadEbitdaSnapshot,
+  type InsertDefaultAliveOrDeadEbitdaSnapshot,
+  type DefaultAliveOrDeadAnnouncement,
+  type InsertDefaultAliveOrDeadAnnouncement,
   type ChymeRoom,
   type InsertChymeRoom,
   type ChymeRoomParticipant,
@@ -886,6 +895,45 @@ export interface IStorage {
   getAllWorkforceRecruiterAnnouncements(): Promise<WorkforceRecruiterAnnouncement[]>;
   updateWorkforceRecruiterAnnouncement(id: string, announcement: Partial<InsertWorkforceRecruiterAnnouncement>): Promise<WorkforceRecruiterAnnouncement>;
   deactivateWorkforceRecruiterAnnouncement(id: string): Promise<WorkforceRecruiterAnnouncement>;
+
+  // ========================================
+  // DEFAULT ALIVE OR DEAD OPERATIONS
+  // ========================================
+
+  // Default Alive or Dead Financial Entry operations
+  createDefaultAliveOrDeadFinancialEntry(entry: InsertDefaultAliveOrDeadFinancialEntry, userId: string): Promise<DefaultAliveOrDeadFinancialEntry>;
+  getDefaultAliveOrDeadFinancialEntry(id: string): Promise<DefaultAliveOrDeadFinancialEntry | undefined>;
+  getDefaultAliveOrDeadFinancialEntries(filters?: {
+    weekStartDate?: Date;
+    limit?: number;
+    offset?: number;
+  }): Promise<{ entries: DefaultAliveOrDeadFinancialEntry[]; total: number }>;
+  updateDefaultAliveOrDeadFinancialEntry(id: string, entry: Partial<InsertDefaultAliveOrDeadFinancialEntry>): Promise<DefaultAliveOrDeadFinancialEntry>;
+  deleteDefaultAliveOrDeadFinancialEntry(id: string): Promise<void>;
+  getDefaultAliveOrDeadFinancialEntryByWeek(weekStartDate: Date): Promise<DefaultAliveOrDeadFinancialEntry | undefined>;
+
+  // Default Alive or Dead EBITDA Snapshot operations
+  calculateAndStoreEbitdaSnapshot(weekStartDate: Date, currentFunding?: number): Promise<DefaultAliveOrDeadEbitdaSnapshot>;
+  getDefaultAliveOrDeadEbitdaSnapshot(weekStartDate: Date): Promise<DefaultAliveOrDeadEbitdaSnapshot | undefined>;
+  getDefaultAliveOrDeadEbitdaSnapshots(filters?: {
+    limit?: number;
+    offset?: number;
+  }): Promise<{ snapshots: DefaultAliveOrDeadEbitdaSnapshot[]; total: number }>;
+  getDefaultAliveOrDeadCurrentStatus(): Promise<{
+    currentSnapshot: DefaultAliveOrDeadEbitdaSnapshot | null;
+    isDefaultAlive: boolean;
+    projectedProfitabilityDate: Date | null;
+    projectedCapitalNeeded: number | null;
+    weeksUntilProfitability: number | null;
+  }>;
+  getDefaultAliveOrDeadWeeklyTrends(weeks?: number): Promise<DefaultAliveOrDeadEbitdaSnapshot[]>;
+
+  // Default Alive or Dead Announcement operations
+  createDefaultAliveOrDeadAnnouncement(announcement: InsertDefaultAliveOrDeadAnnouncement): Promise<DefaultAliveOrDeadAnnouncement>;
+  getActiveDefaultAliveOrDeadAnnouncements(): Promise<DefaultAliveOrDeadAnnouncement[]>;
+  getAllDefaultAliveOrDeadAnnouncements(): Promise<DefaultAliveOrDeadAnnouncement[]>;
+  updateDefaultAliveOrDeadAnnouncement(id: string, announcement: Partial<InsertDefaultAliveOrDeadAnnouncement>): Promise<DefaultAliveOrDeadAnnouncement>;
+  deactivateDefaultAliveOrDeadAnnouncement(id: string): Promise<DefaultAliveOrDeadAnnouncement>;
 
   // Profile deletion operations with cascade anonymization
   deleteSupportMatchProfile(userId: string, reason?: string): Promise<void>;
@@ -7900,6 +7948,366 @@ export class DatabaseStorage implements IStorage {
         updatedAt: new Date(),
       })
       .where(eq(workforceRecruiterAnnouncements.id, id))
+      .returning();
+    return announcement;
+  }
+
+  // ========================================
+  // DEFAULT ALIVE OR DEAD IMPLEMENTATIONS
+  // ========================================
+
+  async createDefaultAliveOrDeadFinancialEntry(entryData: InsertDefaultAliveOrDeadFinancialEntry, userId: string): Promise<DefaultAliveOrDeadFinancialEntry> {
+    const [entry] = await db
+      .insert(defaultAliveOrDeadFinancialEntries)
+      .values({
+        ...entryData,
+        createdBy: userId,
+      })
+      .returning();
+    return entry;
+  }
+
+  async getDefaultAliveOrDeadFinancialEntry(id: string): Promise<DefaultAliveOrDeadFinancialEntry | undefined> {
+    const [entry] = await db
+      .select()
+      .from(defaultAliveOrDeadFinancialEntries)
+      .where(eq(defaultAliveOrDeadFinancialEntries.id, id));
+    return entry;
+  }
+
+  async getDefaultAliveOrDeadFinancialEntries(filters?: {
+    weekStartDate?: Date;
+    limit?: number;
+    offset?: number;
+  }): Promise<{ entries: DefaultAliveOrDeadFinancialEntry[]; total: number }> {
+    let query = db.select().from(defaultAliveOrDeadFinancialEntries);
+
+    if (filters?.weekStartDate) {
+      query = query.where(eq(defaultAliveOrDeadFinancialEntries.weekStartDate, filters.weekStartDate)) as any;
+    }
+
+    const allEntries = await query;
+    const total = allEntries.length;
+
+    let entries = allEntries;
+    if (filters?.offset !== undefined) {
+      entries = entries.slice(filters.offset);
+    }
+    if (filters?.limit !== undefined) {
+      entries = entries.slice(0, filters.limit);
+    }
+
+    return { entries, total };
+  }
+
+  async updateDefaultAliveOrDeadFinancialEntry(id: string, entryData: Partial<InsertDefaultAliveOrDeadFinancialEntry>): Promise<DefaultAliveOrDeadFinancialEntry> {
+    const [updated] = await db
+      .update(defaultAliveOrDeadFinancialEntries)
+      .set({ ...entryData, updatedAt: new Date() })
+      .where(eq(defaultAliveOrDeadFinancialEntries.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteDefaultAliveOrDeadFinancialEntry(id: string): Promise<void> {
+    await db.delete(defaultAliveOrDeadFinancialEntries).where(eq(defaultAliveOrDeadFinancialEntries.id, id));
+  }
+
+  async getDefaultAliveOrDeadFinancialEntryByWeek(weekStartDate: Date): Promise<DefaultAliveOrDeadFinancialEntry | undefined> {
+    const [entry] = await db
+      .select()
+      .from(defaultAliveOrDeadFinancialEntries)
+      .where(eq(defaultAliveOrDeadFinancialEntries.weekStartDate, weekStartDate));
+    return entry;
+  }
+
+  /**
+   * Calculate EBITDA for a given week and store as snapshot
+   * Revenue is calculated from payments table for the week (Saturday to Friday)
+   * Operating expenses, depreciation, and amortization come from financial entries
+   */
+  async calculateAndStoreEbitdaSnapshot(weekStartDate: Date, currentFunding?: number): Promise<DefaultAliveOrDeadEbitdaSnapshot> {
+    // Get Saturday of the week (weekends start on Saturday)
+    const weekStart = new Date(weekStartDate);
+    const dayOfWeek = weekStart.getDay(); // 0 = Sunday, 6 = Saturday
+    const daysToSaturday = dayOfWeek === 6 ? 0 : (6 - dayOfWeek) % 7;
+    weekStart.setDate(weekStart.getDate() - daysToSaturday);
+    weekStart.setHours(0, 0, 0, 0);
+
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekEnd.getDate() + 6);
+    weekEnd.setHours(23, 59, 59, 999);
+
+    // Calculate revenue from payments table for this week
+    const weekPayments = await db
+      .select()
+      .from(payments)
+      .where(
+        and(
+          gte(payments.paymentDate, weekStart),
+          lte(payments.paymentDate, weekEnd)
+        )
+      );
+
+    const revenue = weekPayments.reduce((sum, p) => sum + parseFloat(p.amount), 0);
+
+    // Get financial entry for this week
+    const financialEntry = await this.getDefaultAliveOrDeadFinancialEntryByWeek(weekStart);
+    const operatingExpenses = financialEntry ? parseFloat(financialEntry.operatingExpenses) : 0;
+    const depreciation = financialEntry ? parseFloat(financialEntry.depreciation || '0') : 0;
+    const amortization = financialEntry ? parseFloat(financialEntry.amortization || '0') : 0;
+
+    // Calculate EBITDA: Revenue - Operating Expenses + Depreciation + Amortization
+    const ebitda = revenue - operatingExpenses + depreciation + amortization;
+
+    // Get previous snapshots to calculate growth rate
+    const previousSnapshots = await db
+      .select()
+      .from(defaultAliveOrDeadEbitdaSnapshots)
+      .orderBy(desc(defaultAliveOrDeadEbitdaSnapshots.weekStartDate))
+      .limit(4); // Get last 4 weeks for growth calculation
+
+    let growthRate: number | null = null;
+    if (previousSnapshots.length >= 2) {
+      // Calculate average weekly growth rate from last 2 weeks
+      const recentRevenue = previousSnapshots[0].revenue ? parseFloat(previousSnapshots[0].revenue) : 0;
+      const olderRevenue = previousSnapshots[1].revenue ? parseFloat(previousSnapshots[1].revenue) : 0;
+      if (olderRevenue > 0) {
+        growthRate = (recentRevenue - olderRevenue) / olderRevenue;
+      }
+    }
+
+    // Project profitability and determine Default Alive/Dead status
+    // Based on growth.tlb.org calculator logic:
+    // - If expenses are constant and revenue is growing, calculate when EBITDA becomes positive
+    // - Calculate capital needed before profitability
+    // - Compare with current funding to determine if Default Alive or Dead
+    let isDefaultAlive = false;
+    let projectedProfitabilityDate: Date | null = null;
+    let projectedCapitalNeeded: number | null = null;
+    const weeksUntilProfitability: number | null = null;
+
+    if (growthRate !== null && growthRate > 0 && operatingExpenses > 0) {
+      // Project forward: revenue grows at growthRate per week, expenses stay constant
+      let projectedRevenue = revenue;
+      let weeks = 0;
+      let cumulativeLoss = 0;
+      const maxWeeks = 104; // 2 years max projection
+
+      while (weeks < maxWeeks && projectedRevenue < operatingExpenses) {
+        cumulativeLoss += operatingExpenses - projectedRevenue;
+        projectedRevenue = projectedRevenue * (1 + growthRate);
+        weeks++;
+      }
+
+      if (projectedRevenue >= operatingExpenses) {
+        projectedProfitabilityDate = new Date(weekStart);
+        projectedProfitabilityDate.setDate(projectedProfitabilityDate.getDate() + (weeks * 7));
+        projectedCapitalNeeded = cumulativeLoss;
+
+        // Determine Default Alive/Dead: if current funding >= projected capital needed, then Default Alive
+        if (currentFunding !== undefined && currentFunding >= projectedCapitalNeeded) {
+          isDefaultAlive = true;
+        } else if (currentFunding === undefined) {
+          // If no funding specified, assume Default Dead if we need capital
+          isDefaultAlive = projectedCapitalNeeded <= 0;
+        }
+      }
+    } else if (ebitda >= 0) {
+      // Already profitable - Default Alive
+      isDefaultAlive = true;
+      projectedProfitabilityDate = weekStart;
+      projectedCapitalNeeded = 0;
+    }
+
+    // Check if snapshot already exists for this week
+    const existing = await this.getDefaultAliveOrDeadEbitdaSnapshot(weekStart);
+    
+    const snapshotData: InsertDefaultAliveOrDeadEbitdaSnapshot = {
+      weekStartDate: weekStart,
+      revenue: revenue.toString(),
+      operatingExpenses: operatingExpenses.toString(),
+      depreciation: depreciation.toString(),
+      amortization: amortization.toString(),
+      ebitda: ebitda.toString(),
+      isDefaultAlive,
+      projectedProfitabilityDate,
+      projectedCapitalNeeded: projectedCapitalNeeded?.toString() || null,
+      currentFunding: currentFunding?.toString() || null,
+      growthRate: growthRate?.toString() || null,
+      calculationMetadata: {
+        weekStart: weekStart.toISOString(),
+        weekEnd: weekEnd.toISOString(),
+        paymentCount: weekPayments.length,
+        hasFinancialEntry: !!financialEntry,
+      },
+    };
+
+    let snapshot: DefaultAliveOrDeadEbitdaSnapshot;
+    if (existing) {
+      // Update existing snapshot
+      const [updated] = await db
+        .update(defaultAliveOrDeadEbitdaSnapshots)
+        .set({
+          ...snapshotData,
+          updatedAt: new Date(),
+        })
+        .where(eq(defaultAliveOrDeadEbitdaSnapshots.id, existing.id))
+        .returning();
+      snapshot = updated;
+    } else {
+      // Create new snapshot
+      const [created] = await db
+        .insert(defaultAliveOrDeadEbitdaSnapshots)
+        .values(snapshotData)
+        .returning();
+      snapshot = created;
+    }
+
+    return snapshot;
+  }
+
+  async getDefaultAliveOrDeadEbitdaSnapshot(weekStartDate: Date): Promise<DefaultAliveOrDeadEbitdaSnapshot | undefined> {
+    // Normalize to Saturday
+    const weekStart = new Date(weekStartDate);
+    const dayOfWeek = weekStart.getDay();
+    const daysToSaturday = dayOfWeek === 6 ? 0 : (6 - dayOfWeek) % 7;
+    weekStart.setDate(weekStart.getDate() - daysToSaturday);
+    weekStart.setHours(0, 0, 0, 0);
+
+    const [snapshot] = await db
+      .select()
+      .from(defaultAliveOrDeadEbitdaSnapshots)
+      .where(eq(defaultAliveOrDeadEbitdaSnapshots.weekStartDate, weekStart));
+    return snapshot;
+  }
+
+  async getDefaultAliveOrDeadEbitdaSnapshots(filters?: {
+    limit?: number;
+    offset?: number;
+  }): Promise<{ snapshots: DefaultAliveOrDeadEbitdaSnapshot[]; total: number }> {
+    const allSnapshots = await db
+      .select()
+      .from(defaultAliveOrDeadEbitdaSnapshots)
+      .orderBy(desc(defaultAliveOrDeadEbitdaSnapshots.weekStartDate));
+
+    const total = allSnapshots.length;
+
+    let snapshots = allSnapshots;
+    if (filters?.offset !== undefined) {
+      snapshots = snapshots.slice(filters.offset);
+    }
+    if (filters?.limit !== undefined) {
+      snapshots = snapshots.slice(0, filters.limit);
+    }
+
+    return { snapshots, total };
+  }
+
+  async getDefaultAliveOrDeadCurrentStatus(): Promise<{
+    currentSnapshot: DefaultAliveOrDeadEbitdaSnapshot | null;
+    isDefaultAlive: boolean;
+    projectedProfitabilityDate: Date | null;
+    projectedCapitalNeeded: number | null;
+    weeksUntilProfitability: number | null;
+  }> {
+    // Get most recent snapshot
+    const [latest] = await db
+      .select()
+      .from(defaultAliveOrDeadEbitdaSnapshots)
+      .orderBy(desc(defaultAliveOrDeadEbitdaSnapshots.weekStartDate))
+      .limit(1);
+
+    if (!latest) {
+      return {
+        currentSnapshot: null,
+        isDefaultAlive: false,
+        projectedProfitabilityDate: null,
+        projectedCapitalNeeded: null,
+        weeksUntilProfitability: null,
+      };
+    }
+
+    const projectedProfitabilityDate = latest.projectedProfitabilityDate || null;
+    const projectedCapitalNeeded = latest.projectedCapitalNeeded ? parseFloat(latest.projectedCapitalNeeded) : null;
+    
+    let weeksUntilProfitability: number | null = null;
+    if (projectedProfitabilityDate) {
+      const today = new Date();
+      const weeks = Math.ceil((projectedProfitabilityDate.getTime() - today.getTime()) / (7 * 24 * 60 * 60 * 1000));
+      weeksUntilProfitability = Math.max(0, weeks);
+    }
+
+    return {
+      currentSnapshot: latest,
+      isDefaultAlive: latest.isDefaultAlive,
+      projectedProfitabilityDate,
+      projectedCapitalNeeded,
+      weeksUntilProfitability,
+    };
+  }
+
+  async getDefaultAliveOrDeadWeeklyTrends(weeks: number = 12): Promise<DefaultAliveOrDeadEbitdaSnapshot[]> {
+    const snapshots = await db
+      .select()
+      .from(defaultAliveOrDeadEbitdaSnapshots)
+      .orderBy(desc(defaultAliveOrDeadEbitdaSnapshots.weekStartDate))
+      .limit(weeks);
+    return snapshots.reverse(); // Return in chronological order (oldest first)
+  }
+
+  async createDefaultAliveOrDeadAnnouncement(announcementData: InsertDefaultAliveOrDeadAnnouncement): Promise<DefaultAliveOrDeadAnnouncement> {
+    const [announcement] = await db
+      .insert(defaultAliveOrDeadAnnouncements)
+      .values(announcementData)
+      .returning();
+    return announcement;
+  }
+
+  async getActiveDefaultAliveOrDeadAnnouncements(): Promise<DefaultAliveOrDeadAnnouncement[]> {
+    const now = new Date();
+    return await db
+      .select()
+      .from(defaultAliveOrDeadAnnouncements)
+      .where(
+        and(
+          eq(defaultAliveOrDeadAnnouncements.isActive, true),
+          or(
+            sql`${defaultAliveOrDeadAnnouncements.expiresAt} IS NULL`,
+            gte(defaultAliveOrDeadAnnouncements.expiresAt, now)
+          )
+        )
+      )
+      .orderBy(desc(defaultAliveOrDeadAnnouncements.createdAt));
+  }
+
+  async getAllDefaultAliveOrDeadAnnouncements(): Promise<DefaultAliveOrDeadAnnouncement[]> {
+    return await db
+      .select()
+      .from(defaultAliveOrDeadAnnouncements)
+      .orderBy(desc(defaultAliveOrDeadAnnouncements.createdAt));
+  }
+
+  async updateDefaultAliveOrDeadAnnouncement(id: string, announcementData: Partial<InsertDefaultAliveOrDeadAnnouncement>): Promise<DefaultAliveOrDeadAnnouncement> {
+    const [announcement] = await db
+      .update(defaultAliveOrDeadAnnouncements)
+      .set({
+        ...announcementData,
+        updatedAt: new Date(),
+      })
+      .where(eq(defaultAliveOrDeadAnnouncements.id, id))
+      .returning();
+    return announcement;
+  }
+
+  async deactivateDefaultAliveOrDeadAnnouncement(id: string): Promise<DefaultAliveOrDeadAnnouncement> {
+    const [announcement] = await db
+      .update(defaultAliveOrDeadAnnouncements)
+      .set({
+        isActive: false,
+        updatedAt: new Date(),
+      })
+      .where(eq(defaultAliveOrDeadAnnouncements.id, id))
       .returning();
     return announcement;
   }

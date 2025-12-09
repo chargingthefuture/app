@@ -129,6 +129,9 @@ import WorkforceRecruiterAdminOccupations from "@/pages/workforce-recruiter/admi
 import WorkforceRecruiterAdminMeetupEvents from "@/pages/workforce-recruiter/admin-meetup-events";
 import WorkforceRecruiterMeetupEvents from "@/pages/workforce-recruiter/meetup-events";
 import WorkforceRecruiterSkillLevelDetail from "@/pages/workforce-recruiter/skill-level-detail";
+import DefaultAliveOrDeadDashboard from "@/pages/default-alive-or-dead/dashboard";
+import DefaultAliveOrDeadAdmin from "@/pages/default-alive-or-dead/admin";
+import DefaultAliveOrDeadAdminAnnouncements from "@/pages/default-alive-or-dead/admin-announcements";
 import { GentlePulseBottomNav } from "@/components/gentlepulse/bottom-nav";
 
 // Protected route wrapper that redirects unauthenticated users
@@ -848,6 +851,21 @@ function Router() {
       <Route path="/apps/workforce-recruiter/admin/meetup-events">
         <ProtectedRoute>
           <WorkforceRecruiterAdminMeetupEvents />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/default-alive-or-dead">
+        <ProtectedRoute>
+          <DefaultAliveOrDeadDashboard />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/default-alive-or-dead/admin">
+        <ProtectedRoute>
+          <DefaultAliveOrDeadAdmin />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/apps/default-alive-or-dead/admin/announcements">
+        <ProtectedRoute>
+          <DefaultAliveOrDeadAdminAnnouncements />
         </ProtectedRoute>
       </Route>
       

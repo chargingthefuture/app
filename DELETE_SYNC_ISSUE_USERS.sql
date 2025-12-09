@@ -292,6 +292,10 @@ DELETE FROM workforce_recruiter_meetup_events WHERE created_by = '48981890';
 -- Finally delete the profile
 DELETE FROM workforce_recruiter_profiles WHERE user_id = '48981890';
 
+-- Default Alive or Dead financial entries (created_by references users.id)
+DELETE FROM default_alive_or_dead_financial_entries WHERE created_by = '49006997';
+DELETE FROM default_alive_or_dead_financial_entries WHERE created_by = '48981890';
+
 -- Profile deletion logs (user_id references users.id directly)
 DELETE FROM profile_deletion_logs WHERE user_id = '48981890';
 

@@ -19,7 +19,8 @@ import {
   Search,
   HeartPulse,
   Video,
-  Briefcase
+  Briefcase,
+  Activity
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useClerk } from "@clerk/clerk-react";
@@ -150,6 +151,12 @@ const baseAdminMenuItems = [
     url: "/apps/workforce-recruiter/admin",
     icon: Briefcase,
     testId: "link-workforce-recruiter-admin",
+  },
+  {
+    title: "Default Alive or Dead",
+    url: "/apps/default-alive-or-dead",
+    icon: Activity,
+    testId: "link-default-alive-or-dead",
   },
   {
     title: "Video to GIF",

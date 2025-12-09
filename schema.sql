@@ -1010,6 +1010,56 @@ CREATE TABLE IF NOT EXISTS workforce_recruiter_announcements (
 );
 
 -- ========================================
+-- DEFAULT ALIVE OR DEAD APP TABLES
+-- ========================================
+
+-- Financial Entries - Manual data entry for operating expenses, depreciation, amortization
+CREATE TABLE IF NOT EXISTS default_alive_or_dead_financial_entries (
+  id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+  week_start_date DATE NOT NULL,
+  operating_expenses NUMERIC(15, 2) NOT NULL,
+  depreciation NUMERIC(15, 2) NOT NULL DEFAULT '0',
+  amortization NUMERIC(15, 2) NOT NULL DEFAULT '0',
+  depreciation_data JSONB,
+  amortization_data JSONB,
+  notes TEXT,
+  created_by VARCHAR NOT NULL REFERENCES users(id),
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+-- EBITDA Snapshots - Weekly calculated EBITDA values
+CREATE TABLE IF NOT EXISTS default_alive_or_dead_ebitda_snapshots (
+  id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+  week_start_date DATE NOT NULL UNIQUE,
+  revenue NUMERIC(15, 2) NOT NULL,
+  operating_expenses NUMERIC(15, 2) NOT NULL,
+  depreciation NUMERIC(15, 2) NOT NULL DEFAULT '0',
+  amortization NUMERIC(15, 2) NOT NULL DEFAULT '0',
+  ebitda NUMERIC(15, 2) NOT NULL,
+  is_default_alive BOOLEAN NOT NULL DEFAULT false,
+  projected_profitability_date DATE,
+  projected_capital_needed NUMERIC(15, 2),
+  current_funding NUMERIC(15, 2),
+  growth_rate NUMERIC(10, 4),
+  calculation_metadata JSONB,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+-- Default Alive or Dead Announcements
+CREATE TABLE IF NOT EXISTS default_alive_or_dead_announcements (
+  id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+  title VARCHAR(200) NOT NULL,
+  content TEXT NOT NULL,
+  type VARCHAR(50) NOT NULL DEFAULT 'info',
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  expires_at TIMESTAMP,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+-- ========================================
 -- ADD FOREIGN KEY CONSTRAINTS (after all tables are created)
 -- ========================================
 

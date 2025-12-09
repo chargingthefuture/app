@@ -76,6 +76,9 @@ import {
   insertWorkforceRecruiterMeetupEventSchema,
   insertWorkforceRecruiterMeetupEventSignupSchema,
   insertWorkforceRecruiterAnnouncementSchema,
+  insertDefaultAliveOrDeadFinancialEntrySchema,
+  insertDefaultAliveOrDeadEbitdaSnapshotSchema,
+  insertDefaultAliveOrDeadAnnouncementSchema,
 } from "@shared/schema";
 import { asyncHandler } from "./errorHandler";
 import { validateWithZod } from "./validationErrorFormatter";
@@ -6223,6 +6226,198 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     }
   );
+
+  // ========================================
+  // DEFAULT ALIVE OR DEAD ROUTES (ADMIN ONLY)
+  // ========================================
+
+  // Default Alive or Dead Announcement routes (admin only)
+  app.get('/api/default-alive-or-dead/announcements', isAuthenticated, isAdmin, asyncHandler(async (req, res) => {
+    try {
+      const announcements = await storage.getActiveDefaultAliveOrDeadAnnouncements();
+      res.json(announcements);
+    } catch (error) {
+      console.error("Error fetching Default Alive or Dead announcements:", error);
+      res.status(500).json({ message: "Failed to fetch announcements" });
+    }
+  }));
+
+  // Default Alive or Dead Financial Entry routes (admin only)
+  app.get('/api/default-alive-or-dead/financial-entries', isAuthenticated, isAdmin, asyncHandler(async (req: any, res) => {
+    try {
+      const weekStartDate = req.query.weekStartDate ? new Date(req.query.weekStartDate) : undefined;
+      const limit = req.query.limit ? parseInt(req.query.limit, 10) : undefined;
+      const offset = req.query.offset ? parseInt(req.query.offset, 10) : undefined;
+      
+      const result = await storage.getDefaultAliveOrDeadFinancialEntries({
+        weekStartDate,
+        limit,
+        offset,
+      });
+      res.json(result);
+    } catch (error: any) {
+      console.error("Error fetching financial entries:", error);
+      res.status(500).json({ message: error.message });
+    }
+  }));
+
+  app.post('/api/default-alive-or-dead/financial-entries', isAuthenticated, isAdmin, asyncHandler(async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const validatedData = validateWithZod(insertDefaultAliveOrDeadFinancialEntrySchema, req.body, 'Invalid financial entry data');
+      const entry = await storage.createDefaultAliveOrDeadFinancialEntry(validatedData, userId);
+      res.json(entry);
+    } catch (error: any) {
+      console.error("Error creating financial entry:", error);
+      res.status(400).json({ message: error.message || "Failed to create financial entry" });
+    }
+  }));
+
+  app.put('/api/default-alive-or-dead/financial-entries/:id', isAuthenticated, isAdmin, asyncHandler(async (req: any, res) => {
+    try {
+      const validatedData = validateWithZod(insertDefaultAliveOrDeadFinancialEntrySchema.partial(), req.body, 'Invalid financial entry data');
+      const entry = await storage.updateDefaultAliveOrDeadFinancialEntry(req.params.id, validatedData);
+      res.json(entry);
+    } catch (error: any) {
+      console.error("Error updating financial entry:", error);
+      res.status(400).json({ message: error.message || "Failed to update financial entry" });
+    }
+  }));
+
+  app.delete('/api/default-alive-or-dead/financial-entries/:id', isAuthenticated, isAdmin, asyncHandler(async (req: any, res) => {
+    try {
+      await storage.deleteDefaultAliveOrDeadFinancialEntry(req.params.id);
+      res.json({ message: "Financial entry deleted successfully" });
+    } catch (error: any) {
+      console.error("Error deleting financial entry:", error);
+      res.status(400).json({ message: error.message || "Failed to delete financial entry" });
+    }
+  }));
+
+  // Default Alive or Dead EBITDA Snapshot routes (admin only)
+  app.post('/api/default-alive-or-dead/calculate-ebitda', isAuthenticated, isAdmin, asyncHandler(async (req: any, res) => {
+    try {
+      const { weekStartDate, currentFunding } = req.body;
+      if (!weekStartDate) {
+        return res.status(400).json({ message: "weekStartDate is required" });
+      }
+      const snapshot = await storage.calculateAndStoreEbitdaSnapshot(new Date(weekStartDate), currentFunding);
+      res.json(snapshot);
+    } catch (error: any) {
+      console.error("Error calculating EBITDA snapshot:", error);
+      res.status(500).json({ message: error.message || "Failed to calculate EBITDA snapshot" });
+    }
+  }));
+
+  app.get('/api/default-alive-or-dead/ebitda-snapshots', isAuthenticated, isAdmin, asyncHandler(async (req: any, res) => {
+    try {
+      const limit = req.query.limit ? parseInt(req.query.limit, 10) : undefined;
+      const offset = req.query.offset ? parseInt(req.query.offset, 10) : undefined;
+      
+      const result = await storage.getDefaultAliveOrDeadEbitdaSnapshots({
+        limit,
+        offset,
+      });
+      res.json(result);
+    } catch (error: any) {
+      console.error("Error fetching EBITDA snapshots:", error);
+      res.status(500).json({ message: error.message });
+    }
+  }));
+
+  app.get('/api/default-alive-or-dead/current-status', isAuthenticated, isAdmin, asyncHandler(async (req: any, res) => {
+    try {
+      const status = await storage.getDefaultAliveOrDeadCurrentStatus();
+      res.json(status);
+    } catch (error: any) {
+      console.error("Error fetching current status:", error);
+      res.status(500).json({ message: error.message });
+    }
+  }));
+
+  app.get('/api/default-alive-or-dead/weekly-trends', isAuthenticated, isAdmin, asyncHandler(async (req: any, res) => {
+    try {
+      const weeks = req.query.weeks ? parseInt(req.query.weeks, 10) : 12;
+      const trends = await storage.getDefaultAliveOrDeadWeeklyTrends(weeks);
+      res.json(trends);
+    } catch (error: any) {
+      console.error("Error fetching weekly trends:", error);
+      res.status(500).json({ message: error.message });
+    }
+  }));
+
+  // Default Alive or Dead Admin Announcement routes
+  app.get('/api/default-alive-or-dead/admin/announcements', isAuthenticated, isAdmin, asyncHandler(async (req, res) => {
+    try {
+      const announcements = await storage.getAllDefaultAliveOrDeadAnnouncements();
+      res.json(announcements);
+    } catch (error) {
+      console.error("Error fetching Default Alive or Dead announcements:", error);
+      res.status(500).json({ message: "Failed to fetch announcements" });
+    }
+  }));
+
+  app.post('/api/default-alive-or-dead/admin/announcements', isAuthenticated, ...isAdminWithCsrf, asyncHandler(async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const validatedData = validateWithZod(insertDefaultAliveOrDeadAnnouncementSchema, req.body, 'Invalid announcement data');
+
+      const announcement = await storage.createDefaultAliveOrDeadAnnouncement(validatedData);
+      
+      await logAdminAction(
+        userId,
+        "create_default_alive_or_dead_announcement",
+        "announcement",
+        announcement.id,
+        { title: announcement.title, type: announcement.type }
+      );
+
+      res.json(announcement);
+    } catch (error: any) {
+      console.error("Error creating Default Alive or Dead announcement:", error);
+      res.status(400).json({ message: error.message || "Failed to create announcement" });
+    }
+  }));
+
+  app.put('/api/default-alive-or-dead/admin/announcements/:id', isAuthenticated, ...isAdminWithCsrf, asyncHandler(async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const announcement = await storage.updateDefaultAliveOrDeadAnnouncement(req.params.id, req.body);
+      
+      await logAdminAction(
+        userId,
+        "update_default_alive_or_dead_announcement",
+        "announcement",
+        announcement.id,
+        { title: announcement.title }
+      );
+
+      res.json(announcement);
+    } catch (error: any) {
+      console.error("Error updating Default Alive or Dead announcement:", error);
+      res.status(400).json({ message: error.message || "Failed to update announcement" });
+    }
+  }));
+
+  app.delete('/api/default-alive-or-dead/admin/announcements/:id', isAuthenticated, ...isAdminWithCsrf, asyncHandler(async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const announcement = await storage.deactivateDefaultAliveOrDeadAnnouncement(req.params.id);
+      
+      await logAdminAction(
+        userId,
+        "deactivate_default_alive_or_dead_announcement",
+        "announcement",
+        announcement.id,
+        { title: announcement.title }
+      );
+
+      res.json(announcement);
+    } catch (error: any) {
+      console.error("Error deleting Default Alive or Dead announcement:", error);
+      res.status(400).json({ message: error.message || "Failed to delete announcement" });
+    }
+  }));
 
   const httpServer = createServer(app);
   return httpServer;
