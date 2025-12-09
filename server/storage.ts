@@ -3135,10 +3135,20 @@ export class DatabaseStorage implements IStorage {
       .from(socketrelayRequests)
       .orderBy(desc(socketrelayRequests.createdAt));
     
-    // Join with creator profiles to get location data
+    // Join with creator profiles and users to get location data and user info
     const results = await Promise.all(
       requests.map(async (request) => {
         const profile = await this.getSocketrelayProfile(request.userId);
+        const [user] = await db
+          .select({
+            firstName: users.firstName,
+            lastName: users.lastName,
+            email: users.email,
+          })
+          .from(users)
+          .where(eq(users.id, request.userId))
+          .limit(1);
+        
         return {
           ...request,
           creatorProfile: profile ? {
@@ -3147,6 +3157,7 @@ export class DatabaseStorage implements IStorage {
             country: profile.country,
             displayName: profile.displayName,
           } : null,
+          user: user || null,
         };
       })
     );
@@ -3290,7 +3301,21 @@ export class DatabaseStorage implements IStorage {
     const results = await Promise.all(
       fulfillments.map(async (fulfillment) => {
         const request = await this.getSocketrelayRequestById(fulfillment.requestId);
-        return { ...fulfillment, request };
+        const [user] = await db
+          .select({
+            firstName: users.firstName,
+            lastName: users.lastName,
+            email: users.email,
+          })
+          .from(users)
+          .where(eq(users.id, fulfillment.fulfillerUserId))
+          .limit(1);
+        
+        return { 
+          ...fulfillment, 
+          request,
+          user: user || null,
+        };
       })
     );
     

@@ -16,6 +16,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { formatDistanceToNow } from "date-fns";
 import { CheckCircle2, XCircle, Clock, Trash2 } from "lucide-react";
 import { Link } from "wouter";
+import { PrivacyField } from "@/components/ui/privacy-field";
 import type { SocketrelayRequest, SocketrelayFulfillment } from "@shared/schema";
 
 export default function SocketRelayAdmin() {
@@ -102,7 +103,8 @@ export default function SocketRelayAdmin() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Description</TableHead>
-                      <TableHead>User ID</TableHead>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Email</TableHead>
                       <TableHead>Created</TableHead>
                       <TableHead>Expires</TableHead>
                       <TableHead>Status</TableHead>
@@ -110,12 +112,27 @@ export default function SocketRelayAdmin() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {allRequests.map((request: SocketrelayRequest) => (
+                    {allRequests.map((request: any) => (
                       <TableRow key={request.id} data-testid={`row-request-${request.id}`}>
                         <TableCell className="max-w-md">
                           <p className="truncate">{request.description}</p>
                         </TableCell>
-                        <TableCell className="font-mono text-xs">{request.userId}</TableCell>
+                        <TableCell>
+                          {request.user?.firstName || request.user?.lastName
+                            ? `${request.user.firstName || ''} ${request.user.lastName || ''}`.trim()
+                            : 'User'}
+                        </TableCell>
+                        <TableCell>
+                          {request.user?.email ? (
+                            <PrivacyField
+                              value={request.user.email}
+                              type="email"
+                              testId={`email-request-${request.id}`}
+                            />
+                          ) : (
+                            <span className="text-muted-foreground text-sm">N/A</span>
+                          )}
+                        </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
                           {formatDistanceToNow(new Date(request.createdAt), { addSuffix: true })}
                         </TableCell>
@@ -167,7 +184,8 @@ export default function SocketRelayAdmin() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Request</TableHead>
-                      <TableHead>Fulfiller ID</TableHead>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Email</TableHead>
                       <TableHead>Created</TableHead>
                       <TableHead>Status</TableHead>
                     </TableRow>
@@ -178,7 +196,22 @@ export default function SocketRelayAdmin() {
                         <TableCell className="max-w-md">
                           <p className="truncate">{fulfillment.request?.description || 'N/A'}</p>
                         </TableCell>
-                        <TableCell className="font-mono text-xs">{fulfillment.fulfillerUserId}</TableCell>
+                        <TableCell>
+                          {fulfillment.user?.firstName || fulfillment.user?.lastName
+                            ? `${fulfillment.user.firstName || ''} ${fulfillment.user.lastName || ''}`.trim()
+                            : 'User'}
+                        </TableCell>
+                        <TableCell>
+                          {fulfillment.user?.email ? (
+                            <PrivacyField
+                              value={fulfillment.user.email}
+                              type="email"
+                              testId={`email-fulfillment-${fulfillment.id}`}
+                            />
+                          ) : (
+                            <span className="text-muted-foreground text-sm">N/A</span>
+                          )}
+                        </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
                           {formatDistanceToNow(new Date(fulfillment.createdAt), { addSuffix: true })}
                         </TableCell>
