@@ -1854,17 +1854,10 @@ export class DatabaseStorage implements IStorage {
       : ((currentWeekRevenue - previousWeekRevenue) / previousWeekRevenue) * 100;
 
     // Calculate user stats changes
-    const totalUsersChange = totalUsersPreviousWeek === 0
-      ? (totalUsersCurrentWeek > 0 ? 100 : 0)
-      : ((totalUsersCurrentWeek - totalUsersPreviousWeek) / totalUsersPreviousWeek) * 100;
-
-    const verifiedUsersChange = verifiedUsersPreviousWeek === 0
-      ? (verifiedUsersCurrentWeek > 0 ? 100 : 0)
-      : ((verifiedUsersCurrentWeek - verifiedUsersPreviousWeek) / verifiedUsersPreviousWeek) * 100;
-
-    const approvedUsersChange = approvedUsersPreviousWeek === 0
-      ? (approvedUsersCurrentWeek > 0 ? 100 : 0)
-      : ((approvedUsersCurrentWeek - approvedUsersPreviousWeek) / approvedUsersPreviousWeek) * 100;
+    // Note: totalUsersChange, approvedUsersChange, and verifiedUsersChange are calculated later after values are populated
+    let totalUsersChange = 0;
+    let approvedUsersChange = 0;
+    let verifiedUsersChange = 0;
 
     // Growth Metrics
     // Calculate weekly growth rate (already calculated as newUsersChange, but expressed as percentage)
@@ -2161,6 +2154,19 @@ export class DatabaseStorage implements IStorage {
 
       // Calculate week-over-week change
       verifiedUsersPercentageChange = verifiedUsersPercentage - verifiedUsersPercentagePreviousWeek;
+
+      // Calculate totalUsersChange, approvedUsersChange, and verifiedUsersChange now that values are populated
+      totalUsersChange = totalUsersPreviousWeek === 0
+        ? (totalUsersCurrentWeek > 0 ? 100 : 0)
+        : ((totalUsersCurrentWeek - totalUsersPreviousWeek) / totalUsersPreviousWeek) * 100;
+
+      approvedUsersChange = approvedUsersPreviousWeek === 0
+        ? (approvedUsersCurrentWeek > 0 ? 100 : 0)
+        : ((approvedUsersCurrentWeek - approvedUsersPreviousWeek) / approvedUsersPreviousWeek) * 100;
+
+      verifiedUsersChange = verifiedUsersPreviousWeek === 0
+        ? (verifiedUsersCurrentWeek > 0 ? 100 : 0)
+        : ((verifiedUsersCurrentWeek - verifiedUsersPreviousWeek) / verifiedUsersPreviousWeek) * 100;
     } catch (error) {
       console.error("Error calculating user statistics:", error);
     }
