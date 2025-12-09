@@ -30,14 +30,6 @@ export default defineConfig({
           }),
         ]
       : []),
-    sentryVitePlugin({
-      org: "charging-the-future",
-      project: "javascript-react"
-    }),
-    sentryVitePlugin({
-      org: "charging-the-future",
-      project: "javascript-react"
-    })
   ],
   resolve: {
     alias: {
