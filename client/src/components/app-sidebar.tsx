@@ -166,7 +166,7 @@ const baseAdminMenuItems = [
   },
 ];
 
-const pinnedAdminTitles = ["User Management", "Workforce Admin", "Weekly Performance", "Payments", "Pricing", "Video to GIF"];
+const pinnedAdminTitles = ["User Management", "Workforce Admin", "Weekly Performance", "Payments", "Pricing", "Default Alive or Dead", "Video to GIF"];
 
 const pinnedAdminMenuItems = pinnedAdminTitles
   .map((title) => baseAdminMenuItems.find((item) => item.title === title))

@@ -320,40 +320,40 @@ export default function AdminSkillsPage() {
   }
 
   return (
-    <div className="p-4 sm:p-6 md:p-8 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
+    <div className="p-4 sm:p-6 md:p-8 space-y-6 max-w-full overflow-x-hidden">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex-1 min-w-0">
           <h1 className="text-2xl sm:text-3xl font-semibold mb-2">Skills Database Management</h1>
-          <p className="text-muted-foreground">
+          <p className="text-muted-foreground text-sm sm:text-base">
             Manage sectors, job titles, and skills for Directory and Workforce Recruiter apps
           </p>
         </div>
-        <Button onClick={() => openSectorDialog()} data-testid="button-add-sector">
+        <Button onClick={() => openSectorDialog()} data-testid="button-add-sector" className="w-full sm:w-auto">
           <Plus className="w-4 h-4 mr-2" />
           Add Sector
         </Button>
       </div>
 
-      <Card>
+      <Card className="overflow-hidden">
         <CardHeader>
           <CardTitle>Skills Hierarchy</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="overflow-x-auto">
           {hierarchy.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-muted-foreground">No sectors found. Create your first sector to get started.</p>
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-2 min-w-0">
               {hierarchy.map(({ sector, jobTitles }) => (
-                <div key={sector.id} className="border rounded-lg">
-                  <div className="flex items-center justify-between p-3 hover:bg-accent/50">
-                    <div className="flex items-center gap-2 flex-1">
+                <div key={sector.id} className="border rounded-lg overflow-hidden">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-3 hover:bg-accent/50">
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => toggleSector(sector.id)}
-                        className="h-6 w-6 p-0"
+                        className="h-6 w-6 p-0 flex-shrink-0"
                       >
                         {expandedSectors.has(sector.id) ? (
                           <ChevronDown className="w-4 h-4" />
@@ -361,29 +361,34 @@ export default function AdminSkillsPage() {
                           <ChevronRight className="w-4 h-4" />
                         )}
                       </Button>
-                      <Building2 className="w-4 h-4 text-muted-foreground" />
-                      <span className="font-medium">{sector.name}</span>
-                      {sector.estimatedWorkforceCount && (
-                        <span className="text-sm text-muted-foreground">
-                          ({sector.estimatedWorkforceCount.toLocaleString()} workers)
-                        </span>
-                      )}
+                      <Building2 className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <span className="font-medium truncate">{sector.name}</span>
+                        {sector.estimatedWorkforceCount && (
+                          <span className="text-sm text-muted-foreground whitespace-nowrap flex-shrink-0">
+                            ({sector.estimatedWorkforceCount.toLocaleString()} workers)
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1 sm:gap-2 flex-wrap sm:flex-nowrap">
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => openJobTitleDialog(sector.id)}
                         data-testid={`button-add-job-title-${sector.id}`}
+                        className="text-xs sm:text-sm"
                       >
-                        <Plus className="w-4 h-4 mr-1" />
-                        Job Title
+                        <Plus className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+                        <span className="hidden sm:inline">Job Title</span>
+                        <span className="sm:hidden">Job</span>
                       </Button>
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => openSectorDialog(sector)}
                         data-testid={`button-edit-sector-${sector.id}`}
+                        className="flex-shrink-0"
                       >
                         <Edit className="w-4 h-4" />
                       </Button>
@@ -395,6 +400,7 @@ export default function AdminSkillsPage() {
                           setDeleteSectorDialogOpen(true);
                         }}
                         data-testid={`button-delete-sector-${sector.id}`}
+                        className="flex-shrink-0"
                       >
                         <Trash2 className="w-4 h-4 text-destructive" />
                       </Button>
@@ -402,21 +408,21 @@ export default function AdminSkillsPage() {
                   </div>
 
                   {expandedSectors.has(sector.id) && (
-                    <div className="pl-8 pr-3 pb-3 space-y-2">
+                    <div className="pl-4 sm:pl-8 pr-2 sm:pr-3 pb-3 space-y-2">
                       {jobTitles.length === 0 ? (
                         <p className="text-sm text-muted-foreground py-2">
                           No job titles. Click "Job Title" to add one.
                         </p>
                       ) : (
                         jobTitles.map(({ jobTitle, skills }) => (
-                          <div key={jobTitle.id} className="border rounded-lg">
-                            <div className="flex items-center justify-between p-2 hover:bg-accent/50">
-                              <div className="flex items-center gap-2 flex-1">
+                          <div key={jobTitle.id} className="border rounded-lg overflow-hidden">
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-2 hover:bg-accent/50">
+                              <div className="flex items-center gap-2 flex-1 min-w-0">
                                 <Button
                                   variant="ghost"
                                   size="sm"
                                   onClick={() => toggleJobTitle(jobTitle.id)}
-                                  className="h-6 w-6 p-0"
+                                  className="h-6 w-6 p-0 flex-shrink-0"
                                 >
                                   {expandedJobTitles.has(jobTitle.id) ? (
                                     <ChevronDown className="w-4 h-4" />
@@ -424,17 +430,18 @@ export default function AdminSkillsPage() {
                                     <ChevronRight className="w-4 h-4" />
                                   )}
                                 </Button>
-                                <Briefcase className="w-4 h-4 text-muted-foreground" />
-                                <span className="text-sm font-medium">{jobTitle.name}</span>
+                                <Briefcase className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                                <span className="text-sm font-medium truncate">{jobTitle.name}</span>
                               </div>
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-1 sm:gap-2 flex-wrap sm:flex-nowrap">
                                 <Button
                                   variant="ghost"
                                   size="sm"
                                   onClick={() => openSkillDialog(jobTitle.id)}
                                   data-testid={`button-add-skill-${jobTitle.id}`}
+                                  className="text-xs sm:text-sm"
                                 >
-                                  <Plus className="w-4 h-4 mr-1" />
+                                  <Plus className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
                                   Skill
                                 </Button>
                                 <Button
@@ -442,6 +449,7 @@ export default function AdminSkillsPage() {
                                   size="sm"
                                   onClick={() => openJobTitleDialog(sector.id, jobTitle)}
                                   data-testid={`button-edit-job-title-${jobTitle.id}`}
+                                  className="flex-shrink-0"
                                 >
                                   <Edit className="w-4 h-4" />
                                 </Button>
@@ -453,6 +461,7 @@ export default function AdminSkillsPage() {
                                     setDeleteJobTitleDialogOpen(true);
                                   }}
                                   data-testid={`button-delete-job-title-${jobTitle.id}`}
+                                  className="flex-shrink-0"
                                 >
                                   <Trash2 className="w-4 h-4 text-destructive" />
                                 </Button>
@@ -460,7 +469,7 @@ export default function AdminSkillsPage() {
                             </div>
 
                             {expandedJobTitles.has(jobTitle.id) && (
-                              <div className="pl-8 pr-2 pb-2 space-y-1">
+                              <div className="pl-4 sm:pl-8 pr-2 pb-2 space-y-1">
                                 {skills.length === 0 ? (
                                   <p className="text-sm text-muted-foreground py-2">
                                     No skills. Click "Skill" to add one.
@@ -469,18 +478,19 @@ export default function AdminSkillsPage() {
                                   skills.map((skill) => (
                                     <div
                                       key={skill.id}
-                                      className="flex items-center justify-between p-2 hover:bg-accent/50 rounded"
+                                      className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-2 hover:bg-accent/50 rounded"
                                     >
-                                      <div className="flex items-center gap-2">
-                                        <Wrench className="w-4 h-4 text-muted-foreground" />
-                                        <span className="text-sm">{skill.name}</span>
+                                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                                        <Wrench className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                                        <span className="text-sm truncate">{skill.name}</span>
                                       </div>
-                                      <div className="flex items-center gap-2">
+                                      <div className="flex items-center gap-2 flex-shrink-0">
                                         <Button
                                           variant="ghost"
                                           size="sm"
                                           onClick={() => openSkillDialog(jobTitle.id, skill)}
                                           data-testid={`button-edit-skill-${skill.id}`}
+                                          className="flex-shrink-0"
                                         >
                                           <Edit className="w-4 h-4" />
                                         </Button>
@@ -492,6 +502,7 @@ export default function AdminSkillsPage() {
                                             setDeleteSkillDialogOpen(true);
                                           }}
                                           data-testid={`button-delete-skill-${skill.id}`}
+                                          className="flex-shrink-0"
                                         >
                                           <Trash2 className="w-4 h-4 text-destructive" />
                                         </Button>

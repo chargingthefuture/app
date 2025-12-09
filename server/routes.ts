@@ -6346,6 +6346,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   }));
 
+  app.get('/api/default-alive-or-dead/week-comparison', isAuthenticated, isAdmin, asyncHandler(async (req: any, res) => {
+    try {
+      const weekStartParam = req.query.weekStart;
+      let weekStart: Date;
+      
+      if (weekStartParam) {
+        // Parse date string (YYYY-MM-DD) and interpret as local date, not UTC
+        const [year, month, day] = weekStartParam.split('-').map(Number);
+        weekStart = new Date(year, month - 1, day);
+        if (isNaN(weekStart.getTime())) {
+          return res.status(400).json({ message: "Invalid weekStart date format" });
+        }
+      } else {
+        // Default to current week
+        weekStart = new Date();
+      }
+      
+      const comparison = await storage.getDefaultAliveOrDeadWeekComparison(weekStart);
+      res.json(comparison);
+    } catch (error: any) {
+      console.error("Error fetching week comparison:", error);
+      res.status(500).json({ message: error.message });
+    }
+  }));
+
   // Default Alive or Dead Admin Announcement routes
   app.get('/api/default-alive-or-dead/admin/announcements', isAuthenticated, isAdmin, asyncHandler(async (req, res) => {
     try {

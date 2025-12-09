@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { TrendingUp, TrendingDown, DollarSign, Calendar, AlertCircle, CheckCircle2 } from "lucide-react";
-import type { DefaultAliveOrDeadEbitdaSnapshot } from "@shared/schema";
+import type { DefaultAliveOrDeadEbitdaSnapshot, DefaultAliveOrDeadFinancialEntry } from "@shared/schema";
 import { format } from "date-fns";
 import { AnnouncementBanner } from "@/components/announcement-banner";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -12,6 +12,21 @@ import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/useAuth";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
+import { Textarea } from "@/components/ui/textarea";
+
+const financialEntryFormSchema = z.object({
+  weekStartDate: z.string().min(1, "Week start date is required"),
+  operatingExpenses: z.coerce.number().min(0, "Operating expenses must be non-negative"),
+  depreciation: z.coerce.number().min(0, "Depreciation must be non-negative").optional().default(0),
+  amortization: z.coerce.number().min(0, "Amortization must be non-negative").optional().default(0),
+  notes: z.string().optional().nullable(),
+});
+
+type FinancialEntryFormValues = z.infer<typeof financialEntryFormSchema>;
 
 export default function DefaultAliveOrDeadDashboard() {
   const { isAdmin } = useAuth();
@@ -28,6 +43,22 @@ export default function DefaultAliveOrDeadDashboard() {
     return format(saturday, "yyyy-MM-dd");
   });
 
+  const financialEntryForm = useForm<FinancialEntryFormValues>({
+    resolver: zodResolver(financialEntryFormSchema),
+    defaultValues: {
+      weekStartDate: weekStartDate,
+      operatingExpenses: 0,
+      depreciation: 0,
+      amortization: 0,
+      notes: "",
+    },
+  });
+
+  // Sync form weekStartDate with state
+  useEffect(() => {
+    financialEntryForm.setValue("weekStartDate", weekStartDate);
+  }, [weekStartDate]);
+
   const { data: currentStatus, isLoading: statusLoading } = useQuery<{
     currentSnapshot: DefaultAliveOrDeadEbitdaSnapshot | null;
     isDefaultAlive: boolean;
@@ -39,9 +70,69 @@ export default function DefaultAliveOrDeadDashboard() {
     enabled: isAdmin === true,
   });
 
+  const [selectedWeek, setSelectedWeek] = useState<string>(() => {
+    // Default to current week's Saturday
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    const daysToSaturday = dayOfWeek === 6 ? 0 : (6 - dayOfWeek) % 7;
+    const saturday = new Date(today);
+    saturday.setDate(saturday.getDate() - daysToSaturday);
+    saturday.setHours(0, 0, 0, 0);
+    return format(saturday, "yyyy-MM-dd");
+  });
+
+  const { data: weekComparison, isLoading: comparisonLoading } = useQuery<{
+    currentWeek: {
+      snapshot: DefaultAliveOrDeadEbitdaSnapshot | null;
+      weekStart: string;
+      weekEnd: string;
+    };
+    previousWeek: {
+      snapshot: DefaultAliveOrDeadEbitdaSnapshot | null;
+      weekStart: string;
+      weekEnd: string;
+    };
+    comparison: {
+      revenueChange: number;
+      ebitdaChange: number;
+      operatingExpensesChange: number;
+      growthRate: number;
+    };
+  }>({
+    queryKey: [`/api/default-alive-or-dead/week-comparison?weekStart=${selectedWeek}`],
+    enabled: isAdmin === true,
+  });
+
   const { data: weeklyTrends, isLoading: trendsLoading } = useQuery<DefaultAliveOrDeadEbitdaSnapshot[]>({
     queryKey: ["/api/default-alive-or-dead/weekly-trends?weeks=12"],
     enabled: isAdmin === true,
+  });
+
+  const createFinancialEntryMutation = useMutation({
+    mutationFn: async (data: FinancialEntryFormValues) => {
+      return apiRequest("POST", "/api/default-alive-or-dead/financial-entries", {
+        weekStartDate: data.weekStartDate,
+        operatingExpenses: data.operatingExpenses,
+        depreciation: data.depreciation || 0,
+        amortization: data.amortization || 0,
+        notes: data.notes || null,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/default-alive-or-dead/financial-entries"] });
+      financialEntryForm.reset();
+      toast({
+        title: "Financial Entry Created",
+        description: "Financial entry has been created successfully.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create financial entry",
+        variant: "destructive",
+      });
+    },
   });
 
   const calculateMutation = useMutation({
@@ -55,6 +146,7 @@ export default function DefaultAliveOrDeadDashboard() {
       queryClient.invalidateQueries({ queryKey: ["/api/default-alive-or-dead/current-status"] });
       queryClient.invalidateQueries({ queryKey: ["/api/default-alive-or-dead/weekly-trends"] });
       queryClient.invalidateQueries({ queryKey: ["/api/default-alive-or-dead/ebitda-snapshots"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/default-alive-or-dead/week-comparison"] });
       toast({
         title: "EBITDA Calculated",
         description: "EBITDA snapshot has been calculated and stored successfully.",
@@ -183,10 +275,136 @@ export default function DefaultAliveOrDeadDashboard() {
         </CardContent>
       </Card>
 
+      {/* Week Over Week Comparison */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg sm:text-xl">Week Over Week Comparison</CardTitle>
+            <div className="flex items-center gap-2">
+              <Label htmlFor="week-selector" className="text-sm">Week:</Label>
+              <Input
+                id="week-selector"
+                type="date"
+                value={selectedWeek}
+                onChange={(e) => setSelectedWeek(e.target.value)}
+                className="w-auto"
+                data-testid="input-week-selector"
+              />
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {comparisonLoading ? (
+            <p className="text-muted-foreground">Loading comparison...</p>
+          ) : weekComparison ? (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Current Week */}
+                <div>
+                  <h3 className="font-semibold mb-2">
+                    Current Week ({format(new Date(weekComparison.currentWeek.weekStart), "MMM d")} - {format(new Date(weekComparison.currentWeek.weekEnd), "MMM d, yyyy")})
+                  </h3>
+                  {weekComparison.currentWeek.snapshot ? (
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Revenue</span>
+                        <span className="font-medium">
+                          ${parseFloat(weekComparison.currentWeek.snapshot.revenue).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Operating Expenses</span>
+                        <span className="font-medium text-red-600">
+                          ${parseFloat(weekComparison.currentWeek.snapshot.operatingExpenses).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">EBITDA</span>
+                        <span className={`font-bold ${parseFloat(weekComparison.currentWeek.snapshot.ebitda) >= 0 ? "text-green-600" : "text-red-600"}`}>
+                          ${parseFloat(weekComparison.currentWeek.snapshot.ebitda).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No data for this week</p>
+                  )}
+                </div>
+
+                {/* Previous Week */}
+                <div>
+                  <h3 className="font-semibold mb-2">
+                    Previous Week ({format(new Date(weekComparison.previousWeek.weekStart), "MMM d")} - {format(new Date(weekComparison.previousWeek.weekEnd), "MMM d, yyyy")})
+                  </h3>
+                  {weekComparison.previousWeek.snapshot ? (
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Revenue</span>
+                        <span className="font-medium">
+                          ${parseFloat(weekComparison.previousWeek.snapshot.revenue).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Operating Expenses</span>
+                        <span className="font-medium text-red-600">
+                          ${parseFloat(weekComparison.previousWeek.snapshot.operatingExpenses).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">EBITDA</span>
+                        <span className={`font-bold ${parseFloat(weekComparison.previousWeek.snapshot.ebitda) >= 0 ? "text-green-600" : "text-red-600"}`}>
+                          ${parseFloat(weekComparison.previousWeek.snapshot.ebitda).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No data for previous week</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Comparison Metrics */}
+              {weekComparison.currentWeek.snapshot && weekComparison.previousWeek.snapshot && (
+                <div className="border-t pt-4 space-y-2">
+                  <h4 className="font-semibold text-sm">Week Over Week Changes</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Revenue Change</p>
+                      <p className={`text-sm font-semibold ${weekComparison.comparison.revenueChange >= 0 ? "text-green-600" : "text-red-600"}`}>
+                        {weekComparison.comparison.revenueChange >= 0 ? "+" : ""}{weekComparison.comparison.revenueChange.toFixed(1)}%
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">EBITDA Change</p>
+                      <p className={`text-sm font-semibold ${weekComparison.comparison.ebitdaChange >= 0 ? "text-green-600" : "text-red-600"}`}>
+                        {weekComparison.comparison.ebitdaChange >= 0 ? "+" : ""}{weekComparison.comparison.ebitdaChange.toFixed(1)}%
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Expenses Change</p>
+                      <p className={`text-sm font-semibold ${weekComparison.comparison.operatingExpensesChange >= 0 ? "text-red-600" : "text-green-600"}`}>
+                        {weekComparison.comparison.operatingExpensesChange >= 0 ? "+" : ""}{weekComparison.comparison.operatingExpensesChange.toFixed(1)}%
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Growth Rate</p>
+                      <p className={`text-sm font-semibold ${weekComparison.comparison.growthRate >= 0 ? "text-green-600" : "text-red-600"}`}>
+                        {weekComparison.comparison.growthRate >= 0 ? "+" : ""}{(weekComparison.comparison.growthRate * 100).toFixed(2)}%
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
+          ) : (
+            <p className="text-muted-foreground">No comparison data available. Calculate EBITDA for multiple weeks to see comparisons.</p>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Current EBITDA */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg sm:text-xl">Current EBITDA</CardTitle>
+          <CardTitle className="text-lg sm:text-xl">Latest EBITDA Snapshot</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           {snapshot ? (
@@ -232,12 +450,141 @@ export default function DefaultAliveOrDeadDashboard() {
         </CardContent>
       </Card>
 
+      {/* Financial Entry Form */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg sm:text-xl">Enter Financial Data</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Form {...financialEntryForm}>
+            <form
+              onSubmit={financialEntryForm.handleSubmit((data) => createFinancialEntryMutation.mutate(data))}
+              className="space-y-4"
+            >
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={financialEntryForm.control}
+                  name="weekStartDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Week Start Date (Saturday)</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="date"
+                          {...field}
+                          data-testid="input-financial-entry-week-start"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={financialEntryForm.control}
+                  name="operatingExpenses"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Operating Expenses *</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          {...field}
+                          placeholder="0.00"
+                          data-testid="input-operating-expenses"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={financialEntryForm.control}
+                  name="depreciation"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Depreciation</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          {...field}
+                          value={field.value || 0}
+                          placeholder="0.00"
+                          data-testid="input-depreciation"
+                        />
+                      </FormControl>
+                      <FormDescription>Optional: Enter depreciation amount</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={financialEntryForm.control}
+                  name="amortization"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Amortization</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          {...field}
+                          value={field.value || 0}
+                          placeholder="0.00"
+                          data-testid="input-amortization"
+                        />
+                      </FormControl>
+                      <FormDescription>Optional: Enter amortization amount</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <FormField
+                control={financialEntryForm.control}
+                name="notes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Notes (Optional)</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        {...field}
+                        value={field.value || ""}
+                        placeholder="Add any notes about this financial entry..."
+                        rows={3}
+                        data-testid="textarea-financial-entry-notes"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <Button
+                type="submit"
+                disabled={createFinancialEntryMutation.isPending}
+                className="w-full"
+                data-testid="button-submit-financial-entry"
+              >
+                {createFinancialEntryMutation.isPending ? "Creating..." : "Create Financial Entry"}
+              </Button>
+            </form>
+          </Form>
+        </CardContent>
+      </Card>
+
       {/* Calculate EBITDA */}
       <Card>
         <CardHeader>
           <CardTitle className="text-lg sm:text-xl">Calculate EBITDA</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            After entering financial data above, calculate EBITDA for a specific week. Revenue is automatically calculated from payments.
+          </p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="week-start-date">Week Start Date (Saturday)</Label>

@@ -927,6 +927,24 @@ export interface IStorage {
     weeksUntilProfitability: number | null;
   }>;
   getDefaultAliveOrDeadWeeklyTrends(weeks?: number): Promise<DefaultAliveOrDeadEbitdaSnapshot[]>;
+  getDefaultAliveOrDeadWeekComparison(weekStart: Date): Promise<{
+    currentWeek: {
+      snapshot: DefaultAliveOrDeadEbitdaSnapshot | null;
+      weekStart: Date;
+      weekEnd: Date;
+    };
+    previousWeek: {
+      snapshot: DefaultAliveOrDeadEbitdaSnapshot | null;
+      weekStart: Date;
+      weekEnd: Date;
+    };
+    comparison: {
+      revenueChange: number;
+      ebitdaChange: number;
+      operatingExpensesChange: number;
+      growthRate: number;
+    };
+  }>;
 
   // Default Alive or Dead Announcement operations
   createDefaultAliveOrDeadAnnouncement(announcement: InsertDefaultAliveOrDeadAnnouncement): Promise<DefaultAliveOrDeadAnnouncement>;
@@ -8254,6 +8272,95 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(defaultAliveOrDeadEbitdaSnapshots.weekStartDate))
       .limit(weeks);
     return snapshots.reverse(); // Return in chronological order (oldest first)
+  }
+
+  /**
+   * Get week-over-week comparison similar to Weekly Performance
+   * Returns current week and previous week snapshots with comparison metrics
+   */
+  async getDefaultAliveOrDeadWeekComparison(weekStart: Date): Promise<{
+    currentWeek: {
+      snapshot: DefaultAliveOrDeadEbitdaSnapshot | null;
+      weekStart: Date;
+      weekEnd: Date;
+    };
+    previousWeek: {
+      snapshot: DefaultAliveOrDeadEbitdaSnapshot | null;
+      weekStart: Date;
+      weekEnd: Date;
+    };
+    comparison: {
+      revenueChange: number; // Percentage change
+      ebitdaChange: number; // Percentage change
+      operatingExpensesChange: number; // Percentage change
+      growthRate: number; // Weekly growth rate
+    };
+  }> {
+    // Get Saturday of the current week
+    const currentWeekStart = new Date(weekStart);
+    const dayOfWeek = currentWeekStart.getDay();
+    const daysToSaturday = dayOfWeek === 6 ? 0 : (6 - dayOfWeek) % 7;
+    currentWeekStart.setDate(currentWeekStart.getDate() - daysToSaturday);
+    currentWeekStart.setHours(0, 0, 0, 0);
+
+    const currentWeekEnd = new Date(currentWeekStart);
+    currentWeekEnd.setDate(currentWeekEnd.getDate() + 6);
+    currentWeekEnd.setHours(23, 59, 59, 999);
+
+    // Calculate previous week boundaries
+    const previousWeekStart = new Date(currentWeekStart);
+    previousWeekStart.setDate(previousWeekStart.getDate() - 7);
+    const previousWeekEnd = new Date(currentWeekEnd);
+    previousWeekEnd.setDate(previousWeekEnd.getDate() - 7);
+
+    // Get snapshots for both weeks
+    const currentSnapshot = await this.getDefaultAliveOrDeadEbitdaSnapshot(currentWeekStart);
+    const previousSnapshot = await this.getDefaultAliveOrDeadEbitdaSnapshot(previousWeekStart);
+
+    // Calculate comparisons
+    const currentRevenue = currentSnapshot ? parseFloat(currentSnapshot.revenue) : 0;
+    const previousRevenue = previousSnapshot ? parseFloat(previousSnapshot.revenue) : 0;
+    const currentEbitda = currentSnapshot ? parseFloat(currentSnapshot.ebitda) : 0;
+    const previousEbitda = previousSnapshot ? parseFloat(previousSnapshot.ebitda) : 0;
+    const currentExpenses = currentSnapshot ? parseFloat(currentSnapshot.operatingExpenses) : 0;
+    const previousExpenses = previousSnapshot ? parseFloat(previousSnapshot.operatingExpenses) : 0;
+
+    // Calculate percentage changes
+    const revenueChange = previousRevenue === 0
+      ? (currentRevenue > 0 ? 100 : 0)
+      : ((currentRevenue - previousRevenue) / previousRevenue) * 100;
+
+    const ebitdaChange = previousEbitda === 0
+      ? (currentEbitda > 0 ? 100 : (currentEbitda < 0 ? -100 : 0))
+      : ((currentEbitda - previousEbitda) / Math.abs(previousEbitda)) * 100;
+
+    const operatingExpensesChange = previousExpenses === 0
+      ? (currentExpenses > 0 ? 100 : 0)
+      : ((currentExpenses - previousExpenses) / previousExpenses) * 100;
+
+    // Calculate growth rate (weekly)
+    const growthRate = previousRevenue === 0
+      ? 0
+      : ((currentRevenue - previousRevenue) / previousRevenue);
+
+    return {
+      currentWeek: {
+        snapshot: currentSnapshot || null,
+        weekStart: currentWeekStart.toISOString(),
+        weekEnd: currentWeekEnd.toISOString(),
+      },
+      previousWeek: {
+        snapshot: previousSnapshot || null,
+        weekStart: previousWeekStart.toISOString(),
+        weekEnd: previousWeekEnd.toISOString(),
+      },
+      comparison: {
+        revenueChange,
+        ebitdaChange,
+        operatingExpensesChange,
+        growthRate,
+      },
+    };
   }
 
   async createDefaultAliveOrDeadAnnouncement(announcementData: InsertDefaultAliveOrDeadAnnouncement): Promise<DefaultAliveOrDeadAnnouncement> {
