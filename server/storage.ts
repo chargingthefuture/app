@@ -8163,9 +8163,6 @@ export class DatabaseStorage implements IStorage {
       projectedCapitalNeeded = 0;
     }
 
-    // Check if snapshot already exists for this week
-    const existing = await this.getDefaultAliveOrDeadEbitdaSnapshot(weekStart);
-    
     const snapshotData: InsertDefaultAliveOrDeadEbitdaSnapshot = {
       weekStartDate: weekStart,
       revenue: revenue.toString(),
@@ -8186,26 +8183,18 @@ export class DatabaseStorage implements IStorage {
       },
     };
 
-    let snapshot: DefaultAliveOrDeadEbitdaSnapshot;
-    if (existing) {
-      // Update existing snapshot
-      const [updated] = await db
-        .update(defaultAliveOrDeadEbitdaSnapshots)
-        .set({
+    // Upsert to keep the operation idempotent and avoid unique constraint races
+    const [snapshot] = await db
+      .insert(defaultAliveOrDeadEbitdaSnapshots)
+      .values(snapshotData)
+      .onConflictDoUpdate({
+        target: defaultAliveOrDeadEbitdaSnapshots.weekStartDate,
+        set: {
           ...snapshotData,
           updatedAt: new Date(),
-        })
-        .where(eq(defaultAliveOrDeadEbitdaSnapshots.id, existing.id))
-        .returning();
-      snapshot = updated;
-    } else {
-      // Create new snapshot
-      const [created] = await db
-        .insert(defaultAliveOrDeadEbitdaSnapshots)
-        .values(snapshotData)
-        .returning();
-      snapshot = created;
-    }
+        },
+      })
+      .returning();
 
     return snapshot;
   }
