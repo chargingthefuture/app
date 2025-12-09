@@ -27,9 +27,15 @@ jobs:
           name: Run unit tests
           command: npm run test:run
           no_output_timeout: 15m
+          environment:
+            CI: true
       - run:
-          name: Ensure test-results directory exists
-          command: mkdir -p test-results
+          name: Verify test results exist
+          command: |
+            mkdir -p test-results
+            echo "Checking for test result files..."
+            ls -la test-results/ || echo "test-results directory is empty"
+            find test-results -name "*.xml" -type f || echo "No XML files found"
           when: always
       - store_test_results:
           path: test-results
@@ -58,9 +64,15 @@ jobs:
           name: Run E2E tests
           command: npm run test:e2e
           no_output_timeout: 30m
+          environment:
+            CI: true
       - run:
-          name: Ensure test-results directory exists
-          command: mkdir -p test-results
+          name: Verify test results exist
+          command: |
+            mkdir -p test-results
+            echo "Checking for test result files..."
+            ls -la test-results/ || echo "test-results directory is empty"
+            find test-results -name "*.xml" -type f || echo "No XML files found"
           when: always
       - store_test_results:
           path: test-results
