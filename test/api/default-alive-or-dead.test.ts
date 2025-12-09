@@ -157,6 +157,47 @@ describe('API - Default Alive or Dead EBITDA Snapshot', () => {
       expect(weekStart.getDate()).toBe(30);
       expect(weekStart.getMonth()).toBe(10); // November (0-indexed)
     });
+
+    it('should correctly calculate week boundaries for user-specified date ranges', () => {
+      // User mentioned: Nov 29-Dec 5 and Dec 6-Dec 12 as weeks
+      // These dates normalize to the Saturday of their respective weeks
+      
+      // Nov 29, 2024 (Thursday) should normalize to Nov 23 (previous Saturday)
+      const nov29 = new Date('2024-11-29');
+      let weekStart = new Date(nov29);
+      const dayOfWeek1 = weekStart.getDay();
+      const daysToSaturday1 = dayOfWeek1 === 6 ? 0 : (6 - dayOfWeek1) % 7;
+      weekStart.setDate(weekStart.getDate() - daysToSaturday1);
+      weekStart.setHours(0, 0, 0, 0);
+      
+      let weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekEnd.getDate() + 6);
+      weekEnd.setHours(23, 59, 59, 999);
+      
+      expect(weekStart.getDay()).toBe(6); // Saturday
+      expect(weekEnd.getDay()).toBe(5); // Friday
+      // Week should be Nov 23 (Sat) to Nov 29 (Fri)
+
+      // Dec 6, 2024 (Thursday) should normalize to Nov 30 (previous Saturday)
+      const dec6 = new Date('2024-12-06');
+      weekStart = new Date(dec6);
+      const dayOfWeek2 = weekStart.getDay();
+      const daysToSaturday2 = dayOfWeek2 === 6 ? 0 : (6 - dayOfWeek2) % 7;
+      weekStart.setDate(weekStart.getDate() - daysToSaturday2);
+      weekStart.setHours(0, 0, 0, 0);
+      
+      weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekEnd.getDate() + 6);
+      weekEnd.setHours(23, 59, 59, 999);
+      
+      expect(weekStart.getDay()).toBe(6); // Saturday
+      expect(weekEnd.getDay()).toBe(5); // Friday
+      // Week should be Nov 30 (Sat) to Dec 6 (Fri)
+      expect(weekStart.getDate()).toBe(30);
+      expect(weekStart.getMonth()).toBe(10); // November
+      expect(weekEnd.getDate()).toBe(6);
+      expect(weekEnd.getMonth()).toBe(11); // December
+    });
   });
 });
 
@@ -302,10 +343,10 @@ describe.skipIf(!hasDatabaseUrl)('Storage Layer - Default Alive or Dead EBITDA S
   });
 
   it.skipIf(!canConnectToDatabase)('should create separate snapshots for different weeks', async () => {
-    const week1Start = new Date('2024-11-29'); // Nov 29 (Saturday)
+    const week1Start = new Date('2024-11-30'); // Nov 30 (Saturday)
     week1Start.setHours(0, 0, 0, 0);
     
-    const week2Start = new Date('2024-12-06'); // Dec 6 (Saturday)
+    const week2Start = new Date('2024-12-07'); // Dec 7 (Saturday)
     week2Start.setHours(0, 0, 0, 0);
 
     const snapshot1 = await storage.calculateAndStoreEbitdaSnapshot(week1Start, 10000);
@@ -313,8 +354,8 @@ describe.skipIf(!hasDatabaseUrl)('Storage Layer - Default Alive or Dead EBITDA S
 
     expect(snapshot1.id).not.toBe(snapshot2.id);
     expect(snapshot1.weekStartDate.getTime()).not.toBe(snapshot2.weekStartDate.getTime());
-    expect(snapshot1.weekStartDate.getDate()).toBe(29);
-    expect(snapshot2.weekStartDate.getDate()).toBe(6);
+    expect(snapshot1.weekStartDate.getDate()).toBe(30);
+    expect(snapshot2.weekStartDate.getDate()).toBe(7);
 
     // Cleanup
     await db
