@@ -1603,6 +1603,7 @@ export class DatabaseStorage implements IStorage {
       totalUsers: number;
       verifiedUsers: number;
       approvedUsers: number;
+      isDefaultAlive: boolean | null;
     };
     previousWeek: {
       startDate: string;
@@ -1614,6 +1615,7 @@ export class DatabaseStorage implements IStorage {
       totalUsers: number;
       verifiedUsers: number;
       approvedUsers: number;
+      isDefaultAlive: boolean | null;
     };
     comparison: {
       newUsersChange: number;
@@ -2171,6 +2173,21 @@ export class DatabaseStorage implements IStorage {
       console.error("Error calculating user statistics:", error);
     }
 
+    // Get EBITDA snapshots for both weeks to determine Default Alive/Dead status
+    let currentWeekIsDefaultAlive: boolean | null = null;
+    let previousWeekIsDefaultAlive: boolean | null = null;
+    
+    try {
+      const currentWeekSnapshot = await this.getDefaultAliveOrDeadEbitdaSnapshot(currentWeekStart);
+      const previousWeekSnapshot = await this.getDefaultAliveOrDeadEbitdaSnapshot(previousWeekStart);
+      
+      currentWeekIsDefaultAlive = currentWeekSnapshot?.isDefaultAlive ?? null;
+      previousWeekIsDefaultAlive = previousWeekSnapshot?.isDefaultAlive ?? null;
+    } catch (error) {
+      console.error("Error fetching EBITDA snapshots for weekly performance:", error);
+      // Continue with null values if snapshots don't exist
+    }
+
     const result = {
       currentWeek: {
         startDate: this.formatDate(currentWeekStart),
@@ -2182,6 +2199,7 @@ export class DatabaseStorage implements IStorage {
         totalUsers: totalUsersCurrentWeek,
         verifiedUsers: verifiedUsersCurrentWeek,
         approvedUsers: approvedUsersCurrentWeek,
+        isDefaultAlive: currentWeekIsDefaultAlive,
       },
       previousWeek: {
         startDate: this.formatDate(previousWeekStart),
@@ -2193,6 +2211,7 @@ export class DatabaseStorage implements IStorage {
         totalUsers: totalUsersPreviousWeek,
         verifiedUsers: verifiedUsersPreviousWeek,
         approvedUsers: approvedUsersPreviousWeek,
+        isDefaultAlive: previousWeekIsDefaultAlive,
       },
       comparison: {
         newUsersChange: parseFloat(newUsersChange.toFixed(2)),
@@ -8316,16 +8335,9 @@ export class DatabaseStorage implements IStorage {
       growthRate: number; // Weekly growth rate
     };
   }> {
-    // Get Saturday of the current week
-    const currentWeekStart = new Date(weekStart);
-    const dayOfWeek = currentWeekStart.getDay();
-    const daysToSaturday = dayOfWeek === 6 ? 0 : (6 - dayOfWeek) % 7;
-    currentWeekStart.setDate(currentWeekStart.getDate() - daysToSaturday);
-    currentWeekStart.setHours(0, 0, 0, 0);
-
-    const currentWeekEnd = new Date(currentWeekStart);
-    currentWeekEnd.setDate(currentWeekEnd.getDate() + 6);
-    currentWeekEnd.setHours(23, 59, 59, 999);
+    // Get Saturday of the current week (using same helper as getWeeklyPerformanceReview)
+    const currentWeekStart = this.getWeekStart(weekStart);
+    const currentWeekEnd = this.getWeekEnd(weekStart);
 
     // Calculate previous week boundaries
     const previousWeekStart = new Date(currentWeekStart);
