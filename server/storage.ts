@@ -7186,15 +7186,43 @@ export class DatabaseStorage implements IStorage {
       }
     }
 
+    // Helper function to normalize skill level values (map old to new)
+    const normalizeSkillLevel = (skillLevel: string): string => {
+      switch (skillLevel) {
+        case "Low":
+          return "Foundational";
+        case "Medium":
+          return "Intermediate";
+        case "High":
+          return "Advanced";
+        default:
+          return skillLevel; // Keep "Unknown" and new values as-is
+      }
+    };
+
+    // Normalize skill levels in maps before creating breakdown
+    const normalizedTargetMap = new Map<string, number>();
+    const normalizedRecruitedMap = new Map<string, number>();
+    
+    skillLevelTargetMap.forEach((value, key) => {
+      const normalized = normalizeSkillLevel(key);
+      normalizedTargetMap.set(normalized, (normalizedTargetMap.get(normalized) || 0) + value);
+    });
+    
+    skillLevelRecruitedMap.forEach((value, key) => {
+      const normalized = normalizeSkillLevel(key);
+      normalizedRecruitedMap.set(normalized, (normalizedRecruitedMap.get(normalized) || 0) + value);
+    });
+
     const skillLevelBreakdown = Array.from(new Set([
-      ...skillLevelTargetMap.keys(),
-      ...skillLevelRecruitedMap.keys()
+      ...normalizedTargetMap.keys(),
+      ...normalizedRecruitedMap.keys()
     ])).map(skillLevel => ({
       skillLevel,
-      target: skillLevelTargetMap.get(skillLevel) || 0,
-      recruited: skillLevelRecruitedMap.get(skillLevel) || 0,
-      percent: (skillLevelTargetMap.get(skillLevel) || 0) > 0
-        ? ((skillLevelRecruitedMap.get(skillLevel) || 0) / (skillLevelTargetMap.get(skillLevel) || 0)) * 100
+      target: normalizedTargetMap.get(skillLevel) || 0,
+      recruited: normalizedRecruitedMap.get(skillLevel) || 0,
+      percent: (normalizedTargetMap.get(skillLevel) || 0) > 0
+        ? ((normalizedRecruitedMap.get(skillLevel) || 0) / (normalizedTargetMap.get(skillLevel) || 0)) * 100
         : 0,
     }))
     // Filter out "Unknown" skill level when target is 0 to avoid division by zero display
@@ -7244,6 +7272,22 @@ export class DatabaseStorage implements IStorage {
       matchReason: string; // "sector", "jobTitle", "skill", or "none"
     }>;
   }> {
+    // Helper function to normalize skill level values (map old to new)
+    const normalizeSkillLevel = (level: string): string => {
+      switch (level) {
+        case "Low":
+          return "Foundational";
+        case "Medium":
+          return "Intermediate";
+        case "High":
+          return "Advanced";
+        default:
+          return level; // Keep "Unknown" and new values as-is
+      }
+    };
+
+    // Normalize the incoming skill level parameter
+    const normalizedSkillLevel = normalizeSkillLevel(skillLevel);
     // Reuse the same matching logic from summary report
     const occupations = await db.select().from(workforceRecruiterOccupations);
     const allDirectoryProfiles = await db
@@ -7378,9 +7422,9 @@ export class DatabaseStorage implements IStorage {
       }
     }
 
-    // Calculate target for this skill level
+    // Calculate target for this skill level (normalize both sides for comparison)
     const target = occupations
-      .filter(occ => occ.skillLevel === skillLevel)
+      .filter(occ => normalizeSkillLevel(occ.skillLevel) === normalizedSkillLevel)
       .reduce((sum, occ) => sum + occ.headcountTarget, 0);
 
     // Get all profiles in this skill level
@@ -7401,10 +7445,10 @@ export class DatabaseStorage implements IStorage {
       let primaryMatchReason = "none";
 
       if (matchingOccs && matchingOccs.size > 0) {
-        // Check if profile matches any occupation with this skill level
+        // Check if profile matches any occupation with this skill level (normalize for comparison)
         for (const occId of matchingOccs) {
           const occ = occupations.find(o => o.id === occId);
-          if (occ && occ.skillLevel === skillLevel) {
+          if (occ && normalizeSkillLevel(occ.skillLevel) === normalizedSkillLevel) {
             belongsToSkillLevel = true;
             relevantOccupations.push({
               id: occ.id,
@@ -7417,7 +7461,7 @@ export class DatabaseStorage implements IStorage {
             }
           }
         }
-      } else if (skillLevel === "Unknown") {
+      } else if (normalizedSkillLevel === "Unknown") {
         // Profile doesn't match any occupation
         belongsToSkillLevel = true;
         primaryMatchReason = "none";
@@ -7448,7 +7492,7 @@ export class DatabaseStorage implements IStorage {
     const percent = target > 0 ? (recruited / target) * 100 : 0;
 
     return {
-      skillLevel,
+      skillLevel: normalizedSkillLevel, // Return normalized skill level
       target,
       recruited,
       percent,
