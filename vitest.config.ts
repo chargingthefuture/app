@@ -10,6 +10,25 @@ export default defineConfig({
     setupFiles: ['./test/setup.ts'],
     include: ['test/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
     exclude: ['node_modules', 'dist', '.idea', '.git', '.cache', 'test/e2e'],
+    // CI-specific optimizations to prevent fork timeout issues
+    ...(process.env.CI && {
+      // Reduce concurrency in CI to prevent resource exhaustion
+      // Using 2 workers instead of default (which can be CPU count)
+      maxWorkers: 2,
+      minWorkers: 1,
+      // Increase test timeout for CI environments (30 seconds)
+      testTimeout: 30000,
+      // Increase hook timeout (30 seconds)
+      hookTimeout: 30000,
+      // Use threads pool with increased timeout
+      pool: 'threads',
+      poolOptions: {
+        threads: {
+          singleThread: false,
+          isolate: true,
+        },
+      },
+    }),
     reporters: process.env.CI
       ? ['verbose', ['junit', { outputFile: './test-results/vitest-junit.xml' }]]
       : ['verbose'],
