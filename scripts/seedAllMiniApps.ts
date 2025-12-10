@@ -105,6 +105,11 @@ const seedScripts = [
     script: "seedSkills.ts",
     description: "Skills - Skills data for the application",
   },
+  {
+    name: "Default Alive or Dead",
+    script: "seedDefaultAliveOrDead.ts",
+    description: "Default Alive or Dead - Financial tracking and EBITDA calculations",
+  },
 ];
 
 async function runSeedScript(scriptPath: string, name: string): Promise<void> {
