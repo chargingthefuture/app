@@ -64,7 +64,8 @@ describe('API - Default Alive or Dead EBITDA Snapshot', () => {
       const inputDate = new Date('2024-11-30');
       const weekStart = new Date(inputDate);
       const dayOfWeek = weekStart.getDay(); // Should be 6 (Saturday)
-      const daysToSaturday = dayOfWeek === 6 ? 0 : (6 - dayOfWeek) % 7;
+      // To normalize to Saturday: if Saturday (6), stay; otherwise go back (dayOfWeek + 1) days
+      const daysToSaturday = dayOfWeek === 6 ? 0 : dayOfWeek + 1;
       weekStart.setDate(weekStart.getDate() - daysToSaturday);
       weekStart.setHours(0, 0, 0, 0);
 
@@ -93,7 +94,8 @@ describe('API - Default Alive or Dead EBITDA Snapshot', () => {
       const inputDate = new Date('2024-12-07');
       const weekStart = new Date(inputDate);
       const dayOfWeek = weekStart.getDay(); // Should be 6 (Saturday)
-      const daysToSaturday = dayOfWeek === 6 ? 0 : (6 - dayOfWeek) % 7;
+      // To normalize to Saturday: if Saturday (6), stay; otherwise go back (dayOfWeek + 1) days
+      const daysToSaturday = dayOfWeek === 6 ? 0 : dayOfWeek + 1;
       weekStart.setDate(weekStart.getDate() - daysToSaturday);
       weekStart.setHours(0, 0, 0, 0);
 
@@ -133,7 +135,8 @@ describe('API - Default Alive or Dead EBITDA Snapshot', () => {
       testCases.forEach(({ input, expectedDate, expectedMonth }) => {
         const weekStart = new Date(input);
         const dayOfWeek = weekStart.getDay();
-        const daysToSaturday = dayOfWeek === 6 ? 0 : (6 - dayOfWeek) % 7;
+        // To normalize to Saturday: if Saturday (6), stay; otherwise go back (dayOfWeek + 1) days
+        const daysToSaturday = dayOfWeek === 6 ? 0 : dayOfWeek + 1;
         weekStart.setDate(weekStart.getDate() - daysToSaturday);
         weekStart.setHours(0, 0, 0, 0);
 
@@ -148,7 +151,8 @@ describe('API - Default Alive or Dead EBITDA Snapshot', () => {
       const inputDate = new Date('2024-12-01');
       const weekStart = new Date(inputDate);
       const dayOfWeek = weekStart.getDay(); // Should be 0 (Sunday)
-      const daysToSaturday = dayOfWeek === 6 ? 0 : (6 - dayOfWeek) % 7;
+      // To normalize to Saturday: if Saturday (6), stay; otherwise go back (dayOfWeek + 1) days
+      const daysToSaturday = dayOfWeek === 6 ? 0 : dayOfWeek + 1;
       weekStart.setDate(weekStart.getDate() - daysToSaturday);
       weekStart.setHours(0, 0, 0, 0);
 
@@ -166,7 +170,8 @@ describe('API - Default Alive or Dead EBITDA Snapshot', () => {
       const nov29 = new Date('2024-11-29');
       let weekStart = new Date(nov29);
       const dayOfWeek1 = weekStart.getDay();
-      const daysToSaturday1 = dayOfWeek1 === 6 ? 0 : (6 - dayOfWeek1) % 7;
+      // To normalize to Saturday: if Saturday (6), stay; otherwise go back (dayOfWeek + 1) days
+      const daysToSaturday1 = dayOfWeek1 === 6 ? 0 : dayOfWeek1 + 1;
       weekStart.setDate(weekStart.getDate() - daysToSaturday1);
       weekStart.setHours(0, 0, 0, 0);
       
@@ -178,11 +183,12 @@ describe('API - Default Alive or Dead EBITDA Snapshot', () => {
       expect(weekEnd.getDay()).toBe(5); // Friday
       // Week should be Nov 23 (Sat) to Nov 29 (Fri)
 
-      // Dec 6, 2024 (Thursday) should normalize to Nov 30 (previous Saturday)
+      // Dec 6, 2024 (Friday) should normalize to Nov 30 (previous Saturday)
       const dec6 = new Date('2024-12-06');
       weekStart = new Date(dec6);
       const dayOfWeek2 = weekStart.getDay();
-      const daysToSaturday2 = dayOfWeek2 === 6 ? 0 : (6 - dayOfWeek2) % 7;
+      // To normalize to Saturday: if Saturday (6), stay; otherwise go back (dayOfWeek + 1) days
+      const daysToSaturday2 = dayOfWeek2 === 6 ? 0 : dayOfWeek2 + 1;
       weekStart.setDate(weekStart.getDate() - daysToSaturday2);
       weekStart.setHours(0, 0, 0, 0);
       

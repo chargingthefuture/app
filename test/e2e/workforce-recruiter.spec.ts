@@ -114,10 +114,48 @@ test.describe('Workforce Recruiter Occupations', () => {
 
 test.describe('Workforce Recruiter Meetup Events', () => {
   test('should view meetup events', async ({ page }) => {
-    await page.goto('/apps/workforce-recruiter/meetup-events');
+    await page.goto('/apps/workforce-recruiter/meetup-events', { waitUntil: 'domcontentloaded' });
     
-    // Should display meetup events page
-    await expect(page.locator('h1')).toContainText(/meetup/i);
+    // Wait a moment for any redirects or initial page load
+    await page.waitForTimeout(1000);
+    
+    // Check if we're seeing configuration error first
+    const configError = page.locator('h1:has-text("Configuration Error")');
+    const configErrorVisible = await configError.isVisible({ timeout: 2000 }).catch(() => false);
+    
+    if (configErrorVisible) {
+      // If configuration error is shown, provide helpful error message
+      throw new Error(
+        'Clerk publishable key not configured in test environment. ' +
+        'Set VITE_CLERK_PUBLISHABLE_KEY environment variable to run this test. ' +
+        'The test environment needs a valid Clerk key to authenticate users.'
+      );
+    }
+    
+    // Check if we were redirected (e.g., to landing page due to authentication)
+    const currentUrl = page.url();
+    if (!currentUrl.includes('/meetup-events')) {
+      // If redirected, wait a bit more and check again
+      await page.waitForTimeout(2000);
+      const finalUrl = page.url();
+      if (!finalUrl.includes('/meetup-events') && !finalUrl.includes('/apps/workforce-recruiter')) {
+        throw new Error(
+          `Test was redirected from meetup-events page to ${finalUrl}. ` +
+          'This may indicate an authentication issue. Ensure the test environment has proper authentication setup.'
+        );
+      }
+    }
+    
+    // Wait for the page to be fully loaded (network requests complete)
+    await page.waitForLoadState('networkidle');
+    
+    // Wait for the h1 element to appear - the page might show loading state first
+    // The meetup events page has an h1 with "Meetup Events" text
+    const h1 = page.locator('h1');
+    await expect(h1).toBeVisible({ timeout: 10000 });
+    
+    // Should display meetup events page with "Meetup Events" heading
+    await expect(h1).toContainText(/meetup/i, { timeout: 5000 });
   });
 });
 
