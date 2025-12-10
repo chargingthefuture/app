@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { TrendingUp, TrendingDown, DollarSign, Calendar, AlertCircle, CheckCircle2 } from "lucide-react";
 import type { DefaultAliveOrDeadEbitdaSnapshot, DefaultAliveOrDeadFinancialEntry } from "@shared/schema";
-import { format, startOfWeek, endOfWeek } from "date-fns";
+import { format, startOfWeek, endOfWeek, parseISO } from "date-fns";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
@@ -290,7 +290,7 @@ export default function DefaultAliveOrDeadDashboard() {
                 {/* Current Week */}
                 <div>
                   <h3 className="font-semibold mb-2">
-                    Current Week: {format(new Date(weekComparison.currentWeek.weekStart), "MMM d")} - {format(new Date(weekComparison.currentWeek.weekEnd), "MMM d, yyyy")}
+                    Current Week: {format(parseISO(weekComparison.currentWeek.weekStart), "MMM d")} - {format(parseISO(weekComparison.currentWeek.weekEnd), "MMM d, yyyy")}
                   </h3>
                   {weekComparison.currentWeek.snapshot ? (
                     <div className="space-y-2">
@@ -321,7 +321,7 @@ export default function DefaultAliveOrDeadDashboard() {
                 {/* Previous Week */}
                 <div>
                   <h3 className="font-semibold mb-2">
-                    Previous Week: {format(new Date(weekComparison.previousWeek.weekStart), "MMM d")} - {format(new Date(weekComparison.previousWeek.weekEnd), "MMM d, yyyy")}
+                    Previous Week: {format(parseISO(weekComparison.previousWeek.weekStart), "MMM d")} - {format(parseISO(weekComparison.previousWeek.weekEnd), "MMM d, yyyy")}
                   </h3>
                   {weekComparison.previousWeek.snapshot ? (
                     <div className="space-y-2">

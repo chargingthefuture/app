@@ -1556,9 +1556,12 @@ export class DatabaseStorage implements IStorage {
     return endOfWeek(date, { weekStartsOn: 6 });
   }
 
-  // Helper to format date as YYYY-MM-DD
+  // Helper to format date as YYYY-MM-DD (using local time, not UTC)
   private formatDate(date: Date): string {
-    return date.toISOString().split('T')[0];
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   }
 
   // Helper to get all days in a week
@@ -8361,13 +8364,13 @@ export class DatabaseStorage implements IStorage {
     return {
       currentWeek: {
         snapshot: currentSnapshot || null,
-        weekStart: currentWeekStart.toISOString(),
-        weekEnd: currentWeekEnd.toISOString(),
+        weekStart: this.formatDate(currentWeekStart),
+        weekEnd: this.formatDate(currentWeekEnd),
       },
       previousWeek: {
         snapshot: previousSnapshot || null,
-        weekStart: previousWeekStart.toISOString(),
-        weekEnd: previousWeekEnd.toISOString(),
+        weekStart: this.formatDate(previousWeekStart),
+        weekEnd: this.formatDate(previousWeekEnd),
       },
       comparison: {
         revenueChange,
