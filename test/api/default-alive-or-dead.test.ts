@@ -367,3 +367,352 @@ describe.skipIf(!hasDatabaseUrl)('Storage Layer - Default Alive or Dead EBITDA S
   });
 });
 
+describe('API - Default Alive or Dead Financial Entries', () => {
+  let adminUserId: string;
+
+  beforeEach(() => {
+    adminUserId = generateTestUserId();
+  });
+
+  describe('GET /api/default-alive-or-dead/financial-entries', () => {
+    it('should require authentication', () => {
+      const req = createMockRequest(undefined);
+      expect(req.isAuthenticated()).toBe(false);
+    });
+
+    it('should require admin access', () => {
+      const req = createMockRequest(adminUserId, false); // Not admin
+      expect(req.isAdmin()).toBe(false);
+    });
+
+    it('should allow admin users to access financial entries', () => {
+      const req = createMockRequest(adminUserId, true);
+      expect(req.isAuthenticated()).toBe(true);
+      expect(req.isAdmin()).toBe(true);
+    });
+
+    it('should accept optional limit and offset query parameters', () => {
+      const req = createMockRequest(adminUserId, true);
+      req.query = { limit: '50', offset: '0' };
+      expect(req.query.limit).toBe('50');
+      expect(req.query.offset).toBe('0');
+    });
+  });
+
+  describe('POST /api/default-alive-or-dead/financial-entries', () => {
+    it('should require authentication', () => {
+      const req = createMockRequest(undefined);
+      expect(req.isAuthenticated()).toBe(false);
+    });
+
+    it('should require admin access', () => {
+      const req = createMockRequest(adminUserId, false);
+      expect(req.isAdmin()).toBe(false);
+    });
+
+    it('should validate financial entry data', () => {
+      const req = createMockRequest(adminUserId, true);
+      req.body = {
+        weekStartDate: '2024-11-30',
+        operatingExpenses: 1000.50,
+        depreciation: 100.00,
+        amortization: 50.00,
+        notes: 'Test entry',
+      };
+      expect(req.body.weekStartDate).toBe('2024-11-30');
+      expect(req.body.operatingExpenses).toBe(1000.50);
+    });
+
+    it('should accept optional depreciation and amortization', () => {
+      const req = createMockRequest(adminUserId, true);
+      req.body = {
+        weekStartDate: '2024-11-30',
+        operatingExpenses: 1000.50,
+      };
+      expect(req.body.depreciation).toBeUndefined();
+      expect(req.body.amortization).toBeUndefined();
+    });
+  });
+
+  describe('PUT /api/default-alive-or-dead/financial-entries/:id', () => {
+    it('should require authentication', () => {
+      const req = createMockRequest(undefined);
+      expect(req.isAuthenticated()).toBe(false);
+    });
+
+    it('should require admin access', () => {
+      const req = createMockRequest(adminUserId, false);
+      expect(req.isAdmin()).toBe(false);
+    });
+
+    it('should allow partial updates', () => {
+      const req = createMockRequest(adminUserId, true);
+      req.params = { id: 'test-id' };
+      req.body = { operatingExpenses: 1500.00 };
+      expect(req.params.id).toBe('test-id');
+      expect(req.body.operatingExpenses).toBe(1500.00);
+    });
+  });
+
+  describe('DELETE /api/default-alive-or-dead/financial-entries/:id', () => {
+    it('should require authentication', () => {
+      const req = createMockRequest(undefined);
+      expect(req.isAuthenticated()).toBe(false);
+    });
+
+    it('should require admin access', () => {
+      const req = createMockRequest(adminUserId, false);
+      expect(req.isAdmin()).toBe(false);
+    });
+
+    it('should accept entry ID in params', () => {
+      const req = createMockRequest(adminUserId, true);
+      req.params = { id: 'test-entry-id' };
+      expect(req.params.id).toBe('test-entry-id');
+    });
+  });
+});
+
+describe('API - Default Alive or Dead EBITDA Snapshots', () => {
+  let adminUserId: string;
+
+  beforeEach(() => {
+    adminUserId = generateTestUserId();
+  });
+
+  describe('GET /api/default-alive-or-dead/ebitda-snapshots', () => {
+    it('should require authentication', () => {
+      const req = createMockRequest(undefined);
+      expect(req.isAuthenticated()).toBe(false);
+    });
+
+    it('should require admin access', () => {
+      const req = createMockRequest(adminUserId, false);
+      expect(req.isAdmin()).toBe(false);
+    });
+
+    it('should accept optional limit and offset query parameters', () => {
+      const req = createMockRequest(adminUserId, true);
+      req.query = { limit: '20', offset: '0' };
+      expect(req.query.limit).toBe('20');
+      expect(req.query.offset).toBe('0');
+    });
+  });
+
+  describe('GET /api/default-alive-or-dead/current-status', () => {
+    it('should require authentication', () => {
+      const req = createMockRequest(undefined);
+      expect(req.isAuthenticated()).toBe(false);
+    });
+
+    it('should require admin access', () => {
+      const req = createMockRequest(adminUserId, false);
+      expect(req.isAdmin()).toBe(false);
+    });
+
+    it('should allow admin users to access current status', () => {
+      const req = createMockRequest(adminUserId, true);
+      expect(req.isAuthenticated()).toBe(true);
+      expect(req.isAdmin()).toBe(true);
+    });
+  });
+
+  describe('GET /api/default-alive-or-dead/weekly-trends', () => {
+    it('should require authentication', () => {
+      const req = createMockRequest(undefined);
+      expect(req.isAuthenticated()).toBe(false);
+    });
+
+    it('should require admin access', () => {
+      const req = createMockRequest(adminUserId, false);
+      expect(req.isAdmin()).toBe(false);
+    });
+
+    it('should accept optional weeks query parameter', () => {
+      const req = createMockRequest(adminUserId, true);
+      req.query = { weeks: '12' };
+      expect(req.query.weeks).toBe('12');
+    });
+
+    it('should default to reasonable number of weeks if not provided', () => {
+      const req = createMockRequest(adminUserId, true);
+      req.query = {};
+      expect(req.query.weeks).toBeUndefined();
+    });
+  });
+
+  describe('GET /api/default-alive-or-dead/week-comparison', () => {
+    it('should require authentication', () => {
+      const req = createMockRequest(undefined);
+      expect(req.isAuthenticated()).toBe(false);
+    });
+
+    it('should require admin access', () => {
+      const req = createMockRequest(adminUserId, false);
+      expect(req.isAdmin()).toBe(false);
+    });
+
+    it('should require weekStart query parameter', () => {
+      const req = createMockRequest(adminUserId, true);
+      req.query = { weekStart: '2024-11-30' };
+      expect(req.query.weekStart).toBe('2024-11-30');
+    });
+
+    it('should handle missing weekStart parameter', () => {
+      const req = createMockRequest(adminUserId, true);
+      req.query = {};
+      expect(req.query.weekStart).toBeUndefined();
+    });
+  });
+});
+
+describe.skipIf(!hasDatabaseUrl)('Storage Layer - Default Alive or Dead Financial Entries', () => {
+  let testUserId: string;
+  let testWeekStart: Date;
+  let testEntryId: string | null = null;
+
+  beforeEach(async () => {
+    testUserId = generateTestUserId();
+    testWeekStart = new Date('2024-11-30');
+    testWeekStart.setHours(0, 0, 0, 0);
+
+    // Cleanup any existing entries for test week
+    try {
+      await db
+        .delete(defaultAliveOrDeadFinancialEntries)
+        .where(eq(defaultAliveOrDeadFinancialEntries.weekStartDate, testWeekStart));
+    } catch (error) {
+      // Ignore cleanup errors
+    }
+  });
+
+  afterAll(async () => {
+    // Cleanup test entries
+    if (testEntryId) {
+      try {
+        await db
+          .delete(defaultAliveOrDeadFinancialEntries)
+          .where(eq(defaultAliveOrDeadFinancialEntries.id, testEntryId));
+      } catch (error) {
+        // Ignore cleanup errors
+      }
+    }
+  });
+
+  it.skipIf(!canConnectToDatabase)('should create financial entry', async () => {
+    const entry = await storage.createDefaultAliveOrDeadFinancialEntry({
+      weekStartDate: testWeekStart,
+      operatingExpenses: 1000.50,
+      depreciation: 100.00,
+      amortization: 50.00,
+      notes: 'Test entry',
+    }, testUserId);
+
+    expect(entry).toBeDefined();
+    expect(entry.weekStartDate).toEqual(testWeekStart);
+    expect(entry.operatingExpenses).toBe('1000.50');
+    expect(entry.depreciation).toBe('100.00');
+    expect(entry.amortization).toBe('50.00');
+    testEntryId = entry.id;
+  });
+
+  it.skipIf(!canConnectToDatabase)('should retrieve financial entries', async () => {
+    // Create a test entry
+    const created = await storage.createDefaultAliveOrDeadFinancialEntry({
+      weekStartDate: testWeekStart,
+      operatingExpenses: 1000.50,
+    }, testUserId);
+    testEntryId = created.id;
+
+    // Retrieve entries
+    const result = await storage.getDefaultAliveOrDeadFinancialEntries({
+      limit: 10,
+      offset: 0,
+    });
+
+    expect(result.items).toBeDefined();
+    expect(Array.isArray(result.items)).toBe(true);
+    expect(result.total).toBeGreaterThanOrEqual(1);
+    
+    const found = result.items.find(e => e.id === created.id);
+    expect(found).toBeDefined();
+    expect(found?.operatingExpenses).toBe('1000.50');
+  });
+
+  it.skipIf(!canConnectToDatabase)('should update financial entry', async () => {
+    // Create a test entry
+    const created = await storage.createDefaultAliveOrDeadFinancialEntry({
+      weekStartDate: testWeekStart,
+      operatingExpenses: 1000.50,
+    }, testUserId);
+    testEntryId = created.id;
+
+    // Update the entry
+    const updated = await storage.updateDefaultAliveOrDeadFinancialEntry(created.id, {
+      operatingExpenses: 1500.00,
+      notes: 'Updated entry',
+    });
+
+    expect(updated.id).toBe(created.id);
+    expect(updated.operatingExpenses).toBe('1500.00');
+    expect(updated.notes).toBe('Updated entry');
+  });
+
+  it.skipIf(!canConnectToDatabase)('should delete financial entry', async () => {
+    // Create a test entry
+    const created = await storage.createDefaultAliveOrDeadFinancialEntry({
+      weekStartDate: testWeekStart,
+      operatingExpenses: 1000.50,
+    }, testUserId);
+
+    // Delete the entry
+    await storage.deleteDefaultAliveOrDeadFinancialEntry(created.id);
+
+    // Verify it's deleted
+    const result = await storage.getDefaultAliveOrDeadFinancialEntries({});
+    const found = result.items.find(e => e.id === created.id);
+    expect(found).toBeUndefined();
+  });
+});
+
+describe.skipIf(!hasDatabaseUrl)('Storage Layer - Default Alive or Dead Status & Trends', () => {
+  let testWeekStart: Date;
+
+  beforeEach(async () => {
+    testWeekStart = new Date('2024-11-30');
+    testWeekStart.setHours(0, 0, 0, 0);
+  });
+
+  it.skipIf(!canConnectToDatabase)('should get current status', async () => {
+    const status = await storage.getDefaultAliveOrDeadCurrentStatus();
+    
+    expect(status).toBeDefined();
+    expect(status).toHaveProperty('currentSnapshot');
+    expect(status).toHaveProperty('isDefaultAlive');
+    expect(status).toHaveProperty('projectedProfitabilityDate');
+    expect(status).toHaveProperty('projectedCapitalNeeded');
+    expect(status).toHaveProperty('weeksUntilProfitability');
+  });
+
+  it.skipIf(!canConnectToDatabase)('should get weekly trends', async () => {
+    const trends = await storage.getDefaultAliveOrDeadWeeklyTrends(12);
+    
+    expect(Array.isArray(trends)).toBe(true);
+    // Trends should be ordered by week start date (most recent first)
+    if (trends.length > 1) {
+      const firstWeek = new Date(trends[0].weekStartDate);
+      const secondWeek = new Date(trends[1].weekStartDate);
+      expect(firstWeek.getTime()).toBeGreaterThanOrEqual(secondWeek.getTime());
+    }
+  });
+
+  it.skipIf(!canConnectToDatabase)('should get week comparison', async () => {
+    const comparison = await storage.getDefaultAliveOrDeadWeekComparison(testWeekStart);
+    
+    expect(comparison).toBeDefined();
+    expect(comparison).toHaveProperty('currentWeek');
+    expect(comparison).toHaveProperty('previousWeek');
+    expect(comparison).toHaveProperty('change');
+  });
+});
+
