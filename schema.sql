@@ -1047,18 +1047,6 @@ CREATE TABLE IF NOT EXISTS default_alive_or_dead_ebitda_snapshots (
   updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
--- Default Alive or Dead Announcements
-CREATE TABLE IF NOT EXISTS default_alive_or_dead_announcements (
-  id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
-  title VARCHAR(200) NOT NULL,
-  content TEXT NOT NULL,
-  type VARCHAR(50) NOT NULL DEFAULT 'info',
-  is_active BOOLEAN NOT NULL DEFAULT true,
-  expires_at TIMESTAMP,
-  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
-);
-
 -- ========================================
 -- ADD FOREIGN KEY CONSTRAINTS (after all tables are created)
 -- ========================================

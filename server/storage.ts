@@ -201,13 +201,10 @@ import {
   type InsertWorkforceRecruiterAnnouncement,
   defaultAliveOrDeadFinancialEntries,
   defaultAliveOrDeadEbitdaSnapshots,
-  defaultAliveOrDeadAnnouncements,
   type DefaultAliveOrDeadFinancialEntry,
   type InsertDefaultAliveOrDeadFinancialEntry,
   type DefaultAliveOrDeadEbitdaSnapshot,
   type InsertDefaultAliveOrDeadEbitdaSnapshot,
-  type DefaultAliveOrDeadAnnouncement,
-  type InsertDefaultAliveOrDeadAnnouncement,
   type ChymeRoom,
   type InsertChymeRoom,
   type ChymeRoomParticipant,
@@ -945,13 +942,6 @@ export interface IStorage {
       growthRate: number;
     };
   }>;
-
-  // Default Alive or Dead Announcement operations
-  createDefaultAliveOrDeadAnnouncement(announcement: InsertDefaultAliveOrDeadAnnouncement): Promise<DefaultAliveOrDeadAnnouncement>;
-  getActiveDefaultAliveOrDeadAnnouncements(): Promise<DefaultAliveOrDeadAnnouncement[]>;
-  getAllDefaultAliveOrDeadAnnouncements(): Promise<DefaultAliveOrDeadAnnouncement[]>;
-  updateDefaultAliveOrDeadAnnouncement(id: string, announcement: Partial<InsertDefaultAliveOrDeadAnnouncement>): Promise<DefaultAliveOrDeadAnnouncement>;
-  deactivateDefaultAliveOrDeadAnnouncement(id: string): Promise<DefaultAliveOrDeadAnnouncement>;
 
   // Profile deletion operations with cascade anonymization
   deleteSupportMatchProfile(userId: string, reason?: string): Promise<void>;
@@ -8393,62 +8383,6 @@ export class DatabaseStorage implements IStorage {
         growthRate,
       },
     };
-  }
-
-  async createDefaultAliveOrDeadAnnouncement(announcementData: InsertDefaultAliveOrDeadAnnouncement): Promise<DefaultAliveOrDeadAnnouncement> {
-    const [announcement] = await db
-      .insert(defaultAliveOrDeadAnnouncements)
-      .values(announcementData)
-      .returning();
-    return announcement;
-  }
-
-  async getActiveDefaultAliveOrDeadAnnouncements(): Promise<DefaultAliveOrDeadAnnouncement[]> {
-    const now = new Date();
-    return await db
-      .select()
-      .from(defaultAliveOrDeadAnnouncements)
-      .where(
-        and(
-          eq(defaultAliveOrDeadAnnouncements.isActive, true),
-          or(
-            sql`${defaultAliveOrDeadAnnouncements.expiresAt} IS NULL`,
-            gte(defaultAliveOrDeadAnnouncements.expiresAt, now)
-          )
-        )
-      )
-      .orderBy(desc(defaultAliveOrDeadAnnouncements.createdAt));
-  }
-
-  async getAllDefaultAliveOrDeadAnnouncements(): Promise<DefaultAliveOrDeadAnnouncement[]> {
-    return await db
-      .select()
-      .from(defaultAliveOrDeadAnnouncements)
-      .orderBy(desc(defaultAliveOrDeadAnnouncements.createdAt));
-  }
-
-  async updateDefaultAliveOrDeadAnnouncement(id: string, announcementData: Partial<InsertDefaultAliveOrDeadAnnouncement>): Promise<DefaultAliveOrDeadAnnouncement> {
-    const [announcement] = await db
-      .update(defaultAliveOrDeadAnnouncements)
-      .set({
-        ...announcementData,
-        updatedAt: new Date(),
-      })
-      .where(eq(defaultAliveOrDeadAnnouncements.id, id))
-      .returning();
-    return announcement;
-  }
-
-  async deactivateDefaultAliveOrDeadAnnouncement(id: string): Promise<DefaultAliveOrDeadAnnouncement> {
-    const [announcement] = await db
-      .update(defaultAliveOrDeadAnnouncements)
-      .set({
-        isActive: false,
-        updatedAt: new Date(),
-      })
-      .where(eq(defaultAliveOrDeadAnnouncements.id, id))
-      .returning();
-    return announcement;
   }
 
   /**

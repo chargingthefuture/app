@@ -2689,26 +2689,3 @@ export const insertDefaultAliveOrDeadEbitdaSnapshotSchema = createInsertSchema(d
 
 export type InsertDefaultAliveOrDeadEbitdaSnapshot = z.infer<typeof insertDefaultAliveOrDeadEbitdaSnapshotSchema>;
 export type DefaultAliveOrDeadEbitdaSnapshot = typeof defaultAliveOrDeadEbitdaSnapshots.$inferSelect;
-
-// Default Alive or Dead Announcements
-export const defaultAliveOrDeadAnnouncements = pgTable("default_alive_or_dead_announcements", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  title: varchar("title", { length: 200 }).notNull(),
-  content: text("content").notNull(),
-  type: varchar("type", { length: 50 }).notNull().default('info'), // info, warning, maintenance, update, promotion
-  isActive: boolean("is_active").notNull().default(true),
-  expiresAt: timestamp("expires_at"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
-
-export const insertDefaultAliveOrDeadAnnouncementSchema = createInsertSchema(defaultAliveOrDeadAnnouncements).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-}).extend({
-  expiresAt: z.coerce.date().optional().nullable(),
-});
-
-export type InsertDefaultAliveOrDeadAnnouncement = z.infer<typeof insertDefaultAliveOrDeadAnnouncementSchema>;
-export type DefaultAliveOrDeadAnnouncement = typeof defaultAliveOrDeadAnnouncements.$inferSelect;

@@ -78,7 +78,6 @@ import {
   insertWorkforceRecruiterAnnouncementSchema,
   insertDefaultAliveOrDeadFinancialEntrySchema,
   insertDefaultAliveOrDeadEbitdaSnapshotSchema,
-  insertDefaultAliveOrDeadAnnouncementSchema,
 } from "@shared/schema";
 import { asyncHandler } from "./errorHandler";
 import { validateWithZod } from "./validationErrorFormatter";
@@ -6231,17 +6230,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // DEFAULT ALIVE OR DEAD ROUTES (ADMIN ONLY)
   // ========================================
 
-  // Default Alive or Dead Announcement routes (admin only)
-  app.get('/api/default-alive-or-dead/announcements', isAuthenticated, isAdmin, asyncHandler(async (req, res) => {
-    try {
-      const announcements = await storage.getActiveDefaultAliveOrDeadAnnouncements();
-      res.json(announcements);
-    } catch (error) {
-      console.error("Error fetching Default Alive or Dead announcements:", error);
-      res.status(500).json({ message: "Failed to fetch announcements" });
-    }
-  }));
-
   // Default Alive or Dead Financial Entry routes (admin only)
   app.get('/api/default-alive-or-dead/financial-entries', isAuthenticated, isAdmin, asyncHandler(async (req: any, res) => {
     try {
@@ -6368,79 +6356,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error fetching week comparison:", error);
       res.status(500).json({ message: error.message });
-    }
-  }));
-
-  // Default Alive or Dead Admin Announcement routes
-  app.get('/api/default-alive-or-dead/admin/announcements', isAuthenticated, isAdmin, asyncHandler(async (req, res) => {
-    try {
-      const announcements = await storage.getAllDefaultAliveOrDeadAnnouncements();
-      res.json(announcements);
-    } catch (error) {
-      console.error("Error fetching Default Alive or Dead announcements:", error);
-      res.status(500).json({ message: "Failed to fetch announcements" });
-    }
-  }));
-
-  app.post('/api/default-alive-or-dead/admin/announcements', isAuthenticated, ...isAdminWithCsrf, asyncHandler(async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const validatedData = validateWithZod(insertDefaultAliveOrDeadAnnouncementSchema, req.body, 'Invalid announcement data');
-
-      const announcement = await storage.createDefaultAliveOrDeadAnnouncement(validatedData);
-      
-      await logAdminAction(
-        userId,
-        "create_default_alive_or_dead_announcement",
-        "announcement",
-        announcement.id,
-        { title: announcement.title, type: announcement.type }
-      );
-
-      res.json(announcement);
-    } catch (error: any) {
-      console.error("Error creating Default Alive or Dead announcement:", error);
-      res.status(400).json({ message: error.message || "Failed to create announcement" });
-    }
-  }));
-
-  app.put('/api/default-alive-or-dead/admin/announcements/:id', isAuthenticated, ...isAdminWithCsrf, asyncHandler(async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const announcement = await storage.updateDefaultAliveOrDeadAnnouncement(req.params.id, req.body);
-      
-      await logAdminAction(
-        userId,
-        "update_default_alive_or_dead_announcement",
-        "announcement",
-        announcement.id,
-        { title: announcement.title }
-      );
-
-      res.json(announcement);
-    } catch (error: any) {
-      console.error("Error updating Default Alive or Dead announcement:", error);
-      res.status(400).json({ message: error.message || "Failed to update announcement" });
-    }
-  }));
-
-  app.delete('/api/default-alive-or-dead/admin/announcements/:id', isAuthenticated, ...isAdminWithCsrf, asyncHandler(async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const announcement = await storage.deactivateDefaultAliveOrDeadAnnouncement(req.params.id);
-      
-      await logAdminAction(
-        userId,
-        "deactivate_default_alive_or_dead_announcement",
-        "announcement",
-        announcement.id,
-        { title: announcement.title }
-      );
-
-      res.json(announcement);
-    } catch (error: any) {
-      console.error("Error deleting Default Alive or Dead announcement:", error);
-      res.status(400).json({ message: error.message || "Failed to delete announcement" });
     }
   }));
 

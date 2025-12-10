@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
-import { DollarSign, Bell, TrendingUp, FileText } from "lucide-react";
+import { DollarSign, TrendingUp, FileText } from "lucide-react";
 import type { DefaultAliveOrDeadFinancialEntry, DefaultAliveOrDeadEbitdaSnapshot } from "@shared/schema";
 import { format } from "date-fns";
 import { PaginationControls } from "@/components/pagination-controls";
@@ -32,28 +32,11 @@ export default function DefaultAliveOrDeadAdmin() {
       <div>
         <h1 className="text-2xl sm:text-3xl font-semibold mb-2">Default Alive or Dead Administration</h1>
         <p className="text-muted-foreground">
-          Manage financial entries, EBITDA snapshots, and announcements
+          Manage financial entries and EBITDA snapshots
         </p>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Announcements</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Create and manage announcements for this mini-app.
-            </p>
-            <Link href="/apps/default-alive-or-dead/admin/announcements">
-              <Button className="w-full" data-testid="button-manage-announcements">
-                <Bell className="w-4 h-4 mr-2" />
-                Manage Announcements
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
-
+      <div className="grid md:grid-cols-1 gap-6">
         <Card>
           <CardHeader>
             <CardTitle>Financial Entries</CardTitle>

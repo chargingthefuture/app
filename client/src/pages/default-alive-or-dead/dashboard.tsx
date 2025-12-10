@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { TrendingUp, TrendingDown, DollarSign, Calendar, AlertCircle, CheckCircle2 } from "lucide-react";
 import type { DefaultAliveOrDeadEbitdaSnapshot, DefaultAliveOrDeadFinancialEntry } from "@shared/schema";
 import { format } from "date-fns";
-import { AnnouncementBanner } from "@/components/announcement-banner";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
@@ -213,11 +212,6 @@ export default function DefaultAliveOrDeadDashboard() {
           Track your startup's financial health and EBITDA
         </p>
       </div>
-
-      <AnnouncementBanner 
-        apiEndpoint="/api/default-alive-or-dead/announcements"
-        queryKey="/api/default-alive-or-dead/announcements"
-      />
 
       {/* Default Alive/Dead Status */}
       <Card className={isDefaultAlive ? "border-green-500" : "border-red-500"}>
