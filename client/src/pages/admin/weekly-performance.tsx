@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Users, DollarSign, TrendingUp, TrendingDown, Calendar, Target, Activity, Zap, Heart, MessageSquare, CheckCircle2, AlertCircle } from "lucide-react";
+import { Users, DollarSign, TrendingUp, TrendingDown, Calendar, Target, Activity, Zap, Heart, MessageSquare } from "lucide-react";
 import { format, startOfWeek, addDays, parseISO } from "date-fns";
 import { apiRequest } from "@/lib/queryClient";
 import { PrivacyField } from "@/components/ui/privacy-field";
@@ -1061,78 +1061,6 @@ export default function WeeklyPerformanceReview() {
                         >
                           {formatPercentage(data?.comparison.approvedUsersChange ?? 0)}
                         </Badge>
-                      </td>
-                    </tr>
-                    <tr className="border-b">
-                      <td className="py-2 px-4 font-medium">EBITDA Status</td>
-                      <td className="text-right py-2 px-4" data-testid="table-ebitda-status-current">
-                        <div className="flex items-center justify-end">
-                          {data?.currentWeek.isDefaultAlive === null ? (
-                            <span className="text-muted-foreground text-sm">N/A</span>
-                          ) : (
-                            <Badge
-                              variant={data.currentWeek.isDefaultAlive ? "default" : "destructive"}
-                              className="flex items-center gap-1"
-                            >
-                              {data.currentWeek.isDefaultAlive ? (
-                                <>
-                                  <CheckCircle2 className="w-3 h-3" />
-                                  Default Alive
-                                </>
-                              ) : (
-                                <>
-                                  <AlertCircle className="w-3 h-3" />
-                                  Default Dead
-                                </>
-                              )}
-                            </Badge>
-                          )}
-                        </div>
-                      </td>
-                      <td className="text-right py-2 px-4" data-testid="table-ebitda-status-previous">
-                        <div className="flex items-center justify-end">
-                          {data?.previousWeek.isDefaultAlive === null ? (
-                            <span className="text-muted-foreground text-sm">N/A</span>
-                          ) : (
-                            <Badge
-                              variant={data.previousWeek.isDefaultAlive ? "default" : "destructive"}
-                              className="flex items-center gap-1"
-                            >
-                              {data.previousWeek.isDefaultAlive ? (
-                                <>
-                                  <CheckCircle2 className="w-3 h-3" />
-                                  Default Alive
-                                </>
-                              ) : (
-                                <>
-                                  <AlertCircle className="w-3 h-3" />
-                                  Default Dead
-                                </>
-                              )}
-                            </Badge>
-                          )}
-                        </div>
-                      </td>
-                      <td className="text-right py-2 px-4">
-                        {data?.currentWeek.isDefaultAlive !== null && data?.previousWeek.isDefaultAlive !== null ? (
-                          <Badge
-                            variant={
-                              data.currentWeek.isDefaultAlive === data.previousWeek.isDefaultAlive
-                                ? "outline"
-                                : data.currentWeek.isDefaultAlive
-                                ? "default"
-                                : "destructive"
-                            }
-                          >
-                            {data.currentWeek.isDefaultAlive === data.previousWeek.isDefaultAlive
-                              ? "No Change"
-                              : data.currentWeek.isDefaultAlive
-                              ? "Improved"
-                              : "Declined"}
-                          </Badge>
-                        ) : (
-                          <span className="text-muted-foreground text-sm">—</span>
-                        )}
                       </td>
                     </tr>
                   </tbody>
