@@ -1064,7 +1064,7 @@ export default function WeeklyPerformanceReview() {
                       </td>
                     </tr>
                     <tr className="border-b">
-                      <td className="py-2 px-4 font-medium">Default Dead or Alive EBITDA Status</td>
+                      <td className="py-2 px-4 font-medium">EBITDA Status</td>
                       <td className="text-right py-2 px-4" data-testid="table-ebitda-status-current">
                         <div className="flex items-center justify-end">
                           {data?.currentWeek.isDefaultAlive === null ? (
