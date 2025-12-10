@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { TrendingUp, TrendingDown, DollarSign, Calendar, AlertCircle, CheckCircle2 } from "lucide-react";
 import type { DefaultAliveOrDeadEbitdaSnapshot, DefaultAliveOrDeadFinancialEntry } from "@shared/schema";
-import { format } from "date-fns";
+import { format, startOfWeek, endOfWeek } from "date-fns";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
@@ -35,14 +35,8 @@ export default function DefaultAliveOrDeadDashboard() {
     // Default to current week's Saturday
     // Weeks start on Saturday and end on Friday
     const today = new Date();
-    const dayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
-    // Calculate days to subtract to get to the most recent Saturday
-    // Saturday (6): 0 days, Sunday (0): 1 day, Monday (1): 2 days, ..., Friday (5): 6 days
-    const daysToSaturday = dayOfWeek === 6 ? 0 : (dayOfWeek === 0 ? 1 : dayOfWeek + 1);
-    const saturday = new Date(today);
-    saturday.setDate(saturday.getDate() - daysToSaturday);
-    saturday.setHours(0, 0, 0, 0);
-    return format(saturday, "yyyy-MM-dd");
+    const weekStart = startOfWeek(today, { weekStartsOn: 6 }); // 6 = Saturday
+    return format(weekStart, "yyyy-MM-dd");
   });
 
   const financialEntryForm = useForm<FinancialEntryFormValues>({
@@ -76,14 +70,8 @@ export default function DefaultAliveOrDeadDashboard() {
     // Default to current week's Saturday
     // Weeks start on Saturday and end on Friday
     const today = new Date();
-    const dayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
-    // Calculate days to subtract to get to the most recent Saturday
-    // Saturday (6): 0 days, Sunday (0): 1 day, Monday (1): 2 days, ..., Friday (5): 6 days
-    const daysToSaturday = dayOfWeek === 6 ? 0 : (dayOfWeek === 0 ? 1 : dayOfWeek + 1);
-    const saturday = new Date(today);
-    saturday.setDate(saturday.getDate() - daysToSaturday);
-    saturday.setHours(0, 0, 0, 0);
-    return format(saturday, "yyyy-MM-dd");
+    const weekStart = startOfWeek(today, { weekStartsOn: 6 }); // 6 = Saturday
+    return format(weekStart, "yyyy-MM-dd");
   });
 
   const { data: weekComparison, isLoading: comparisonLoading } = useQuery<{

@@ -218,6 +218,7 @@ import {
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, asc, sql, or, inArray, gte, lte, lt } from "drizzle-orm";
+import { startOfWeek, endOfWeek } from "date-fns";
 import { randomBytes } from "crypto";
 
 // Interface for storage operations
@@ -1543,25 +1544,16 @@ export class DatabaseStorage implements IStorage {
 
   // Helper to get start of week (Monday) for a given date
   private getWeekStart(date: Date): Date {
-    const d = new Date(date);
-    const day = d.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
-    // Calculate days to subtract to get to the most recent Saturday
     // Weeks start on Saturday and end on Friday
-    // Saturday (6): 0 days, Sunday (0): 1 day, Monday (1): 2 days, ..., Friday (5): 6 days
-    const daysToSubtract = day === 6 ? 0 : (day === 0 ? 1 : day + 1);
-    const weekStart = new Date(d);
-    weekStart.setDate(d.getDate() - daysToSubtract);
-    weekStart.setHours(0, 0, 0, 0);
-    return weekStart;
+    // Use date-fns startOfWeek with weekStartsOn: 6 (Saturday)
+    return startOfWeek(date, { weekStartsOn: 6 });
   }
 
   // Helper to get end of week (Friday) for a given date
   private getWeekEnd(date: Date): Date {
-    const weekStart = this.getWeekStart(date);
-    const weekEnd = new Date(weekStart);
-    weekEnd.setDate(weekEnd.getDate() + 6); // Saturday + 6 days = Friday
-    weekEnd.setHours(23, 59, 59, 999);
-    return weekEnd;
+    // Weeks start on Saturday and end on Friday
+    // Use date-fns endOfWeek with weekStartsOn: 6 (Saturday)
+    return endOfWeek(date, { weekStartsOn: 6 });
   }
 
   // Helper to format date as YYYY-MM-DD
