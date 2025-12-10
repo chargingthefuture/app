@@ -389,7 +389,7 @@ test.describe('Chyme Admin Functionality', () => {
     await page.locator('form').locator('button[type="submit"]').click();
     
     // Verify room created (should redirect back to admin page or show success)
-    await page.waitForSelector('text=New Test Room', { timeout: 10000 }).catch(() => {
+    await page.waitForSelector('text=New Test Room', { timeout: 10000 }).catch(async () => {
       // If not found, check for success toast
       await page.waitForSelector('[data-testid="toast-success"]', { timeout: 5000 }).catch(() => {});
     });
@@ -451,7 +451,7 @@ test.describe('Chyme Admin Functionality', () => {
     await page.locator('form').locator('button[type="submit"]').click();
     
     // Verify announcement created (should show in list or success toast)
-    await page.waitForSelector('text=Test Announcement', { timeout: 10000 }).catch(() => {
+    await page.waitForSelector('text=Test Announcement', { timeout: 10000 }).catch(async () => {
       // If not found, check for success toast
       await page.waitForSelector('[data-testid="toast-success"]', { timeout: 5000 }).catch(() => {});
     });
