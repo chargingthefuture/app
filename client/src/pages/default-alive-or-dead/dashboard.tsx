@@ -122,12 +122,23 @@ export default function DefaultAliveOrDeadDashboard() {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["/api/default-alive-or-dead/financial-entries"] }),
         queryClient.invalidateQueries({ queryKey: ["/api/default-alive-or-dead/current-status"] }),
-        queryClient.invalidateQueries({ queryKey: ["/api/default-alive-or-dead/weekly-trends"] }),
+        queryClient.invalidateQueries({ 
+          queryKey: ["/api/default-alive-or-dead/weekly-trends"],
+          exact: false 
+        }),
         queryClient.invalidateQueries({ queryKey: ["/api/default-alive-or-dead/ebitda-snapshots"] }),
         queryClient.invalidateQueries({ queryKey: ["/api/default-alive-or-dead/week-comparison"] }),
       ]);
-      // Explicitly refetch the status query to ensure it updates
-      await queryClient.refetchQueries({ queryKey: ["/api/default-alive-or-dead/current-status"] });
+      // Explicitly refetch queries to ensure they update
+      await Promise.all([
+        queryClient.refetchQueries({ queryKey: ["/api/default-alive-or-dead/current-status"] }),
+        queryClient.refetchQueries({ 
+          predicate: (query) => {
+            const key = query.queryKey[0]?.toString();
+            return key ? key.startsWith("/api/default-alive-or-dead/weekly-trends") : false;
+          }
+        }),
+      ]);
       financialEntryForm.reset();
       toast({
         title: "Financial Entry Created",
@@ -154,7 +165,10 @@ export default function DefaultAliveOrDeadDashboard() {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["/api/default-alive-or-dead/current-funding"] }),
         queryClient.invalidateQueries({ queryKey: ["/api/default-alive-or-dead/current-status"] }),
-        queryClient.invalidateQueries({ queryKey: ["/api/default-alive-or-dead/weekly-trends"] }),
+        queryClient.invalidateQueries({ 
+          queryKey: ["/api/default-alive-or-dead/weekly-trends"],
+          exact: false 
+        }),
       ]);
       
       // Recalculate the latest snapshot with the new funding
@@ -171,8 +185,16 @@ export default function DefaultAliveOrDeadDashboard() {
         }
       }
       
-      // Explicitly refetch the status query to ensure it updates
-      await queryClient.refetchQueries({ queryKey: ["/api/default-alive-or-dead/current-status"] });
+      // Explicitly refetch queries to ensure they update
+      await Promise.all([
+        queryClient.refetchQueries({ queryKey: ["/api/default-alive-or-dead/current-status"] }),
+        queryClient.refetchQueries({ 
+          predicate: (query) => {
+            const key = query.queryKey[0]?.toString();
+            return key ? key.startsWith("/api/default-alive-or-dead/weekly-trends") : false;
+          }
+        }),
+      ]);
       setFundingInput("");
       toast({
         title: "Funding Updated",
@@ -233,7 +255,7 @@ export default function DefaultAliveOrDeadDashboard() {
     <div className="p-4 sm:p-6 md:p-8 space-y-6 sm:space-y-8">
       <div>
         <h1 className="text-2xl sm:text-3xl md:text-4xl font-semibold mb-2">
-          Default Alive or Dead Dashboard
+          Default Alive or Default Dead
         </h1>
         <p className="text-muted-foreground text-sm sm:text-base">
           Track your startup's financial health and EBITDA
