@@ -8011,10 +8011,15 @@ export class DatabaseStorage implements IStorage {
   // ========================================
 
   async createDefaultAliveOrDeadFinancialEntry(entryData: InsertDefaultAliveOrDeadFinancialEntry, userId: string): Promise<DefaultAliveOrDeadFinancialEntry> {
+    // Normalize weekStartDate to Saturday (weeks start on Saturday and end on Friday)
+    // This ensures consistency when querying by week
+    const normalizedWeekStart = this.getWeekStart(entryData.weekStartDate);
+    
     const [entry] = await db
       .insert(defaultAliveOrDeadFinancialEntries)
       .values({
         ...entryData,
+        weekStartDate: normalizedWeekStart,
         createdBy: userId,
       })
       .returning();
@@ -8068,10 +8073,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getDefaultAliveOrDeadFinancialEntryByWeek(weekStartDate: Date): Promise<DefaultAliveOrDeadFinancialEntry | undefined> {
+    // Normalize to Saturday (weeks start on Saturday and end on Friday)
+    // Use the helper method to ensure consistent week boundary calculation
+    const normalizedWeekStart = this.getWeekStart(weekStartDate);
+    
     const [entry] = await db
       .select()
       .from(defaultAliveOrDeadFinancialEntries)
-      .where(eq(defaultAliveOrDeadFinancialEntries.weekStartDate, weekStartDate));
+      .where(eq(defaultAliveOrDeadFinancialEntries.weekStartDate, normalizedWeekStart));
     return entry;
   }
 
@@ -8081,16 +8090,10 @@ export class DatabaseStorage implements IStorage {
    * Operating expenses, depreciation, and amortization come from financial entries
    */
   async calculateAndStoreEbitdaSnapshot(weekStartDate: Date, currentFunding?: number): Promise<DefaultAliveOrDeadEbitdaSnapshot> {
-    // Get Saturday of the week (weekends start on Saturday)
-    const weekStart = new Date(weekStartDate);
-    const dayOfWeek = weekStart.getDay(); // 0 = Sunday, 6 = Saturday
-    const daysToSaturday = dayOfWeek === 6 ? 0 : (6 - dayOfWeek) % 7;
-    weekStart.setDate(weekStart.getDate() - daysToSaturday);
-    weekStart.setHours(0, 0, 0, 0);
-
-    const weekEnd = new Date(weekStart);
-    weekEnd.setDate(weekEnd.getDate() + 6);
-    weekEnd.setHours(23, 59, 59, 999);
+    // Get Saturday of the week (weeks start on Saturday and end on Friday)
+    // Use the helper methods to ensure consistent week boundary calculation
+    const weekStart = this.getWeekStart(weekStartDate);
+    const weekEnd = this.getWeekEnd(weekStartDate);
 
     // Calculate revenue from payments table for this week
     const weekPayments = await db
@@ -8211,12 +8214,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getDefaultAliveOrDeadEbitdaSnapshot(weekStartDate: Date): Promise<DefaultAliveOrDeadEbitdaSnapshot | undefined> {
-    // Normalize to Saturday
-    const weekStart = new Date(weekStartDate);
-    const dayOfWeek = weekStart.getDay();
-    const daysToSaturday = dayOfWeek === 6 ? 0 : (6 - dayOfWeek) % 7;
-    weekStart.setDate(weekStart.getDate() - daysToSaturday);
-    weekStart.setHours(0, 0, 0, 0);
+    // Normalize to Saturday (weeks start on Saturday and end on Friday)
+    // Use the helper method to ensure consistent week boundary calculation
+    const weekStart = this.getWeekStart(weekStartDate);
 
     const [snapshot] = await db
       .select()
