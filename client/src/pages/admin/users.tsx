@@ -100,7 +100,14 @@ export default function AdminUsers() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg sm:text-xl">All Users</CardTitle>
+          <CardTitle className="text-lg sm:text-xl">
+            All Users
+            {!isLoading && activeUsers.length > 0 && (
+              <span className="ml-2 text-muted-foreground font-normal">
+                ({activeUsers.length})
+              </span>
+            )}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           {isLoading ? (
