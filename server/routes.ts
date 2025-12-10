@@ -6254,6 +6254,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = getUserId(req);
       const validatedData = validateWithZod(insertDefaultAliveOrDeadFinancialEntrySchema, req.body, 'Invalid financial entry data');
       const entry = await storage.createDefaultAliveOrDeadFinancialEntry(validatedData, userId);
+      
+      // Automatically calculate EBITDA for this week
+      await storage.calculateAndStoreEbitdaSnapshot(validatedData.weekStartDate);
+      
       res.json(entry);
     } catch (error: any) {
       console.error("Error creating financial entry:", error);
@@ -6355,6 +6359,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(comparison);
     } catch (error: any) {
       console.error("Error fetching week comparison:", error);
+      res.status(500).json({ message: error.message });
+    }
+  }));
+
+  // Current funding routes
+  app.get('/api/default-alive-or-dead/current-funding', isAuthenticated, isAdmin, asyncHandler(async (req: any, res) => {
+    try {
+      const funding = await storage.getDefaultAliveOrDeadCurrentFunding();
+      res.json({ currentFunding: funding });
+    } catch (error: any) {
+      console.error("Error fetching current funding:", error);
+      res.status(500).json({ message: error.message });
+    }
+  }));
+
+  app.put('/api/default-alive-or-dead/current-funding', isAuthenticated, isAdmin, asyncHandler(async (req: any, res) => {
+    try {
+      const { currentFunding } = req.body;
+      if (typeof currentFunding !== 'number' || currentFunding < 0) {
+        return res.status(400).json({ message: "currentFunding must be a non-negative number" });
+      }
+      await storage.updateDefaultAliveOrDeadCurrentFunding(currentFunding);
+      res.json({ message: "Current funding updated successfully", currentFunding });
+    } catch (error: any) {
+      console.error("Error updating current funding:", error);
       res.status(500).json({ message: error.message });
     }
   }));

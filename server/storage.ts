@@ -943,6 +943,9 @@ export interface IStorage {
       growthRate: number;
     };
   }>;
+  // Current funding operations
+  getDefaultAliveOrDeadCurrentFunding(): Promise<number>;
+  updateDefaultAliveOrDeadCurrentFunding(amount: number): Promise<void>;
 
   // Profile deletion operations with cascade anonymization
   deleteSupportMatchProfile(userId: string, reason?: string): Promise<void>;
@@ -8094,6 +8097,11 @@ export class DatabaseStorage implements IStorage {
     // Use the helper methods to ensure consistent week boundary calculation
     const weekStart = this.getWeekStart(weekStartDate);
     const weekEnd = this.getWeekEnd(weekStartDate);
+    
+    // If currentFunding not provided, get it from database (default 0)
+    if (currentFunding === undefined) {
+      currentFunding = await this.getDefaultAliveOrDeadCurrentFunding();
+    }
 
     // Calculate revenue from payments table for this week
     const weekPayments = await db
@@ -8109,7 +8117,15 @@ export class DatabaseStorage implements IStorage {
     const revenue = weekPayments.reduce((sum, p) => sum + parseFloat(p.amount), 0);
 
     // Get financial entry for this week
-    const financialEntry = await this.getDefaultAliveOrDeadFinancialEntryByWeek(weekStart);
+    let financialEntry = await this.getDefaultAliveOrDeadFinancialEntryByWeek(weekStart);
+    
+    // If no financial entry for this week, use previous week's expenses
+    if (!financialEntry) {
+      const previousWeekStart = new Date(weekStart);
+      previousWeekStart.setDate(previousWeekStart.getDate() - 7);
+      financialEntry = await this.getDefaultAliveOrDeadFinancialEntryByWeek(previousWeekStart);
+    }
+    
     const operatingExpenses = financialEntry ? parseFloat(financialEntry.operatingExpenses) : 0;
     const depreciation = financialEntry ? parseFloat(financialEntry.depreciation || '0') : 0;
     const amortization = financialEntry ? parseFloat(financialEntry.amortization || '0') : 0;
@@ -8656,6 +8672,32 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(npsResponses)
       .orderBy(desc(npsResponses.createdAt));
+  }
+
+  // Default Alive or Dead Current Funding operations
+  async getDefaultAliveOrDeadCurrentFunding(): Promise<number> {
+    // Get the most recent snapshot's currentFunding, or default to 0
+    const [latest] = await db
+      .select()
+      .from(defaultAliveOrDeadEbitdaSnapshots)
+      .orderBy(desc(defaultAliveOrDeadEbitdaSnapshots.weekStartDate))
+      .limit(1);
+    
+    if (latest && latest.currentFunding) {
+      return parseFloat(latest.currentFunding);
+    }
+    return 0;
+  }
+
+  async updateDefaultAliveOrDeadCurrentFunding(amount: number): Promise<void> {
+    // Update all snapshots with the new current funding value
+    // This ensures consistency across all calculations
+    await db
+      .update(defaultAliveOrDeadEbitdaSnapshots)
+      .set({
+        currentFunding: amount.toString(),
+        updatedAt: new Date(),
+      });
   }
 }
 

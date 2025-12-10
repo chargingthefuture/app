@@ -30,7 +30,6 @@ type FinancialEntryFormValues = z.infer<typeof financialEntryFormSchema>;
 export default function DefaultAliveOrDeadDashboard() {
   const { isAdmin } = useAuth();
   const { toast } = useToast();
-  const [currentFunding, setCurrentFunding] = useState<string>("");
   const [weekStartDate, setWeekStartDate] = useState<string>(() => {
     // Default to current week's Saturday
     // Weeks start on Saturday and end on Friday
@@ -101,6 +100,13 @@ export default function DefaultAliveOrDeadDashboard() {
     enabled: isAdmin === true,
   });
 
+  const { data: currentFundingData, isLoading: fundingLoading } = useQuery<{ currentFunding: number }>({
+    queryKey: ["/api/default-alive-or-dead/current-funding"],
+    enabled: isAdmin === true,
+  });
+
+  const [fundingInput, setFundingInput] = useState<string>("");
+
   const createFinancialEntryMutation = useMutation({
     mutationFn: async (data: FinancialEntryFormValues) => {
       return apiRequest("POST", "/api/default-alive-or-dead/financial-entries", {
@@ -113,10 +119,14 @@ export default function DefaultAliveOrDeadDashboard() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/default-alive-or-dead/financial-entries"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/default-alive-or-dead/current-status"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/default-alive-or-dead/weekly-trends"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/default-alive-or-dead/ebitda-snapshots"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/default-alive-or-dead/week-comparison"] });
       financialEntryForm.reset();
       toast({
         title: "Financial Entry Created",
-        description: "Financial entry has been created successfully.",
+        description: "Financial entry has been created and EBITDA calculated automatically.",
       });
     },
     onError: (error: any) => {
@@ -128,27 +138,26 @@ export default function DefaultAliveOrDeadDashboard() {
     },
   });
 
-  const calculateMutation = useMutation({
-    mutationFn: async ({ weekStartDate, currentFunding }: { weekStartDate: string; currentFunding?: number }) => {
-      return apiRequest("POST", "/api/default-alive-or-dead/calculate-ebitda", {
-        weekStartDate,
-        currentFunding,
+  const updateFundingMutation = useMutation({
+    mutationFn: async (amount: number) => {
+      return apiRequest("PUT", "/api/default-alive-or-dead/current-funding", {
+        currentFunding: amount,
       });
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/default-alive-or-dead/current-funding"] });
       queryClient.invalidateQueries({ queryKey: ["/api/default-alive-or-dead/current-status"] });
       queryClient.invalidateQueries({ queryKey: ["/api/default-alive-or-dead/weekly-trends"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/default-alive-or-dead/ebitda-snapshots"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/default-alive-or-dead/week-comparison"] });
+      setFundingInput("");
       toast({
-        title: "EBITDA Calculated",
-        description: "EBITDA snapshot has been calculated and stored successfully.",
+        title: "Funding Updated",
+        description: "Current funding has been updated successfully.",
       });
     },
     onError: (error: any) => {
       toast({
         title: "Error",
-        description: error.message || "Failed to calculate EBITDA",
+        description: error.message || "Failed to update funding",
         variant: "destructive",
       });
     },
@@ -171,18 +180,25 @@ export default function DefaultAliveOrDeadDashboard() {
     );
   }
 
-  const handleCalculate = () => {
-    const funding = currentFunding ? parseFloat(currentFunding) : undefined;
-    if (funding !== undefined && (isNaN(funding) || funding < 0)) {
+  const handleUpdateFunding = () => {
+    const funding = fundingInput ? parseFloat(fundingInput) : 0;
+    if (isNaN(funding) || funding < 0) {
       toast({
         title: "Invalid Funding",
-        description: "Current funding must be a positive number",
+        description: "Current funding must be a non-negative number",
         variant: "destructive",
       });
       return;
     }
-    calculateMutation.mutate({ weekStartDate, currentFunding: funding });
+    updateFundingMutation.mutate(funding);
   };
+
+  // Initialize funding input when data loads
+  useEffect(() => {
+    if (currentFundingData && fundingInput === "") {
+      setFundingInput(currentFundingData.currentFunding.toString());
+    }
+  }, [currentFundingData]);
 
   const snapshot = currentStatus?.currentSnapshot;
   const isDefaultAlive = currentStatus?.isDefaultAlive ?? false;
@@ -438,12 +454,58 @@ export default function DefaultAliveOrDeadDashboard() {
         </CardContent>
       </Card>
 
+      {/* Current Funding */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg sm:text-xl">Current Funding</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Update your current available funding. This is used to determine Default Alive/Dead status. Default is $0.
+          </p>
+          {fundingLoading ? (
+            <p className="text-muted-foreground">Loading...</p>
+          ) : (
+            <>
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-medium">Current Funding:</p>
+                <p className="text-lg font-semibold">
+                  ${(currentFundingData?.currentFunding || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={fundingInput}
+                  onChange={(e) => setFundingInput(e.target.value)}
+                  placeholder="Enter new funding amount"
+                  data-testid="input-update-funding"
+                  className="flex-1"
+                />
+                <Button
+                  onClick={handleUpdateFunding}
+                  disabled={updateFundingMutation.isPending}
+                  data-testid="button-update-funding"
+                >
+                  {updateFundingMutation.isPending ? "Updating..." : "Update Funding"}
+                </Button>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Financial Entry Form */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg sm:text-xl">Enter Financial Data</CardTitle>
+          <CardTitle className="text-lg sm:text-xl">Enter Weekly Expenses</CardTitle>
         </CardHeader>
         <CardContent>
+          <p className="text-sm text-muted-foreground mb-4">
+            Enter expenses for the week. EBITDA will be calculated automatically. If you miss a week, the previous week's expenses will be used.
+          </p>
           <Form {...financialEntryForm}>
             <form
               onSubmit={financialEntryForm.handleSubmit((data) => createFinancialEntryMutation.mutate(data))}
@@ -557,55 +619,10 @@ export default function DefaultAliveOrDeadDashboard() {
                 className="w-full"
                 data-testid="button-submit-financial-entry"
               >
-                {createFinancialEntryMutation.isPending ? "Creating..." : "Create Financial Entry"}
+                {createFinancialEntryMutation.isPending ? "Creating & Calculating..." : "Submit Expenses & Calculate EBITDA"}
               </Button>
             </form>
           </Form>
-        </CardContent>
-      </Card>
-
-      {/* Calculate EBITDA */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg sm:text-xl">Calculate EBITDA</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            After entering financial data above, calculate EBITDA for a specific week. Revenue is automatically calculated from payments.
-          </p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="week-start-date">Week Start Date (Saturday)</Label>
-              <Input
-                id="week-start-date"
-                type="date"
-                value={weekStartDate}
-                onChange={(e) => setWeekStartDate(e.target.value)}
-                data-testid="input-week-start-date"
-              />
-            </div>
-            <div>
-              <Label htmlFor="current-funding">Current Funding (Optional)</Label>
-              <Input
-                id="current-funding"
-                type="number"
-                step="0.01"
-                min="0"
-                value={currentFunding}
-                onChange={(e) => setCurrentFunding(e.target.value)}
-                placeholder="Enter current funding"
-                data-testid="input-current-funding"
-              />
-            </div>
-          </div>
-          <Button
-            onClick={handleCalculate}
-            disabled={calculateMutation.isPending}
-            className="w-full"
-            data-testid="button-calculate-ebitda"
-          >
-            {calculateMutation.isPending ? "Calculating..." : "Calculate EBITDA"}
-          </Button>
         </CardContent>
       </Card>
 
