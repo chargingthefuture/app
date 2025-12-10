@@ -413,6 +413,9 @@ export default function DefaultAliveOrDeadDashboard() {
         <CardContent className="space-y-4">
           {snapshot ? (
             <>
+              <p className="text-xs text-muted-foreground mb-2">
+                Note: If expenses look incorrect, update the financial entry for this week to recalculate.
+              </p>
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground mb-1">Week of</p>

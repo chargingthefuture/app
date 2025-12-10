@@ -6267,8 +6267,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put('/api/default-alive-or-dead/financial-entries/:id', isAuthenticated, isAdmin, asyncHandler(async (req: any, res) => {
     try {
+      // Get the existing entry first to know which week to recalculate
+      const existingEntry = await storage.getDefaultAliveOrDeadFinancialEntry(req.params.id);
+      if (!existingEntry) {
+        return res.status(404).json({ message: "Financial entry not found" });
+      }
+
       const validatedData = validateWithZod(insertDefaultAliveOrDeadFinancialEntrySchema.partial(), req.body, 'Invalid financial entry data');
       const entry = await storage.updateDefaultAliveOrDeadFinancialEntry(req.params.id, validatedData);
+      
+      // Recalculate EBITDA for this week with updated expenses
+      // Use weekStartDate from updated entry if provided, otherwise use existing
+      const weekStartDate = validatedData.weekStartDate || existingEntry.weekStartDate;
+      await storage.calculateAndStoreEbitdaSnapshot(new Date(weekStartDate));
+      
       res.json(entry);
     } catch (error: any) {
       console.error("Error updating financial entry:", error);
