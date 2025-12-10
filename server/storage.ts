@@ -8160,16 +8160,31 @@ export class DatabaseStorage implements IStorage {
     let projectedCapitalNeeded: number | null = null;
     const weeksUntilProfitability: number | null = null;
 
-    if (growthRate !== null && growthRate > 0 && operatingExpenses > 0) {
-      // Project forward: revenue grows at growthRate per week, expenses stay constant
-      let projectedRevenue = revenue;
+    if (ebitda >= 0) {
+      // Already profitable - Default Alive
+      isDefaultAlive = true;
+      projectedProfitabilityDate = weekStart;
+      projectedCapitalNeeded = 0;
+    } else if (operatingExpenses > 0) {
+      // Calculate projection if we have expenses
+      let effectiveGrowthRate = growthRate;
+      
+      // If no growth rate available (not enough historical data), use a conservative default
+      // Default to 5% weekly growth as a conservative assumption
+      if (effectiveGrowthRate === null || effectiveGrowthRate <= 0) {
+        effectiveGrowthRate = 0.05; // 5% weekly growth as conservative default
+      }
+      
+      // Project forward with the growth rate
+      // Start with revenue (or 0.01 if revenue is 0 to avoid division issues)
+      let projectedRevenue = revenue > 0 ? revenue : 0.01;
       let weeks = 0;
       let cumulativeLoss = 0;
       const maxWeeks = 104; // 2 years max projection
 
       while (weeks < maxWeeks && projectedRevenue < operatingExpenses) {
         cumulativeLoss += operatingExpenses - projectedRevenue;
-        projectedRevenue = projectedRevenue * (1 + growthRate);
+        projectedRevenue = projectedRevenue * (1 + effectiveGrowthRate);
         weeks++;
       }
 
@@ -8185,12 +8200,15 @@ export class DatabaseStorage implements IStorage {
           // If no funding specified, assume Default Dead if we need capital
           isDefaultAlive = projectedCapitalNeeded <= 0;
         }
+      } else {
+        // If we couldn't reach profitability within max weeks,
+        // set a conservative capital needed estimate (6 months of expenses)
+        projectedCapitalNeeded = operatingExpenses * 26;
+        // Set a projected date far in the future (max weeks from now)
+        projectedProfitabilityDate = new Date(weekStart);
+        projectedProfitabilityDate.setDate(projectedProfitabilityDate.getDate() + (maxWeeks * 7));
+        isDefaultAlive = currentFunding !== undefined && currentFunding >= projectedCapitalNeeded;
       }
-    } else if (ebitda >= 0) {
-      // Already profitable - Default Alive
-      isDefaultAlive = true;
-      projectedProfitabilityDate = weekStart;
-      projectedCapitalNeeded = 0;
     }
 
     const snapshotData: InsertDefaultAliveOrDeadEbitdaSnapshot = {
@@ -8287,7 +8305,20 @@ export class DatabaseStorage implements IStorage {
       };
     }
 
-    const projectedProfitabilityDate = latest.projectedProfitabilityDate || null;
+    // Handle date conversion - Drizzle may return date as string or Date object
+    let projectedProfitabilityDate: Date | null = null;
+    if (latest.projectedProfitabilityDate) {
+      if (typeof latest.projectedProfitabilityDate === 'string') {
+        projectedProfitabilityDate = new Date(latest.projectedProfitabilityDate);
+      } else if (latest.projectedProfitabilityDate instanceof Date) {
+        projectedProfitabilityDate = latest.projectedProfitabilityDate;
+      }
+      // Validate the date
+      if (isNaN(projectedProfitabilityDate.getTime())) {
+        projectedProfitabilityDate = null;
+      }
+    }
+    
     const projectedCapitalNeeded = latest.projectedCapitalNeeded ? parseFloat(latest.projectedCapitalNeeded) : null;
     
     let weeksUntilProfitability: number | null = null;
