@@ -95,11 +95,6 @@ export default function DefaultAliveOrDeadDashboard() {
     enabled: isAdmin === true,
   });
 
-  const { data: weeklyTrends, isLoading: trendsLoading } = useQuery<DefaultAliveOrDeadEbitdaSnapshot[]>({
-    queryKey: ["/api/default-alive-or-dead/weekly-trends?weeks=12"],
-    enabled: isAdmin === true,
-  });
-
   const { data: currentFundingData, isLoading: fundingLoading } = useQuery<{ currentFunding: number }>({
     queryKey: ["/api/default-alive-or-dead/current-funding"],
     enabled: isAdmin === true,
@@ -122,23 +117,11 @@ export default function DefaultAliveOrDeadDashboard() {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["/api/default-alive-or-dead/financial-entries"] }),
         queryClient.invalidateQueries({ queryKey: ["/api/default-alive-or-dead/current-status"] }),
-        queryClient.invalidateQueries({ 
-          queryKey: ["/api/default-alive-or-dead/weekly-trends"],
-          exact: false 
-        }),
         queryClient.invalidateQueries({ queryKey: ["/api/default-alive-or-dead/ebitda-snapshots"] }),
         queryClient.invalidateQueries({ queryKey: ["/api/default-alive-or-dead/week-comparison"] }),
       ]);
-      // Explicitly refetch queries to ensure they update
-      await Promise.all([
-        queryClient.refetchQueries({ queryKey: ["/api/default-alive-or-dead/current-status"] }),
-        queryClient.refetchQueries({ 
-          predicate: (query) => {
-            const key = query.queryKey[0]?.toString();
-            return key ? key.startsWith("/api/default-alive-or-dead/weekly-trends") : false;
-          }
-        }),
-      ]);
+      // Explicitly refetch the status query to ensure it updates
+      await queryClient.refetchQueries({ queryKey: ["/api/default-alive-or-dead/current-status"] });
       financialEntryForm.reset();
       toast({
         title: "Financial Entry Created",
@@ -165,10 +148,6 @@ export default function DefaultAliveOrDeadDashboard() {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["/api/default-alive-or-dead/current-funding"] }),
         queryClient.invalidateQueries({ queryKey: ["/api/default-alive-or-dead/current-status"] }),
-        queryClient.invalidateQueries({ 
-          queryKey: ["/api/default-alive-or-dead/weekly-trends"],
-          exact: false 
-        }),
       ]);
       
       // Recalculate the latest snapshot with the new funding
@@ -185,16 +164,8 @@ export default function DefaultAliveOrDeadDashboard() {
         }
       }
       
-      // Explicitly refetch queries to ensure they update
-      await Promise.all([
-        queryClient.refetchQueries({ queryKey: ["/api/default-alive-or-dead/current-status"] }),
-        queryClient.refetchQueries({ 
-          predicate: (query) => {
-            const key = query.queryKey[0]?.toString();
-            return key ? key.startsWith("/api/default-alive-or-dead/weekly-trends") : false;
-          }
-        }),
-      ]);
+      // Explicitly refetch the status query to ensure it updates
+      await queryClient.refetchQueries({ queryKey: ["/api/default-alive-or-dead/current-status"] });
       setFundingInput("");
       toast({
         title: "Funding Updated",
@@ -617,62 +588,6 @@ export default function DefaultAliveOrDeadDashboard() {
               </Button>
             </form>
           </Form>
-        </CardContent>
-      </Card>
-
-      {/* Weekly Trends */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg sm:text-xl">Weekly Trends</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {trendsLoading ? (
-            <p className="text-muted-foreground">Loading trends...</p>
-          ) : weeklyTrends && weeklyTrends.length > 0 ? (
-            <div className="space-y-4">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b">
-                      <th className="text-left p-2">Week</th>
-                      <th className="text-right p-2">Revenue</th>
-                      <th className="text-right p-2">Expenses</th>
-                      <th className="text-right p-2">EBITDA</th>
-                      <th className="text-center p-2">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {weeklyTrends.map((snapshot) => {
-                      const ebitdaValue = parseFloat(snapshot.ebitda);
-                      return (
-                        <tr key={snapshot.id} className="border-b">
-                          <td className="p-2">
-                            {format(new Date(snapshot.weekStartDate), "MMM d, yyyy")}
-                          </td>
-                          <td className="text-right p-2">
-                            ${parseFloat(snapshot.revenue).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </td>
-                          <td className="text-right p-2">
-                            ${parseFloat(snapshot.operatingExpenses).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </td>
-                          <td className={`text-right p-2 font-medium ${ebitdaValue >= 0 ? "text-green-600" : "text-red-600"}`}>
-                            ${ebitdaValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </td>
-                          <td className="text-center p-2">
-                            <Badge variant={snapshot.isDefaultAlive ? "default" : "destructive"} className="text-xs">
-                              {snapshot.isDefaultAlive ? "Alive" : "Dead"}
-                            </Badge>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          ) : (
-            <p className="text-muted-foreground">No trend data available. Calculate EBITDA for multiple weeks to see trends.</p>
-          )}
         </CardContent>
       </Card>
     </div>
