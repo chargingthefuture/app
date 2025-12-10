@@ -36,7 +36,9 @@ export default function DefaultAliveOrDeadDashboard() {
     // Default to current week's Saturday
     const today = new Date();
     const dayOfWeek = today.getDay();
-    const daysToSaturday = dayOfWeek === 6 ? 0 : (6 - dayOfWeek) % 7;
+    // Calculate days to subtract to get to Saturday
+    // If Saturday (6), subtract 0 days. If Sunday (0), subtract 1 day. If Monday (1), subtract 2 days, etc.
+    const daysToSaturday = dayOfWeek === 6 ? 0 : dayOfWeek + 1;
     const saturday = new Date(today);
     saturday.setDate(saturday.getDate() - daysToSaturday);
     saturday.setHours(0, 0, 0, 0);
@@ -74,7 +76,9 @@ export default function DefaultAliveOrDeadDashboard() {
     // Default to current week's Saturday
     const today = new Date();
     const dayOfWeek = today.getDay();
-    const daysToSaturday = dayOfWeek === 6 ? 0 : (6 - dayOfWeek) % 7;
+    // Calculate days to subtract to get to Saturday
+    // If Saturday (6), subtract 0 days. If Sunday (0), subtract 1 day. If Monday (1), subtract 2 days, etc.
+    const daysToSaturday = dayOfWeek === 6 ? 0 : dayOfWeek + 1;
     const saturday = new Date(today);
     saturday.setDate(saturday.getDate() - daysToSaturday);
     saturday.setHours(0, 0, 0, 0);
