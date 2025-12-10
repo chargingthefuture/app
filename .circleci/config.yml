@@ -45,7 +45,10 @@ jobs:
   e2e-tests:
     docker:
       - image: cimg/node:20.19.0
-    resource_class: medium
+    # Use large resource class for faster execution
+    # Note: If you're on the free tier and don't have access to 'large', 
+    # change this to 'medium' and increase PLAYWRIGHT_WORKERS to 4-5
+    resource_class: large
     steps:
       - checkout
       - restore_cache:
@@ -63,9 +66,11 @@ jobs:
       - run:
           name: Run E2E tests
           command: npm run test:e2e
-          no_output_timeout: 30m
+          no_output_timeout: 45m
           environment:
             CI: true
+            # Increase workers for parallel execution (2-3 workers for better performance)
+            PLAYWRIGHT_WORKERS: 3
       - run:
           name: Verify test results exist
           command: |

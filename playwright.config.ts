@@ -9,10 +9,12 @@ export default defineConfig({
   fullyParallel: true,
   /* Fail the build on CI if you accidentally left test.only in the source code. */
   forbidOnly: !!process.env.CI,
-  /* Retry on CI only */
-  retries: process.env.CI ? 2 : 0,
-  /* Opt out of parallel tests on CI. */
-  workers: process.env.CI ? 1 : undefined,
+  /* Retry on CI only - reduced to 1 to prevent timeout */
+  retries: process.env.CI ? 1 : 0,
+  /* Run tests in parallel on CI - use environment variable or default to 2 */
+  workers: process.env.PLAYWRIGHT_WORKERS 
+    ? parseInt(process.env.PLAYWRIGHT_WORKERS, 10) 
+    : process.env.CI ? 2 : undefined,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: [
     ['html'],
@@ -24,6 +26,17 @@ export default defineConfig({
     baseURL: process.env.PLAYWRIGHT_TEST_BASE_URL || 'http://localhost:5000',
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
+    /* Increase timeout for CI environments where things may be slower */
+    actionTimeout: process.env.CI ? 30000 : 10000,
+    navigationTimeout: process.env.CI ? 60000 : 30000,
+  },
+  
+  /* Global timeout for each test */
+  timeout: process.env.CI ? 120000 : 30000,
+  
+  /* Expect timeout */
+  expect: {
+    timeout: process.env.CI ? 10000 : 5000,
   },
 
   /* Configure projects for major browsers */
@@ -48,7 +61,7 @@ export default defineConfig({
     command: 'npm run dev',
     url: 'http://localhost:5000',
     reuseExistingServer: !process.env.CI,
-    timeout: 120 * 1000,
+    timeout: process.env.CI ? 180 * 1000 : 120 * 1000, // 3 minutes for CI, 2 minutes locally
   },
 });
 
