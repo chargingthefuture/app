@@ -1545,9 +1545,10 @@ export class DatabaseStorage implements IStorage {
   private getWeekStart(date: Date): Date {
     const d = new Date(date);
     const day = d.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
-    // Calculate days to subtract to get to Saturday
-    // If Saturday (6), subtract 0 days. If Sunday (0), subtract 1 day. If Monday (1), subtract 2 days, etc.
-    const daysToSubtract = day === 6 ? 0 : day + 1;
+    // Calculate days to subtract to get to the most recent Saturday
+    // Weeks start on Saturday and end on Friday
+    // Saturday (6): 0 days, Sunday (0): 1 day, Monday (1): 2 days, ..., Friday (5): 6 days
+    const daysToSubtract = day === 6 ? 0 : (day === 0 ? 1 : day + 1);
     const weekStart = new Date(d);
     weekStart.setDate(d.getDate() - daysToSubtract);
     weekStart.setHours(0, 0, 0, 0);

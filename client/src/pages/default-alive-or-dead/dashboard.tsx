@@ -33,11 +33,12 @@ export default function DefaultAliveOrDeadDashboard() {
   const [currentFunding, setCurrentFunding] = useState<string>("");
   const [weekStartDate, setWeekStartDate] = useState<string>(() => {
     // Default to current week's Saturday
+    // Weeks start on Saturday and end on Friday
     const today = new Date();
-    const dayOfWeek = today.getDay();
-    // Calculate days to subtract to get to Saturday
-    // If Saturday (6), subtract 0 days. If Sunday (0), subtract 1 day. If Monday (1), subtract 2 days, etc.
-    const daysToSaturday = dayOfWeek === 6 ? 0 : dayOfWeek + 1;
+    const dayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+    // Calculate days to subtract to get to the most recent Saturday
+    // Saturday (6): 0 days, Sunday (0): 1 day, Monday (1): 2 days, ..., Friday (5): 6 days
+    const daysToSaturday = dayOfWeek === 6 ? 0 : (dayOfWeek === 0 ? 1 : dayOfWeek + 1);
     const saturday = new Date(today);
     saturday.setDate(saturday.getDate() - daysToSaturday);
     saturday.setHours(0, 0, 0, 0);
@@ -73,11 +74,12 @@ export default function DefaultAliveOrDeadDashboard() {
 
   const [selectedWeek, setSelectedWeek] = useState<string>(() => {
     // Default to current week's Saturday
+    // Weeks start on Saturday and end on Friday
     const today = new Date();
-    const dayOfWeek = today.getDay();
-    // Calculate days to subtract to get to Saturday
-    // If Saturday (6), subtract 0 days. If Sunday (0), subtract 1 day. If Monday (1), subtract 2 days, etc.
-    const daysToSaturday = dayOfWeek === 6 ? 0 : dayOfWeek + 1;
+    const dayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+    // Calculate days to subtract to get to the most recent Saturday
+    // Saturday (6): 0 days, Sunday (0): 1 day, Monday (1): 2 days, ..., Friday (5): 6 days
+    const daysToSaturday = dayOfWeek === 6 ? 0 : (dayOfWeek === 0 ? 1 : dayOfWeek + 1);
     const saturday = new Date(today);
     saturday.setDate(saturday.getDate() - daysToSaturday);
     saturday.setHours(0, 0, 0, 0);
@@ -300,7 +302,7 @@ export default function DefaultAliveOrDeadDashboard() {
                 {/* Current Week */}
                 <div>
                   <h3 className="font-semibold mb-2">
-                    Current Week ({format(new Date(weekComparison.currentWeek.weekStart), "MMM d")} - {format(new Date(weekComparison.currentWeek.weekEnd), "MMM d, yyyy")})
+                    Current Week: {format(new Date(weekComparison.currentWeek.weekStart), "MMM d")} - {format(new Date(weekComparison.currentWeek.weekEnd), "MMM d, yyyy")}
                   </h3>
                   {weekComparison.currentWeek.snapshot ? (
                     <div className="space-y-2">
@@ -331,7 +333,7 @@ export default function DefaultAliveOrDeadDashboard() {
                 {/* Previous Week */}
                 <div>
                   <h3 className="font-semibold mb-2">
-                    Previous Week ({format(new Date(weekComparison.previousWeek.weekStart), "MMM d")} - {format(new Date(weekComparison.previousWeek.weekEnd), "MMM d, yyyy")})
+                    Previous Week: {format(new Date(weekComparison.previousWeek.weekStart), "MMM d")} - {format(new Date(weekComparison.previousWeek.weekEnd), "MMM d, yyyy")}
                   </h3>
                   {weekComparison.previousWeek.snapshot ? (
                     <div className="space-y-2">
