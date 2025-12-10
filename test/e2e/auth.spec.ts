@@ -8,10 +8,18 @@ test.describe('Authentication Flow', () => {
   test('should redirect unauthenticated users to landing page', async ({ page }) => {
     await page.goto('/apps/supportmatch');
     
-    // Wait for navigation to complete (redirect happens asynchronously)
-    // The redirect should go to "/" (root) which shows the landing page
-    // Use waitForURL with a pattern that matches root or landing
-    await page.waitForURL(/\/$|\/landing/, { timeout: 10000 });
+    // Wait for redirect to happen - Clerk needs to load first, then ProtectedRoute redirects
+    // The redirect goes to "/" (root) which shows the landing page for unauthenticated users
+    // Use waitForFunction to poll for URL change, which is more reliable than waitForURL
+    // when there's async loading happening
+    await page.waitForFunction(
+      () => {
+        const url = window.location.href;
+        // Check if we're on root or landing page (redirect happened)
+        return /\/$|\/landing/.test(url) && !url.includes('/apps/supportmatch');
+      },
+      { timeout: 15000 }
+    );
     
     // Verify we're not on the protected route anymore
     const url = page.url();

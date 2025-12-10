@@ -88,7 +88,7 @@ test.describe('TrustTransport Ride Requests', () => {
     await page.goto('/apps/trusttransport/browse');
     
     // Click claim button on first request
-    await page.click('[data-testid="button-claim-request"]').first();
+    await page.locator('[data-testid="button-claim-request"]').first().click();
     
     // Fill driver message
     await page.fill('[data-testid="input-driverMessage"]', 'I can help');

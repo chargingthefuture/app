@@ -129,7 +129,7 @@ test.describe('SocketRelay Requests', () => {
     });
     
     // Click fulfill button on first request
-    await page.click('[data-testid^="button-fulfill-request-"]').first();
+    await page.locator('[data-testid^="button-fulfill-request-"]').first().click();
     
     // Should navigate to chat or show success
     await page.waitForTimeout(2000);

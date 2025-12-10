@@ -188,38 +188,6 @@ export default function DefaultAliveOrDeadDashboard() {
     },
   });
 
-  const recalculateEbitdaMutation = useMutation({
-    mutationFn: async (weekStartDate: string) => {
-      // Get current funding to include in recalculation
-      const currentFunding = currentFundingData?.currentFunding || 0;
-      return apiRequest("POST", "/api/default-alive-or-dead/calculate-ebitda", {
-        weekStartDate,
-        currentFunding,
-      });
-    },
-    onSuccess: async () => {
-      // Invalidate and refetch all related queries
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["/api/default-alive-or-dead/current-status"] }),
-        queryClient.invalidateQueries({ queryKey: ["/api/default-alive-or-dead/weekly-trends"] }),
-        queryClient.invalidateQueries({ queryKey: ["/api/default-alive-or-dead/week-comparison"] }),
-        queryClient.invalidateQueries({ queryKey: ["/api/default-alive-or-dead/ebitda-snapshots"] }),
-      ]);
-      // Explicitly refetch the status query to ensure it updates
-      await queryClient.refetchQueries({ queryKey: ["/api/default-alive-or-dead/current-status"] });
-      toast({
-        title: "EBITDA Recalculated",
-        description: "EBITDA snapshot has been recalculated successfully.",
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to recalculate EBITDA",
-        variant: "destructive",
-      });
-    },
-  });
 
   if (!isAdmin) {
     return (
@@ -260,11 +228,6 @@ export default function DefaultAliveOrDeadDashboard() {
 
   const snapshot = currentStatus?.currentSnapshot;
   const isDefaultAlive = currentStatus?.isDefaultAlive ?? false;
-  const ebitda = snapshot ? parseFloat(snapshot.ebitda) : 0;
-  const revenue = snapshot ? parseFloat(snapshot.revenue) : 0;
-  const operatingExpenses = snapshot ? parseFloat(snapshot.operatingExpenses) : 0;
-  const depreciation = snapshot ? parseFloat(snapshot.depreciation) : 0;
-  const amortization = snapshot ? parseFloat(snapshot.amortization) : 0;
 
   return (
     <div className="p-4 sm:p-6 md:p-8 space-y-6 sm:space-y-8">
@@ -459,71 +422,6 @@ export default function DefaultAliveOrDeadDashboard() {
             </>
           ) : (
             <p className="text-muted-foreground">No comparison data available. Calculate EBITDA for multiple weeks to see comparisons.</p>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Current EBITDA */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-lg sm:text-xl">Latest EBITDA Snapshot</CardTitle>
-            {snapshot && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => recalculateEbitdaMutation.mutate(snapshot.weekStartDate)}
-                disabled={recalculateEbitdaMutation.isPending}
-                data-testid="button-recalculate-ebitda"
-              >
-                {recalculateEbitdaMutation.isPending ? "Recalculating..." : "Recalculate"}
-              </Button>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {snapshot ? (
-            <>
-              <p className="text-xs text-muted-foreground mb-2">
-                Note: If expenses look incorrect, update the financial entry for this week to recalculate, or click Recalculate above.
-              </p>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground mb-1">Week of</p>
-                  <p className="text-lg font-semibold">
-                    {format(new Date(snapshot.weekStartDate), "MMM d, yyyy")}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm text-muted-foreground mb-1">EBITDA</p>
-                  <p className={`text-2xl font-bold ${ebitda >= 0 ? "text-green-600" : "text-red-600"}`}>
-                    ${ebitda.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </p>
-                </div>
-              </div>
-
-              {/* Breakdown */}
-              <div className="border-t pt-4 space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Revenue</span>
-                  <span className="font-medium">${revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Operating Expenses</span>
-                  <span className="font-medium text-red-600">-${operatingExpenses.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Depreciation</span>
-                  <span className="font-medium text-green-600">+${depreciation.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Amortization</span>
-                  <span className="font-medium text-green-600">+${amortization.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                </div>
-              </div>
-            </>
-          ) : (
-            <p className="text-muted-foreground">No EBITDA data available. Calculate EBITDA to see current values.</p>
           )}
         </CardContent>
       </Card>
