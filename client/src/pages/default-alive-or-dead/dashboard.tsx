@@ -117,12 +117,17 @@ export default function DefaultAliveOrDeadDashboard() {
         notes: data.notes || null,
       });
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/default-alive-or-dead/financial-entries"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/default-alive-or-dead/current-status"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/default-alive-or-dead/weekly-trends"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/default-alive-or-dead/ebitda-snapshots"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/default-alive-or-dead/week-comparison"] });
+    onSuccess: async () => {
+      // Invalidate all related queries
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["/api/default-alive-or-dead/financial-entries"] }),
+        queryClient.invalidateQueries({ queryKey: ["/api/default-alive-or-dead/current-status"] }),
+        queryClient.invalidateQueries({ queryKey: ["/api/default-alive-or-dead/weekly-trends"] }),
+        queryClient.invalidateQueries({ queryKey: ["/api/default-alive-or-dead/ebitda-snapshots"] }),
+        queryClient.invalidateQueries({ queryKey: ["/api/default-alive-or-dead/week-comparison"] }),
+      ]);
+      // Explicitly refetch the status query to ensure it updates
+      await queryClient.refetchQueries({ queryKey: ["/api/default-alive-or-dead/current-status"] });
       financialEntryForm.reset();
       toast({
         title: "Financial Entry Created",
@@ -144,20 +149,73 @@ export default function DefaultAliveOrDeadDashboard() {
         currentFunding: amount,
       });
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/default-alive-or-dead/current-funding"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/default-alive-or-dead/current-status"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/default-alive-or-dead/weekly-trends"] });
+    onSuccess: async (_, amount) => {
+      // Invalidate all related queries
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["/api/default-alive-or-dead/current-funding"] }),
+        queryClient.invalidateQueries({ queryKey: ["/api/default-alive-or-dead/current-status"] }),
+        queryClient.invalidateQueries({ queryKey: ["/api/default-alive-or-dead/weekly-trends"] }),
+      ]);
+      
+      // Recalculate the latest snapshot with the new funding
+      // Get the current snapshot's week to recalculate
+      const currentSnapshot = currentStatus?.currentSnapshot;
+      if (currentSnapshot) {
+        try {
+          await apiRequest("POST", "/api/default-alive-or-dead/calculate-ebitda", {
+            weekStartDate: currentSnapshot.weekStartDate,
+            currentFunding: amount,
+          });
+        } catch (error) {
+          console.error("Failed to recalculate snapshot after funding update:", error);
+        }
+      }
+      
+      // Explicitly refetch the status query to ensure it updates
+      await queryClient.refetchQueries({ queryKey: ["/api/default-alive-or-dead/current-status"] });
       setFundingInput("");
       toast({
         title: "Funding Updated",
-        description: "Current funding has been updated successfully.",
+        description: "Current funding has been updated and EBITDA recalculated.",
       });
     },
     onError: (error: any) => {
       toast({
         title: "Error",
         description: error.message || "Failed to update funding",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const recalculateEbitdaMutation = useMutation({
+    mutationFn: async (weekStartDate: string) => {
+      // Get current funding to include in recalculation
+      const currentFunding = currentFundingData?.currentFunding || 0;
+      return apiRequest("POST", "/api/default-alive-or-dead/calculate-ebitda", {
+        weekStartDate,
+        currentFunding,
+      });
+    },
+    onSuccess: async () => {
+      // Invalidate and refetch all related queries
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["/api/default-alive-or-dead/current-status"] }),
+        queryClient.invalidateQueries({ queryKey: ["/api/default-alive-or-dead/weekly-trends"] }),
+        queryClient.invalidateQueries({ queryKey: ["/api/default-alive-or-dead/week-comparison"] }),
+        queryClient.invalidateQueries({ queryKey: ["/api/default-alive-or-dead/ebitda-snapshots"] }),
+      ]);
+      // Explicitly refetch the status query to ensure it updates
+      await queryClient.refetchQueries({ queryKey: ["/api/default-alive-or-dead/current-status"] });
+      toast({
+        title: "EBITDA Recalculated",
+        description: "EBITDA snapshot has been recalculated successfully.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to recalculate EBITDA",
         variant: "destructive",
       });
     },
@@ -408,13 +466,26 @@ export default function DefaultAliveOrDeadDashboard() {
       {/* Current EBITDA */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg sm:text-xl">Latest EBITDA Snapshot</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg sm:text-xl">Latest EBITDA Snapshot</CardTitle>
+            {snapshot && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => recalculateEbitdaMutation.mutate(snapshot.weekStartDate)}
+                disabled={recalculateEbitdaMutation.isPending}
+                data-testid="button-recalculate-ebitda"
+              >
+                {recalculateEbitdaMutation.isPending ? "Recalculating..." : "Recalculate"}
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           {snapshot ? (
             <>
               <p className="text-xs text-muted-foreground mb-2">
-                Note: If expenses look incorrect, update the financial entry for this week to recalculate.
+                Note: If expenses look incorrect, update the financial entry for this week to recalculate, or click Recalculate above.
               </p>
               <div className="flex items-center justify-between">
                 <div>
